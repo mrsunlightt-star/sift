@@ -209,7 +209,9 @@ public final class AppEnvironment: ObservableObject {
         }
         preferences = await settings.current()
         authorizedLocations = preferences.authorizedLocations
-        // Reopen the remainder: the removed bookmark's access must be dropped.
+        // Release every open access before reopening the remainder: otherwise the
+        // removed location's security scope stays open for the process lifetime.
+        await authorization.releaseAll()
         restoredAuthorizedURLs = await authorization.restore(preferences.authorizedLocations)
     }
 
