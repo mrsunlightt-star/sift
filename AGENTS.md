@@ -95,6 +95,20 @@ These are product promises, not implementation details. Each has tests behind it
     `RustCore/crates/sift-rules/src/lib.rs` is the source; the Swift list is
     generated from it. `Scripts/verify.sh` fails when the generated copy is stale,
     and both test suites assert every entry on the shared list is refused.
+15. **System diagnostics widen what the app can see, never what it may remove.**
+    A `StorageFinding` is not a cleanup item: it carries no selection state, no
+    risk level and no route into the cleanup pipeline, and no function in
+    `Core/Diagnostics` produces anything a scan consumes. The diagnostic engine
+    applies the protection list itself, so a protected location may be measured
+    and explained but can never be `cleanable` or carry a Trash remediation —
+    protection removes the deletion path and nothing else, which is what keeps a
+    protected index's rebuild advice intact.
+16. **Diagnostics only read.** The only programs the app runs are the two status
+    queries in `Core/Diagnostics/SystemQuery.swift`: `mdutil -s` and
+    `tmutil listlocalsnapshots`, by absolute path with fixed arguments and no
+    shell, and never anything that changes state. A query that fails, times out
+    or is refused is reported as unknown or as an incomplete result, never as a
+    finding: an answer that was not given must not be invented.
 
 ## Layout notes
 
@@ -108,3 +122,8 @@ These are product promises, not implementation details. Each has tests behind it
 - `Core/Rules/ProtectedPaths.swift` is generated (`Scripts/generate-protection.py`)
   from the Rust constants; `Core/Rules/RuleEngine.swift` reads it and restates
   none of it.
+- `Core/Diagnostics/` is the read-only half of the product: providers that report
+  what occupies space, an engine that applies protection and aggregates coverage,
+  and a measurer of its own (`DiagnosticMeasurement.swift`) rather than
+  `FileWalker`, whose job is producing cleanup candidates and which therefore
+  refuses the protected locations the diagnostics exist to explain.

@@ -80,6 +80,7 @@ final class Harness: @unchecked Sendable {
         await selectionTests()
         await scanPolicyTests()
         await authorizationTests()
+        await diagnosticsTests()
         await reportAccuracyTests()
         await productionEngineTests()
 
@@ -1281,6 +1282,215 @@ final class Harness: @unchecked Sendable {
         }
     }
 
+    // MARK: - System space diagnostics
+
+    private func diagnosticsTests() async {
+        await group("System space diagnostics") {
+            let fixture = TempFixture(tag: "diagnostics")
+            defer { fixture.cleanup() }
+            fixture.write("Library/Caches/com.example.app/blob.bin", bytes: 4096)
+            fixture.write("Library/Logs/old.log", bytes: 8192)
+            fixture.write("Library/Developer/Xcode/DerivedData/Project-abc/Index.noindex/data/f.bin", bytes: 16384)
+            fixture.write("usr/lib.bin", bytes: 2048)
+
+            let context = StorageDiagnosticContext(
+                roots: [DiagnosticRoot(url: fixture.root, kind: .volume)],
+                homeDirectory: fixture.root
+            )
+
+            // Measurement, observed through a provider: both sizes are read from
+            // the file system, and a symlink is not measured as data.
+            let batch = await VolumeSpaceProvider().analyze(context)
+            let library = batch.findings.first { $0.displayName == "Library" }
+            equal(library?.fileCount, 3, "every file inside a child is counted")
+            equal(library?.logicalBytes, 28672, "the logical size is the sum of the files")
+            check((library?.allocatedBytes ?? 0) > 0, "the allocated size is read from the file system")
+            equal(batch.volumes.count, 1, "the volume totals are reported")
+            check(batch.findings.allSatisfy { $0.status == .unknown }, "the volume provider does not judge")
+
+            let outside = TempFixture(tag: "diagnostics-outside")
+            defer { outside.cleanup() }
+            outside.write("secret.bin", bytes: 65536)
+            _ = fixture.symlink(to: outside.root, name: "link")
+            let afterLink = await VolumeSpaceProvider().analyze(context)
+            equal(
+                afterLink.findings.map(\.displayName).sorted(),
+                batch.findings.map(\.displayName).sorted(),
+                "a symlink at the volume root is not measured"
+            )
+
+            let bounded = await VolumeSpaceProvider().analyze(
+                StorageDiagnosticContext(
+                    roots: [DiagnosticRoot(url: fixture.root, kind: .volume)],
+                    homeDirectory: fixture.root,
+                    measurementBudget: 1
+                )
+            )
+            check(
+                bounded.findings.first { $0.displayName == "Library" }?.isApproximate == true,
+                "a measurement that ran out of budget says its size is an estimate"
+            )
+            equal(bounded.coverage, .partial, "and the run reports a lower bound rather than a total")
+
+            let rules = RuleEngine(rules: RuleEngine.builtInRules, homeDirectory: fixture.root)
+
+            func finding(_ path: String, _ status: StorageFindingStatus, _ remediation: StorageRemediation) -> StorageFinding {
+                StorageFinding(
+                    providerID: "stub",
+                    path: URL(fileURLWithPath: path),
+                    displayName: (path as NSString).lastPathComponent,
+                    category: .unknown,
+                    status: status,
+                    allocatedBytes: 1024,
+                    explanationKey: .diagnosticsExplanationVolumeChild,
+                    remediation: remediation
+                )
+            }
+
+            // Protection removes the deletion path and nothing else. Asserted
+            // through a run, because a run is the only way a finding travels.
+            let enforced = await StorageDiagnosticEngine(
+                providers: [
+                    SelfTestDiagnosticProvider(
+                        findings: [
+                            finding("\(fixture.root.path)/Library/Mail/inbox.emlx", .cleanable, .trash),
+                            StorageFinding(
+                                providerID: "stub",
+                                path: URL(fileURLWithPath: "/System/Volumes/Data/.Spotlight-V100"),
+                                displayName: ".Spotlight-V100",
+                                category: .spotlightIndex,
+                                status: .rebuildable,
+                                allocatedBytes: 2048,
+                                explanationKey: .diagnosticsExplanationSpotlightIndexed,
+                                remediation: .rebuild(.spotlight)
+                            ),
+                        ]
+                    )
+                ]
+            ).analyze(
+                roots: [DiagnosticRoot(url: fixture.root, kind: .volume)],
+                homeDirectory: fixture.root,
+                rules: rules
+            )
+            let protectedMail = enforced.findings.first { $0.displayName == "inbox.emlx" }
+            equal(protectedMail?.status, .protected, "a protected path is never cleanable")
+            check(protectedMail?.remediation != .trash, "a protected path keeps no Trash action")
+            equal(
+                enforced.findings.first { $0.displayName == ".Spotlight-V100" }?.remediation,
+                .rebuild(.spotlight),
+                "protection keeps the rebuild path a protected index needs"
+            )
+
+            // One finding per location, and the specific statement wins.
+            let collision = await StorageDiagnosticEngine(
+                providers: [
+                    SelfTestDiagnosticProvider(
+                        findings: [
+                            finding("/v/.Spotlight-V100", .unknown, .inspectOnly),
+                            StorageFinding(
+                                providerID: "spotlight",
+                                path: URL(fileURLWithPath: "/v/.Spotlight-V100"),
+                                displayName: ".Spotlight-V100",
+                                category: .spotlightIndex,
+                                status: .rebuildable,
+                                allocatedBytes: 100,
+                                explanationKey: .diagnosticsExplanationSpotlightIndexed,
+                                remediation: .rebuild(.spotlight)
+                            ),
+                        ]
+                    )
+                ]
+            ).analyze(
+                roots: [DiagnosticRoot(url: fixture.root, kind: .volume)],
+                homeDirectory: fixture.root,
+                rules: rules
+            )
+            equal(
+                collision.findings.map(\.category),
+                [.spotlightIndex],
+                "the more specific finding replaces the general one"
+            )
+
+            equal(
+                DiagnosticCoverage.combining([.complete, .partial]),
+                .partial,
+                "coverage takes the most restrictive answer"
+            )
+            equal(
+                DiagnosticCoverage.combining([.partial, .permissionDenied]),
+                .permissionDenied,
+                "a permission problem outranks a partial result"
+            )
+
+            // The providers that run by default discover and explain. None of them
+            // offers a removal, which is what keeps the two modes apart.
+            let report = await StorageDiagnosticEngine().analyze(
+                roots: [DiagnosticRoot(url: fixture.root, kind: .volume)],
+                homeDirectory: fixture.root,
+                rules: rules
+            )
+            check(report.providerCount > 0, "the standard providers run")
+            check(report.cleanableFindings.isEmpty, "no provider offers removal on its own")
+            check(report.findings.allSatisfy { $0.remediation != .trash }, "and none suggests the Trash")
+            check(
+                report.findings.contains { $0.category == .developerIndex && $0.status == .rebuildable },
+                "an Xcode index is reported as rebuildable"
+            )
+            check(
+                report.findings.map(\.allocatedBytes) == report.findings.map(\.allocatedBytes).sorted(by: >),
+                "findings are listed largest first"
+            )
+            check(
+                report.categoryTotals.map(\.bytes) == report.categoryTotals.map(\.bytes).sorted(by: >),
+                "category totals are ordered by size"
+            )
+            check(!report.isComplete || report.skips.isEmpty, "a complete result has nothing skipped")
+
+            // A refused system query is not an answer: the report says it is
+            // partial rather than claiming the volume holds no snapshots.
+            let refused = await APFSSnapshotProvider().analyze(
+                StorageDiagnosticContext(
+                    roots: [DiagnosticRoot(url: URL(fileURLWithPath: "/nonexistent-volume"), kind: .volume)],
+                    homeDirectory: fixture.root
+                )
+            )
+            equal(refused.coverage, .partial, "a refused snapshot query makes the report partial")
+            check(refused.findings.isEmpty, "and invents no finding for it")
+
+            // A Spotlight store is reported whether or not its size can be read,
+            // because silence would read as "there is no index".
+            let store = TempFixture(tag: "diagnostics-spotlight")
+            defer { store.cleanup() }
+            store.write("\(SpotlightDiagnosticProvider.storeName)/store.db", bytes: 4096)
+            let storeBatch = await SpotlightDiagnosticProvider().analyze(
+                StorageDiagnosticContext(
+                    roots: [DiagnosticRoot(url: store.root, kind: .volume)],
+                    homeDirectory: fixture.root
+                )
+            )
+            equal(storeBatch.findings.count, 1, "a volume store is reported")
+            equal(storeBatch.findings.first?.status, .rebuildable, "and it is rebuildable, not cleanable")
+            equal(
+                storeBatch.findings.first?.remediation,
+                .rebuild(.spotlight),
+                "with the mechanism that rebuilds it"
+            )
+
+            // A Core Spotlight store that exists but cannot be read still produces
+            // a finding: the size is unknown, and the report says why.
+            let core = TempFixture(tag: "diagnostics-core")
+            defer { core.cleanup() }
+            let storePath = core.directory(CoreSpotlightDiagnosticProvider.storePath)
+            try? FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: storePath.path)
+            let coreBatch = await CoreSpotlightDiagnosticProvider().analyze(
+                StorageDiagnosticContext(roots: [], homeDirectory: core.root)
+            )
+            equal(coreBatch.findings.count, 1, "an unreadable search index is still reported")
+            equal(coreBatch.coverage, .permissionDenied, "and the coverage says access is missing")
+            equal(coreBatch.findings.first?.fileCount, nil, "an unreadable store has no count, not zero")
+        }
+    }
+
     // MARK: - Report accuracy
 
     private func reportAccuracyTests() async {
@@ -1426,6 +1636,20 @@ final class Harness: @unchecked Sendable {
             explanationKey: "cleanup.explanation.cache",
             sourceRuleID: "self-test"
         )
+    }
+}
+
+/// A diagnostics provider that returns a fixed batch.
+///
+/// Lets the self-test assert what the engine does with findings — protection,
+/// de-duplication, ordering — without depending on what is on this machine.
+struct SelfTestDiagnosticProvider: StorageDiagnosticProvider {
+    let identifier = "selfTest"
+
+    let findings: [StorageFinding]
+
+    func analyze(_ context: StorageDiagnosticContext) async -> StorageFindingBatch {
+        StorageFindingBatch(findings: findings)
     }
 }
 
