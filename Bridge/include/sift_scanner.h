@@ -262,8 +262,13 @@ uint32_t sift_scan_page_duplicate_groups(SiftScanHandle *handle, uint32_t offset
                                         uint32_t limit, SiftDuplicateGroup *out,
                                         uint32_t max_groups);
 
-/* Reads the members of one duplicate group. */
+/* Reads one page of the members of a duplicate group.
+ *
+ * `offset` and `limit` page the group; a group can hold thousands of copies.
+ * Callers must advance `offset` by the number returned until it is smaller than
+ * `limit`. */
 uint32_t sift_scan_duplicate_members(SiftScanHandle *handle, int64_t group_id,
+                                     uint32_t offset, uint32_t limit,
                                      SiftDuplicateMember *out,
                                      uint32_t max_members);
 

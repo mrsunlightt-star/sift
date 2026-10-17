@@ -87,6 +87,12 @@ pub struct ScanRequest {
     pub stale_threshold_days: u32,
     /// Directories the user asked Sift never to look at.
     pub ignore_paths: Vec<String>,
+    /// Roots the user explicitly authorised (security-scoped in the app).
+    ///
+    /// These lift the blanket `/Volumes` and `/private/var` prefixes for the
+    /// named subtrees only.
+    #[serde(default)]
+    pub authorized_roots: Vec<String>,
     /// Bundle identifiers of installed applications, used for residue matching.
     pub installed_bundle_ids: Vec<String>,
     /// Extra rule definitions, already validated by Swift. Additive only.
@@ -109,6 +115,7 @@ impl Default for ScanRequest {
             old_file_threshold_days: 180,
             stale_threshold_days: 30,
             ignore_paths: Vec::new(),
+            authorized_roots: Vec::new(),
             installed_bundle_ids: Vec::new(),
             extra_rules_json: None,
             include_duplicates: true,

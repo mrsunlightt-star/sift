@@ -1,3 +1,4 @@
+import AppKit
 import Core
 import Shared
 import SwiftUI
@@ -156,6 +157,27 @@ public struct SettingsView: View {
                 Text(LocalizationKey.permissionFullDiskAccessDetail.localized)
                     .font(SiftFont.caption)
                     .foregroundStyle(.tertiary)
+            }
+        }
+    }
+
+    /// Opens the system panel. A volume can be reached by navigating to
+    /// `/Volumes`, which is how macOS exposes disks to a folder picker.
+    private func addAuthorizedLocations() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = true
+        panel.canCreateDirectories = false
+        panel.prompt = LocalizationKey.filesAddFolder.localized
+        panel.message = LocalizationKey.filesRequiresAuthorization.localized
+        panel.directoryURL = URL(fileURLWithPath: "/Volumes", isDirectory: true)
+
+        guard panel.runModal() == .OK else { return }
+        let urls = panel.urls
+        Task {
+            for url in urls {
+                await environment.authorizeLocation(url)
             }
         }
     }

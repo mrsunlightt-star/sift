@@ -82,7 +82,13 @@ actor RustScannerEngine: ScannerEngine {
 
         logger.info("Scan started (engine=rust roots=\(request.roots.count))")
         let owner = RustEngineHandle(pointer: engine)
-        return RustScanSession(id: sessionID, handle: handle, owner: owner, indexURL: indexURL)
+        return RustScanSession(
+            id: sessionID,
+            handle: handle,
+            owner: owner,
+            indexURL: indexURL,
+            scannedLocationCount: request.roots.count
+        )
     }
 
     func analyzeStorage(roots: [ScanRoot]) async throws -> StorageAnalysis {
@@ -214,13 +220,22 @@ private final class RustScanSession: ScanSession, @unchecked Sendable {
     private let handle: OpaquePointer
     private let owner: RustEngineHandle
     private let indexURL: URL
+    /// How many roots the request covered, reported in the summary.
+    private let scannedLocationCount: Int
     private let logger = SiftLog.scan
 
-    init(id: String, handle: OpaquePointer, owner: RustEngineHandle, indexURL: URL) {
+    init(
+        id: String,
+        handle: OpaquePointer,
+        owner: RustEngineHandle,
+        indexURL: URL,
+        scannedLocationCount: Int
+    ) {
         self.id = id
         self.handle = handle
         self.owner = owner
         self.indexURL = indexURL
+        self.scannedLocationCount = scannedLocationCount
     }
 
     deinit {
@@ -250,7 +265,7 @@ private final class RustScanSession: ScanSession, @unchecked Sendable {
         var events: [ScanEvent] = []
         for index in 0..<Int(written) {
             var raw = buffer[index]
-            if let event = Self.convert(&raw) {
+            if let event = self.convert(&raw) {
                 events.append(event)
             }
             // Item arrays and strings are owned by this side until freed here.
@@ -259,7 +274,7 @@ private final class RustScanSession: ScanSession, @unchecked Sendable {
         return events
     }
 
-    private static func convert(_ raw: inout SiftScanEvent) -> ScanEvent? {
+    private func convert(_ raw: inout SiftScanEvent) -> ScanEvent? {
         switch raw.kind {
         case 0:
             return .phaseChanged(ScanPhase(rawValue: readString(raw.text)) ?? .idle)
@@ -333,7 +348,7 @@ private final class RustScanSession: ScanSession, @unchecked Sendable {
             )
 
         case 5:
-            return Self.decodeSummary(readString(raw.text)).map { ScanEvent.completed($0) }
+            return decodeSummary(readString(raw.text)).map { ScanEvent.completed($0) }
 
         case 6:
             return .failed(
@@ -346,7 +361,7 @@ private final class RustScanSession: ScanSession, @unchecked Sendable {
         }
     }
 
-    private static func decodeSummary(_ json: String) -> ScanReport? {
+    private func decodeSummary(_ json: String) -> ScanReport? {
         guard let data = json.data(using: .utf8) else { return nil }
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
@@ -375,6 +390,7 @@ private final class RustScanSession: ScanSession, @unchecked Sendable {
             phase: ScanPhase(rawValue: payload.phase ?? "ready") ?? .ready,
             scannedFileCount: Int(payload.scannedFileCount ?? 0),
             scannedByteCount: payload.scannedByteCount ?? 0,
+            scannedLocationCount: scannedLocationCount,
             itemCount: Int(payload.itemCount ?? 0),
             itemBytes: payload.itemBytes ?? 0,
             categoryTotals: categories,
@@ -401,11 +417,12 @@ private final class RustScanSession: ScanSession, @unchecked Sendable {
         defer { lock.unlock() }
         var page = SiftPage()
         var error = SiftResult()
-        let categoryString = category?.rawValue ?? ""
+        let categoryString = category?.rawValue
         let ok = sort.rawValue.withCStringBuffer { sortBuffer in
-            categoryString.withCStringBuffer { categoryBuffer in
+            withOptionalCStringBuffer(categoryString) { categoryBuffer in
                 let sortValue = sortBuffer.value
-                let categoryValue = categoryBuffer.value
+                // Already a value descriptor; the optional helper produced it.
+                let categoryValue = categoryBuffer
                 return withUnsafeMutablePointer(to: &page) { pagePointer in
                     withUnsafeMutablePointer(to: &error) { errorPointer in
                         sift_scan_page_results(
@@ -526,9 +543,14 @@ private final class RustScanSession: ScanSession, @unchecked Sendable {
         var members: [DuplicateMember] = []
         var offset = 0
         while true {
+            // `offset` is passed through to the index: before this parameter
+            // existed, every call re-read the first page and a group larger than
+            // one page accumulated duplicates.
             let written = sift_scan_duplicate_members(
                 handle,
                 groupID,
+                UInt32(offset),
+                UInt32(pageSize),
                 &buffer,
                 UInt32(pageSize)
             )
@@ -601,6 +623,7 @@ private struct RustScanRequest: Encodable {
     let oldFileThresholdDays: UInt32
     let staleThresholdDays: UInt32
     let ignorePaths: [String]
+    let authorizedRoots: [String]
     let installedBundleIds: [String]
     let extraRulesJson: String?
     let includeDuplicates: Bool
@@ -624,7 +647,7 @@ private struct RustScanRequest: Encodable {
 
     init(request: ScanRequest, sessionID: String, indexPath: String) {
         self.sessionId = sessionID
-        self.homeDir = FileManager.default.homeDirectoryForCurrentUser.path
+        self.homeDir = request.homeDirectory.path
         self.roots = request.roots.map { root in
             Root(
                 path: root.url.path,
@@ -638,6 +661,7 @@ private struct RustScanRequest: Encodable {
         self.oldFileThresholdDays = UInt32(max(request.oldFileThresholdDays, 0))
         self.staleThresholdDays = UInt32(max(request.staleThresholdDays, 0))
         self.ignorePaths = request.ignoredPaths
+        self.authorizedRoots = request.authorizedRoots
         self.installedBundleIds = request.installedBundleIdentifiers
         self.extraRulesJson = request.extraRulesJSON
         self.includeDuplicates = request.includeDuplicates

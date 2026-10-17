@@ -16,7 +16,7 @@ public final class CleanupModel: ObservableObject {
     /// The items under consideration, already paged in from the scanner.
     @Published public private(set) var items: [CleanupItem] = []
     /// Ids of the selected items.
-    @Published public private(set) var selection: Set<UUID> = []
+    @Published public private(set) var selection: Set<String> = []
     /// The pre-flight verdict, populated when the user asks to clean.
     @Published public private(set) var preflight: PreflightReport?
     /// The confirmation panel's visibility.
@@ -47,7 +47,7 @@ public final class CleanupModel: ObservableObject {
     /// still cleanable.
     public func setItems(_ newItems: [CleanupItem], preselect: Bool = true) {
         items = newItems
-        var next: Set<UUID> = []
+        var next: Set<String> = []
         for item in newItems where preselect && item.isSelectedByDefault && item.risk.isCleanable {
             next.insert(item.id)
         }
@@ -55,8 +55,12 @@ public final class CleanupModel: ObservableObject {
     }
 
     /// Adds items to the list without disturbing the current selection.
+    ///
+    /// Items are keyed by their stable identity, so a page that overlaps a
+    /// previous one cannot duplicate a row.
     public func appendItems(_ newItems: [CleanupItem]) {
-        items.append(contentsOf: newItems)
+        let known = Set(items.map(\.id))
+        items.append(contentsOf: newItems.filter { !known.contains($0.id) })
     }
 
     public func isSelected(_ item: CleanupItem) -> Bool {
@@ -74,6 +78,12 @@ public final class CleanupModel: ObservableObject {
             return
         }
         if selected {
+            // A row the user checked must be part of the list the confirmation
+            // panel reads, even when it came from a source that pages lazily
+            // (a duplicate group, for example).
+            if !items.contains(where: { $0.id == item.id }) {
+                items.append(item)
+            }
             selection.insert(item.id)
         } else {
             selection.remove(item.id)
@@ -81,8 +91,11 @@ public final class CleanupModel: ObservableObject {
     }
 
     /// Selects every cleanable item in a group.
-    public func selectAll(in items: [CleanupItem]) {
-        for item in items where item.risk.isCleanable {
+    public func selectAll(in newItems: [CleanupItem]) {
+        for item in newItems where item.risk.isCleanable {
+            if !items.contains(where: { $0.id == item.id }) {
+                items.append(item)
+            }
             selection.insert(item.id)
         }
     }
@@ -90,6 +103,14 @@ public final class CleanupModel: ObservableObject {
     /// Clears the selection entirely.
     public func deselectAll() {
         selection.removeAll()
+    }
+
+    /// Drops items whose files no longer exist, keeping the list and the
+    /// selection consistent after a partial cleanup.
+    public func removeItems(at urls: Set<URL>) {
+        let removed = Set(items.filter { urls.contains($0.url) }.map(\.id))
+        items.removeAll { urls.contains($0.url) }
+        selection.subtract(removed)
     }
 
     /// The selected items, in list order.
@@ -138,8 +159,13 @@ public final class CleanupModel: ObservableObject {
 
     // MARK: - Flow
 
-    /// Runs the pre-flight pass and opens the confirmation panel.
-    public func prepareCleanup() async {
+    /// Runs the pre-flight pass, then either opens the confirmation panel or —
+    /// when the user has turned confirmation off — executes immediately.
+    ///
+    /// The preference is passed in rather than read here so the model stays free
+    /// of the settings store; the caller is the view that knows the user's
+    /// choice.
+    public func prepareCleanup(requiresConfirmation: Bool = true) async {
         failure = nil
         guard !selectedItems.isEmpty else { return }
         let candidates = selectedItems.map(FileOperationService.Candidate.init(item:))
@@ -157,13 +183,22 @@ public final class CleanupModel: ObservableObject {
             )
             return
         }
-        isConfirming = true
+        if requiresConfirmation {
+            isConfirming = true
+        } else {
+            // The user opted out. Everything still goes to the Trash, and the
+            // result page still appears, but the list is not shown first.
+            await confirmCleanup()
+        }
     }
 
     /// Performs the cleanup with the pre-flighted items.
     ///
     /// `keepWindowOpen` is a UI preference only; it never changes what is moved.
-    public func confirmCleanup(operation: CleanupOperationName = .junkCleanup) async {
+    public func confirmCleanup(
+        operation: CleanupOperationName = .junkCleanup,
+        scanReport: ScanReport? = nil
+    ) async {
         guard let preflight else { return }
         isConfirming = false
         isWorking = true
@@ -177,7 +212,7 @@ public final class CleanupModel: ObservableObject {
         self.outcome = outcome
 
         do {
-            let report = await reports.makeReport(from: outcome, scanReport: nil)
+            let report = await reports.makeReport(from: outcome, scanReport: scanReport)
             try await reports.storeLocally(report)
             self.report = report
         } catch {
@@ -187,17 +222,7 @@ public final class CleanupModel: ObservableObject {
 
         // Drop the items that moved: leaving them selected would let a second
         // click act on paths that no longer exist.
-        let moved = Set(outcome.results.filter { $0.status == .movedToTrash }.map(\.sourceURL))
-        items.removeAll { moved.contains($0.url) }
-        selection = selection.filter { id in items.contains { $0.id == id } }
-    }
-
-    /// Whether the result page keeps the window open, from the user's answer in
-    /// the confirmation panel.
-    public private(set) var keepWindowOpen = true
-
-    public func setKeepWindowOpen(_ value: Bool) {
-        keepWindowOpen = value
+        removeItems(at: Set(outcome.results.filter { $0.status == .movedToTrash }.map(\.sourceURL)))
     }
 
     /// Clears everything before a new scan, so a stale selection can never

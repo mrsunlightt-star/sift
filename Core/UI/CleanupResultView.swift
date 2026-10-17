@@ -14,9 +14,10 @@ public struct CleanupResultView: View {
     let onOpenTrash: () -> Void
     let onRevealFailed: (URL) -> Void
     let onRequestPurchase: () -> Void
+    /// A failure the shell hit while exporting; the local report still exists.
+    let statusMessage: String?
 
     @State private var isExporting = false
-    @State private var exportFailure: String?
 
     public init(
         outcome: CleanupOutcome,
@@ -25,7 +26,8 @@ public struct CleanupResultView: View {
         onExport: @escaping () -> Void,
         onOpenTrash: @escaping () -> Void,
         onRevealFailed: @escaping (URL) -> Void,
-        onRequestPurchase: @escaping () -> Void
+        onRequestPurchase: @escaping () -> Void,
+        statusMessage: String? = nil
     ) {
         self.outcome = outcome
         self.report = report
@@ -34,6 +36,7 @@ public struct CleanupResultView: View {
         self.onOpenTrash = onOpenTrash
         self.onRevealFailed = onRevealFailed
         self.onRequestPurchase = onRequestPurchase
+        self.statusMessage = statusMessage
     }
 
     public var body: some View {
@@ -148,8 +151,8 @@ public struct CleanupResultView: View {
 
     private var footer: some View {
         VStack(alignment: .leading, spacing: SiftMetrics.spacingM) {
-            if let exportFailure {
-                NoticeBanner(level: .warning, message: exportFailure)
+            if let statusMessage {
+                NoticeBanner(level: .warning, message: statusMessage)
             }
             HStack(spacing: SiftMetrics.spacingM) {
                 Button {
@@ -181,11 +184,5 @@ public struct CleanupResultView: View {
                 .foregroundStyle(.tertiary)
                 .fixedSize(horizontal: false, vertical: true)
         }
-    }
-
-    /// Surfaces an export failure without losing the local report (§5.7).
-    public func showExportFailure(_ message: String) {
-        exportFailure = message
-        isExporting = false
     }
 }

@@ -48,7 +48,8 @@ public struct UninstallerView: View {
                     onExport: {},
                     onOpenTrash: { Task { await environment.openTrash() } },
                     onRevealFailed: { url in Task { await environment.reveal(url) } },
-                    onRequestPurchase: onRequestPurchase
+                    onRequestPurchase: onRequestPurchase,
+                    statusMessage: nil
                 )
             } else {
                 header

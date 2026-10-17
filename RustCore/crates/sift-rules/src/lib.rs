@@ -600,6 +600,77 @@ pub fn is_protected_path(home: &str, path: &str) -> bool {
     protection_reason(home, path).is_some()
 }
 
+/// Classifies a path, honouring explicit authorisation.
+///
+/// Authorisation lifts only the blanket prefixes that exist to stop Sift
+/// scanning a tree by default (`/Volumes`, `/private/var`). User content,
+/// secrets and photo libraries stay protected: a grant for a folder cannot turn
+/// a Documents directory into a cleanup target.
+pub fn protection_reason_authorized(
+    home: &str,
+    path: &str,
+    authorized_roots: &[std::path::PathBuf],
+) -> Option<ProtectedReason> {
+    let path_normalized = normalize_path(path);
+    let home_normalized = normalize_path(home);
+
+    // Hard rules first.
+    for child in PROTECTED_HOME_CHILDREN {
+        if is_prefix_of(&format!("{home_normalized}/{child}"), &path_normalized) {
+            return Some(ProtectedReason::UserContent {
+                child: (*child).to_string(),
+            });
+        }
+    }
+    if is_prefix_of(
+        &format!("{home_normalized}/Library/Mobile Documents"),
+        &path_normalized,
+    ) {
+        return Some(ProtectedReason::UserContent {
+            child: "Library/Mobile Documents".to_string(),
+        });
+    }
+    if is_prefix_of(
+        &format!("{home_normalized}/Library/Keychains"),
+        &path_normalized,
+    ) {
+        return Some(ProtectedReason::Secrets {
+            path: "Library/Keychains".to_string(),
+        });
+    }
+    if path_normalized.ends_with(".photoslibrary") || path_normalized.contains(".photoslibrary/") {
+        return Some(ProtectedReason::UserContent {
+            child: "Photos Library".to_string(),
+        });
+    }
+
+    for root in authorized_roots {
+        let root = normalize_path(&root.to_string_lossy());
+        if is_prefix_of(&root, &path_normalized) {
+            return None;
+        }
+    }
+
+    for prefix in PROTECTED_PREFIXES {
+        if is_prefix_of(prefix, &path_normalized) {
+            return Some(ProtectedReason::SystemPath {
+                prefix: (*prefix).to_string(),
+            });
+        }
+    }
+
+    None
+}
+
+/// True when the path is protected even with the user's grants applied.
+pub fn is_protected_path_authorized(
+    home: &str,
+    path: &str,
+    authorized_roots: &[std::path::PathBuf],
+) -> bool {
+    protection_reason_authorized(home, path, authorized_roots).is_some()
+}
+
 /// Returns true when the path is a macOS package directory that must be treated
 /// as a single unit (`Cool.app`, `Photos.photoslibrary`).
 pub fn is_package_directory(name: &str, extensions: &[String]) -> bool {

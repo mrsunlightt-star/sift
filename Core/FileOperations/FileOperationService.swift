@@ -244,7 +244,8 @@ public actor FileOperationService {
                         status: .failed,
                         errorCode: ErrorCode.protectedLocation.rawValue,
                         message: reason.explanation,
-                        sizeInBytes: item.sizeInBytes
+                        sizeInBytes: item.sizeInBytes,
+                        category: item.category
                     )
                 )
                 continue
@@ -257,7 +258,8 @@ public actor FileOperationService {
                         status: .skipped,
                         errorCode: ErrorCode.fileNotFound.rawValue,
                         message: LocalizationKey.cleanupFailureFileNotFound.localized,
-                        sizeInBytes: item.sizeInBytes
+                        sizeInBytes: item.sizeInBytes,
+                        category: item.category
                     )
                 )
                 continue
@@ -270,7 +272,8 @@ public actor FileOperationService {
                         sourceURL: item.url,
                         destinationURL: URL(fileURLWithPath: "/Trash").appendingPathComponent(item.displayName),
                         status: .movedToTrash,
-                        sizeInBytes: item.sizeInBytes
+                        sizeInBytes: item.sizeInBytes,
+                        category: item.category
                     )
                 )
                 continue
@@ -284,7 +287,8 @@ public actor FileOperationService {
                         sourceURL: item.url,
                         destinationURL: resultingURL as URL?,
                         status: .movedToTrash,
-                        sizeInBytes: item.sizeInBytes
+                        sizeInBytes: item.sizeInBytes,
+                        category: item.category
                     )
                 )
                 logger.debug(
@@ -301,7 +305,8 @@ public actor FileOperationService {
                         status: .failed,
                         errorCode: code.rawValue,
                         message: Self.message(for: error, code: code),
-                        sizeInBytes: item.sizeInBytes
+                        sizeInBytes: item.sizeInBytes,
+                        category: item.category
                     )
                 )
             }

@@ -49,7 +49,7 @@ public actor ReportService {
             // reaches the report, which is what makes it safe to share.
             CleanupReport.Entry(
                 displayName: result.sourceURL.lastPathComponent,
-                category: categoryName(for: result),
+                category: result.category?.rawValue ?? "unknown",
                 sizeInBytes: result.sizeInBytes,
                 status: result.status.rawValue,
                 errorCode: result.errorCode
@@ -59,22 +59,19 @@ public actor ReportService {
             operation: outcome.operationName,
             appVersion: appVersion,
             macOSVersion: macOSVersion,
-            scannedLocationCount: scanReport?.skippedLocations.count ?? 0,
+            // Counts come straight from the outcome. The earlier version used
+            // the skipped-location count as the scan scope and added the skipped
+            // results to themselves, which made every report disagree with the
+            // page it was exported from.
+            scannedLocationCount: scanReport?.scannedLocationCount ?? 0,
             scannedFileCount: scanReport?.scannedFileCount ?? 0,
             categories: outcome.categoryTotals.map(\.category.rawValue),
             movedCount: outcome.movedCount,
             movedBytes: outcome.releasedBytes,
-            skippedCount: outcome.skippedCount + outcome.results.filter { $0.status == .skipped }.count,
+            skippedCount: outcome.skippedCount,
             failedCount: outcome.failedCount,
             entries: Array(entries)
         )
-    }
-
-    private func categoryName(for result: FileOperationResult) -> String {
-        // The category is not carried on the operation result; the report groups
-        // by the totals the caller supplied, so this uses the operation name as
-        // the closest available label.
-        result.status == .movedToTrash ? "cleanup" : "skipped"
     }
 
     /// Writes the local JSON copy and returns its URL.

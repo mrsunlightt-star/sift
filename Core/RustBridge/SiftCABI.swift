@@ -37,6 +37,19 @@ struct CStringBuffer {
     }
 }
 
+/// Runs `body` with a buffer for an optional string, or with the ABI's null
+/// value when it is absent.
+///
+/// An empty C string is not "no value": the Rust side treats an empty category
+/// as a category named "", so absence has to be a null pointer.
+func withOptionalCStringBuffer<T>(
+    _ value: String?,
+    _ body: (SiftString) throws -> T
+) rethrows -> T {
+    guard let value else { return try body(SiftString(ptr: nil, len: 0)) }
+    return try value.withCStringBuffer { buffer in try body(buffer.value) }
+}
+
 /// Reads a string out of the C typedef.
 ///
 /// The imported C type cannot be extended in place, so the conversion is a free

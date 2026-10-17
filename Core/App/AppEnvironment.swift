@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import OSLog
 import Shared
@@ -22,6 +23,9 @@ public final class AppEnvironment: ObservableObject {
     public let reports: ReportService
     public let permissions: PermissionsService
     public let entitlements: EntitlementService
+    /// The locations the user authorised, shared with the rule engine.
+    public let authorizedScope: AuthorizedScope
+    public let authorization: AuthorizationService
     public let applications: ApplicationDiscovery
     public let volumes: VolumeEnumerator
     public let storageAnalyzer: StorageAnalyzer
@@ -39,6 +43,12 @@ public final class AppEnvironment: ObservableObject {
     @Published public private(set) var isLoadingApplications = false
     /// The entitlement snapshot.
     @Published public private(set) var entitlement = EntitlementState(channel: .direct, status: .free)
+    /// Authorised locations, as settings shows them.
+    @Published public private(set) var authorizedLocations: [AuthorizedLocation] = []
+    /// Resolved URLs for this launch, empty when no bookmark was stored.
+    private var restoredAuthorizedURLs: [URL] = []
+    /// Message shown above the result page after an export attempt.
+    @Published public private(set) var reportExportMessage: String?
 
     private let logger = SiftLog.make("App")
 
@@ -48,7 +58,8 @@ public final class AppEnvironment: ObservableObject {
         let ruleURL = UserDefaults.standard.bool(forKey: "settings.userRulesEnabled")
             ? SettingsStore.defaultSupportDirectory().appendingPathComponent("CleaningRules.json")
             : nil
-        let rules = RuleEngine(userRuleURL: ruleURL)
+        let authorizedScope = AuthorizedScope()
+        let rules = RuleEngine(userRuleURL: ruleURL, authorized: authorizedScope)
         let scanner = ScannerEngineFactory.makeDefault(rules: rules)
         let operations = FileOperationService(rules: rules)
         let reports = ReportService()
@@ -59,6 +70,8 @@ public final class AppEnvironment: ObservableObject {
         self.operations = operations
         self.reports = reports
         self.permissions = PermissionsService()
+        self.authorizedScope = authorizedScope
+        self.authorization = AuthorizationService(scope: authorizedScope)
         self.entitlements = EntitlementService(channel: DirectLicenseService { _ in
             // No license vendor is wired yet; the specification leaves the choice
             // open (§19). Until then every activation reports that the service is
@@ -86,6 +99,12 @@ public final class AppEnvironment: ObservableObject {
     public func bootstrap() async {
         preferences = await settings.current()
         availableVolumes = volumes.mountedVolumes()
+
+        // Reopen the user's grants before anything can scan. A bookmark that no
+        // longer resolves is dropped, and the settings page shows the remainder.
+        authorizedLocations = preferences.authorizedLocations
+        restoredAuthorizedURLs = await authorization.restore(preferences.authorizedLocations)
+
         entitlement = await entitlements.current()
         await entitlements.refresh()
         entitlement = await entitlements.current()
@@ -121,7 +140,13 @@ public final class AppEnvironment: ObservableObject {
     ///
     /// This is where preferences become a request: thresholds, ignore list,
     /// duplicate scope and the installed bundle identifiers the residue scan
-    /// needs. Nothing here widens the scope beyond what the user allowed.
+    /// needs.
+    ///
+    /// The scope is deliberately narrow. The home directory is the only implicit
+    /// root; a second volume is included only when the user added it in settings,
+    /// and then only through the bookmark that records that grant (§10.1). Sift
+    /// never enumerates mount points and decides for itself that they look
+    /// interesting.
     public func makeScanRequest(includeDuplicates: Bool = true) async -> ScanRequest {
         let current = await settings.current()
         let home = FileManager.default.homeDirectoryForCurrentUser
@@ -129,30 +154,63 @@ public final class AppEnvironment: ObservableObject {
         var roots: [ScanRoot] = [
             ScanRoot(url: home, anchor: .home),
         ]
-        for volume in availableVolumes where volume.isExternal && !volume.isReadOnly {
+        for url in restoredAuthorizedURLs {
             roots.append(
                 ScanRoot(
-                    url: volume.mountPoint,
+                    url: url,
                     anchor: .externalVolume,
-                    // An external volume is only scanned because the user added
-                    // it to the scope, which is the authorisation §10.1 requires.
                     isCleanable: true,
-                    volumeIdentifier: volume.mountPoint.path
+                    volumeIdentifier: url.path
                 )
             )
         }
 
         let bundleIdentifiers = await applications.installedBundleIdentifiers()
         return ScanRequest(
+            homeDirectory: home,
             roots: roots,
             largeFileThresholdBytes: current.largeFileThresholdBytes,
             oldFileThresholdDays: current.oldFileThresholdDays,
             staleThresholdDays: current.staleThresholdDays,
             ignoredPaths: current.ignoredPaths,
+            authorizedRoots: restoredAuthorizedURLs.map(\.path),
             installedBundleIdentifiers: bundleIdentifiers,
             includeDuplicates: includeDuplicates,
             duplicateRoots: defaultDuplicateRoots()
         )
+    }
+
+    /// Adds a folder or volume the user picked in a file panel.
+    @discardableResult
+    public func authorizeLocation(_ url: URL) async -> AuthorizedLocation? {
+        // A grant must not turn user content into a cleanup target. Volumes and
+        // system cache trees are exactly what authorisation exists for; Documents,
+        // keychains and a photo library are refused even when picked by hand.
+        guard rules.canAuthorize(url: url) else {
+            SiftLog.permissions.notice("Refused to authorise a protected location")
+            return nil
+        }
+        guard let location = await authorization.authorize(url) else { return nil }
+        await settings.update { settings in
+            settings.authorizedLocations.append(location)
+        }
+        preferences = await settings.current()
+        authorizedLocations = preferences.authorizedLocations
+        if !restoredAuthorizedURLs.contains(where: { $0.path == url.path }) {
+            restoredAuthorizedURLs.append(url)
+        }
+        return location
+    }
+
+    /// Removes an authorised location and releases its access.
+    public func removeAuthorizedLocation(_ location: AuthorizedLocation) async {
+        await settings.update { settings in
+            settings.authorizedLocations.removeAll { $0.id == location.id }
+        }
+        preferences = await settings.current()
+        authorizedLocations = preferences.authorizedLocations
+        // Reopen the remainder: the removed bookmark's access must be dropped.
+        restoredAuthorizedURLs = await authorization.restore(preferences.authorizedLocations)
     }
 
     /// Where the duplicate scan looks by default (§5.5).
@@ -165,29 +223,52 @@ public final class AppEnvironment: ObservableObject {
             .map { home.appendingPathComponent($0) }
             .filter { FileManager.default.fileExists(atPath: $0.path) }
             .map(\.path)
-        roots.append(contentsOf: preferences.authorizedLocations.compactMap(resolveAuthorized))
+        roots.append(contentsOf: restoredAuthorizedURLs.map(\.path))
         return roots
     }
 
-    /// Resolves a security-scoped bookmark into a path.
-    ///
-    /// A bookmark that no longer resolves is reported by the settings page and
-    /// simply left out here, so a moved folder cannot silently expand the scope.
-    public func resolveAuthorized(_ location: AuthorizedLocation) -> String? {
-        var isStale = false
-        let url = try? URL(
-            resolvingBookmarkData: location.bookmark,
-            options: [],
-            relativeTo: nil,
-            bookmarkDataIsStale: &isStale
-        )
-        guard let url, !isStale else { return nil }
-        return url.path
+    /// True when a stored bookmark resolved at launch.
+    public func isAvailable(_ location: AuthorizedLocation) -> Bool {
+        restoredAuthorizedURLs.contains { $0.path.hasSuffix(location.displayName) }
+            || restoredAuthorizedURLs.count == authorizedLocations.count
     }
 
     /// True when the user may perform a destructive action.
     public func canClean() async -> Bool {
         await entitlements.allows(.cleanJunk)
+    }
+
+    /// True when the user may export a report (§12.2).
+    public func canExportReports() async -> Bool {
+        await entitlements.allows(.exportReports)
+    }
+
+    /// Writes the report as a PDF at the location the user picks.
+    ///
+    /// The local copy already exists, so a failed export leaves a report behind
+    /// and the message says so (§5.7).
+    public func exportReport(_ report: CleanupReport) async {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "Sift-Report.pdf"
+        panel.allowedContentTypes = [.pdf]
+        panel.message = LocalizationKey.reportPrivacyNote.localized
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        do {
+            try await reports.exportPDF(
+                report,
+                to: url,
+                title: LocalizationKey.reportTitle.localized
+            )
+            reportExportMessage = nil
+        } catch {
+            reportExportMessage = LocalizationKey.reportExportFailed.localized
+        }
+    }
+
+    /// Clears the export message when the result page closes.
+    public func clearReportExportMessage() {
+        reportExportMessage = nil
     }
 
     /// Reveals a file or folder in the Finder.

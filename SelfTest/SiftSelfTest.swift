@@ -77,6 +77,11 @@ final class Harness: @unchecked Sendable {
         await settingsTests()
         await localizationTests()
         await applicationTests()
+        await selectionTests()
+        await scanPolicyTests()
+        await authorizationTests()
+        await reportAccuracyTests()
+        await productionEngineTests()
 
         print("\n\u{001B}[1mSummary\u{001B}[0m")
         print("  passed: \(passed)")
@@ -922,6 +927,316 @@ final class Harness: @unchecked Sendable {
         }
     }
 
+    // MARK: - Selection identity
+
+    private func selectionTests() async {
+        await group("Cleanup selection") {
+            let fixture = TempFixture(tag: "selection")
+            defer { fixture.cleanup() }
+
+            let summary = CleanupItemSummary(
+                id: 1,
+                url: fixture.root.appendingPathComponent("Library/Caches/com.example.app"),
+                displayName: "com.example.app",
+                parentPath: fixture.root.appendingPathComponent("Library/Caches").path,
+                category: .applicationCache,
+                risk: .safe,
+                sizeInBytes: 4096,
+                fileCount: 2,
+                explanationKey: "cleanup.explanation.cache",
+                sourceRuleID: "user-cache",
+                isDirectory: true
+            )
+
+            // The defect this guards: a random id per conversion meant a checked
+            // row never matched the item in the model.
+            let first = summary.asCleanupItem()
+            let second = summary.asCleanupItem()
+            equal(first.id, second.id, "a summary converts to a stable identity")
+            check(!first.id.isEmpty, "the identity is not empty")
+
+            // The same path under two categories is two distinct targets.
+            let logs = CleanupItem(
+                url: summary.url,
+                displayName: summary.displayName,
+                category: .logs,
+                risk: .safe,
+                sizeInBytes: 4096,
+                fileCount: 1,
+                explanationKey: "cleanup.explanation.logs",
+                sourceRuleID: "user-logs"
+            )
+            check(logs.id != first.id, "the category is part of the identity")
+
+            let rules = RuleEngine(rules: RuleEngine.builtInRules, homeDirectory: fixture.root)
+            let model = await MainActor.run {
+                CleanupModel(
+                    rules: rules,
+                    operations: FileOperationService(rules: rules, isDryRun: true),
+                    reports: ReportService(supportDirectory: fixture.root)
+                )
+            }
+
+            await MainActor.run {
+                model.setItems([first], preselect: false)
+                // A row rendered later builds a fresh value; selection must survive.
+                let freshlyRendered = summary.asCleanupItem()
+                check(!model.isSelected(freshlyRendered), "an item starts unselected")
+                model.setSelected(true, for: freshlyRendered)
+                check(model.isSelected(freshlyRendered), "a checked row is selected")
+                equal(model.selectedCount, 1, "the selection holds exactly one item")
+            }
+
+            await MainActor.run {
+                // A duplicate member toggled from a group must enter the model's
+                // list, or the confirmation panel would count zero.
+                let member = DuplicateMember(
+                    url: fixture.root.appendingPathComponent("Downloads/copy.bin"),
+                    sizeInBytes: 1024,
+                    modifiedAt: nil,
+                    isRecommendedToKeep: false
+                )
+                let memberItem = CleanupItem(
+                    url: member.url,
+                    displayName: member.displayName,
+                    category: .duplicateFiles,
+                    risk: .review,
+                    sizeInBytes: member.sizeInBytes,
+                    fileCount: 1,
+                    explanationKey: "cleanup.explanation.duplicates",
+                    sourceRuleID: "duplicate-files"
+                )
+                model.setSelected(true, for: memberItem)
+                check(model.isSelected(memberItem), "a duplicate copy can be selected")
+                equal(model.selectedCount, 2, "both selected items are counted")
+            }
+        }
+    }
+
+    // MARK: - Scan policy
+
+    private func scanPolicyTests() async {
+        await group("Scan root policy") {
+            let fixture = TempFixture(tag: "policy")
+            defer { fixture.cleanup() }
+
+            // A cache old enough to be a candidate, plus a large file.
+            fixture.write("Library/Caches/com.example.app/blob.bin", bytes: 8192)
+            fixture.write("Downloads/huge.bin", bytes: 2 * 1024 * 1024)
+
+            let rules = RuleEngine(rules: RuleEngine.builtInRules, homeDirectory: fixture.root)
+            let engine = SwiftScannerEngine(rules: rules)
+
+            func scan(isCleanable: Bool) async -> [CleanupItemSummary] {
+                let request = ScanRequest(
+                    homeDirectory: fixture.root,
+                    roots: [ScanRoot(url: fixture.root, anchor: .home, isCleanable: isCleanable)],
+                    largeFileThresholdBytes: 1024 * 1024,
+                    includeDuplicates: false
+                )
+                guard let session = try? await engine.startScan(request) else { return [] }
+                var items: [CleanupItemSummary] = []
+                let deadline = Date().addingTimeInterval(20)
+                while Date() < deadline {
+                    for event in await session.pollEvents(maxEvents: 128) {
+                        if case let .itemsFound(batch) = event { items.append(contentsOf: batch) }
+                    }
+                    if await session.isFinished() { break }
+                    try? await Task.sleep(nanoseconds: 30_000_000)
+                }
+                for event in await session.pollEvents(maxEvents: 256) {
+                    if case let .itemsFound(batch) = event { items.append(contentsOf: batch) }
+                }
+                return items
+            }
+
+            let cleanable = await scan(isCleanable: true)
+            let measureOnly = await scan(isCleanable: false)
+            check(!cleanable.isEmpty, "a cleanable root produces candidates")
+            equal(measureOnly.count, 0, "a measure-only root produces no cleanup candidates")
+        }
+    }
+
+    // MARK: - Authorisation
+
+    private func authorizationTests() async {
+        await group("Authorisation") {
+            let home = URL(fileURLWithPath: "/Users/example")
+            let scope = AuthorizedScope()
+            let rules = RuleEngine(
+                rules: RuleEngine.builtInRules,
+                homeDirectory: home,
+                authorized: scope
+            )
+
+            // `/Volumes` and `/private/var` are closed by default.
+            check(
+                rules.protectionReason(for: "/Volumes/External/file.bin") != nil,
+                "an unauthorised volume is closed"
+            )
+            check(
+                rules.protectionReason(for: "/private/var/vm/swapfile") != nil,
+                "an unauthorised system tree is closed"
+            )
+
+            scope.add(URL(fileURLWithPath: "/Volumes/External"))
+
+            check(
+                rules.protectionReason(for: "/Volumes/External/file.bin") == nil,
+                "an authorised volume is open"
+            )
+            check(
+                rules.protectionReason(for: "/Volumes/Other/file.bin") != nil,
+                "a different volume stays closed"
+            )
+
+            // Authorisation never unlocks user content or secrets.
+            scope.add(home)
+            check(
+                rules.protectionReason(for: "/Users/example/Documents/taxes.pdf") != nil,
+                "authorising the home folder does not unlock Documents"
+            )
+            check(
+                rules.protectionReason(for: "/Users/example/Library/Keychains/login.keychain-db") != nil,
+                "authorising the home folder does not unlock the keychain"
+            )
+            check(!rules.canAuthorize(url: home.appendingPathComponent("Documents")), "Documents cannot be authorised")
+            check(rules.canAuthorize(url: URL(fileURLWithPath: "/Volumes/External")), "a volume can be authorised")
+        }
+    }
+
+    // MARK: - Report accuracy
+
+    private func reportAccuracyTests() async {
+        await group("Report accuracy") {
+            let fixture = TempFixture(tag: "report-accuracy")
+            defer { fixture.cleanup() }
+
+            let moved = FileOperationResult(
+                sourceURL: fixture.root.appendingPathComponent("a.bin"),
+                status: .movedToTrash,
+                sizeInBytes: 100,
+                category: .applicationCache
+            )
+            let skipped = FileOperationResult(
+                sourceURL: fixture.root.appendingPathComponent("b.bin"),
+                status: .skipped,
+                errorCode: ErrorCode.fileNotFound.rawValue,
+                sizeInBytes: 50,
+                category: .logs
+            )
+            let failed = FileOperationResult(
+                sourceURL: fixture.root.appendingPathComponent("c.bin"),
+                status: .failed,
+                errorCode: ErrorCode.permissionDenied.rawValue,
+                sizeInBytes: 25,
+                category: .installers
+            )
+            let outcome = CleanupOutcome(
+                results: [moved, skipped, failed],
+                categoryTotals: [
+                    CategoryTotal(category: .applicationCache, itemCount: 1, totalBytes: 100),
+                ],
+                startedAt: Date(),
+                finishedAt: Date(),
+                operationName: .junkCleanup
+            )
+            let scanReport = ScanReport(
+                sessionID: "accuracy",
+                startedAt: Date(),
+                finishedAt: Date(),
+                phase: .ready,
+                scannedFileCount: 42,
+                scannedByteCount: 4096,
+                scannedLocationCount: 2,
+                itemCount: 3,
+                itemBytes: 175,
+                categoryTotals: [],
+                duplicateGroupCount: 0,
+                duplicateReclaimableBytes: 0,
+                skippedLocations: []
+            )
+
+            let service = ReportService(supportDirectory: fixture.root)
+            let report = await service.makeReport(from: outcome, scanReport: scanReport)
+
+            equal(report.scannedLocationCount, 2, "the report states the scan scope")
+            equal(report.scannedFileCount, 42, "the report states files examined")
+            equal(report.skippedCount, 1, "skipped items are counted once")
+            equal(report.movedCount, 1, "moved items are counted")
+            equal(report.failedCount, 1, "failed items are counted")
+            equal(report.categories, ["applicationCache"], "categories come from the outcome")
+            equal(report.entries.count, 3, "every result has an entry")
+            equal(report.entries.first { $0.status == "movedToTrash" }?.category, "applicationCache",
+                  "an entry names its real category")
+        }
+    }
+
+    // MARK: - Production engine
+
+    private func productionEngineTests() async {
+        await group("Production engine") {
+            let fixture = TempFixture(tag: "production")
+            defer { fixture.cleanup() }
+            fixture.write("Library/Caches/com.example.app/blob.bin", bytes: 8192)
+            fixture.write("Library/Logs/com.example.app/old.log", bytes: 2048)
+            fixture.age(fixture.root.appendingPathComponent("Library/Logs/com.example.app/old.log"), days: 60)
+
+            let rules = RuleEngine(rules: RuleEngine.builtInRules, homeDirectory: fixture.root)
+            let engine = ScannerEngineFactory.makeDefault(rules: rules)
+            print("      engine under test: \(engine.kind.displayName)")
+
+            let request = ScanRequest(
+                homeDirectory: fixture.root,
+                roots: [ScanRoot(url: fixture.root, anchor: .home)],
+                includeDuplicates: false
+            )
+            guard let session = try? await engine.startScan(request) else {
+                check(false, "the production engine starts a scan")
+                return
+            }
+            var report: ScanReport?
+            var items: [CleanupItemSummary] = []
+            let deadline = Date().addingTimeInterval(30)
+            while Date() < deadline {
+                for event in await session.pollEvents(maxEvents: 128) {
+                    switch event {
+                    case let .itemsFound(batch): items.append(contentsOf: batch)
+                    case let .completed(summary): report = summary
+                    default: break
+                    }
+                }
+                if await session.isFinished() { break }
+                try? await Task.sleep(nanoseconds: 30_000_000)
+            }
+            for event in await session.pollEvents(maxEvents: 256) {
+                switch event {
+                case let .itemsFound(batch): items.append(contentsOf: batch)
+                case let .completed(summary): report = summary
+                default: break
+                }
+            }
+
+            check(report != nil, "the production engine completes")
+            check(!items.isEmpty, "the production engine finds candidates")
+            check(
+                items.contains(where: { $0.category == .applicationCache }),
+                "the production engine reports cache items"
+            )
+            check(
+                !items.contains(where: { $0.url.path.contains("/Documents/") }),
+                "the production engine never reports user content"
+            )
+
+            let page = (try? await session.page(offset: 0, limit: 10, sort: .size, category: nil))
+                ?? ScanPage(items: [], remaining: 0)
+            check(
+                !page.items.isEmpty || items.isEmpty,
+                "the production engine pages results (events=\(items.count), page=\(page.items.count), remaining=\(page.remaining))"
+            )
+        }
+    }
+
     // MARK: - Helpers
 
     private func makeItem(url: URL, size: Int64 = 4096, risk: CleanupRisk = .review) -> CleanupItem {
@@ -960,7 +1275,10 @@ actor Counter {
 }
 
 /// A temporary directory tree that removes itself on drop.
-final class TempFixture {
+///
+/// `@unchecked Sendable`: it holds one immutable URL and the cleanup runs in
+/// `deinit`, so handing it to a main-actor closure is safe.
+final class TempFixture: @unchecked Sendable {
     let root: URL
 
     init(tag: String) {

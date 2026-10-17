@@ -219,11 +219,23 @@ actor SwiftScanSession: ScanSession {
         events.append(.progress(progress))
     }
 
+    /// True when the home directory sits inside a root the caller allows cleaning.
+    private var homeIsCleanable: Bool {
+        if request.roots.isEmpty { return true }
+        let home = URL(fileURLWithPath: rules.homeDirectory)
+        return request.roots.contains {
+            $0.isCleanable && RuleEngine.isPrefix($0.url.path, home.path)
+        }
+    }
+
     private func isAuthorised(_ url: URL) -> Bool {
         // With no explicit roots the standard home rules apply; with roots, the
-        // location must sit inside one of them.
+        // location must sit inside one the caller marked cleanable. A
+        // measure-only root contributes to storage totals and nothing else.
         if request.roots.isEmpty { return true }
-        return request.roots.contains { RuleEngine.isPrefix($0.url.path, url.path) }
+        return request.roots.contains {
+            $0.isCleanable && RuleEngine.isPrefix($0.url.path, url.path)
+        }
     }
 
     private func directoryExists(_ url: URL) -> Bool {
@@ -412,6 +424,9 @@ actor SwiftScanSession: ScanSession {
 
     /// Application residue, matched strictly by bundle identifier (§5.3).
     private func scanApplicationResidue() {
+        // Residue is derived from the home directory, so it inherits that root's
+        // policy: a measure-only home contributes no candidates.
+        guard homeIsCleanable else { return }
         let home = URL(fileURLWithPath: rules.homeDirectory)
         let installed = Set(request.installedBundleIdentifiers.map { $0.lowercased() })
         var found: [CleanupItemSummary] = []
@@ -515,7 +530,7 @@ actor SwiftScanSession: ScanSession {
     /// Large and old files, only inside the roots the caller supplied.
     private func scanThresholdFiles() {
         let home = URL(fileURLWithPath: rules.homeDirectory)
-        for root in request.roots {
+        for root in request.roots where root.isCleanable {
             if cancelled { return }
             let report = FileWalker.walk(
                 root: root.url,
@@ -584,7 +599,13 @@ actor SwiftScanSession: ScanSession {
                 .map { home.appendingPathComponent($0) }
                 .filter { directoryExists($0) }
         }
-        let searchable = roots.filter { rules.protectionReason(for: $0.path) == nil }
+        // Duplicate candidates are cleanup candidates: a measure-only root is
+        // measured for storage, never offered for removal.
+        let allowed = request.roots.filter(\.isCleanable).map(\.url)
+        let searchable = roots.filter { root in
+            rules.protectionReason(for: root.path) == nil
+                && (allowed.isEmpty || allowed.contains { RuleEngine.isPrefix($0.path, root.path) })
+        }
         guard !searchable.isEmpty else { return }
 
         // Stage 1: exact size groups.
@@ -813,6 +834,7 @@ actor SwiftScanSession: ScanSession {
             phase: phase,
             scannedFileCount: progress.filesSeen,
             scannedByteCount: progress.bytesSeen,
+            scannedLocationCount: request.roots.count,
             itemCount: items.count,
             itemBytes: items.reduce(0) { $0 + $1.sizeInBytes },
             categoryTotals: categoryTotals,

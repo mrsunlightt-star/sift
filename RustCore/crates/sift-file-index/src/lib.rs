@@ -558,14 +558,25 @@ impl FileIndex {
         Ok(out)
     }
 
-    /// Members of one duplicate group, in display order.
-    pub fn duplicate_members(&self, group_id: i64) -> Result<Vec<GroupMemberRow>, IndexError> {
+    /// One page of members of a duplicate group, in display order.
+    ///
+    /// Paging is explicit: a group can hold thousands of copies, and returning
+    /// them all in one call would both allocate without bound and make the FFI
+    /// caller re-read the same page (the defect this signature fixes).
+    pub fn duplicate_members(
+        &self,
+        group_id: i64,
+        offset: u32,
+        limit: u32,
+    ) -> Result<Vec<GroupMemberRow>, IndexError> {
+        let limit = if limit == 0 { DEFAULT_PAGE_SIZE } else { limit };
         let mut statement = self.connection.prepare(
             "SELECT path, size_bytes, modified_secs, keep
              FROM duplicate_members WHERE group_id = ?1
-             ORDER BY keep DESC, modified_secs ASC, path ASC",
+             ORDER BY keep DESC, modified_secs ASC, path ASC
+             LIMIT ?2 OFFSET ?3",
         )?;
-        let rows = statement.query_map(params![group_id], |row| {
+        let rows = statement.query_map(params![group_id, limit, offset], |row| {
             Ok(GroupMemberRow {
                 path: row.get(0)?,
                 size_bytes: row.get(1)?,
@@ -826,7 +837,7 @@ mod tests {
         assert_eq!(groups[0].reclaimable_bytes, 2000);
         assert_eq!(index.duplicate_reclaimable_bytes().unwrap(), 2000);
 
-        let stored = index.duplicate_members(group_id).unwrap();
+        let stored = index.duplicate_members(group_id, 0, 100).unwrap();
         assert_eq!(stored.len(), 3);
         assert!(stored[0].keep, "the kept member sorts first");
     }
@@ -859,6 +870,39 @@ mod tests {
         let groups = index.page_duplicate_groups(0, 10).unwrap();
         assert_eq!(groups[0].digest, "big");
         assert_eq!(groups[0].reclaimable_bytes, 90);
+    }
+
+    #[test]
+    fn duplicate_members_page_without_repeating_rows() {
+        let mut index = index();
+        let members: Vec<GroupMemberRow> = (0..520)
+            .map(|member| GroupMemberRow {
+                path: format!("/dup/copy-{member:04}.bin"),
+                size_bytes: 1024,
+                modified_secs: 1_700_000_000,
+                keep: member == 0,
+            })
+            .collect();
+        let group_id = index
+            .insert_duplicate_group("digest", 1024, &members)
+            .unwrap();
+
+        let first = index.duplicate_members(group_id, 0, 512).unwrap();
+        let second = index.duplicate_members(group_id, 512, 512).unwrap();
+        assert_eq!(first.len(), 512);
+        assert_eq!(
+            second.len(),
+            8,
+            "the second page is the remainder, not a repeat"
+        );
+        let first_paths: std::collections::HashSet<&str> =
+            first.iter().map(|row| row.path.as_str()).collect();
+        assert!(
+            second
+                .iter()
+                .all(|row| !first_paths.contains(row.path.as_str())),
+            "pages must not overlap"
+        );
     }
 
     #[test]

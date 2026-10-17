@@ -58,8 +58,15 @@ These are product promises, not implementation details. Each has tests behind it
 6. **The free tier never performs a cleanup.** The paywall appears when the user
    asks to clean or uninstall, never at launch.
 7. **Reports and logs contain no full paths, file names in bulk, or credentials.**
-8. **Path comparisons normalise `.`, `..` and the macOS symlink aliases**
-   (`/var`, `/tmp`, `/etc`) before matching.
+8. **A cleanup item's identity is derived from its target** (category plus
+   normalised path), never a fresh random value; a SwiftUI re-render must not be
+   able to lose a checkbox.
+9. **A measure-only scan root produces no cleanup candidates**, in both engines.
+10. **Mount points are never scanned without an explicit grant.** Only locations
+    the user added are included, and a grant never unlocks user content, keychains
+    or a photo library.
+11. **Path comparisons normalise `.`, `..` and the macOS symlink aliases**
+    (`/var`, `/tmp`, `/etc`) before matching.
 
 ## Layout notes
 

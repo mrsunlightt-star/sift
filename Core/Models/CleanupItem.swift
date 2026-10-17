@@ -109,7 +109,15 @@ public enum CleanupRisk: String, Codable, Sendable, CaseIterable {
 /// `CleanupItemSummary` values, which are lighter: they omit the fields the
 /// scanner fills in only for the detail view.
 public struct CleanupItem: Identifiable, Hashable, Sendable {
-    public let id: UUID
+    /// Stable identity, derived from the cleanup target rather than allocated
+    /// per call.
+    ///
+    /// A random id here was a real defect: views rebuild a `CleanupItem` on every
+    /// render, so a selection recorded one id and the next render looked up
+    /// another, and a checked row never entered the selection. Two entries for
+    /// the same file under different categories are distinct cleanup targets, so
+    /// the category is part of the key.
+    public let id: String
     public let url: URL
     public let displayName: String
     public let category: CleanupCategory
@@ -131,7 +139,6 @@ public struct CleanupItem: Identifiable, Hashable, Sendable {
     public let note: String?
 
     public init(
-        id: UUID = UUID(),
         url: URL,
         displayName: String,
         category: CleanupCategory,
@@ -147,7 +154,7 @@ public struct CleanupItem: Identifiable, Hashable, Sendable {
         isSelectedByDefault: Bool? = nil,
         note: String? = nil
     ) {
-        self.id = id
+        self.id = Self.stableID(category: category, url: url)
         self.url = url
         self.displayName = displayName
         self.category = category
@@ -197,6 +204,11 @@ public struct CleanupItem: Identifiable, Hashable, Sendable {
     /// the user's account name is not repeated on every line.
     public var displayPath: String {
         Self.abbreviate(url.path)
+    }
+
+    /// The stable identity of a cleanup target.
+    public static func stableID(category: CleanupCategory, url: URL) -> String {
+        "\(category.rawValue)|\(url.standardizedFileURL.path)"
     }
 
     /// Replaces the home directory prefix with `~`.
@@ -262,7 +274,6 @@ public struct CleanupItemSummary: Identifiable, Hashable, Sendable {
     /// Promotes the row to a full domain item.
     public func asCleanupItem() -> CleanupItem {
         CleanupItem(
-            id: UUID(),
             url: url,
             displayName: displayName,
             category: category,
@@ -418,6 +429,9 @@ public struct ScanReport: Identifiable, Sendable {
     public let phase: ScanPhase
     public let scannedFileCount: Int
     public let scannedByteCount: Int64
+    /// How many roots the scan was asked to visit, so a report can state its
+    /// scope without listing paths.
+    public let scannedLocationCount: Int
     public let itemCount: Int
     public let itemBytes: Int64
     public let categoryTotals: [CategoryTotal]
@@ -433,6 +447,7 @@ public struct ScanReport: Identifiable, Sendable {
         phase: ScanPhase,
         scannedFileCount: Int,
         scannedByteCount: Int64,
+        scannedLocationCount: Int = 0,
         itemCount: Int,
         itemBytes: Int64,
         categoryTotals: [CategoryTotal],
@@ -447,6 +462,7 @@ public struct ScanReport: Identifiable, Sendable {
         self.phase = phase
         self.scannedFileCount = scannedFileCount
         self.scannedByteCount = scannedByteCount
+        self.scannedLocationCount = scannedLocationCount
         self.itemCount = itemCount
         self.itemBytes = itemBytes
         self.categoryTotals = categoryTotals

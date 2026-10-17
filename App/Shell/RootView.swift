@@ -210,6 +210,44 @@ struct DetailView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(SiftColor.windowBackground)
+        .overlay(alignment: .top) {
+            // The result page is presented from the shell so it appears whichever
+            // page started the cleanup, and stays until the user dismisses it.
+            if let outcome = environment.cleanup.outcome {
+                ScrollView {
+                    CleanupResultView(
+                        outcome: outcome,
+                        report: environment.cleanup.report,
+                        onAcknowledge: {
+                            environment.cleanup.acknowledgeOutcome()
+                            environment.clearReportExportMessage()
+                        },
+                        onExport: {
+                            Task {
+                                guard await environment.canExportReports() else {
+                                    environment.cleanup.acknowledgeOutcome()
+                                    router.requestPurchase(reason: .exportReport)
+                                    return
+                                }
+                                if let report = environment.cleanup.report {
+                                    await environment.exportReport(report)
+                                }
+                            }
+                        },
+                        onOpenTrash: { Task { await environment.openTrash() } },
+                        onRevealFailed: { url in Task { await environment.reveal(url) } },
+                        onRequestPurchase: { router.requestPurchase(reason: .exportReport) },
+                        statusMessage: environment.reportExportMessage
+                    )
+                    .background(SiftColor.windowBackground)
+                }
+                .background(.regularMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusL, style: .continuous))
+                .shadow(radius: 20, y: 6)
+                .padding(SiftMetrics.spacingXL)
+                .transition(.opacity)
+            }
+        }
         .overlay(alignment: .bottom) {
             // The confirmation panel is presented from the shell so it appears
             // above whichever page started the cleanup.
@@ -219,7 +257,9 @@ struct DetailView: View {
                     preferences: preferences,
                     onConfirm: {
                         Task {
-                            await environment.cleanup.confirmCleanup()
+                            await environment.cleanup.confirmCleanup(
+                                scanReport: environment.scan.report
+                            )
                             RecentHistoryBridge.record(environment.cleanup.outcome)
                         }
                     },

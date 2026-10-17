@@ -1,3 +1,4 @@
+import AppKit
 import Core
 import Shared
 import SwiftUI
@@ -14,7 +15,6 @@ public struct FileCleanupView: View {
     @State private var mode: Mode = .large
     @State private var hasScanned = false
     @State private var isScanning = false
-    @State private var chosenFolders: [URL] = []
     @State private var showFolderPicker = false
 
     public enum Mode: String, CaseIterable {
@@ -65,9 +65,13 @@ public struct FileCleanupView: View {
 
                 if mode == .duplicates {
                     DuplicateScopeCard(
-                        folders: chosenFolders,
+                        folders: environment.authorizedLocations.map(\.displayName),
                         onAdd: { showFolderPicker = true },
-                        onRemove: { url in chosenFolders.removeAll { $0 == url } },
+                        onRemove: { name in
+                            guard let location = environment.authorizedLocations.first(where: { $0.displayName == name })
+                            else { return }
+                            Task { await environment.removeAuthorizedLocation(location) }
+                        },
                         onScan: { Task { await scan() } },
                         isScanning: isScanning
                     )
@@ -97,7 +101,11 @@ public struct FileCleanupView: View {
             allowsMultipleSelection: true
         ) { result in
             if case let .success(urls) = result {
-                chosenFolders.append(contentsOf: urls)
+                Task {
+                    for url in urls {
+                        await environment.authorizeLocation(url)
+                    }
+                }
             }
         }
     }
@@ -139,8 +147,9 @@ public struct FileCleanupView: View {
         if mode == .duplicates {
             // Only the user's chosen folders, plus the safe defaults. A system
             // directory is never added here.
-            let defaults = environment.defaultDuplicateRoots()
-            request.duplicateRoots = Array(Set(defaults + chosenFolders.map(\.path)))
+            // Only the defaults plus the folders the user authorised. The
+            // duplicate scan never widens to a mount point on its own.
+            request.duplicateRoots = Array(Set(environment.defaultDuplicateRoots()))
         } else {
             request.includeDuplicates = false
         }
@@ -163,9 +172,9 @@ public struct FileCleanupView: View {
 /// The duplicate scope: which folders are searched, and the warning that nothing
 /// outside them is touched.
 struct DuplicateScopeCard: View {
-    let folders: [URL]
+    let folders: [String]
     let onAdd: () -> Void
-    let onRemove: (URL) -> Void
+    let onRemove: (String) -> Void
     let onScan: () -> Void
     let isScanning: Bool
 
@@ -187,18 +196,18 @@ struct DuplicateScopeCard: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 if !folders.isEmpty {
-                    ForEach(folders, id: \.path) { url in
+                    ForEach(folders, id: \.self) { name in
                         HStack(spacing: SiftMetrics.spacingM) {
                             Image(systemName: "folder")
                                 .foregroundStyle(SiftColor.accent)
                                 .accessibilityHidden(true)
-                            Text(CleanupItem.abbreviate(url.path))
+                            Text(name)
                                 .font(SiftFont.body)
                                 .lineLimit(1)
                                 .truncationMode(.middle)
                             Spacer()
                             Button {
-                                onRemove(url)
+                                onRemove(name)
                             } label: {
                                 Image(systemName: "minus.circle")
                             }

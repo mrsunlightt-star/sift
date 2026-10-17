@@ -20,6 +20,8 @@ public struct FileOperationResult: Identifiable, Sendable {
     public let errorCode: String?
     public let message: String?
     public let sizeInBytes: Int64
+    /// The cleanup category the item came from, so a report can name it.
+    public let category: CleanupCategory?
 
     public init(
         id: UUID = UUID(),
@@ -28,7 +30,8 @@ public struct FileOperationResult: Identifiable, Sendable {
         status: OperationStatus,
         errorCode: String? = nil,
         message: String? = nil,
-        sizeInBytes: Int64 = 0
+        sizeInBytes: Int64 = 0,
+        category: CleanupCategory? = nil
     ) {
         self.id = id
         self.sourceURL = sourceURL
@@ -37,6 +40,7 @@ public struct FileOperationResult: Identifiable, Sendable {
         self.errorCode = errorCode
         self.message = message
         self.sizeInBytes = sizeInBytes
+        self.category = category
     }
 
     /// Localised explanation for the failure code.

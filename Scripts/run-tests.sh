@@ -30,7 +30,7 @@ if [[ ! -f "${RUST_LIB}" ]]; then
   echo "error: the Rust scanner core is missing; run Scripts/bootstrap.sh first" >&2
   exit 1
 fi
-TRIPLE="$(uname -m)-apple-macosx13.0"
+TRIPLE="$(uname -m)-apple-macosx14.0"
 BIN_PATH="$(swift build --show-bin-path)"
 MODULES="${BIN_PATH}/Modules"
 
@@ -55,44 +55,6 @@ echo "==> Compiling the suite"
 cat > "${WORK}/transformed/Main.swift" <<'MAIN'
 import Foundation
 import XCTest
-
-/// Bridges an async test body into a synchronous one.
-///
-/// The runner discovers methods through selectors, and a Swift `async` method
-/// cannot be reached that way. The rewritten bodies call this, which starts the
-/// async work and waits for it. The runner is a single-threaded command-line
-/// process, so blocking its only thread is safe.
-///
-/// The body is carried in an unchecked box rather than captured directly:
-/// `Task` requires a `sending` closure under strict concurrency, and the box is
-/// what states that the hand-off is safe here (one thread, one task at a time).
-final class BodyBox<T>: @unchecked Sendable {
-    let body: () async throws -> T
-    var result: Result<T, Error>?
-
-    init(_ body: @escaping () async throws -> T) {
-        self.body = body
-    }
-}
-
-func runAsync<T>(_ body: @escaping () async throws -> T) throws -> T {
-    let semaphore = DispatchSemaphore(value: 0)
-    let box = BodyBox(body)
-    Task {
-        do {
-            box.result = .success(try await box.body())
-        } catch {
-            box.result = .failure(error)
-        }
-        semaphore.signal()
-    }
-    semaphore.wait()
-    switch box.result {
-    case let .success(value): return value
-    case let .failure(error): throw error
-    case .none: fatalError("async test body never completed")
-    }
-}
 
 @main
 struct TestMain {

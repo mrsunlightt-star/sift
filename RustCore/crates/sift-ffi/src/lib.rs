@@ -740,7 +740,9 @@ pub unsafe extern "C" fn sift_scan_page_results(
             return false;
         }
         let sort_value = as_str(&sort).unwrap_or("size");
-        let category_value = as_str(&category);
+        // An empty string means "every category", the same as a null pointer.
+        // Treating "" as a real category silently returned no rows.
+        let category_value = as_str(&category).filter(|value| !value.is_empty());
         let handle_ref = &(*handle).handle;
         match handle_ref.page_results(offset, limit, sort_value, category_value) {
             Ok(rows) => {
@@ -841,6 +843,8 @@ pub unsafe extern "C" fn sift_scan_page_duplicate_groups(
 pub unsafe extern "C" fn sift_scan_duplicate_members(
     handle: *mut SiftScanHandle,
     group_id: i64,
+    offset: u32,
+    limit: u32,
     out: *mut SiftDuplicateMember,
     max_members: u32,
 ) -> u32 {
@@ -849,7 +853,7 @@ pub unsafe extern "C" fn sift_scan_duplicate_members(
             return 0;
         }
         let index = (*handle).handle.index();
-        let Ok(members) = index.duplicate_members(group_id) else {
+        let Ok(members) = index.duplicate_members(group_id, offset, limit) else {
             return 0;
         };
         let mut written = 0u32;
@@ -1490,7 +1494,8 @@ mod tests {
             modified_secs: 0,
             keep: false,
         }; 4];
-        let written = unsafe { sift_scan_duplicate_members(handle, 1, members.as_mut_ptr(), 4) };
+        let written =
+            unsafe { sift_scan_duplicate_members(handle, 1, 0, 4, members.as_mut_ptr(), 4) };
         assert_eq!(written, 0);
         unsafe {
             sift_scan_free(handle);
@@ -1557,7 +1562,7 @@ mod tests {
             keep: false,
         }; 8];
         let written =
-            unsafe { sift_scan_duplicate_members(handle, group_id, members.as_mut_ptr(), 8) };
+            unsafe { sift_scan_duplicate_members(handle, group_id, 0, 8, members.as_mut_ptr(), 8) };
         assert_eq!(written, 2);
         assert_eq!(
             members.iter().take(2).filter(|member| member.keep).count(),
@@ -1571,6 +1576,112 @@ mod tests {
             }
             for member in members.iter_mut() {
                 sift_duplicate_member_free(member);
+            }
+            sift_scan_free(handle);
+            sift_engine_free(engine);
+            sift_string_free(error.code);
+            sift_string_free(error.message);
+        }
+    }
+
+    #[test]
+    fn a_duplicate_group_larger_than_one_page_pages_without_repeating() {
+        // The defect this covers: the FFI call ignored the caller's offset and
+        // re-read the first page, so a group of more than 512 copies accumulated
+        // duplicates on the Swift side.
+        let tree = sift_scanner_core::walker::fixtures::TempTree::new("ffi-duplicate-paging");
+        let payload = vec![b'x'; 4096];
+        for index in 0..520 {
+            tree.file_with(&format!("Downloads/copy-{index:04}.bin"), &payload);
+        }
+
+        let mut request: serde_json::Value =
+            serde_json::from_str(&scan_request_json("paging", &tree.root.to_string_lossy()))
+                .unwrap();
+        request["includeDuplicates"] = serde_json::json!(true);
+        request["duplicates"]["minSizeBytes"] = serde_json::json!(1);
+        request["duplicates"]["roots"] = serde_json::json!([tree.root.to_string_lossy()]);
+
+        let engine = sift_engine_new();
+        let mut error = result_ok();
+        let handle = unsafe { sift_scan_start(engine, string(&request.to_string()), &mut error) };
+        assert!(!handle.is_null());
+
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+        while unsafe { !sift_scan_is_finished(handle) } && std::time::Instant::now() < deadline {
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        let mut events = vec![empty_event(); 32];
+        loop {
+            let written = unsafe { sift_scan_poll_events(handle, 32, events.as_mut_ptr()) };
+            if written == 0 {
+                break;
+            }
+            for event in events.iter_mut().take(written as usize) {
+                unsafe { sift_event_free_items(event) };
+            }
+        }
+
+        let mut groups = [SiftDuplicateGroup {
+            version: 0,
+            group_id: 0,
+            digest: SiftString::EMPTY,
+            size_bytes: 0,
+            member_count: 0,
+            reclaimable_bytes: 0,
+        }; 4];
+        let written =
+            unsafe { sift_scan_page_duplicate_groups(handle, 0, 4, groups.as_mut_ptr(), 4) };
+        assert_eq!(written, 1, "the 520 copies form one group");
+        assert_eq!(groups[0].member_count, 520);
+        let group_id = groups[0].group_id;
+
+        let page_size = 512u32;
+        let mut buffer = vec![
+            SiftDuplicateMember {
+                version: 0,
+                path: SiftString::EMPTY,
+                size_bytes: 0,
+                modified_secs: 0,
+                keep: false,
+            };
+            page_size as usize
+        ];
+        let mut seen = std::collections::HashSet::new();
+        let mut offset = 0u32;
+        let mut total = 0usize;
+        loop {
+            let written = unsafe {
+                sift_scan_duplicate_members(
+                    handle,
+                    group_id,
+                    offset,
+                    page_size,
+                    buffer.as_mut_ptr(),
+                    page_size,
+                )
+            };
+            if written == 0 {
+                break;
+            }
+            for member in buffer.iter_mut().take(written as usize) {
+                let path = unsafe { as_str(&member.path) }
+                    .unwrap_or_default()
+                    .to_string();
+                assert!(seen.insert(path), "a member appeared on two pages");
+                unsafe { sift_duplicate_member_free(member) };
+            }
+            total += written as usize;
+            offset += written;
+            if written < page_size {
+                break;
+            }
+        }
+        assert_eq!(total, 520, "every member is reachable exactly once");
+
+        unsafe {
+            for group in groups.iter_mut() {
+                sift_duplicate_group_free(group);
             }
             sift_scan_free(handle);
             sift_engine_free(engine);

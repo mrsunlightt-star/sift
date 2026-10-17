@@ -146,15 +146,6 @@ public struct CleanupConfirmationView: View {
             .toggleStyle(.checkbox)
 
             HStack {
-                Toggle(isOn: Binding(
-                    get: { cleanup.keepWindowOpen },
-                    set: { cleanup.setKeepWindowOpen($0) }
-                )) {
-                    Text(LocalizationKey.cleanupConfirmKeepOpen.localized)
-                        .font(SiftFont.caption)
-                }
-                .toggleStyle(.checkbox)
-
                 Spacer()
 
                 Button {

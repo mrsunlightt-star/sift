@@ -40,6 +40,8 @@ pub struct WalkOptions {
     pub skip_directory_names: HashSet<String>,
     /// Extra path prefixes to skip, from the user's ignore list.
     pub skip_paths: Vec<PathBuf>,
+    /// Roots the user authorised; protection checks consult them.
+    pub authorized_roots: Vec<PathBuf>,
     /// Stop after this many entries; `None` means unlimited.
     pub max_entries: Option<u64>,
     /// Report package directories as entries instead of descending into them.
@@ -54,6 +56,7 @@ impl WalkOptions {
             max_depth: None,
             skip_directory_names: HashSet::new(),
             skip_paths: Vec::new(),
+            authorized_roots: Vec::new(),
             max_entries: None,
             stop_at_packages: true,
         }

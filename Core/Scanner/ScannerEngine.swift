@@ -21,6 +21,12 @@ public enum ScannerEngineKind: String, Sendable, CaseIterable {
 
 /// What a scan should look for.
 public struct ScanRequest: Sendable {
+    /// The home directory the rules are anchored to.
+    ///
+    /// Explicit rather than implied: a scan of any other tree (a test fixture, a
+    /// restored backup) must resolve rules against that tree, not against the
+    /// process user's home.
+    public var homeDirectory: URL
     /// Directories the scan may visit, resolved from the user's settings.
     public var roots: [ScanRoot]
     /// Large-file threshold in bytes (§5.4 default: 1 GB).
@@ -31,6 +37,11 @@ public struct ScanRequest: Sendable {
     public var staleThresholdDays: Int
     /// Paths the user asked Sift never to visit.
     public var ignoredPaths: [String]
+    /// Roots the user explicitly authorised.
+    ///
+    /// The Rust core receives these so its compiled-in `/Volumes` guard can be
+    /// lifted for exactly these subtrees, and no others.
+    public var authorizedRoots: [String]
     /// Bundle identifiers of installed apps, used for residue detection.
     public var installedBundleIdentifiers: [String]
     /// Whether to run the duplicate-file pipeline.
@@ -44,21 +55,25 @@ public struct ScanRequest: Sendable {
     public var extraRulesJSON: String?
 
     public init(
+        homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser,
         roots: [ScanRoot],
         largeFileThresholdBytes: Int64 = ScanDefaults.largeFileThresholdBytes,
         oldFileThresholdDays: Int = ScanDefaults.oldFileThresholdDays,
         staleThresholdDays: Int = ScanDefaults.staleThresholdDays,
         ignoredPaths: [String] = [],
+        authorizedRoots: [String] = [],
         installedBundleIdentifiers: [String] = [],
         includeDuplicates: Bool = true,
         duplicateRoots: [String] = [],
         extraRulesJSON: String? = nil
     ) {
+        self.homeDirectory = homeDirectory
         self.roots = roots
         self.largeFileThresholdBytes = largeFileThresholdBytes
         self.oldFileThresholdDays = oldFileThresholdDays
         self.staleThresholdDays = staleThresholdDays
         self.ignoredPaths = ignoredPaths
+        self.authorizedRoots = authorizedRoots
         self.installedBundleIdentifiers = installedBundleIdentifiers
         self.includeDuplicates = includeDuplicates
         self.duplicateRoots = duplicateRoots

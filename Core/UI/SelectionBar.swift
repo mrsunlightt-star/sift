@@ -72,7 +72,12 @@ public struct SelectionBar: View {
             onRequestPurchase()
             return
         }
-        await cleanup.prepareCleanup()
+        // The preference decides whether the confirmation panel appears. It can
+        // only be off because the user turned it off, and everything still goes
+        // to the Trash either way.
+        await cleanup.prepareCleanup(
+            requiresConfirmation: environment.preferences.showsConfirmationPanel
+        )
     }
 }
 

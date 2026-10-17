@@ -129,6 +129,12 @@ public struct RuleEngine: Sendable {
     ]
 
     public let rules: [Rule]
+    /// Locations the user explicitly authorised in settings.
+    ///
+    /// Authorisation only lifts the blanket `/Volumes` and `/private/var` prefixes
+    /// that exist to stop Sift scanning those trees by default. It never unlocks
+    /// user content, keychains or a photos library.
+    private let authorized: AuthorizedScope
     /// The home directory every path comparison is made against.
     ///
     /// Exposed because the scanners, the storage analysis and the file
@@ -145,12 +151,14 @@ public struct RuleEngine: Sendable {
     /// shipped rules are still used, so the app remains functional.
     public init(
         homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser,
-        userRuleURL: URL? = nil
+        userRuleURL: URL? = nil,
+        authorized: AuthorizedScope = AuthorizedScope()
     ) {
         // Resolved on the way in so every later comparison uses one spelling of
         // the path. `URL.resolvingSymlinksInPath` is used rather than
         // `FileManager` so a path that does not exist yet still resolves.
         self.homeDirectory = Self.normalize(homeDirectory.resolvingSymlinksInPath().path)
+        self.authorized = authorized
 
         var table = Self.bundledRules()
         if let userRuleURL, let data = try? Data(contentsOf: userRuleURL) {
@@ -170,9 +178,14 @@ public struct RuleEngine: Sendable {
     }
 
     /// Test and preview initialiser with an explicit rule list.
-    public init(rules: [Rule], homeDirectory: URL) {
+    public init(
+        rules: [Rule],
+        homeDirectory: URL,
+        authorized: AuthorizedScope = AuthorizedScope()
+    ) {
         self.rules = rules
         self.homeDirectory = Self.normalize(homeDirectory.path)
+        self.authorized = authorized
     }
 
     // MARK: - Protection
@@ -208,9 +221,6 @@ public struct RuleEngine: Sendable {
         for child in Self.protectedHomeChildren where Self.isPrefix("\(homeDirectory)/\(child)", resolved) {
             return .userContent(child)
         }
-        for prefix in Self.protectedPrefixes where Self.isPrefix(prefix, resolved) {
-            return .systemPath(prefix)
-        }
         for suffix in Self.protectedLibrarySuffixes
         where Self.isPrefix("\(homeDirectory)/\(suffix)", resolved) {
             return .secrets(suffix)
@@ -218,7 +228,46 @@ public struct RuleEngine: Sendable {
         if resolved.hasSuffix(".photoslibrary") || resolved.contains(".photoslibrary/") {
             return .photosLibrary
         }
+        // Everything above is a hard rule. Only the blanket prefixes below can be
+        // lifted by an explicit grant, which is what makes an external volume the
+        // user added usable while `/Volumes` stays closed by default.
+        if authorized.contains(resolved) {
+            return nil
+        }
+        for prefix in Self.protectedPrefixes where Self.isPrefix(prefix, resolved) {
+            return .systemPath(prefix)
+        }
         return nil
+    }
+
+    /// True when the user may grant access to this path.
+    ///
+    /// User content, keychains and a photo library are never authorisable: the
+    /// grant exists to reach volumes and system trees the app does not scan by
+    /// default, not to unlock a Documents folder.
+    public func canAuthorize(url: URL) -> Bool {
+        let path = Self.normalize(url.resolvingSymlinksInPath().path)
+        if Self.isPrefix("\(homeDirectory)/Documents", path)
+            || Self.isPrefix("\(homeDirectory)/Desktop", path)
+            || Self.isPrefix("\(homeDirectory)/Movies", path)
+            || Self.isPrefix("\(homeDirectory)/Music", path)
+            || Self.isPrefix("\(homeDirectory)/Pictures", path)
+        {
+            return false
+        }
+        for suffix in Self.protectedLibrarySuffixes
+        where Self.isPrefix("\(homeDirectory)/\(suffix)", path) {
+            return false
+        }
+        if path.hasSuffix(".photoslibrary") || path.contains(".photoslibrary/") {
+            return false
+        }
+        // `/System` and its siblings are not merely unauthorised, they are
+        // outside what the product may ever touch.
+        for prefix in ["/System", "/bin", "/sbin", "/usr", "/etc", "/private/etc"] {
+            if Self.isPrefix(prefix, path) { return false }
+        }
+        return true
     }
 
     /// True when the path is safe to scan and clean.

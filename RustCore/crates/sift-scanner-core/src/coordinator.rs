@@ -463,7 +463,17 @@ fn run_scan(handle: &Arc<ScanHandle>, request: &ScanRequest) {
         });
         handle.publish_progress();
 
-        let roots = scanners::duplicate_roots(request, &home);
+        // Duplicate candidates are cleanup candidates, so the roots are limited
+        // to the ones the caller allowed to be cleaned.
+        let roots: Vec<PathBuf> = scanners::duplicate_roots(request, &home)
+            .into_iter()
+            .filter(|root| {
+                request.roots.is_empty()
+                    || request.roots.iter().any(|candidate| {
+                        candidate.is_cleanable && root.starts_with(&candidate.path)
+                    })
+            })
+            .collect();
         if !roots.is_empty() {
             let mut finder =
                 scanners::DuplicateFinder::new(request.duplicates.clone(), home.clone(), cancel);
@@ -930,7 +940,7 @@ mod tests {
         let index = handle.index();
         let groups = index.page_duplicate_groups(0, 10).unwrap();
         assert_eq!(groups.len(), 1);
-        let members = index.duplicate_members(groups[0].group_id).unwrap();
+        let members = index.duplicate_members(groups[0].group_id, 0, 100).unwrap();
         assert_eq!(members.len(), 2);
         assert_eq!(members.iter().filter(|m| m.keep).count(), 1);
     }

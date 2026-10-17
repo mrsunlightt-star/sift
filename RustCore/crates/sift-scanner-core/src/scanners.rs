@@ -15,7 +15,8 @@ use crate::walker::{self, WalkEntry, WalkMode, WalkOptions, WalkReport};
 use sift_file_index::{GroupMemberRow, ItemRow};
 use sift_hasher::{hash_file, sample_fingerprint, CancelToken, FileIdentity};
 use sift_rules::{
-    default_rules, is_protected_path, Category, MatchSpec, Risk, RootAnchor, Rule, RuleSet,
+    default_rules, is_protected_path_authorized, Category, MatchSpec, Risk, RootAnchor, Rule,
+    RuleSet,
 };
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -136,9 +137,15 @@ pub struct Measured {
 }
 
 /// Measures a directory tree, stopping at package directories.
-pub fn measure_directory(path: &Path, cancel: &CancelToken, home: &Path) -> (Measured, WalkReport) {
+pub fn measure_directory(
+    path: &Path,
+    cancel: &CancelToken,
+    home: &Path,
+    authorized_roots: &[PathBuf],
+) -> (Measured, WalkReport) {
     let mut options = WalkOptions::new(home.to_path_buf(), WalkMode::Files)
         .with_ignores(walker::DEFAULT_SKIP_DIRECTORY_NAMES);
+    options.authorized_roots = authorized_roots.to_vec();
     options.stop_at_packages = true;
     let _ = &mut options;
     let report = walker::walk(path, &options, cancel);
@@ -187,6 +194,17 @@ pub fn scan_rules(
     (deduped, skips)
 }
 
+/// True when the home directory sits inside a root marked cleanable.
+fn home_is_cleanable(context: &ScanContext<'_>) -> bool {
+    if context.request.roots.is_empty() {
+        return true;
+    }
+    let home = context.home_dir.to_string_lossy().to_string();
+    context.request.roots.iter().any(|root| {
+        root.is_cleanable && (home == root.path || home.starts_with(&format!("{}/", root.path)))
+    })
+}
+
 fn root_is_authorised(root: &Path, request: &ScanRequest) -> bool {
     if !root.is_absolute() {
         return false;
@@ -198,7 +216,7 @@ fn root_is_authorised(root: &Path, request: &ScanRequest) -> bool {
     request
         .roots
         .iter()
-        .any(|candidate| root.starts_with(&candidate.path))
+        .any(|candidate| candidate.is_cleanable && root.starts_with(&candidate.path))
 }
 
 fn scan_one_rule(
@@ -207,7 +225,17 @@ fn scan_one_rule(
     context: &mut ScanContext<'_>,
     cancel: &CancelToken,
 ) -> (Vec<Candidate>, WalkReport) {
-    if is_protected_path(&context.home_dir.to_string_lossy(), &root.to_string_lossy()) {
+    let authorized: Vec<PathBuf> = context
+        .request
+        .authorized_roots
+        .iter()
+        .map(PathBuf::from)
+        .collect();
+    if is_protected_path_authorized(
+        &context.home_dir.to_string_lossy(),
+        &root.to_string_lossy(),
+        &authorized,
+    ) {
         return (Vec::new(), WalkReport::default());
     }
 
@@ -232,11 +260,21 @@ fn directory_candidate(
     context: &mut ScanContext<'_>,
     cancel: &CancelToken,
 ) -> Option<Candidate> {
-    if is_protected_path(&context.home_dir.to_string_lossy(), &path.to_string_lossy()) {
+    let authorized: Vec<PathBuf> = context
+        .request
+        .authorized_roots
+        .iter()
+        .map(PathBuf::from)
+        .collect();
+    if is_protected_path_authorized(
+        &context.home_dir.to_string_lossy(),
+        &path.to_string_lossy(),
+        &authorized,
+    ) {
         return None;
     }
     context.progress.note_path(path);
-    let (measured, report) = measure_directory(path, cancel, &context.home_dir);
+    let (measured, report) = measure_directory(path, cancel, &context.home_dir, &authorized);
     context
         .progress
         .note_files(report.total_files, report.total_bytes);
@@ -307,11 +345,29 @@ fn child_directory_candidates(
         // would hide every stale log sitting next to it.
         let measured = match rule.min_age_days {
             Some(min_age_days) => {
-                measure_directory_matching(&entry.path, cancel, &context.home_dir, &|modified| {
-                    older_than_days(modified, min_age_days)
-                })
+                let authorized: Vec<PathBuf> = context
+                    .request
+                    .authorized_roots
+                    .iter()
+                    .map(PathBuf::from)
+                    .collect();
+                measure_directory_matching(
+                    &entry.path,
+                    cancel,
+                    &context.home_dir,
+                    &authorized,
+                    &|modified| older_than_days(modified, min_age_days),
+                )
             }
-            None => measure_directory(&entry.path, cancel, &context.home_dir).0,
+            None => {
+                let authorized: Vec<PathBuf> = context
+                    .request
+                    .authorized_roots
+                    .iter()
+                    .map(PathBuf::from)
+                    .collect();
+                measure_directory(&entry.path, cancel, &context.home_dir, &authorized).0
+            }
         };
         context.progress.note_files(measured.files, measured.bytes);
 
@@ -324,7 +380,19 @@ fn child_directory_candidates(
         let modified = match rule.min_age_days {
             // The oldest surviving file is what the explanation reports.
             Some(min_age_days) => {
-                oldest_matching_modified_secs(&entry.path, cancel, &context.home_dir, min_age_days)
+                let authorized: Vec<PathBuf> = context
+                    .request
+                    .authorized_roots
+                    .iter()
+                    .map(PathBuf::from)
+                    .collect();
+                oldest_matching_modified_secs(
+                    &entry.path,
+                    cancel,
+                    &context.home_dir,
+                    &authorized,
+                    min_age_days,
+                )
             }
             None => entry.modified_secs,
         };
@@ -425,6 +493,7 @@ pub fn measure_directory_matching(
     path: &Path,
     cancel: &CancelToken,
     home: &Path,
+    authorized_roots: &[PathBuf],
     accept_file: &dyn Fn(i64) -> bool,
 ) -> Measured {
     let mut measured = Measured::default();
@@ -451,7 +520,11 @@ pub fn measure_directory_matching(
             if !metadata.is_file() {
                 continue;
             }
-            if is_protected_path(&home.to_string_lossy(), &entry_path.to_string_lossy()) {
+            if is_protected_path_authorized(
+                &home.to_string_lossy(),
+                &entry_path.to_string_lossy(),
+                authorized_roots,
+            ) {
                 continue;
             }
             if !accept_file(modified_secs(&metadata)) {
@@ -469,6 +542,7 @@ fn oldest_matching_modified_secs(
     path: &Path,
     cancel: &CancelToken,
     home: &Path,
+    authorized_roots: &[PathBuf],
     min_age_days: u32,
 ) -> i64 {
     let mut stack = vec![path.to_path_buf()];
@@ -492,7 +566,11 @@ fn oldest_matching_modified_secs(
                 stack.push(entry_path);
                 continue;
             }
-            if is_protected_path(&home.to_string_lossy(), &entry_path.to_string_lossy()) {
+            if is_protected_path_authorized(
+                &home.to_string_lossy(),
+                &entry_path.to_string_lossy(),
+                authorized_roots,
+            ) {
                 continue;
             }
             let modified = modified_secs(&metadata);
@@ -508,9 +586,16 @@ fn oldest_matching_modified_secs(
 }
 
 fn cancelled_or_excluded(entry: &WalkEntry, rule: &Rule, context: &ScanContext<'_>) -> bool {
-    if is_protected_path(
+    let authorized: Vec<PathBuf> = context
+        .request
+        .authorized_roots
+        .iter()
+        .map(PathBuf::from)
+        .collect();
+    if is_protected_path_authorized(
         &context.home_dir.to_string_lossy(),
         &entry.path.to_string_lossy(),
+        &authorized,
     ) {
         return true;
     }
@@ -599,10 +684,13 @@ fn file_threshold_scan(
     let mut candidates = Vec::new();
     let mut combined = WalkReport::default();
 
+    // A root the caller marked measure-only contributes nothing to a cleanup
+    // queue: it is scanned for storage totals, never for candidates.
     let roots: Vec<PathBuf> = context
         .request
         .roots
         .iter()
+        .filter(|root| root.is_cleanable)
         .map(|root| PathBuf::from(&root.path))
         .collect();
 
@@ -650,9 +738,16 @@ fn file_threshold_scan(
             if !age_ok {
                 continue;
             }
-            if is_protected_path(
+            let authorized: Vec<PathBuf> = context
+                .request
+                .authorized_roots
+                .iter()
+                .map(PathBuf::from)
+                .collect();
+            if is_protected_path_authorized(
                 &context.home_dir.to_string_lossy(),
                 &entry.path.to_string_lossy(),
+                &authorized,
             ) {
                 continue;
             }
@@ -696,6 +791,11 @@ pub fn scan_application_residue(
     context: &mut ScanContext<'_>,
     cancel: &CancelToken,
 ) -> (Vec<Candidate>, WalkReport) {
+    // Residue is derived from the home directory, so it inherits that root's
+    // policy: a measure-only home contributes no cleanup candidates.
+    if !home_is_cleanable(context) {
+        return (Vec::new(), WalkReport::default());
+    }
     let mut candidates = Vec::new();
     let mut combined = WalkReport::default();
     let installed: Vec<String> = context
@@ -749,13 +849,21 @@ pub fn scan_application_residue(
             if installed.iter().any(|id| *id == name.to_ascii_lowercase()) {
                 continue;
             }
-            if is_protected_path(
+            let authorized: Vec<PathBuf> = context
+                .request
+                .authorized_roots
+                .iter()
+                .map(PathBuf::from)
+                .collect();
+            if is_protected_path_authorized(
                 &context.home_dir.to_string_lossy(),
                 &entry.path.to_string_lossy(),
+                &authorized,
             ) {
                 continue;
             }
-            let (measured, inner) = measure_directory(&entry.path, cancel, &context.home_dir);
+            let (measured, inner) =
+                measure_directory(&entry.path, cancel, &context.home_dir, &authorized);
             if measured.bytes == 0 {
                 continue;
             }
@@ -815,7 +923,14 @@ pub fn scan_application_residue(
                 // the rule is unambiguous, so it is left alone.
                 continue;
             }
-            let (measured, inner) = measure_directory(&entry.path, cancel, &context.home_dir);
+            let authorized: Vec<PathBuf> = context
+                .request
+                .authorized_roots
+                .iter()
+                .map(PathBuf::from)
+                .collect();
+            let (measured, inner) =
+                measure_directory(&entry.path, cancel, &context.home_dir, &authorized);
             if measured.bytes == 0 {
                 continue;
             }
@@ -1202,13 +1317,20 @@ pub fn dedupe_parent_child(mut candidates: Vec<Candidate>) -> Vec<Candidate> {
 /// Builds the roots a duplicate scan should use, defaulting to the user's
 /// selection and never widening to system directories on its own.
 pub fn duplicate_roots(request: &ScanRequest, home_dir: &Path) -> Vec<PathBuf> {
+    let authorized: Vec<PathBuf> = request.authorized_roots.iter().map(PathBuf::from).collect();
     if !request.duplicates.roots.is_empty() {
         return request
             .duplicates
             .roots
             .iter()
             .map(PathBuf::from)
-            .filter(|path| !is_protected_path(&home_dir.to_string_lossy(), &path.to_string_lossy()))
+            .filter(|path| {
+                !is_protected_path_authorized(
+                    &home_dir.to_string_lossy(),
+                    &path.to_string_lossy(),
+                    &authorized,
+                )
+            })
             .collect();
     }
     let mut roots: Vec<PathBuf> = Vec::new();
@@ -1685,8 +1807,12 @@ mod tests {
         harness.tree.file("dir/a.bin", 4096);
         harness.tree.file("dir/nested/b.bin", 8192);
         let cancel = CancelToken::new();
-        let (measured, report) =
-            measure_directory(&harness.tree.root.join("dir"), &cancel, &harness.tree.root);
+        let (measured, report) = measure_directory(
+            &harness.tree.root.join("dir"),
+            &cancel,
+            &harness.tree.root,
+            &[],
+        );
         assert_eq!(report.total_files, 2);
         assert!(measured.bytes >= 4096 + 8192);
     }
