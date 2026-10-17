@@ -13,7 +13,6 @@ public enum AppDestination: String, CaseIterable, Identifiable, Hashable, Sendab
     case uninstaller
     case fileCleanup
     case storageAnalysis
-    case systemDiagnostics
     case settings
     case purchase
 
@@ -23,7 +22,7 @@ public enum AppDestination: String, CaseIterable, Identifiable, Hashable, Sendab
     public static var primary: [AppDestination] {
         [
             .dashboard, .smartScan, .junkCleanup, .uninstaller, .fileCleanup,
-            .storageAnalysis, .systemDiagnostics,
+            .storageAnalysis,
         ]
     }
 
@@ -35,7 +34,6 @@ public enum AppDestination: String, CaseIterable, Identifiable, Hashable, Sendab
         case .uninstaller: .navUninstaller
         case .fileCleanup: .navFileCleanup
         case .storageAnalysis: .navStorageAnalysis
-        case .systemDiagnostics: .navSystemDiagnostics
         case .settings: .navSettings
         case .purchase: .purchaseTitle
         }
@@ -49,14 +47,13 @@ public enum AppDestination: String, CaseIterable, Identifiable, Hashable, Sendab
         case .uninstaller: "shippingbox"
         case .fileCleanup: "doc.on.doc"
         case .storageAnalysis: "chart.pie"
-        case .systemDiagnostics: "stethoscope"
         case .settings: "gearshape"
         case .purchase: "lock.open"
         }
     }
 
-    /// Digit shortcut matching the sidebar order, so ⌘1 is the overview and ⌘7
-    /// is the system diagnostics. Settings uses the conventional ⌘, instead.
+    /// Digit shortcut matching the sidebar order, so ⌘1 is the overview and ⌘6
+    /// is storage. Settings uses the conventional ⌘, instead.
     public var digitShortcut: KeyEquivalent? {
         switch self {
         case .dashboard: "1"
@@ -65,7 +62,6 @@ public enum AppDestination: String, CaseIterable, Identifiable, Hashable, Sendab
         case .uninstaller: "4"
         case .fileCleanup: "5"
         case .storageAnalysis: "6"
-        case .systemDiagnostics: "7"
         case .settings, .purchase: nil
         }
     }

@@ -13,11 +13,6 @@ public struct JunkCleanupView: View {
     private let onRequestPurchase: () -> Void
     @State private var categoryFilter: CleanupCategory?
 
-    /// The four categories the junk page owns (§5.2).
-    private let junkCategories: [CleanupCategory] = [
-        .applicationCache, .logs, .installers, .temporaryFiles, .applicationResidue,
-    ]
-
     public init(onRequestPurchase: @escaping () -> Void = {}) {
         self.onRequestPurchase = onRequestPurchase
     }
@@ -41,8 +36,8 @@ public struct JunkCleanupView: View {
                     )
                 } else {
                     CategoryFilterBar(
-                        categories: junkCategories,
-                        totals: environment.scan.categoryTotals,
+                        categories: CleanupCategory.junkCategories,
+                        totals: environment.scan.categoryTotals.limited(to: CleanupCategory.junkCategories),
                         selection: $categoryFilter
                     )
                     SelectionBar(
@@ -53,7 +48,8 @@ public struct JunkCleanupView: View {
                     )
                     ScanResultsView(
                         scan: environment.scan,
-                        cleanup: environment.cleanup
+                        cleanup: environment.cleanup,
+                        categories: CleanupCategory.junkCategories
                     )
                 }
             }
@@ -63,11 +59,7 @@ public struct JunkCleanupView: View {
     }
 
     private func startScan() async {
-        environment.cleanup.resetForNewScan()
-        let request = await environment.makeScanRequest(includeDuplicates: false)
-        await environment.scan.start(request)
-        let page = await environment.scan.page(offset: 0, limit: 200, sort: .size, category: nil)
-        environment.cleanup.setItems(page.items.map { $0.asCleanupItem() })
+        await environment.runScan(.junk)
     }
 }
 

@@ -15,6 +15,13 @@ public enum RecentHistory {
         let operation: String
     }
 
+    /// Removes the stored history. Nothing here is uploaded, and nothing else
+    /// depends on it, so this is a plain delete.
+    public static func clear() {
+        UserDefaults.standard.removeObject(forKey: scanKey)
+        UserDefaults.standard.removeObject(forKey: cleanupKey)
+    }
+
     public static func recordScan() {
         UserDefaults.standard.set(Date(), forKey: scanKey)
     }

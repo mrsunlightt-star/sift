@@ -43,8 +43,8 @@ SwiftPM 与 Xcode 工程都从这里链接。固定路径是刻意的：SwiftPM 
 | `RustCore/` | Rust workspace：规则、哈希、SQLite 索引、扫描协调器、FFI |
 | `Bridge/` | C 头文件、SwiftPM 的 module map、XCFramework 输出目录 |
 | `Scripts/` | 构建、环境、字符串生成、测试运行脚本 |
-| `Tests/` | XCTest 测试套件（72 个测试方法） |
-| `SelfTest/` | 无需 Xcode 即可运行的自检套件（132 项检查） |
+| `Tests/` | XCTest 测试套件（136 个测试方法） |
+| `SelfTest/` | 无需 Xcode 即可运行的自检套件（234 项检查） |
 
 ---
 
@@ -82,7 +82,7 @@ Rust Scanner Core  →  Rules · SQLite Index · Duplicate Pipeline
 | 内容 | 位置 |
 |---|---|
 | App target（`App/Entry` + 资源） | `project.yml` |
-| 单元测试 target（`Tests/`，72 个测试） | `project.yml` |
+| 单元测试 target（`Tests/`，136 个测试） | `project.yml` |
 | UI 测试 target（`UITests/`，XCUITest） | `project.yml` |
 | 测试计划（单元 + UI 两组配置） | `Config/Sift.xctestplan` |
 | Info.plist / entitlements | `Config/` |
@@ -136,21 +136,21 @@ Scripts/verify.sh            # 全部检查
 ```bash
 # Rust：单元测试、FFI 契约测试、基准
 cd RustCore
-cargo test                              # 144 个测试
+cargo test                              # 154 个测试
 cargo clippy --all-targets              # 无警告
 cargo bench -p sift-scanner-core        # 目录遍历 / 局部比较 / 完整哈希 / 索引写入
 
-# Swift 自检（132 项检查，无需 Xcode）
+# Swift 自检（234 项检查，无需 Xcode）
 swift run SiftSelfTest
 
-# XCTest 套件（82 个测试方法）
+# XCTest 套件（136 个测试方法）
 ./Scripts/run-tests.sh                  # 命令行工具即可运行
 swift test                              # 装了 Xcode 时的标准方式
 ```
 
 ### 测试覆盖了什么
 
-Rust（144 个测试）：
+Rust（154 个测试）：
 
 - 规则匹配、保护路径（含 `/var` → `/private/var` 这类别名）、风险等级合并
 - 规则文件版本、重复 ID、非法覆盖
@@ -159,7 +159,7 @@ Rust（144 个测试）：
 - 扫描协调器：事件顺序、取消、不可读目录、受保护内容零泄漏、panic 不越界
 - FFI 契约：头文件与 Rust 结构体逐字段比对（大小、偏移、对齐、版本号、枚举值）
 
-Swift（174 项自检 + 82 个 XCTest）：
+Swift（234 项自检 + 136 个 XCTest）：
 
 - 保护清单、路径穿越、符号链接、包目录、CloudKit 排除
 - 预检（父子去重、缺失文件、占用文件、受保护路径在**执行时**再拒绝）
@@ -192,7 +192,7 @@ Swift（174 项自检 + 82 个 XCTest）：
 10. **`isCleanable` 是硬约束。** 仅测量根不产生任何清理候选，Rust 与 Swift 两个引擎都执行这一约束，残留扫描同样受 home 根策略约束。
 11. **结果与报告来自实际操作。** 报告不再把跳过数重复相加，也不用跳过位置数冒充扫描范围（PDF 的范围行同样使用真实位置数）；每条结果携带真实分类，结果页在清理后呈现并可导出 PDF。不同入口（智能扫描、垃圾清理、大文件、旧文件、重复文件、卸载）各自记录正确的操作名称。
 12. **确认偏好真正生效。** 关闭确认后直接执行，但内容仍然进入废纸篓、结果页仍然显示；默认开启。
-13. **XCTest 与自检并存。** 本机只有 Command Line Tools，无法运行 XCTest。`Scripts/run-tests.sh` 用内置 runner 真正执行全部 82 个测试（在主 actor 上、不阻塞主线程），`swift test` 在 Xcode 环境下运行同一批文件。
+13. **XCTest 与自检并存。** 本机只有 Command Line Tools，无法运行 XCTest。`Scripts/run-tests.sh` 用内置 runner 真正执行全部 136 个测试（在主 actor 上、不阻塞主线程），`swift test` 在 Xcode 环境下运行同一批文件。
 14. **多语言两种产物。** `.xcstrings` 是权威来源（Xcode 编译），同时生成 `.lproj/Localizable.strings`，使没有 `xcstringstool` 的构建也能正确显示八种语言。
 
 ---
@@ -205,7 +205,7 @@ Swift（174 项自检 + 82 个 XCTest）：
 | 外部磁盘授权（用户选择 + bookmark + 规则豁免） | 完成 | `Core/Permissions/AuthorizationService.swift` |
 | §5.2 垃圾清理（四类、风险、确认面板、结果页） | 完成 | `Core/Scanner/CleanupModel.swift`、`Core/UI/` |
 | §5.3 软件卸载（发现、关联文件分组、运行中提示、系统应用标记） | 完成 | `Core/Indexing/`、`Features/Uninstaller/` |
-| §5.4 存储分析（卷、分类、目录树、大文件） | 完成 | `Core/Scanner/StorageAnalyzer.swift`、`Features/StorageAnalysis/` |
+| §5.4 存储分析（卷、分类、目录树、大文件、索引与快照诊断、覆盖状态） | 完成 | `Core/Scanner/StorageAnalyzer.swift`、`Core/Diagnostics/`、`Features/StorageAnalysis/` |
 | §5.5 文件清理（大文件、旧文件、重复文件三分阶段） | 完成 | `Core/Scanner/SwiftScannerEngine.swift`、`RustCore/crates/sift-hasher` |
 | §5.6 设置（分组、阈值、忽略列表、外观） | 完成 | `Core/Settings/`、`Features/Settings/` |
 | §5.7 清理报告与 PDF（本地副本、脱敏、分页、字体回退） | 完成 | `Core/Reporting/` |
@@ -216,7 +216,7 @@ Swift（174 项自检 + 82 个 XCTest）：
 | §10 权限（无 Full Disk Access 也能工作、明确报告） | 完成 | `Core/Permissions/` |
 | §11 UI/UX（配色、密度、空状态、无障碍、八语言） | 完成 | `Shared/`、`Features/` |
 | §12 购买（免费/买断边界、激活、恢复、离线宽限） | 完成（支付供应商待定） | `Core/Entitlements/` |
-| §13 隐私与安全（日志脱敏、白名单、不执行 shell） | 完成 | `Core/Logging/`、`Core/FileOperations/` |
+| §13 隐私与安全（日志脱敏、白名单；除两条只读状态查询外不执行任何命令） | 完成 | `Core/Logging/`、`Core/FileOperations/`、`Core/Diagnostics/SystemQuery.swift` |
 | §14 错误码与用户提示 | 完成 | `Core/Models/OperationModels.swift` |
 | §15 性能要求（批量事件、分页、取消、基准） | 完成 | `RustCore` benches |
 | §16 测试计划 | 完成（XCUITest 需 Xcode） | `Tests/`、`SelfTest/`、`RustCore/*/tests` |

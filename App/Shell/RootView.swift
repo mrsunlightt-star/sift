@@ -1,6 +1,5 @@
 import Core
 import FeatureDashboard
-import FeatureDiagnostics
 import FeatureFileCleanup
 import FeatureJunkCleanup
 import FeaturePurchase
@@ -190,9 +189,7 @@ struct DetailView: View {
         Group {
             switch destination {
             case .dashboard:
-                DashboardView { link in
-                    router.go(to: link.appDestination)
-                }
+                DashboardView()
             case .smartScan:
                 SmartScanView { router.requestPurchase(reason: .cleanJunk) }
             case .junkCleanup:
@@ -200,11 +197,12 @@ struct DetailView: View {
             case .uninstaller:
                 UninstallerView { router.requestPurchase(reason: .uninstall) }
             case .fileCleanup:
-                FileCleanupView { router.requestPurchase(reason: .cleanFiles) }
+                FileCleanupView(
+                    onRequestPurchase: { router.requestPurchase(reason: .cleanFiles) },
+                    onManageScope: { router.go(to: .settings) }
+                )
             case .storageAnalysis:
                 StorageAnalysisView()
-            case .systemDiagnostics:
-                DiagnosticsView()
             case .settings:
                 SettingsView()
             case .purchase:
@@ -281,23 +279,6 @@ struct DetailView: View {
         .task(id: environment.preferences) {
             preferences.skipConfirmation = environment.preferences.skipConfirmation
             preferences.requireConfirmation = environment.preferences.requireConfirmation
-        }
-    }
-}
-
-/// Bridges the dashboard's destination enum to the app's router, keeping the
-/// feature free of a dependency on the shell.
-extension AppDestinationLink {
-    var appDestination: AppDestination {
-        switch self {
-        case .dashboard: .dashboard
-        case .smartScan: .smartScan
-        case .junkCleanup: .junkCleanup
-        case .uninstaller: .uninstaller
-        case .fileCleanup: .fileCleanup
-        case .storageAnalysis: .storageAnalysis
-        case .settings: .settings
-        case .purchase: .purchase
         }
     }
 }

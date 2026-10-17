@@ -4,17 +4,26 @@ import SwiftUI
 
 /// The storage page (§5.4).
 ///
-/// Top: the volume and its usage. Middle: category totals as labelled bars.
-/// Bottom: the largest folders and files. No ring charts or sunbursts — the
-/// specification ranks accurate lists above elaborate graphics, so the numbers
-/// and paths lead and the bars only reinforce them.
+/// It answers the three questions the specification names — which kind of file
+/// takes the most space, which folders are largest, which files to handle first —
+/// and the system-diagnostics questions that turn out to be the same question:
+/// which of it is an index, a snapshot or system data, whether it can be rebuilt,
+/// and how much of the answer could not be read.
+///
+/// One page and one analysis button on purpose. Two pages answering "what is
+/// using my disk" from two engines is how the numbers end up disagreeing.
 public struct StorageAnalysisView: View {
     @EnvironmentObject private var environment: AppEnvironment
     @State private var analysis: StorageAnalysis = .empty
+    @State private var report: StorageDiagnosticReport = .empty
     @State private var isAnalyzing = false
+    /// Off by default: the volume-level pass reads the whole disk and takes about
+    /// a minute, which is not what opening the page should cost.
+    @State private var includeVolumeRoot = false
     @State private var showAllFiles = false
     @State private var showAllDirectories = false
-    @State private var scanTask: Task<StorageAnalysis, Never>?
+    @State private var cancellation = CancellationFlag()
+    @State private var analysisTask: Task<Void, Never>?
 
     public init() {}
 
@@ -25,12 +34,15 @@ public struct StorageAnalysisView: View {
                     Button {
                         Task { await analyze() }
                     } label: {
-                        Label(LocalizationKey.storageAnalyze.localized, systemImage: "arrow.clockwise")
+                        Label(
+                            LocalizationKey.storageAnalyze.localized,
+                            systemImage: "arrow.clockwise"
+                        )
                     }
                     .disabled(isAnalyzing)
                 }
 
-                volumeCard
+                scopeRow
 
                 if isAnalyzing {
                     HStack(spacing: SiftMetrics.spacingM) {
@@ -41,17 +53,21 @@ public struct StorageAnalysisView: View {
                     }
                 }
 
-                if analysis.categories.isEmpty, !isAnalyzing {
-                    SiftEmptyState(
-                        symbolName: "chart.pie",
-                        titleKey: .storageNotAuthorized
-                    )
-                } else {
+                if hasResult {
+                    coverageNotice
+                    volumeCard
                     categoriesCard
                     HStack(alignment: .top, spacing: SiftMetrics.spacingL) {
                         directoriesCard
                         filesCard
                     }
+                    findingsCard(titleKey: .diagnosticsSectionRebuildable, findings: report.rebuildableFindings)
+                    findingsCard(titleKey: .diagnosticsSectionProtected, findings: report.protectedFindings)
+                    findingsCard(titleKey: .diagnosticsSectionSnapshots, findings: report.snapshotFindings)
+                    skippedCard
+                    notes
+                } else if !isAnalyzing {
+                    SiftEmptyState(symbolName: "chart.pie", titleKey: .storageNotAuthorized)
                 }
             }
             .padding(SiftMetrics.spacingXL)
@@ -59,83 +75,111 @@ public struct StorageAnalysisView: View {
         }
         .task { await analyze() }
         .onDisappear {
-            scanTask?.cancel()
-            scanTask = nil
+            cancellation.isCancelled = true
+            analysisTask?.cancel()
+            analysisTask = nil
         }
     }
 
-    private var volumeCard: some View {
-        SiftPanel {
-            VStack(alignment: .leading, spacing: SiftMetrics.spacingM) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(analysis.totalBytes > 0 ? analysis.formattedTotal : "—")
-                        .font(SiftFont.metricLarge)
-                    Spacer()
-                    Text(analysis.volumeName.isEmpty ? LocalizationKey.storageVolume.localized : analysis.volumeName)
-                        .font(SiftFont.bodyEmphasis)
-                }
-                Text(
-                    LocalizationKey.storageUsed.localized(analysis.formattedUsed, analysis.formattedTotal)
-                )
-                .font(SiftFont.body)
-                .foregroundStyle(.secondary)
-                SegmentedUsageBar(segments: segmentedBar)
-                HStack {
-                    Text(LocalizationKey.dashboardDiskFree.localized(analysis.formattedFree))
-                        .font(SiftFont.bodyEmphasis)
-                    Spacer()
-                    if analysis.reclaimableBytes > 0 {
-                        Text(
-                            "\(LocalizationKey.storageReclaimable.localized): \(analysis.formattedReclaimable)"
-                        )
-                        .font(SiftFont.bodyEmphasis)
-                        .foregroundStyle(SiftColor.safe)
-                    }
-                }
-                Text(
-                    LocalizationKey.scanCheckedFiles.localized(SiftFormat.count(analysis.scannedFileCount))
-                )
+    private var hasResult: Bool {
+        report.providerCount > 0
+    }
+
+    /// One scope control for the whole page.
+    private var scopeRow: some View {
+        HStack(spacing: SiftMetrics.spacingM) {
+            Toggle(
+                LocalizationKey.storageIncludeVolume.localized,
+                isOn: $includeVolumeRoot
+            )
+            .toggleStyle(.checkbox)
+            .disabled(isAnalyzing)
+
+            Spacer(minLength: SiftMetrics.spacingS)
+
+            Text(LocalizationKey.storageScopeNote.localized)
                 .font(SiftFont.caption)
-                .foregroundStyle(.tertiary)
-                if analysis.skippedCount > 0 {
-                    Text(LocalizationKey.scanPartialNotice.localized(analysis.skippedCount))
-                        .font(SiftFont.caption)
-                        .foregroundStyle(SiftColor.review)
-                }
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+        }
+    }
+
+    // MARK: - Completeness
+
+    private var coverageNotice: some View {
+        Group {
+            switch report.coverage {
+            case .complete:
+                NoticeBanner(level: .success, titleKey: .diagnosticsCoverageComplete)
+            case .partial:
+                NoticeBanner(level: .warning, titleKey: .diagnosticsCoveragePartial)
+            case .permissionDenied:
+                NoticeBanner(
+                    level: .warning,
+                    message: "\(LocalizationKey.diagnosticsCoveragePermissionDenied.localized) \(LocalizationKey.diagnosticsCoverageNote.localized)",
+                    actionTitle: .scanOpenSystemSettings,
+                    action: { Task { await environment.openPermissionSettings() } }
+                )
+            case .volumeUnavailable:
+                NoticeBanner(level: .warning, titleKey: .diagnosticsCoverageVolumeUnavailable)
             }
         }
     }
 
-    /// The stacked bar: the largest categories plus free space.
-    private var segmentedBar: [SegmentedUsageBar.Segment] {
-        guard analysis.totalBytes > 0 else { return [] }
-        var segments: [SegmentedUsageBar.Segment] = analysis.categories.prefix(4).enumerated().map { index, category in
-            SegmentedUsageBar.Segment(
-                id: category.id,
-                fraction: Double(category.sizeInBytes) / Double(analysis.totalBytes),
-                tint: SiftColor.categoryPalette[index % SiftColor.categoryPalette.count]
-            )
+    private var notes: some View {
+        VStack(alignment: .leading, spacing: SiftMetrics.spacingXS) {
+            if report.hasApproximateSizes {
+                Text(LocalizationKey.diagnosticsNoteApproximate.localized)
+            }
+            Text(LocalizationKey.diagnosticsNoteReadOnly.localized)
         }
-        let used = Double(analysis.usedBytes) / Double(analysis.totalBytes)
-        let listed = segments.reduce(0) { $0 + $1.fraction }
-        // The remainder is what the analysis did not attribute: system files and
-        // locations the user did not authorise. Naming it honestly is better than
-        // letting the bar imply the categories cover the whole disk.
-        if used - listed > 0.005 {
-            segments.append(
-                SegmentedUsageBar.Segment(
-                    id: "other",
-                    fraction: used - listed,
-                    tint: SiftColor.neutral
-                )
-            )
+        .font(SiftFont.caption)
+        .foregroundStyle(.secondary)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    // MARK: - Volume and categories
+
+    private var volumeCard: some View {
+        SiftPanel {
+            HStack(alignment: .center, spacing: SiftMetrics.spacingXL) {
+                if let volume = report.primaryVolume {
+                    VStack(alignment: .leading, spacing: SiftMetrics.spacingXS) {
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(volume.formattedUsage)
+                                .font(SiftFont.metricLarge)
+                            Text(volume.name)
+                                .font(SiftFont.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        UsageBar(
+                            fraction: volume.usedFraction,
+                            tint: volume.usedFraction > 0.9 ? SiftColor.review : SiftColor.safe,
+                            height: 10
+                        )
+                        Text(LocalizationKey.dashboardDiskFree.localized(volume.formattedFree))
+                            .font(SiftFont.bodyEmphasis)
+                    }
+                }
+                VStack(alignment: .leading, spacing: SiftMetrics.spacingXS) {
+                    Text(LocalizationKey.storageReclaimable.localized)
+                        .font(SiftFont.caption)
+                        .foregroundStyle(.secondary)
+                    Text(SiftFormat.bytes(analysis.reclaimableBytes))
+                        .font(SiftFont.metric)
+                        .foregroundStyle(SiftColor.safe)
+                    Text(
+                        LocalizationKey.scanCheckedFiles.localized(
+                            SiftFormat.count(Int(report.measuredFiles))
+                        )
+                    )
+                    .font(SiftFont.caption)
+                    .foregroundStyle(.tertiary)
+                }
+                Spacer()
+            }
         }
-        if 1 - used > 0.005 {
-            segments.append(
-                SegmentedUsageBar.Segment(id: "free", fraction: 1 - used, tint: SiftColor.border)
-            )
-        }
-        return segments
     }
 
     private var categoriesCard: some View {
@@ -161,6 +205,8 @@ public struct StorageAnalysisView: View {
         return Double(category.sizeInBytes) / Double(largest)
     }
 
+    // MARK: - Largest items
+
     private var directoriesCard: some View {
         SiftPanel {
             VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
@@ -180,14 +226,18 @@ public struct StorageAnalysisView: View {
                     Button {
                         showAllDirectories = true
                     } label: {
-                        Text(LocalizationKey.commonOf.localized("\(visibleDirectories.count)", "\(analysis.topDirectories.count)"))
-                            .font(SiftFont.caption)
+                        Text(
+                            LocalizationKey.commonOf.localized(
+                                "\(visibleDirectories.count)",
+                                "\(analysis.topDirectories.count)"
+                            )
+                        )
+                        .font(SiftFont.caption)
                     }
                     .buttonStyle(.link)
                 }
             }
         }
-        .frame(maxWidth: .infinity)
     }
 
     private var filesCard: some View {
@@ -209,14 +259,18 @@ public struct StorageAnalysisView: View {
                     Button {
                         showAllFiles = true
                     } label: {
-                        Text(LocalizationKey.commonOf.localized("\(visibleFiles.count)", "\(analysis.topFiles.count)"))
-                            .font(SiftFont.caption)
+                        Text(
+                            LocalizationKey.commonOf.localized(
+                                "\(visibleFiles.count)",
+                                "\(analysis.topFiles.count)"
+                            )
+                        )
+                        .font(SiftFont.caption)
                     }
                     .buttonStyle(.link)
                 }
             }
         }
-        .frame(maxWidth: .infinity)
     }
 
     private var visibleFiles: [StorageAnalysis.FileEntry] {
@@ -227,23 +281,162 @@ public struct StorageAnalysisView: View {
         showAllDirectories ? analysis.topDirectories : Array(analysis.topDirectories.prefix(8))
     }
 
+    // MARK: - Findings
+
+    @ViewBuilder
+    private func findingsCard(titleKey: LocalizationKey, findings: [StorageFinding]) -> some View {
+        if !findings.isEmpty {
+            SiftPanel {
+                VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
+                    Text(titleKey.localized)
+                        .font(SiftFont.sectionTitle)
+                    Divider()
+                    ForEach(findings) { finding in
+                        FindingRow(
+                            finding: finding,
+                            onReveal: {
+                                guard let path = finding.path else { return }
+                                Task { await environment.reveal(path) }
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private var skippedCard: some View {
+        Group {
+            if !report.skips.isEmpty {
+                SiftPanel {
+                    VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
+                        Text(LocalizationKey.diagnosticsSectionSkipped.localized)
+                            .font(SiftFont.sectionTitle)
+                        Divider()
+                        ForEach(report.skips) { skip in
+                            HStack(spacing: SiftMetrics.spacingM) {
+                                Image(systemName: skip.reason.needsFullDiskAccess
+                                    ? "lock.fill"
+                                    : "questionmark.circle")
+                                    .foregroundStyle(.secondary)
+                                    .accessibilityHidden(true)
+                                Text(skip.path.path)
+                                    .font(SiftFont.caption)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                Spacer(minLength: SiftMetrics.spacingS)
+                            }
+                            .padding(.vertical, SiftMetrics.spacingXS)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Analysis
+
+    /// Runs both halves of the page under one button and one cancellation flag.
+    ///
+    /// The byte-level view comes from the storage analyzer, the meaning of what it
+    /// found from the diagnostics engine. They share a scope: the home folder and
+    /// the locations the user granted, plus the volume root when it was asked for.
     private func analyze() async {
         guard !isAnalyzing else { return }
         isAnalyzing = true
         defer { isAnalyzing = false }
 
-        let roots = await environment.makeScanRequest(includeDuplicates: false).roots
-        // The analysis walks the filesystem off the main actor, so the UI stays
-        // responsive and the page can be left while it runs.
         let analyzer = environment.storageAnalyzer
-        let task = Task(priority: .userInitiated) { () -> StorageAnalysis in
-            (try? await analyzer.analyze(roots: roots)) ?? .empty
+        let diagnostics = environment.diagnostics
+        let rules = environment.rules
+        let home = URL(fileURLWithPath: rules.homeDirectory)
+        let scanRoots = await environment.makeScanRequest(includeDuplicates: false).roots
+        let diagnosticRoots = environment.diagnosticRoots(includeVolumeRoot: includeVolumeRoot)
+        cancellation.isCancelled = false
+        let flag = cancellation
+
+        let task = Task(priority: .userInitiated) { () -> Void in
+            let measured = (try? await analyzer.analyze(
+                roots: scanRoots,
+                cancelled: { flag.isCancelled }
+            )) ?? .empty
+            guard !flag.isCancelled else { return }
+            let diagnosed = await diagnostics.analyze(
+                roots: diagnosticRoots,
+                homeDirectory: home,
+                rules: rules,
+                isCancelled: { flag.isCancelled }
+            )
+            guard !flag.isCancelled else { return }
+            await MainActor.run {
+                analysis = measured
+                report = diagnosed
+            }
         }
-        scanTask = task
-        let result = await task.value
-        guard !Task.isCancelled else { return }
-        analysis = result
-        scanTask = nil
+        analysisTask = task
+        await task.value
+        analysisTask = nil
+    }
+}
+
+/// One finding: what it is, how much it holds, and what can be done about it.
+private struct FindingRow: View {
+    let finding: StorageFinding
+    let onReveal: () -> Void
+
+    var body: some View {
+        HStack(spacing: SiftMetrics.spacingM) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(finding.displayName)
+                    .font(SiftFont.bodyEmphasis)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Text(finding.explanationKey.localized)
+                    .font(SiftFont.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(finding.category.localizedTitle)
+                    .font(SiftFont.badge)
+                    .foregroundStyle(.tertiary)
+            }
+            Spacer(minLength: SiftMetrics.spacingS)
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(sizeText)
+                    .font(SiftFont.monospacedNumber)
+                Text(finding.status.localizedTitle)
+                    .font(SiftFont.caption)
+                    .foregroundStyle(finding.status.tint)
+                Text(remediationKey.localized)
+                    .font(SiftFont.badge)
+                    .foregroundStyle(.tertiary)
+                    .multilineTextAlignment(.trailing)
+            }
+            if finding.path != nil {
+                Button(action: onReveal) {
+                    Image(systemName: "magnifyingglass.circle")
+                }
+                .buttonStyle(.borderless)
+                .help(LocalizationKey.filesRevealInFinder.localized)
+                .accessibilityLabel(Text(LocalizationKey.filesRevealInFinder.localized))
+            }
+        }
+        .padding(.vertical, SiftMetrics.spacingS)
+        .accessibilityElement(children: .combine)
+    }
+
+    /// An unreadable location has no size, and "0 bytes" would be a different
+    /// answer.
+    private var sizeText: String {
+        finding.fileCount == nil ? "—" : SiftFormat.bytes(finding.allocatedBytes)
+    }
+
+    private var remediationKey: LocalizationKey {
+        switch finding.remediation {
+        case .trash: .diagnosticsRemediationTrash
+        case .rebuild(.spotlight): .diagnosticsRemediationSpotlight
+        case .rebuild(.owningApplication): .diagnosticsRemediationOwningApplication
+        case .inspectOnly: .diagnosticsRemediationInspectOnly
+        }
     }
 }
 
@@ -289,5 +482,42 @@ struct PathRow: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Text(name))
         .accessibilityValue(Text("\(detail) \(path)"))
+    }
+}
+
+extension StorageFindingCategory {
+    /// The label the page shows for a category.
+    var localizedTitle: String {
+        switch self {
+        case .spotlightIndex: LocalizationKey.diagnosticsCategorySpotlightIndex.localized
+        case .coreSpotlightIndex: LocalizationKey.diagnosticsCategoryCoreSpotlightIndex.localized
+        case .developerIndex: LocalizationKey.diagnosticsCategoryDeveloperIndex.localized
+        case .applicationDatabase: LocalizationKey.diagnosticsCategoryApplicationDatabase.localized
+        case .filesystemSnapshot: LocalizationKey.diagnosticsCategoryFilesystemSnapshot.localized
+        case .systemCache: LocalizationKey.diagnosticsCategorySystemCache.localized
+        case .systemData: LocalizationKey.diagnosticsCategorySystemData.localized
+        case .userData: LocalizationKey.diagnosticsCategoryUserData.localized
+        case .unknown: LocalizationKey.diagnosticsCategoryUnknown.localized
+        }
+    }
+}
+
+extension StorageFindingStatus {
+    var localizedTitle: String {
+        switch self {
+        case .cleanable: LocalizationKey.diagnosticsStatusCleanable.localized
+        case .rebuildable: LocalizationKey.diagnosticsStatusRebuildable.localized
+        case .protected: LocalizationKey.diagnosticsStatusProtected.localized
+        case .unknown: LocalizationKey.diagnosticsStatusUnknown.localized
+        }
+    }
+
+    var tint: Color {
+        switch self {
+        case .cleanable: SiftColor.safe
+        case .rebuildable: SiftColor.accent
+        case .protected: SiftColor.review
+        case .unknown: SiftColor.neutral
+        }
     }
 }

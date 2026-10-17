@@ -21,7 +21,7 @@ public struct StorageAnalyzer {
     public func analyze(
         roots: [ScanRoot],
         largeFileThresholdBytes: Int64 = ScanDefaults.largeFileThresholdBytes,
-        cancelled: () -> Bool = { false }
+        cancelled: @escaping @Sendable () -> Bool = { false }
     ) async throws -> StorageAnalysis {
         // The rule set's home, not the process home: see RuleEngine.homeDirectory.
         let home = URL(fileURLWithPath: rules.homeDirectory)

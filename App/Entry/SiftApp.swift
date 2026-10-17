@@ -48,10 +48,5 @@ struct SiftCommands: Commands {
                 .keyboardShortcut(destination.shortcut ?? "1", modifiers: .command)
             }
         }
-        CommandGroup(replacing: .help) {
-            Button(LocalizationKey.navHelp.localized) {
-                router.go(to: .settings)
-            }
-        }
     }
 }

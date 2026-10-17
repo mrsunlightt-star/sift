@@ -109,7 +109,14 @@ These are product promises, not implementation details. Each has tests behind it
     and explained but can never be `cleanable` or carry a Trash remediation —
     protection removes the deletion path and nothing else, which is what keeps a
     protected index's rebuild advice intact.
-17. **Diagnostics only read.** The only programs the app runs are the two status
+17. **One implementation per user operation.** A scan starts only through
+    `AppEnvironment.runScan(_:)`; the pages differ in the `ScanIntent` they pass
+    and the category they show, not in how a scan runs or in what "a scan has run"
+    means. Authorising a folder happens only in Settings, and every page that
+    depends on a grant links there. Confirmation and the cleanup result come from
+    the shell, so no page can reach a weaker flow by choosing a different entry
+    point.
+18. **Diagnostics only read.** The only programs the app runs are the two status
     queries in `Core/Diagnostics/SystemQuery.swift`: `mdutil -s` and
     `tmutil listlocalsnapshots`, by absolute path with fixed arguments and no
     shell, and never anything that changes state. A query that fails, times out
@@ -133,3 +140,11 @@ These are product promises, not implementation details. Each has tests behind it
   and a measurer of its own (`DiagnosticMeasurement.swift`) rather than
   `FileWalker`, whose job is producing cleanup candidates and which therefore
   refuses the protected locations the diagnostics exist to explain.
+- `Features/StorageAnalysis` is the one storage page: it runs the storage
+  analyzer for bytes and the diagnostics engine for meaning, under one button.
+  There is no second "what is using my disk" page; a second one is how the
+  numbers start disagreeing.
+- `Core/Scanner/ScanIntent.swift` is the one place the differences between scan
+  scopes live, and `AppEnvironment.runScan` is the one function that starts a
+  scan. A page supplies an intent and renders its own categories; it does not
+  assemble a request.

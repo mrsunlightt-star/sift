@@ -33,7 +33,6 @@ final class SiftUITests: XCTestCase {
     func test_everyDestinationIsReachable() throws {
         for destination in [
             "dashboard", "smartScan", "junkCleanup", "uninstaller", "fileCleanup", "storageAnalysis",
-            "systemDiagnostics",
         ] {
             let row = app.buttons["sidebar.\(destination)"]
             if row.waitForExistence(timeout: 2) {

@@ -108,12 +108,6 @@ let package = Package(
             swiftSettings: [.swiftLanguageMode(.v6)] + runtimeSwiftSettings
         ),
         .target(
-            name: "FeatureDiagnostics",
-            dependencies: ["Core", "Shared"],
-            path: "Features/Diagnostics",
-            swiftSettings: [.swiftLanguageMode(.v6)] + runtimeSwiftSettings
-        ),
-        .target(
             name: "FeatureFileCleanup",
             dependencies: ["Core", "Shared"],
             path: "Features/FileCleanup",
@@ -144,7 +138,6 @@ let package = Package(
                 "FeatureJunkCleanup",
                 "FeatureUninstaller",
                 "FeatureStorageAnalysis",
-                "FeatureDiagnostics",
                 "FeatureFileCleanup",
                 "FeatureSettings",
                 "FeaturePurchase",

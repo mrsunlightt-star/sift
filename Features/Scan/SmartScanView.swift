@@ -68,14 +68,7 @@ public struct SmartScanView: View {
     }
 
     private func startScan() async {
-        environment.cleanup.resetForNewScan()
-        let request = await environment.makeScanRequest()
-        await environment.scan.start(request)
-        await environment.scan.loadDuplicateGroups()
-        // Load the first page into the cleanup model so the selection bar has
-        // something to count before the user expands a category.
-        let page = await environment.scan.page(offset: 0, limit: 200, sort: .size, category: nil)
-        environment.cleanup.setItems(page.items.map { $0.asCleanupItem() })
+        await environment.runScan(.everything)
     }
 }
 

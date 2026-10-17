@@ -1,56 +1,27 @@
-import AppKit
 import Core
 import Shared
 import SwiftUI
 
 /// File cleanup: large files, old files and duplicates (§5.5).
 ///
-/// Each mode is a filtered view of the same scan results, so the selection and
-/// confirmation flow is identical to junk cleanup. The duplicate mode is the one
-/// with its own rules: only the user's chosen folders, only per-group
-/// confirmation, and never a system directory.
+/// The three modes are filters over one scan, so the selection and confirmation
+/// flow is identical to junk cleanup, and the page shows only the category it
+/// owns. The duplicate mode is the one with its own scope: only the folders the
+/// user granted, which are managed in Settings rather than here.
 public struct FileCleanupView: View {
     @EnvironmentObject private var environment: AppEnvironment
     private let onRequestPurchase: () -> Void
-    @State private var mode: Mode = .large
-    @State private var hasScanned = false
-    @State private var isScanning = false
-    @State private var showFolderPicker = false
+    /// Set by the shell: authorisation is managed in one place, and this page
+    /// links there instead of offering a second copy of it.
+    private let onManageScope: () -> Void
+    @State private var mode: FileCleanupMode = .large
 
-    public enum Mode: String, CaseIterable {
-        case large
-        case old
-        case duplicates
-
-        var titleKey: LocalizationKey {
-            switch self {
-            case .large: .filesModeLarge
-            case .old: .filesModeOld
-            case .duplicates: .filesModeDuplicates
-            }
-        }
-
-        /// The name recorded in the report and the history.
-        var operationName: CleanupOperationName {
-            switch self {
-            case .large: .largeFiles
-            case .old: .oldFiles
-            case .duplicates: .duplicateFiles
-            }
-        }
-
-        /// The categories this mode shows.
-        var categories: [CleanupCategory] {
-            switch self {
-            case .large: [.largeFiles]
-            case .old: [.oldFiles]
-            case .duplicates: [.duplicateFiles]
-            }
-        }
-    }
-
-    public init(onRequestPurchase: @escaping () -> Void = {}) {
+    public init(
+        onRequestPurchase: @escaping () -> Void = {},
+        onManageScope: @escaping () -> Void = {}
+    ) {
         self.onRequestPurchase = onRequestPurchase
+        self.onManageScope = onManageScope
     }
 
     public var body: some View {
@@ -58,65 +29,45 @@ public struct FileCleanupView: View {
             VStack(alignment: .leading, spacing: SiftMetrics.spacingXL) {
                 PageHeader(titleKey: .filesTitle) {
                     Picker(String(), selection: $mode) {
-                        ForEach(Mode.allCases, id: \.self) { mode in
+                        ForEach(FileCleanupMode.allCases, id: \.self) { mode in
                             Text(mode.titleKey.localized).tag(mode)
                         }
                     }
                     .pickerStyle(.segmented)
                     .labelsHidden()
                     .frame(width: 320)
-                    .onChange(of: mode) { _ in
-                        hasScanned = false
-                    }
                 }
 
                 thresholdNote
 
                 if mode == .duplicates {
-                    DuplicateScopeCard(
-                        folders: environment.authorizedLocations.map(\.displayName),
-                        onAdd: { showFolderPicker = true },
-                        onRemove: { name in
-                            guard let location = environment.authorizedLocations.first(where: { $0.displayName == name })
-                            else { return }
-                            Task { await environment.removeAuthorizedLocation(location) }
-                        },
-                        onScan: { Task { await scan() } },
-                        isScanning: isScanning
-                    )
+                    duplicateScopeCard
                 }
 
-                if !hasScanned {
-                    ScanGateCard(
-                        titleKey: mode.titleKey,
-                        detailKey: mode == .duplicates ? .filesRequiresAuthorization : .cleanupExplanationLargeFiles,
-                        onStart: { Task { await scan() } }
-                    )
-                } else {
+                if environment.scan.hasResults {
                     SelectionBar(
                         cleanup: environment.cleanup,
                         environment: environment,
                         operation: mode.operationName,
                         onRequestPurchase: onRequestPurchase
                     )
-                    ScanResultsView(scan: environment.scan, cleanup: environment.cleanup)
+                    ScanResultsView(
+                        scan: environment.scan,
+                        cleanup: environment.cleanup,
+                        categories: mode.categories
+                    )
+                } else {
+                    ScanGateCard(
+                        titleKey: mode.titleKey,
+                        detailKey: mode == .duplicates
+                            ? .filesRequiresAuthorization
+                            : .cleanupExplanationLargeFiles,
+                        onStart: { Task { await environment.runScan(.files(mode)) } }
+                    )
                 }
             }
             .padding(SiftMetrics.spacingXL)
             .frame(maxWidth: 900, alignment: .leading)
-        }
-        .fileImporter(
-            isPresented: $showFolderPicker,
-            allowedContentTypes: [.folder],
-            allowsMultipleSelection: true
-        ) { result in
-            if case let .success(urls) = result {
-                Task {
-                    for url in urls {
-                        await environment.authorizeLocation(url)
-                    }
-                }
-            }
         }
     }
 
@@ -148,92 +99,44 @@ public struct FileCleanupView: View {
         }
     }
 
-    private func scan() async {
-        isScanning = true
-        defer { isScanning = false }
-        environment.cleanup.resetForNewScan()
-
-        var request = await environment.makeScanRequest(includeDuplicates: mode == .duplicates)
-        if mode == .duplicates {
-            // Only the user's chosen folders, plus the safe defaults. A system
-            // directory is never added here.
-            // Only the defaults plus the folders the user authorised. The
-            // duplicate scan never widens to a mount point on its own.
-            request.duplicateRoots = Array(Set(environment.defaultDuplicateRoots()))
-        } else {
-            request.includeDuplicates = false
-        }
-
-        await environment.scan.start(request)
-        if mode == .duplicates {
-            await environment.scan.loadDuplicateGroups()
-        }
-        let page = await environment.scan.page(
-            offset: 0,
-            limit: 200,
-            sort: .size,
-            category: mode.categories.first
-        )
-        environment.cleanup.setItems(page.items.map { $0.asCleanupItem() }, preselect: false)
-        hasScanned = true
-    }
-}
-
-/// The duplicate scope: which folders are searched, and the warning that nothing
-/// outside them is touched.
-struct DuplicateScopeCard: View {
-    let folders: [String]
-    let onAdd: () -> Void
-    let onRemove: (String) -> Void
-    let onScan: () -> Void
-    let isScanning: Bool
-
-    var body: some View {
+    /// The folders a duplicate scan may look in, and the one way to change them.
+    ///
+    /// Read-only on purpose: adding or removing a grant is authorisation, and
+    /// authorisation lives in Settings so there is one place that owns it.
+    private var duplicateScopeCard: some View {
         SiftPanel {
             VStack(alignment: .leading, spacing: SiftMetrics.spacingM) {
                 HStack {
-                    Text(LocalizationKey.filesChooseFolders.localized)
+                    Text(LocalizationKey.filesScopeTitle.localized)
                         .font(SiftFont.sectionTitle)
                     Spacer()
-                    Button {
-                        onAdd()
-                    } label: {
-                        Label(LocalizationKey.filesAddFolder.localized, systemImage: "folder.badge.plus")
+                    Button(action: onManageScope) {
+                        Text(LocalizationKey.filesManageScope.localized)
+                            .font(SiftFont.caption)
                     }
+                    .buttonStyle(.link)
                 }
                 Text(LocalizationKey.filesRequiresAuthorization.localized)
                     .font(SiftFont.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                if !folders.isEmpty {
-                    ForEach(folders, id: \.self) { name in
-                        HStack(spacing: SiftMetrics.spacingM) {
-                            Image(systemName: "folder")
-                                .foregroundStyle(SiftColor.accent)
-                                .accessibilityHidden(true)
-                            Text(name)
-                                .font(SiftFont.body)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                            Spacer()
-                            Button {
-                                onRemove(name)
-                            } label: {
-                                Image(systemName: "minus.circle")
-                            }
-                            .buttonStyle(.borderless)
-                            .accessibilityLabel(Text(LocalizationKey.commonRemove.localized))
-                        }
+                ForEach(environment.authorizedLocations) { location in
+                    HStack(spacing: SiftMetrics.spacingM) {
+                        Image(systemName: "folder")
+                            .foregroundStyle(SiftColor.accent)
+                            .accessibilityHidden(true)
+                        Text(location.displayName)
+                            .font(SiftFont.body)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Spacer()
                     }
                 }
-                Button {
-                    onScan()
-                } label: {
-                    Text(LocalizationKey.filesScanDuplicates.localized)
-                        .font(SiftFont.bodyEmphasis)
+                if environment.authorizedLocations.isEmpty {
+                    Text(LocalizationKey.filesScopeEmpty.localized)
+                        .font(SiftFont.body)
+                        .foregroundStyle(.secondary)
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(isScanning)
             }
         }
     }

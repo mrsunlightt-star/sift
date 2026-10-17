@@ -169,6 +169,7 @@
 "files.ignore" = "Diesen Eintrag ignorieren";
 "files.ignored" = "Ignorierte Einträge werden nicht mehr gescannt.";
 "files.keepThis" = "Diese behalten";
+"files.manageScope" = "In den Einstellungen verwalten";
 "files.mode.duplicates" = "Duplikate";
 "files.mode.large" = "Große Dateien";
 "files.mode.old" = "Alte Dateien";
@@ -177,6 +178,8 @@
 "files.requiresAuthorization" = "Sift prüft Downloads, Schreibtisch und von Ihnen gewählte Ordner. Ordner hinzufügen.";
 "files.revealInFinder" = "Im Finder zeigen";
 "files.scanDuplicates" = "Duplikate finden";
+"files.scopeEmpty" = "Noch keine Ordner. Duplikate werden nur in hinzugefügten Ordnern gesucht.";
+"files.scopeTitle" = "Von Ihnen hinzugefügte Ordner";
 "files.threshold.large" = "Größer als %@";
 "files.threshold.old" = "Seit %d Tagen unverändert";
 "files.title" = "Dateien bereinigen";
@@ -189,7 +192,6 @@
 "nav.settings" = "Einstellungen";
 "nav.smartScan" = "Intelligenter Scan";
 "nav.storageAnalysis" = "Speicher";
-"nav.systemDiagnostics" = "Systemdiagnose";
 "nav.uninstaller" = "Deinstallation";
 "nav.workbench" = "Arbeitsbereich";
 "permission.fullDiskAccess" = "Vollständiger Festplattenzugriff";
@@ -274,6 +276,8 @@
 "settings.appearance.dark" = "Dunkel";
 "settings.appearance.light" = "Hell";
 "settings.appearance.system" = "Systemeinstellung";
+"settings.authorized.empty" = "Noch nichts autorisiert. Hier hinzugefügte Ordner werden gescannt und für die Duplikatsuche verwendet.";
+"settings.authorized.unavailable" = "In dieser Sitzung nicht verfügbar";
 "settings.clearHistory" = "Scan-Verlauf löschen";
 "settings.days" = "%d Tage";
 "settings.diagnostics.macOS" = "macOS";
@@ -282,6 +286,7 @@
 "settings.exportLogs" = "Diagnose exportieren";
 "settings.exportLogsDetail" = "Diagnosedaten enthalten keine Dateinamen oder vollständigen Pfade.";
 "settings.group.appearance" = "Erscheinungsbild";
+"settings.group.authorized" = "Autorisierte Ordner";
 "settings.group.confirmation" = "Bestätigung";
 "settings.group.ignores" = "Ignorierte Einträge";
 "settings.group.language" = "Sprache";
@@ -302,6 +307,7 @@
 "settings.showHiddenFiles" = "Versteckte Dateien anzeigen";
 "settings.skipConfirmation" = "Bestätigung überspringen";
 "settings.skipConfirmationWarning" = "Sift beginnt sofort nach dem Klick. Alles landet im Papierkorb, aber ohne vorherige Liste.";
+"settings.staleThreshold" = "Schwelle für veraltete Einträge";
 "settings.title" = "Einstellungen";
 "storage.analysing" = "Analyse läuft…";
 "storage.analyze" = "Speicher analysieren";
@@ -310,9 +316,11 @@
 "storage.directoryTree" = "Ordner";
 "storage.diskDisconnected" = "Dieses Laufwerk ist nicht mehr verbunden. Bitte erneut anschließen.";
 "storage.externalDisk" = "Externes Laufwerk";
+"storage.includeVolume" = "Gesamtes Volume einbeziehen";
 "storage.noAccess" = "Sift kann diesen Ort noch nicht lesen.";
 "storage.notAuthorized" = "Fügen Sie diesen Ordner in den Einstellungen hinzu, um ihn einzubeziehen.";
 "storage.reclaimable" = "Freigebbar";
+"storage.scopeNote" = "Ihr Benutzerordner und die autorisierten Ordner. Das gesamte Volume zu einbeziehen scannt die ganze Festplatte und dauert länger.";
 "storage.title" = "Speicher";
 "storage.topDirectories" = "Größte Ordner";
 "storage.topFiles" = "Größte Dateien";

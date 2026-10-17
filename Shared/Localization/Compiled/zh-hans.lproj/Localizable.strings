@@ -169,6 +169,7 @@
 "files.ignore" = "加入忽略列表";
 "files.ignored" = "忽略的项目不会再被扫描。";
 "files.keepThis" = "保留此项";
+"files.manageScope" = "在设置中管理";
 "files.mode.duplicates" = "重复文件";
 "files.mode.large" = "大文件";
 "files.mode.old" = "旧文件";
@@ -177,6 +178,8 @@
 "files.requiresAuthorization" = "Sift 只扫描下载、桌面和你选择的文件夹。添加文件夹以纳入扫描。";
 "files.revealInFinder" = "在访达中显示";
 "files.scanDuplicates" = "查找重复文件";
+"files.scopeEmpty" = "还没有文件夹。重复文件只在你添加的文件夹中搜索。";
+"files.scopeTitle" = "你添加的文件夹";
 "files.threshold.large" = "大于 %@";
 "files.threshold.old" = "%d 天未修改";
 "files.title" = "文件清理";
@@ -189,7 +192,6 @@
 "nav.settings" = "设置";
 "nav.smartScan" = "智能扫描";
 "nav.storageAnalysis" = "存储分析";
-"nav.systemDiagnostics" = "系统诊断";
 "nav.uninstaller" = "软件卸载";
 "nav.workbench" = "工作台";
 "permission.fullDiskAccess" = "完全磁盘访问权限";
@@ -274,6 +276,8 @@
 "settings.appearance.dark" = "深色";
 "settings.appearance.light" = "浅色";
 "settings.appearance.system" = "跟随系统";
+"settings.authorized.empty" = "尚未授权任何位置。在此添加的文件夹会被扫描，并用于查找重复文件。";
+"settings.authorized.unavailable" = "本次会话不可用";
 "settings.clearHistory" = "清除扫描历史";
 "settings.days" = "%d 天";
 "settings.diagnostics.macOS" = "macOS";
@@ -282,6 +286,7 @@
 "settings.exportLogs" = "导出日志";
 "settings.exportLogsDetail" = "诊断日志不包含文件名或完整路径。";
 "settings.group.appearance" = "外观";
+"settings.group.authorized" = "已授权文件夹";
 "settings.group.confirmation" = "确认";
 "settings.group.ignores" = "忽略列表";
 "settings.group.language" = "语言";
@@ -302,6 +307,7 @@
 "settings.showHiddenFiles" = "结果显示隐藏文件";
 "settings.skipConfirmation" = "跳过确认";
 "settings.skipConfirmationWarning" = "点击后 Sift 会立即开始清理。内容仍会进入废纸篓，但不会先显示列表。";
+"settings.staleThreshold" = "过期阈值";
 "settings.title" = "设置";
 "storage.analysing" = "分析中…";
 "storage.analyze" = "分析存储";
@@ -310,9 +316,11 @@
 "storage.directoryTree" = "可展开目录树";
 "storage.diskDisconnected" = "此磁盘已断开连接。请重新连接后再扫描。";
 "storage.externalDisk" = "外部磁盘";
+"storage.includeVolume" = "包含整卷分析";
 "storage.noAccess" = "Sift 还无法读取此位置。";
 "storage.notAuthorized" = "在设置中添加此文件夹即可纳入存储分析。";
 "storage.reclaimable" = "可回收空间";
+"storage.scopeNote" = "个人文件夹和你授权的文件夹。包含整卷会扫描整个磁盘，耗时更长。";
 "storage.title" = "存储分析";
 "storage.topDirectories" = "最大目录";
 "storage.topFiles" = "最大文件";

@@ -9073,6 +9073,60 @@
         }
       }
     },
+    "files.manageScope": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage in Settings"
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在设置中管理"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "설정에서 관리"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Управлять в настройках"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gestionar en Ajustes"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "設定で管理"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gérer dans les Réglages"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In den Einstellungen verwalten"
+          }
+        }
+      }
+    },
     "files.mode.duplicates": {
       "comment": null,
       "extractionState": "manual",
@@ -9501,6 +9555,114 @@
           "stringUnit": {
             "state": "translated",
             "value": "Duplikate finden"
+          }
+        }
+      }
+    },
+    "files.scopeEmpty": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No folders yet. Duplicates are searched only in folders you add."
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "还没有文件夹。重复文件只在你添加的文件夹中搜索。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "아직 폴더가 없습니다. 중복 파일은 추가한 폴더에서만 검색합니다."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Папок пока нет. Дубликаты ищутся только в добавленных папках."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aún no hay carpetas. Los duplicados se buscan solo en las carpetas que añadas."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "まだフォルダがありません。重複ファイルは追加したフォルダ内だけを検索します。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun dossier pour l’instant. Les doublons ne sont cherchés que dans les dossiers ajoutés."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch keine Ordner. Duplikate werden nur in hinzugefügten Ordnern gesucht."
+          }
+        }
+      }
+    },
+    "files.scopeTitle": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Folders you added"
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你添加的文件夹"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "추가한 폴더"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Добавленные папки"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carpetas que añadiste"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "追加したフォルダ"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dossiers que vous avez ajoutés"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Von Ihnen hinzugefügte Ordner"
           }
         }
       }
@@ -10149,60 +10311,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Speicher"
-          }
-        }
-      }
-    },
-    "nav.systemDiagnostics": {
-      "comment": null,
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "System diagnostics"
-          }
-        },
-        "zh-hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "系统诊断"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "시스템 진단"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Диагностика системы"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Diagnóstico del sistema"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "システム診断"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Diagnostic système"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Systemdiagnose"
           }
         }
       }
@@ -14743,6 +14851,114 @@
         }
       }
     },
+    "settings.authorized.empty": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing has been authorised yet. Folders you add here are scanned, and used to find duplicates."
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "尚未授权任何位置。在此添加的文件夹会被扫描，并用于查找重复文件。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "아직 승인된 위치가 없습니다. 여기에서 추가한 폴더는 검사되며 중복 파일 찾기에 사용됩니다."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пока ничего не разрешено. Добавленные здесь папки сканируются и используются для поиска дубликатов."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aún no has autorizado nada. Las carpetas que añadas aquí se analizan y se usan para buscar duplicados."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "まだ何も許可されていません。ここで追加したフォルダはスキャンされ、重複ファイルの検索に使われます。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rien n’est encore autorisé. Les dossiers ajoutés ici sont analysés et servent à trouver les doublons."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch nichts autorisiert. Hier hinzugefügte Ordner werden gescannt und für die Duplikatsuche verwendet."
+          }
+        }
+      }
+    },
+    "settings.authorized.unavailable": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not available in this session"
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本次会话不可用"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이번 세션에서 사용할 수 없음"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Недоступно в этом сеансе"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No disponible en esta sesión"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このセッションでは利用できません"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Indisponible pour cette session"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In dieser Sitzung nicht verfügbar"
+          }
+        }
+      }
+    },
     "settings.clearHistory": {
       "comment": null,
       "extractionState": "manual",
@@ -15171,6 +15387,60 @@
           "stringUnit": {
             "state": "translated",
             "value": "Erscheinungsbild"
+          }
+        }
+      }
+    },
+    "settings.group.authorized": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Authorised folders"
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已授权文件夹"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "승인된 폴더"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Разрешённые папки"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carpetas autorizadas"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "許可されたフォルダ"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dossiers autorisés"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autorisierte Ordner"
           }
         }
       }
@@ -16255,6 +16525,60 @@
         }
       }
     },
+    "settings.staleThreshold": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stale threshold"
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "过期阈值"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "오래된 항목 기준"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Порог устаревания"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Umbral de antigüedad"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "古い項目のしきい値"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seuil d’ancienneté"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schwelle für veraltete Einträge"
+          }
+        }
+      }
+    },
     "settings.title": {
       "comment": null,
       "extractionState": "manual",
@@ -16687,6 +17011,60 @@
         }
       }
     },
+    "storage.includeVolume": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Include the whole volume"
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "包含整卷分析"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "볼륨 전체 포함"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Включить весь том"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Incluir todo el volumen"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ボリューム全体を含める"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inclure tout le volume"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gesamtes Volume einbeziehen"
+          }
+        }
+      }
+    },
     "storage.noAccess": {
       "comment": null,
       "extractionState": "manual",
@@ -16845,6 +17223,60 @@
           "stringUnit": {
             "state": "translated",
             "value": "Freigebbar"
+          }
+        }
+      }
+    },
+    "storage.scopeNote": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home and the folders you authorised. Including the volume scans the whole disk and takes longer."
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "个人文件夹和你授权的文件夹。包含整卷会扫描整个磁盘，耗时更长。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "홈과 승인한 폴더입니다. 볼륨 전체를 포함하면 디스크 전체를 검사하므로 더 오래 걸립니다."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Домашняя папка и разрешённые папки. Весь том означает сканирование всего диска и занимает больше времени."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu carpeta personal y las carpetas autorizadas. Incluir el volumen analiza todo el disco y tarda más."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ホームと許可したフォルダです。ボリューム全体を含めるとディスク全体を走査するため時間がかかります。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Votre dossier personnel et les dossiers autorisés. Inclure le volume analyse tout le disque et prend plus de temps."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ihr Benutzerordner und die autorisierten Ordner. Das gesamte Volume zu einbeziehen scannt die ganze Festplatte und dauert länger."
           }
         }
       }

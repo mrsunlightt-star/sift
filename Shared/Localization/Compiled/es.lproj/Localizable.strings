@@ -169,6 +169,7 @@
 "files.ignore" = "Ignorar este elemento";
 "files.ignored" = "Los elementos ignorados no se analizan de nuevo.";
 "files.keepThis" = "Conservar este";
+"files.manageScope" = "Gestionar en Ajustes";
 "files.mode.duplicates" = "Duplicados";
 "files.mode.large" = "Archivos grandes";
 "files.mode.old" = "Archivos antiguos";
@@ -177,6 +178,8 @@
 "files.requiresAuthorization" = "Sift analiza Descargas, Escritorio y las carpetas que elijas. Añade una carpeta.";
 "files.revealInFinder" = "Mostrar en el Finder";
 "files.scanDuplicates" = "Buscar duplicados";
+"files.scopeEmpty" = "Aún no hay carpetas. Los duplicados se buscan solo en las carpetas que añadas.";
+"files.scopeTitle" = "Carpetas que añadiste";
 "files.threshold.large" = "Mayores de %@";
 "files.threshold.old" = "Sin cambios durante %d días";
 "files.title" = "Limpieza de archivos";
@@ -189,7 +192,6 @@
 "nav.settings" = "Ajustes";
 "nav.smartScan" = "Análisis inteligente";
 "nav.storageAnalysis" = "Almacenamiento";
-"nav.systemDiagnostics" = "Diagnóstico del sistema";
 "nav.uninstaller" = "Desinstalador";
 "nav.workbench" = "Área de trabajo";
 "permission.fullDiskAccess" = "Acceso total al disco";
@@ -274,6 +276,8 @@
 "settings.appearance.dark" = "Oscuro";
 "settings.appearance.light" = "Claro";
 "settings.appearance.system" = "Según el sistema";
+"settings.authorized.empty" = "Aún no has autorizado nada. Las carpetas que añadas aquí se analizan y se usan para buscar duplicados.";
+"settings.authorized.unavailable" = "No disponible en esta sesión";
 "settings.clearHistory" = "Borrar historial de análisis";
 "settings.days" = "%d días";
 "settings.diagnostics.macOS" = "macOS";
@@ -282,6 +286,7 @@
 "settings.exportLogs" = "Exportar diagnósticos";
 "settings.exportLogsDetail" = "Los diagnósticos no contienen nombres ni rutas completas.";
 "settings.group.appearance" = "Apariencia";
+"settings.group.authorized" = "Carpetas autorizadas";
 "settings.group.confirmation" = "Confirmación";
 "settings.group.ignores" = "Elementos ignorados";
 "settings.group.language" = "Idioma";
@@ -302,6 +307,7 @@
 "settings.showHiddenFiles" = "Mostrar archivos ocultos";
 "settings.skipConfirmation" = "Omitir confirmación";
 "settings.skipConfirmationWarning" = "Sift empezará a limpiar al hacer clic. Todo irá a la papelera, pero no verás la lista antes.";
+"settings.staleThreshold" = "Umbral de antigüedad";
 "settings.title" = "Ajustes";
 "storage.analysing" = "Analizando…";
 "storage.analyze" = "Analizar almacenamiento";
@@ -310,9 +316,11 @@
 "storage.directoryTree" = "Carpetas";
 "storage.diskDisconnected" = "Este disco ya no está conectado. Vuelve a conectarlo y analiza de nuevo.";
 "storage.externalDisk" = "Disco externo";
+"storage.includeVolume" = "Incluir todo el volumen";
 "storage.noAccess" = "Sift aún no puede leer esta ubicación.";
 "storage.notAuthorized" = "Añade esta carpeta en ajustes para incluirla en el análisis.";
 "storage.reclaimable" = "Recuperable";
+"storage.scopeNote" = "Tu carpeta personal y las carpetas autorizadas. Incluir el volumen analiza todo el disco y tarda más.";
 "storage.title" = "Almacenamiento";
 "storage.topDirectories" = "Carpetas más grandes";
 "storage.topFiles" = "Archivos más grandes";

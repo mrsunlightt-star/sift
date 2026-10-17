@@ -22,6 +22,7 @@ public struct SettingsView: View {
                 PageHeader(titleKey: .settingsTitle)
 
                 scanScopeSection
+                authorizedSection
                 thresholdsSection
                 confirmationSection
                 appearanceSection
@@ -161,6 +162,60 @@ public struct SettingsView: View {
         }
     }
 
+    // MARK: - Authorised folders
+
+    /// The one place a folder or volume is granted.
+    ///
+    /// It used to live on the duplicate page as well, which meant two different
+    /// lists of the same grants and two ways to change them. Every page that
+    /// depends on a grant links here instead.
+    private var authorizedSection: some View {
+        SettingsGroup(titleKey: .settingsGroupAuthorized) {
+            VStack(alignment: .leading, spacing: SiftMetrics.spacingM) {
+                if environment.authorizedLocations.isEmpty {
+                    Text(LocalizationKey.settingsAuthorizedEmpty.localized)
+                        .font(SiftFont.body)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    ForEach(environment.authorizedLocations) { location in
+                        HStack(spacing: SiftMetrics.spacingM) {
+                            Image(systemName: location.isVolume ? "externaldrive" : "folder")
+                                .foregroundStyle(SiftColor.accent)
+                                .accessibilityHidden(true)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(location.displayName)
+                                    .font(SiftFont.body)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                if !environment.isAvailable(location) {
+                                    Text(LocalizationKey.settingsAuthorizedUnavailable.localized)
+                                        .font(SiftFont.caption)
+                                        .foregroundStyle(SiftColor.review)
+                                }
+                            }
+                            Spacer(minLength: SiftMetrics.spacingS)
+                            Button {
+                                Task { await environment.removeAuthorizedLocation(location) }
+                            } label: {
+                                Image(systemName: "minus.circle")
+                            }
+                            .buttonStyle(.borderless)
+                            .accessibilityLabel(Text(LocalizationKey.commonRemove.localized))
+                        }
+                        .accessibilityElement(children: .combine)
+                    }
+                }
+
+                Button {
+                    addAuthorizedLocations()
+                } label: {
+                    Label(LocalizationKey.filesAddFolder.localized, systemImage: "folder.badge.plus")
+                }
+            }
+        }
+    }
+
     /// Opens the system panel. A volume can be reached by navigating to
     /// `/Volumes`, which is how macOS exposes disks to a folder picker.
     private func addAuthorizedLocations() {
@@ -216,7 +271,7 @@ public struct SettingsView: View {
                 }
 
                 ThresholdRow(
-                    titleKey: .settingsScanHistory,
+                    titleKey: .settingsStaleThreshold,
                     value: LocalizationKey.settingsDays.localized(environment.preferences.staleThresholdDays),
                     options: [
                         (14, LocalizationKey.settingsDays.localized(14)),
@@ -309,7 +364,7 @@ public struct SettingsView: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 Button {
-                    Task { await environment.updateSettings { _ in } }
+                    RecentHistory.clear()
                 } label: {
                     Text(LocalizationKey.settingsClearHistory.localized)
                         .font(SiftFont.caption)
@@ -403,7 +458,7 @@ public struct SettingsView: View {
                 }
 
                 Button {
-                    Task { await environment.updateSettings { _ in } }
+                    Task { await environment.resetSettings() }
                 } label: {
                     Text(LocalizationKey.settingsResetDefaults.localized)
                         .font(SiftFont.caption)

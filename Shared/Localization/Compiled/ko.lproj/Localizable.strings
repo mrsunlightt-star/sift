@@ -169,6 +169,7 @@
 "files.ignore" = "이 항목 무시";
 "files.ignored" = "무시한 항목은 다시 검사하지 않습니다.";
 "files.keepThis" = "이 항목 유지";
+"files.manageScope" = "설정에서 관리";
 "files.mode.duplicates" = "중복 파일";
 "files.mode.large" = "큰 파일";
 "files.mode.old" = "오래된 파일";
@@ -177,6 +178,8 @@
 "files.requiresAuthorization" = "Sift는 다운로드, 데스크톱 및 선택한 폴더만 검사합니다. 폴더를 추가하세요.";
 "files.revealInFinder" = "Finder에서 보기";
 "files.scanDuplicates" = "중복 파일 찾기";
+"files.scopeEmpty" = "아직 폴더가 없습니다. 중복 파일은 추가한 폴더에서만 검색합니다.";
+"files.scopeTitle" = "추가한 폴더";
 "files.threshold.large" = "%@ 이상";
 "files.threshold.old" = "%d일 미변경";
 "files.title" = "파일 정리";
@@ -189,7 +192,6 @@
 "nav.settings" = "설정";
 "nav.smartScan" = "스마트 스캔";
 "nav.storageAnalysis" = "저장 공간 분석";
-"nav.systemDiagnostics" = "시스템 진단";
 "nav.uninstaller" = "앱 제거";
 "nav.workbench" = "워크벤치";
 "permission.fullDiskAccess" = "전체 디스크 접근 권한";
@@ -274,6 +276,8 @@
 "settings.appearance.dark" = "다크";
 "settings.appearance.light" = "라이트";
 "settings.appearance.system" = "시스템 설정 따르기";
+"settings.authorized.empty" = "아직 승인된 위치가 없습니다. 여기에서 추가한 폴더는 검사되며 중복 파일 찾기에 사용됩니다.";
+"settings.authorized.unavailable" = "이번 세션에서 사용할 수 없음";
 "settings.clearHistory" = "검사 기록 지우기";
 "settings.days" = "%d일";
 "settings.diagnostics.macOS" = "macOS";
@@ -282,6 +286,7 @@
 "settings.exportLogs" = "진단 내보내기";
 "settings.exportLogsDetail" = "진단 로그에는 파일 이름이나 전체 경로가 없습니다.";
 "settings.group.appearance" = "모양";
+"settings.group.authorized" = "승인된 폴더";
 "settings.group.confirmation" = "확인";
 "settings.group.ignores" = "무시 목록";
 "settings.group.language" = "언어";
@@ -302,6 +307,7 @@
 "settings.showHiddenFiles" = "결과에 숨김 파일 표시";
 "settings.skipConfirmation" = "확인 건너뛰기";
 "settings.skipConfirmationWarning" = "클릭하면 바로 정리를 시작합니다. 항목은 휴지통으로 이동하지만 목록을 먼저 볼 수 없습니다.";
+"settings.staleThreshold" = "오래된 항목 기준";
 "settings.title" = "설정";
 "storage.analysing" = "분석 중…";
 "storage.analyze" = "저장 공간 분석";
@@ -310,9 +316,11 @@
 "storage.directoryTree" = "폴더 트리";
 "storage.diskDisconnected" = "이 디스크의 연결이 끊어졌습니다. 다시 연결한 뒤 검사하세요.";
 "storage.externalDisk" = "외장 디스크";
+"storage.includeVolume" = "볼륨 전체 포함";
 "storage.noAccess" = "Sift가 아직 이 위치를 읽을 수 없습니다.";
 "storage.notAuthorized" = "설정에서 이 폴더를 추가하면 분석에 포함됩니다.";
 "storage.reclaimable" = "확보 가능";
+"storage.scopeNote" = "홈과 승인한 폴더입니다. 볼륨 전체를 포함하면 디스크 전체를 검사하므로 더 오래 걸립니다.";
 "storage.title" = "저장 공간";
 "storage.topDirectories" = "큰 폴더 순위";
 "storage.topFiles" = "큰 파일 순위";

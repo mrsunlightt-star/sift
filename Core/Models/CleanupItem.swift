@@ -420,6 +420,19 @@ public struct CategoryTotal: Identifiable, Hashable, Sendable {
     public var formattedSize: String { SiftFormat.bytes(totalBytes) }
 }
 
+public extension Array where Element == CategoryTotal {
+    /// The totals a page shows.
+    ///
+    /// One scan feeds every results page, and each page owns a few categories:
+    /// junk cleanup the four junk kinds, file cleanup one of large, old or
+    /// duplicate files. Without this a page titled "Large files" listed whatever
+    /// the last scan happened to find.
+    func limited(to categories: [CleanupCategory]?) -> [CategoryTotal] {
+        guard let categories else { return self }
+        return filter { categories.contains($0.category) }
+    }
+}
+
 /// The finished scan (§7.2).
 public struct ScanReport: Identifiable, Sendable {
     public let id: UUID

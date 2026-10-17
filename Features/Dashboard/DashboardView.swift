@@ -9,26 +9,15 @@ import SwiftUI
 /// health score. The health figure is the disk line, with the words that say so.
 public struct DashboardView: View {
     @EnvironmentObject private var environment: AppEnvironment
-    private let onNavigate: (AppDestinationLink) -> Void
     @State private var lastOutcome: CleanupOutcome?
-    @State private var isScanning = false
 
-    public init(onNavigate: @escaping (AppDestinationLink) -> Void = { _ in }) {
-        self.onNavigate = onNavigate
-    }
+    public init() {}
 
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: SiftMetrics.spacingXL) {
                 PageHeader(titleKey: .dashboardTitle, subtitle: greeting) {
-                    Button {
-                        onNavigate(.settings)
-                    } label: {
-                        Image(systemName: "slider.horizontal.3")
-                    }
-                    .buttonStyle(.bordered)
-                    .help(LocalizationKey.navSettings.localized)
-                    .accessibilityLabel(Text(LocalizationKey.navSettings.localized))
+                    EmptyView()
                 }
 
                 HStack(alignment: .top, spacing: SiftMetrics.spacingL) {
@@ -81,10 +70,10 @@ public struct DashboardView: View {
                     .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: SiftMetrics.spacingM) {
                     PrimaryActionButton(titleKey: .dashboardStartScan, symbolName: "viewfinder") {
-                        Task { await startScan() }
+                        Task { await environment.runScan(.everything) }
                     }
-                    .disabled(isScanning)
-                    if isScanning {
+                    .disabled(environment.scan.isRunning)
+                    if environment.scan.isRunning {
                         ProgressView().controlSize(.small)
                     }
                 }
@@ -179,18 +168,8 @@ public struct DashboardView: View {
     private var suggestionRow: some View {
         SiftPanel {
             VStack(alignment: .leading, spacing: SiftMetrics.spacingM) {
-                HStack {
-                    Text(LocalizationKey.dashboardSuggestedCleanup.localized)
-                        .font(SiftFont.sectionTitle)
-                    Spacer()
-                    Button {
-                        onNavigate(.smartScan)
-                    } label: {
-                        Text(LocalizationKey.dashboardLookSuggestions.localized)
-                            .font(SiftFont.caption)
-                    }
-                    .buttonStyle(.link)
-                }
+                Text(LocalizationKey.dashboardSuggestedCleanup.localized)
+                    .font(SiftFont.sectionTitle)
                 if environment.scan.categoryTotals.isEmpty {
                     Text(LocalizationKey.scanNothingFoundDetail.localized)
                         .font(SiftFont.body)
@@ -215,15 +194,6 @@ public struct DashboardView: View {
         return Double(total.totalBytes) / Double(largest)
     }
 
-    private func startScan() async {
-        isScanning = true
-        defer { isScanning = false }
-        environment.cleanup.resetForNewScan()
-        let request = await environment.makeScanRequest()
-        await environment.scan.start(request)
-        await environment.scan.loadDuplicateGroups()
-        RecentHistory.recordScan()
-    }
 }
 
 /// The last cleanup's summary, read back from local history.

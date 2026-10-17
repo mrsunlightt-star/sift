@@ -169,6 +169,7 @@
 "files.ignore" = "Ignore this item";
 "files.ignored" = "Ignored items are never scanned again.";
 "files.keepThis" = "Keep this one";
+"files.manageScope" = "Manage in Settings";
 "files.mode.duplicates" = "Duplicates";
 "files.mode.large" = "Large files";
 "files.mode.old" = "Old files";
@@ -177,6 +178,8 @@
 "files.requiresAuthorization" = "Sift scans Downloads, Desktop and folders you choose. Add a folder to include it.";
 "files.revealInFinder" = "Show in Finder";
 "files.scanDuplicates" = "Find duplicates";
+"files.scopeEmpty" = "No folders yet. Duplicates are searched only in folders you add.";
+"files.scopeTitle" = "Folders you added";
 "files.threshold.large" = "Larger than %@";
 "files.threshold.old" = "Not changed for %d days";
 "files.title" = "File cleanup";
@@ -189,7 +192,6 @@
 "nav.settings" = "Settings";
 "nav.smartScan" = "Smart Scan";
 "nav.storageAnalysis" = "Storage";
-"nav.systemDiagnostics" = "System diagnostics";
 "nav.uninstaller" = "Uninstaller";
 "nav.workbench" = "Workbench";
 "permission.fullDiskAccess" = "Full Disk Access";
@@ -274,6 +276,8 @@
 "settings.appearance.dark" = "Dark";
 "settings.appearance.light" = "Light";
 "settings.appearance.system" = "Follow system";
+"settings.authorized.empty" = "Nothing has been authorised yet. Folders you add here are scanned, and used to find duplicates.";
+"settings.authorized.unavailable" = "Not available in this session";
 "settings.clearHistory" = "Clear scan history";
 "settings.days" = "%d days";
 "settings.diagnostics.macOS" = "macOS";
@@ -282,6 +286,7 @@
 "settings.exportLogs" = "Export diagnostics";
 "settings.exportLogsDetail" = "Diagnostics contain no file names or full paths.";
 "settings.group.appearance" = "Appearance";
+"settings.group.authorized" = "Authorised folders";
 "settings.group.confirmation" = "Confirmation";
 "settings.group.ignores" = "Ignored items";
 "settings.group.language" = "Language";
@@ -302,6 +307,7 @@
 "settings.showHiddenFiles" = "Show hidden files in results";
 "settings.skipConfirmation" = "Skip confirmation";
 "settings.skipConfirmationWarning" = "Sift will start cleaning as soon as you click. Items still go to the Trash, but you will not see the list first.";
+"settings.staleThreshold" = "Stale threshold";
 "settings.title" = "Settings";
 "storage.analysing" = "Analyzing…";
 "storage.analyze" = "Analyze storage";
@@ -310,9 +316,11 @@
 "storage.directoryTree" = "Folders";
 "storage.diskDisconnected" = "This disk is no longer connected. Reconnect it and scan again.";
 "storage.externalDisk" = "External disk";
+"storage.includeVolume" = "Include the whole volume";
 "storage.noAccess" = "Sift cannot read this location yet.";
 "storage.notAuthorized" = "Add this folder in settings to include it in storage analysis.";
 "storage.reclaimable" = "Reclaimable";
+"storage.scopeNote" = "Home and the folders you authorised. Including the volume scans the whole disk and takes longer.";
 "storage.title" = "Storage";
 "storage.topDirectories" = "Largest folders";
 "storage.topFiles" = "Largest files";

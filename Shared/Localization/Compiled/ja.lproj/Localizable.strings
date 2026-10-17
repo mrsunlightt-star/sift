@@ -169,6 +169,7 @@
 "files.ignore" = "この項目を無視";
 "files.ignored" = "無視した項目は再スキャンされません。";
 "files.keepThis" = "これを残す";
+"files.manageScope" = "設定で管理";
 "files.mode.duplicates" = "重複ファイル";
 "files.mode.large" = "大きいファイル";
 "files.mode.old" = "古いファイル";
@@ -177,6 +178,8 @@
 "files.requiresAuthorization" = "Sift はダウンロード、デスクトップ、選択したフォルダを対象にします。フォルダを追加してください。";
 "files.revealInFinder" = "Finder で表示";
 "files.scanDuplicates" = "重複を検索";
+"files.scopeEmpty" = "まだフォルダがありません。重複ファイルは追加したフォルダ内だけを検索します。";
+"files.scopeTitle" = "追加したフォルダ";
 "files.threshold.large" = "%@ を超える";
 "files.threshold.old" = "%d 日間変更なし";
 "files.title" = "ファイルの整理";
@@ -189,7 +192,6 @@
 "nav.settings" = "設定";
 "nav.smartScan" = "スマートスキャン";
 "nav.storageAnalysis" = "ストレージ";
-"nav.systemDiagnostics" = "システム診断";
 "nav.uninstaller" = "アンインストーラ";
 "nav.workbench" = "ワークベンチ";
 "permission.fullDiskAccess" = "フルディスクアクセス";
@@ -274,6 +276,8 @@
 "settings.appearance.dark" = "ダーク";
 "settings.appearance.light" = "ライト";
 "settings.appearance.system" = "システムに従う";
+"settings.authorized.empty" = "まだ何も許可されていません。ここで追加したフォルダはスキャンされ、重複ファイルの検索に使われます。";
+"settings.authorized.unavailable" = "このセッションでは利用できません";
 "settings.clearHistory" = "スキャン履歴を消去";
 "settings.days" = "%d 日";
 "settings.diagnostics.macOS" = "macOS";
@@ -282,6 +286,7 @@
 "settings.exportLogs" = "診断情報を書き出す";
 "settings.exportLogsDetail" = "診断情報にファイル名や完全なパスは含まれません。";
 "settings.group.appearance" = "外観";
+"settings.group.authorized" = "許可されたフォルダ";
 "settings.group.confirmation" = "確認";
 "settings.group.ignores" = "無視リスト";
 "settings.group.language" = "言語";
@@ -302,6 +307,7 @@
 "settings.showHiddenFiles" = "隠しファイルを表示";
 "settings.skipConfirmation" = "確認をスキップ";
 "settings.skipConfirmationWarning" = "クリックするとすぐに削除が始まります。ゴミ箱には入りますが、一覧は表示されません。";
+"settings.staleThreshold" = "古い項目のしきい値";
 "settings.title" = "設定";
 "storage.analysing" = "分析中…";
 "storage.analyze" = "ストレージを分析";
@@ -310,9 +316,11 @@
 "storage.directoryTree" = "フォルダ";
 "storage.diskDisconnected" = "このディスクは接続されていません。再接続してスキャンしてください。";
 "storage.externalDisk" = "外付けディスク";
+"storage.includeVolume" = "ボリューム全体を含める";
 "storage.noAccess" = "この場所はまだ読み取れません。";
 "storage.notAuthorized" = "設定でこのフォルダを追加すると分析に含まれます。";
 "storage.reclaimable" = "解放可能";
+"storage.scopeNote" = "ホームと許可したフォルダです。ボリューム全体を含めるとディスク全体を走査するため時間がかかります。";
 "storage.title" = "ストレージ";
 "storage.topDirectories" = "大きいフォルダ順";
 "storage.topFiles" = "大きいファイル順";

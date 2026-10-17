@@ -191,8 +191,32 @@ public final class AppEnvironment: ObservableObject {
             authorizedRoots: restoredAuthorizedURLs.map(\.path),
             installedBundleIdentifiers: bundleIdentifiers,
             includeDuplicates: includeDuplicates,
-            duplicateRoots: defaultDuplicateRoots()
+            // Sorted and deduplicated: a granted folder that is also a default
+            // root would otherwise appear twice.
+            duplicateRoots: Array(Set(defaultDuplicateRoots())).sorted()
         )
+    }
+
+    /// The one way a scan is started (§5.1-§5.5).
+    ///
+    /// The pages differ in what they ask for and in what they load afterwards,
+    /// not in how a scan runs. Keeping that here is what makes the gates agree:
+    /// `scan.hasResults` means the same thing whichever page started the run.
+    public func runScan(_ intent: ScanIntent) async {
+        cleanup.resetForNewScan()
+        let request = await makeScanRequest(includeDuplicates: intent.includesDuplicates)
+        await scan.start(request)
+        if intent.includesDuplicates {
+            await scan.loadDuplicateGroups()
+        }
+        let page = await scan.page(
+            offset: 0,
+            limit: 200,
+            sort: .size,
+            category: intent.category
+        )
+        cleanup.setItems(page.items.map { $0.asCleanupItem() }, preselect: intent.preselectsItems)
+        RecentHistory.recordScan()
     }
 
     /// Adds a folder or volume the user picked in a file panel.
@@ -283,6 +307,12 @@ public final class AppEnvironment: ObservableObject {
             roots.append(DiagnosticRoot(url: URL(fileURLWithPath: "/"), kind: .volume))
         }
         return roots
+    }
+
+    /// Restores every setting to its default.
+    public func resetSettings() async {
+        await settings.resetToDefaults()
+        preferences = await settings.current()
     }
 
     /// True when this stored bookmark resolved at launch and could be opened.

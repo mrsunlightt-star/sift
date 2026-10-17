@@ -169,6 +169,7 @@
 "files.ignore" = "Игнорировать";
 "files.ignored" = "Игнорируемые элементы больше не сканируются.";
 "files.keepThis" = "Оставить этот";
+"files.manageScope" = "Управлять в настройках";
 "files.mode.duplicates" = "Дубликаты";
 "files.mode.large" = "Большие файлы";
 "files.mode.old" = "Старые файлы";
@@ -177,6 +178,8 @@
 "files.requiresAuthorization" = "Sift сканирует «Загрузки», «Рабочий стол» и выбранные папки. Добавьте папку.";
 "files.revealInFinder" = "Показать в Finder";
 "files.scanDuplicates" = "Найти дубликаты";
+"files.scopeEmpty" = "Папок пока нет. Дубликаты ищутся только в добавленных папках.";
+"files.scopeTitle" = "Добавленные папки";
 "files.threshold.large" = "Больше %@";
 "files.threshold.old" = "Без изменений %d дней";
 "files.title" = "Очистка файлов";
@@ -189,7 +192,6 @@
 "nav.settings" = "Настройки";
 "nav.smartScan" = "Умное сканирование";
 "nav.storageAnalysis" = "Хранилище";
-"nav.systemDiagnostics" = "Диагностика системы";
 "nav.uninstaller" = "Удаление программ";
 "nav.workbench" = "Рабочая область";
 "permission.fullDiskAccess" = "Полный доступ к диску";
@@ -274,6 +276,8 @@
 "settings.appearance.dark" = "Тёмное";
 "settings.appearance.light" = "Светлое";
 "settings.appearance.system" = "Как в системе";
+"settings.authorized.empty" = "Пока ничего не разрешено. Добавленные здесь папки сканируются и используются для поиска дубликатов.";
+"settings.authorized.unavailable" = "Недоступно в этом сеансе";
 "settings.clearHistory" = "Очистить историю сканирований";
 "settings.days" = "%d дней";
 "settings.diagnostics.macOS" = "macOS";
@@ -282,6 +286,7 @@
 "settings.exportLogs" = "Экспорт диагностики";
 "settings.exportLogsDetail" = "Диагностика не содержит имён файлов или полных путей.";
 "settings.group.appearance" = "Оформление";
+"settings.group.authorized" = "Разрешённые папки";
 "settings.group.confirmation" = "Подтверждение";
 "settings.group.ignores" = "Исключения";
 "settings.group.language" = "Язык";
@@ -302,6 +307,7 @@
 "settings.showHiddenFiles" = "Показывать скрытые файлы";
 "settings.skipConfirmation" = "Пропускать подтверждение";
 "settings.skipConfirmationWarning" = "Sift начнёт очистку сразу после нажатия. Файлы попадут в Корзину, но список вы не увидите.";
+"settings.staleThreshold" = "Порог устаревания";
 "settings.title" = "Настройки";
 "storage.analysing" = "Анализ…";
 "storage.analyze" = "Анализировать хранилище";
@@ -310,9 +316,11 @@
 "storage.directoryTree" = "Папки";
 "storage.diskDisconnected" = "Этот диск отключён. Подключите его снова и повторите.";
 "storage.externalDisk" = "Внешний диск";
+"storage.includeVolume" = "Включить весь том";
 "storage.noAccess" = "Sift пока не может прочитать это место.";
 "storage.notAuthorized" = "Добавьте эту папку в настройках, чтобы включить её в анализ.";
 "storage.reclaimable" = "Можно освободить";
+"storage.scopeNote" = "Домашняя папка и разрешённые папки. Весь том означает сканирование всего диска и занимает больше времени.";
 "storage.title" = "Хранилище";
 "storage.topDirectories" = "Самые большие папки";
 "storage.topFiles" = "Самые большие файлы";

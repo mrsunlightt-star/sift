@@ -15,23 +15,27 @@ public struct ScanResultsView: View {
     @State private var hasMore = false
 
     private let pageSize = 200
+    /// The categories this page owns, or `nil` for all of them.
+    private let categories: [CleanupCategory]?
 
-    public init(scan: ScanModel, cleanup: CleanupModel) {
+    public init(scan: ScanModel, cleanup: CleanupModel, categories: [CleanupCategory]? = nil) {
         self.scan = scan
         self.cleanup = cleanup
+        self.categories = categories
     }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: SiftMetrics.spacingL) {
             summaryHeader
-            if scan.categoryTotals.isEmpty {
+            let totals = scan.categoryTotals.limited(to: categories)
+            if totals.isEmpty {
                 SiftEmptyState(
                     symbolName: "checkmark.circle",
                     titleKey: .scanNothingFound,
                     detailKey: .scanNothingFoundDetail
                 )
             } else {
-                ForEach(scan.categoryTotals) { total in
+                ForEach(totals) { total in
                     CategoryGroupCard(
                         total: total,
                         isExpanded: expandedCategory == total.category,
@@ -44,7 +48,10 @@ public struct ScanResultsView: View {
                     )
                 }
             }
-            if !scan.duplicateGroups.isEmpty {
+            // Duplicate groups are a category of their own: a page that does not
+            // own duplicate files must not show them.
+            if !scan.duplicateGroups.isEmpty,
+               categories?.contains(.duplicateFiles) ?? true {
                 DuplicateGroupsCard(groups: scan.duplicateGroups, scan: scan, cleanup: cleanup)
             }
         }
@@ -62,7 +69,7 @@ public struct ScanResultsView: View {
                 .foregroundStyle(.secondary)
             }
             Spacer()
-            if !scan.duplicateGroups.isEmpty {
+            if !scan.duplicateGroups.isEmpty, categories?.contains(.duplicateFiles) ?? true {
                 Text(
                     LocalizationKey.scanDuplicatesFound
                         .localized(scan.duplicateGroups.count)
