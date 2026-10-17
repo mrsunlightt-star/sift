@@ -1,0 +1,15 @@
+# Build settings applied to every invocation, including `cargo build` from the
+# release script and from CI.
+#
+# The deployment target must match the app's minimum (macOS 13, §6.1). Without
+# it, `cc`-built dependencies such as bundled SQLite and BLAKE3 inherit the
+# build machine's SDK version, and the resulting archive links with warnings and
+# would refuse to load on an older Mac.
+[target.aarch64-apple-darwin]
+rustflags = ["-C", "link-arg=-mmacosx-version-min=13.0", "-C", "link-args=-mmacosx-version-min=13.0"]
+
+[target.x86_64-apple-darwin]
+rustflags = ["-C", "link-arg=-mmacosx-version-min=13.0", "-C", "link-args=-mmacosx-version-min=13.0"]
+
+[env]
+MACOSX_DEPLOYMENT_TARGET = "13.0"

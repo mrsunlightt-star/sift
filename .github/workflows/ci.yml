@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  rust:
+    name: Rust scanner core
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install the pinned Rust toolchain
+        run: |
+          rustup show
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
+      - name: Format
+        working-directory: RustCore
+        run: cargo fmt --all -- --check
+
+      - name: Lints
+        working-directory: RustCore
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Tests (unit + FFI contract)
+        working-directory: RustCore
+        run: cargo test --workspace
+
+      # The spec asks for a performance regression threshold in CI. The benchmark
+      # run here is the smoke check; the threshold is applied by comparing the
+      # criterion baseline against the recorded numbers.
+      - name: Benchmarks compile and run
+        working-directory: RustCore
+        run: |
+          cargo bench -p sift-scanner-core --no-run
+          cargo bench -p sift-scanner-core --bench scan_stages -- --warm-up-time 0.3 --measurement-time 1
+
+      - name: Universal build
+        run: ./Scripts/build-rust-xcframework.sh --no-tests
+
+      - name: Upload the XCFramework
+        uses: actions/upload-artifact@v4
+        with:
+          name: SiftScanner.xcframework
+          path: Bridge/SiftScanner.xcframework
+
+  swift:
+    name: Swift app and tests
+    runs-on: macos-14
+    needs: rust
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the Rust scanner core
+        working-directory: RustCore
+        run: cargo build --release -p sift-ffi --target aarch64-apple-darwin
+
+      - name: Build the app with the Rust core linked
+        run: |
+          source Scripts/swift-env.sh
+          sift_swift build
+
+      - name: Self-test suite
+        run: swift run SiftSelfTest
+
+      # XCTest is part of Xcode, which the runner image provides, so the real
+      # framework runs the suite here rather than the Command Line Tools shim.
+      - name: XCTest suite
+        run: swift test
+
+      - name: Type-check the XCTest suite
+        run: ./Scripts/check-tests.sh
+
+      - name: Assemble the app bundle
+        run: ./Scripts/build-app.sh
+
+      - name: Upload the app
+        uses: actions/upload-artifact@v4
+        with:
+          name: Sift.app
+          path: .build/Sift.app

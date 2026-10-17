@@ -1,0 +1,45 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/sift-rules",
+    "crates/sift-file-index",
+    "crates/sift-hasher",
+    "crates/sift-scanner-core",
+    "crates/sift-ffi",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "proprietary"
+publish = false
+
+[workspace.dependencies]
+sift-rules = { path = "crates/sift-rules" }
+sift-file-index = { path = "crates/sift-file-index" }
+sift-hasher = { path = "crates/sift-hasher" }
+sift-scanner-core = { path = "crates/sift-scanner-core" }
+sift-ffi = { path = "crates/sift-ffi" }
+
+rusqlite = { version = "0.31", features = ["bundled"] }
+walkdir = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+blake3 = "1"
+thiserror = "1"
+libc = "0.2"
+criterion = "0.5"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+debug = "line-tables-only"
+panic = "abort"
+
+[profile.bench]
+debug = "line-tables-only"
+
+[profile.dev]
+debug = true

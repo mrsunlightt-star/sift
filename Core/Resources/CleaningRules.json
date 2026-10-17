@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "rules": [
+    {
+      "id": "user-cache",
+      "category": "applicationCache",
+      "risk": "safe",
+      "root": "homeLibrary",
+      "relativePath": "Caches",
+      "matchSpec": "childDirectories",
+      "excludes": [
+        "CloudKit",
+        "com.apple.bird",
+        "com.apple.iCloud",
+        "FamilyCircle"
+      ],
+      "requiresFullDiskAccess": false,
+      "explanationKey": "cleanup.explanation.cache"
+    },
+    {
+      "id": "user-cache-sandboxed",
+      "category": "applicationCache",
+      "risk": "review",
+      "root": "homeLibrary",
+      "relativePath": "Containers",
+      "matchSpec": "directory",
+      "requiresFullDiskAccess": false,
+      "explanationKey": "cleanup.explanation.cache"
+    },
+    {
+      "id": "user-logs",
+      "category": "logs",
+      "risk": "safe",
+      "root": "homeLibrary",
+      "relativePath": "Logs",
+      "matchSpec": "childDirectories",
+      "minAgeDays": 30,
+      "requiresFullDiskAccess": false,
+      "explanationKey": "cleanup.explanation.logs"
+    },
+    {
+      "id": "user-saved-state",
+      "category": "temporaryFiles",
+      "risk": "safe",
+      "root": "homeLibrary",
+      "relativePath": "Saved Application State",
+      "matchSpec": "childDirectories",
+      "requiresFullDiskAccess": false,
+      "explanationKey": "cleanup.explanation.savedState"
+    },
+    {
+      "id": "download-installers",
+      "category": "installers",
+      "risk": "review",
+      "root": "home",
+      "relativePath": "Downloads",
+      "matchSpec": "filesByExtension",
+      "extensions": [
+        "dmg",
+        "pkg",
+        "mpkg",
+        "xip",
+        "iso"
+      ],
+      "minAgeDays": 30,
+      "requiresFullDiskAccess": false,
+      "explanationKey": "cleanup.explanation.installers"
+    },
+    {
+      "id": "download-archives",
+      "category": "installers",
+      "risk": "review",
+      "root": "home",
+      "relativePath": "Downloads",
+      "matchSpec": "filesByExtension",
+      "extensions": [
+        "zip",
+        "tar",
+        "gz",
+        "tgz"
+      ],
+      "minAgeDays": 90,
+      "requiresFullDiskAccess": false,
+      "explanationKey": "cleanup.explanation.installers"
+    },
+    {
+      "id": "system-logs",
+      "category": "logs",
+      "risk": "review",
+      "root": "systemLibrary",
+      "relativePath": "Logs",
+      "matchSpec": "childDirectories",
+      "minAgeDays": 30,
+      "requiresFullDiskAccess": true,
+      "explanationKey": "cleanup.explanation.systemLogs"
+    }
+  ]
+}

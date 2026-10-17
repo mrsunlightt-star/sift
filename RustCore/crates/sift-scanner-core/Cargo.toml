@@ -1,0 +1,27 @@
+[package]
+name = "sift-scanner-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+sift-rules = { workspace = true }
+sift-file-index = { workspace = true }
+sift-hasher = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+libc = { workspace = true }
+
+[features]
+# Publishes the filesystem test fixtures to dependent crates (the FFI contract
+# tests use them). Never enabled in a release build.
+test-fixtures = []
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "scan_stages"
+harness = false

@@ -1,0 +1,4 @@
+module SiftScanner {
+    umbrella header "include/sift_scanner_shim.h"
+    export *
+}

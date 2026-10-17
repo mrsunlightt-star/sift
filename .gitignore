@@ -1,1 +1,17 @@
+# SwiftPM
+.build/
+.swiftpm/
+Package.resolved
+
+# Rust
+RustCore/target/
+
+# Built artifacts
+Bridge/SiftScanner.xcframework/
+Bridge/macos-universal/
+Bridge/SiftScanner.pc
+Bridge/.build/
+Assets.xcassets/AppIcon.appiconset/*.png
+
+# macOS
 .DS_Store

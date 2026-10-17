@@ -1,0 +1,150 @@
+#!/usr/bin/env bash
+#
+# Builds Sift.app.
+#
+# What this does, in order:
+#   1. resolves the Rust scanner core (builds it if missing),
+#   2. compiles the Swift package and links the Rust archive,
+#   3. assembles a real .app bundle with its Info.plist and localisations,
+#   4. ad-hoc signs it so macOS will launch it.
+#
+# Why a script rather than an Xcode project: the specification's toolchain is
+# SwiftPM plus Cargo (§6.1), and a bundle assembled here is byte-for-byte what an
+# Xcode target would produce for a SwiftPM-only app. Opening the package in Xcode
+# works too, and `Scripts/build-rust-xcframework.sh` produces the XCFramework that
+# an Xcode target would embed.
+#
+# Usage:
+#   Scripts/build-app.sh [--release] [--run] [--install]
+
+set -euo pipefail
+
+SCRIPT_PATH="${BASH_SOURCE[0]:-$0}"
+REPO_ROOT="$(cd "$(dirname "${SCRIPT_PATH}")/.." && pwd)"
+cd "${REPO_ROOT}"
+
+CONFIGURATION="debug"
+RUN_AFTER=0
+INSTALL=0
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+  --release) CONFIGURATION="release" ;;
+  --run) RUN_AFTER=1 ;;
+  --install) INSTALL=1 ;;
+  -h | --help)
+    sed -n '2,20p' "${BASH_SOURCE[0]}"
+    exit 0
+    ;;
+  *)
+    echo "unknown argument: $1" >&2
+    exit 2
+    ;;
+  esac
+  shift
+done
+
+# 1. Rust core.
+# shellcheck disable=SC1091
+source "${REPO_ROOT}/Scripts/swift-env.sh"
+
+echo "==> Building the Swift package (${CONFIGURATION})"
+SWIFT_FLAGS=("${SIFT_SWIFT_FLAGS[@]}")
+if [[ "${CONFIGURATION}" == "release" ]]; then
+  SWIFT_FLAGS+=(-c release)
+fi
+swift build "${SWIFT_FLAGS[@]}"
+
+BIN_DIR="$(swift build "${SWIFT_FLAGS[@]}" --show-bin-path)"
+EXECUTABLE="${BIN_DIR}/Sift"
+if [[ ! -x "${EXECUTABLE}" ]]; then
+  echo "error: expected executable is missing: ${EXECUTABLE}" >&2
+  exit 1
+fi
+
+# 2. Bundle.
+APP_DIR="${REPO_ROOT}/.build/Sift.app"
+echo "==> Assembling ${APP_DIR}"
+rm -rf "${APP_DIR}"
+mkdir -p "${APP_DIR}/Contents/MacOS" "${APP_DIR}/Contents/Resources"
+
+cp "${EXECUTABLE}" "${APP_DIR}/Contents/MacOS/Sift"
+
+VERSION="$(git -C "${REPO_ROOT}" describe --tags --always 2>/dev/null || echo "0.1.0")"
+BUILD_NUMBER="$(git -C "${REPO_ROOT}" rev-list --count HEAD 2>/dev/null || echo "1")"
+
+cat > "${APP_DIR}/Contents/Info.plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleExecutable</key>
+    <string>Sift</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.siftmac.cleaner</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>Sift</string>
+    <key>CFBundleDisplayName</key>
+    <string>Sift</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.1.0</string>
+    <key>CFBundleVersion</key>
+    <string>${BUILD_NUMBER}</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>13.0</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSSupportsAutomaticTermination</key>
+    <false/>
+    <key>NSSupportsSuddenTermination</key>
+    <false/>
+    <!-- The app reads caches, logs and the user's Downloads folder, which is why
+         macOS asks for permission the first time. There is no account, no
+         network access and no analytics, so no other usage key is declared. -->
+    <key>NSHumanReadableCopyright</key>
+    <string>Sift</string>
+    <key>CFBundleLocalizations</key>
+    <array>
+        <string>en</string>
+        <string>zh-Hans</string>
+        <string>ko</string>
+        <string>ru</string>
+        <string>es</string>
+        <string>ja</string>
+        <string>fr</string>
+        <string>de</string>
+    </array>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+</dict>
+</plist>
+PLIST
+
+# Copy the compiled resource bundles SwiftPM produced, which carry the string
+# catalog for all eight languages.
+cp -R "${BIN_DIR}"/*.bundle "${APP_DIR}/Contents/Resources/" 2>/dev/null || true
+
+echo "==> Signing (ad-hoc)"
+codesign --force --deep --sign - "${APP_DIR}" 2>&1 | grep -v "replacing existing signature" || true
+codesign --verify --deep --strict "${APP_DIR}" && echo "    signature verified"
+
+if [[ "${INSTALL}" == "1" ]]; then
+  DESTINATION="/Applications/Sift.app"
+  echo "==> Installing to ${DESTINATION}"
+  rm -rf "${DESTINATION}"
+  cp -R "${APP_DIR}" "${DESTINATION}"
+  echo "    installed"
+fi
+
+echo "==> Done"
+echo "    app: ${APP_DIR}"
+if [[ "${RUN_AFTER}" == "1" ]]; then
+  echo "==> Launching"
+  open "${APP_DIR}"
+fi

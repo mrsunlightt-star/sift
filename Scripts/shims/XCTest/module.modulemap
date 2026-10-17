@@ -1,0 +1,8 @@
+/*
+ * Clang side of the XCTest shim. The Swift declarations live in XCTest.swift and
+ * are emitted as a module by `Scripts/check-tests.sh`.
+ */
+module XCTest {
+    header "XCTest.h"
+    export *
+}

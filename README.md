@@ -1,28 +1,209 @@
 # Sift — macOS 清理工具
 
-Sift 是一款不依赖账号、不上传用户文件的轻量 Mac 清理工具，核心流程为「扫描 — 解释 — 确认 — 可恢复清理」。所有清理项默认移入废纸篓，并在删除前展示来源、大小、原因和风险等级。
+Sift 是一款不依赖账号、不上传用户文件、以「扫描 — 解释 — 确认 — 可恢复清理」为核心流程的轻量 Mac 清理工具。所有清理项默认移入废纸篓，删除前展示来源、大小、原因和风险等级。
 
-商业模式：$4.99 一次性买断，永久使用，无订阅。
+**$4.99 一次性买断，永久使用，包含未来大版本更新，无订阅。**
 
-## 仓库内容
+产品与体验的完整基线见 [sift-macos-cleaner-development-spec.md](sift-macos-cleaner-development-spec.md)。
 
-| 文件 | 说明 |
+---
+
+## 快速开始
+
+```bash
+# 1. 准备 Rust 扫描核心并链接进 Swift 包
+source Scripts/swift-env.sh
+
+# 2. 构建并打包 Sift.app
+Scripts/build-app.sh --release
+
+# 3. 运行
+open .build/Sift.app
+```
+
+只需要 SwiftPM 的构建（自动回退到 Swift 扫描核心）：
+
+```bash
+swift build       # 不加任何参数也能构建出完整应用
+swift run SiftSelfTest
+```
+
+---
+
+## 目录结构
+
+| 路径 | 内容 |
 |---|---|
-| [sift-macos-cleaner-development-spec.md](sift-macos-cleaner-development-spec.md) | v0.1 开发基线文档：产品定义与范围、功能需求、技术方案、核心数据模型、扫描引擎设计、文件操作与恢复、macOS 权限与沙盒、UI/UX 规格、购买与商业化、隐私与安全、错误码、性能要求、测试计划、版本计划与 MVP 验收标准 |
-| `iShot_2026-10-17_10.40.42.png` | 界面稿：智能扫描首页 |
-| `iShot_2026-10-17_10.40.53.png` | 界面稿：Mac 状态总览 |
+| `App/` | 应用入口、路由、侧边栏与窗口外壳 |
+| `Core/` | 领域模型、规则引擎、文件操作、报告、权限、购买、扫描引擎 |
+| `Core/RustBridge/` | Rust C ABI 的 Swift 封装（`#if canImport(SiftScanner)` 保护） |
+| `Core/UI/` | 多个功能共用的视图（结果列表、选择栏、确认与结果页） |
+| `Features/` | 八个功能模块：总览、智能扫描、垃圾清理、卸载、文件清理、存储分析、设置、购买 |
+| `Shared/` | 设计系统、通用组件、八种语言的字符串目录 |
+| `RustCore/` | Rust workspace：规则、哈希、SQLite 索引、扫描协调器、FFI |
+| `Bridge/` | C 头文件、SwiftPM 的 module map、XCFramework 输出目录 |
+| `Scripts/` | 构建、环境、字符串生成、测试运行脚本 |
+| `Tests/` | XCTest 测试套件（72 个测试方法） |
+| `SelfTest/` | 无需 Xcode 即可运行的自检套件（132 项检查） |
 
-## 功能范围（MVP）
+---
 
-智能扫描、垃圾清理、软件卸载、存储分析、大文件 / 旧文件 / 重复文件扫描、清理结果报告与 PDF 导出、废纸篓恢复提示、官网购买与授权激活、自动更新、设置与隐私说明，以及中文、英文、韩语、俄语、西班牙语、日语、法语、德语八种界面语言。
+## 架构
 
-## 技术栈
+```
+SwiftUI Views  →  Feature ViewModels  →  Use Cases  →  Scanner Engine
+                                                   →  File Operations (Trash)
+                                                   →  Permission / Entitlement
+Rust Scanner Core  →  Rules · SQLite Index · Duplicate Pipeline
+```
 
-- 应用层：Swift 6 + SwiftUI，最低支持 macOS 13 Ventura
-- 扫描核心：Rust stable，通过 C ABI + `cbindgen` 与 Swift 桥接
-- 扫描索引：Rust 侧 SQLite，Swift 只读取分页结果
-- 报告导出：PDFKit
-- 购买：官网一次性授权；如后续上架 Mac App Store，使用 StoreKit 2
-- 构建：Xcode 16+、Swift Package Manager、Cargo
+三条边界是刻意设计的：
 
-详细架构分层、FFI 边界与安全规则见开发文档。
+1. **Rust 只负责发现与分析。** 遍历、规则匹配、重复文件分阶段检测都在 `RustCore/`；它不删除、不移动、不读写购买状态。所有破坏性操作回到 Swift 的 `FileOperationService`。
+2. **Swift 侧再验证一次。** `RuleEngine.protectionReason` 在界面上、预检时、执行前各查一次。Rust 的规则文件和 Swift 的规则表都**无法**取消编译进二进制的保护清单（`Documents`、`Desktop`、`/System`、钥匙串等）。
+3. **事件批量、结果分页。** Rust 每次最多回传一批摘要，明细留在 SQLite 索引里按页读取；Swift 永远不会为整块磁盘构建对象图。
+
+### 两个扫描核心
+
+| 核心 | 何时使用 | 说明 |
+|---|---|---|
+| `RustScannerEngine` | 生产构建（`Scripts/swift-env.sh` 链接了 Rust 静态库） | 高性能实现，事件/分页经由 C ABI |
+| `SwiftScannerEngine` | 未链接 Rust 时的自动回退；测试参考实现 | 行为与 Rust 核心逐条对齐，便于单独测试 |
+
+`ScannerEngineFactory` 在启动时校验 ABI 版本，版本不一致时拒绝使用 Rust 核心并回退——宁可慢，不可错。设置页「诊断」一栏会写明当前使用哪个核心。
+
+---
+
+## 构建要求
+
+| 组件 | 版本 | 说明 |
+|---|---|---|
+| macOS | 13 Ventura 或更高 | 应用最低部署目标 |
+| Swift | 6.0 | `Package.swift` 使用 swift-tools-version 6.0 |
+| Rust | stable（`RustCore/rust-toolchain.toml` 锁定） | 双架构目标：`aarch64-apple-darwin`、`x86_64-apple-darwin` |
+| Xcode | 可选 | 只有跑 `swift test` 与 XCUITest 时需要；命令行工具即可构建应用 |
+
+Rust 部署目标固定为 13.0（`RustCore/.cargo/config.toml`），否则链接时会出现 "built for newer macOS version" 警告，且产物无法在旧系统加载。
+
+---
+
+## 脚本
+
+| 脚本 | 作用 |
+|---|---|
+| `Scripts/swift-env.sh` | 构建 Rust 静态库，导出 `sift_swift` 包装器与链接参数 |
+| `Scripts/build-app.sh` | 构建、打包 `.app`、ad-hoc 签名；`--release`、`--run`、`--install` |
+| `Scripts/build-rust-xcframework.sh` | 生成 Universal（arm64 + x86_64）XCFramework 并校验双架构 |
+| `Scripts/generate-strings.py` | 从单一表格生成 `Localizable.xcstrings` 与 8 个 `.lproj/Localizable.strings` |
+| `Scripts/check-tests.sh` | 用类型检查验证 XCTest 套件（无需 Xcode） |
+| `Scripts/run-tests.sh` | 用内置的 XCTest 兼容 runner 真正执行 XCTest 套件（无需 Xcode） |
+| `Scripts/verify.sh` | 全量验证：Rust 测试 + FFI 契约 + 自检 + XCTest + 构建 |
+
+---
+
+## 验证
+
+```bash
+Scripts/verify.sh            # 全部检查
+```
+
+各层单独运行：
+
+```bash
+# Rust：单元测试、FFI 契约测试、基准
+cd RustCore
+cargo test                              # 128 个测试
+cargo clippy --all-targets              # 无警告
+cargo bench -p sift-scanner-core        # 目录遍历 / 局部比较 / 完整哈希 / 索引写入
+
+# Swift 自检（132 项检查，无需 Xcode）
+swift run SiftSelfTest
+
+# XCTest 套件（72 个测试方法）
+./Scripts/run-tests.sh                  # 命令行工具即可运行
+swift test                              # 装了 Xcode 时的标准方式
+```
+
+### 测试覆盖了什么
+
+Rust（128 个测试）：
+
+- 规则匹配、保护路径（含 `/var` → `/private/var` 这类别名）、风险等级合并
+- 规则文件版本、重复 ID、非法覆盖
+- 分阶段重复检测：大小分组 → 首尾中部采样 → 完整 BLAKE3 → 分组与保留项
+- SQLite 索引：分页稳定性、分类过滤、重复组、跳过记录、schema 版本
+- 扫描协调器：事件顺序、取消、不可读目录、受保护内容零泄漏、panic 不越界
+- FFI 契约：头文件与 Rust 结构体逐字段比对（大小、偏移、对齐、版本号、枚举值）
+
+Swift（132 项自检 + 72 个 XCTest）：
+
+- 保护清单、路径穿越、符号链接、包目录、CloudKit 排除
+- 预检（父子去重、缺失文件、占用文件、受保护路径在**执行时**再拒绝）
+- 扫描：日志按文件年龄过滤、新安装包不推荐、分页不重复、取消、部分失败
+- 重复文件：同大小不同内容必须分开、保留最旧副本、iCloud 占位文件排除
+- 报告：本地副本不含目录路径、PDF 多页渲染、八种语言均可渲染
+- 本地化：8 种语言每个 key 都有译文、占位符全部替换、复数形态区分
+- 购买：免费版可扫描不可清理、验证失败不影响离线宽限期、过期回退免费版
+
+---
+
+## 开发过程中的重要决定
+
+以下决定都在代码注释中记录了原因，这里汇总便于评审：
+
+1. **保护清单编译进二进制。** `RuleEngine.protectedHomeChildren` 与 `PROTECTED_PREFIXES` 不来自规则文件，规则文件只能扩大「可识别范围」。用户放进数据目录的 `CleaningRules.json` 无法把 `Documents` 变成可清理项。
+2. **重复文件按「分配大小」分组。** 这与访达显示的容量一致；APFS 会向上取整到 4 KB 块，因此小于 4 KB 的文件实际不会成为重复候选，文档里也如此说明。
+3. **日志年龄按文件计算，不按目录。** 一个 `~/Library/Logs/<app>` 里同时有 1 天和 1 年的日志时，只统计旧的那份。
+4. **路径先规范化再比较。** 归一化会解析 `.`、`..` 和 macOS 的固定符号链接别名（`/var`、`/tmp`、`/etc`）。否则同一目录的两种写法会让保护规则失效——这是开发中实际触发过的缺陷。
+5. **`homeDirectory` 是规则集的属性。** 扫描器、存储分析、卸载关联文件全部使用同一个 home，不允许回退到进程 home；否则扫描任何「非当前用户的树」时都会套用错误的保护名单。
+6. **卸载只认 bundle identifier 或精确应用名。** `~/Library/Application Support/Editor` 永远不会因为某个应用叫 Editor 就被认定为残留。
+7. **免费版完全没有清理入口。** 付费墙在点击「清理」「卸载」「移入废纸篓」时出现，启动时绝不拦截扫描。
+8. **XCTest 与自检并存。** 本机只有 Command Line Tools，无法运行 XCTest。`Scripts/run-tests.sh` 用一个最小 runner 真正执行了那 72 个测试，`swift test` 在 Xcode 环境下运行同一批文件、不做任何改写。
+9. **多语言两种产物。** `.xcstrings` 是权威来源（Xcode 编译），同时生成 `.lproj/Localizable.strings`，使没有 `xcstringstool` 的构建也能正确显示八种语言。
+
+---
+
+## 交付范围对照
+
+| 规格章节 | 状态 | 位置 |
+|---|---|---|
+| §5.1 智能扫描（阶段、取消、部分失败、分页结果） | 完成 | `Core/Scanner/`、`Features/Scan/` |
+| §5.2 垃圾清理（四类、风险、确认面板、结果页） | 完成 | `Core/Scanner/CleanupModel.swift`、`Core/UI/` |
+| §5.3 软件卸载（发现、关联文件分组、运行中提示、系统应用标记） | 完成 | `Core/Indexing/`、`Features/Uninstaller/` |
+| §5.4 存储分析（卷、分类、目录树、大文件） | 完成 | `Core/Scanner/StorageAnalyzer.swift`、`Features/StorageAnalysis/` |
+| §5.5 文件清理（大文件、旧文件、重复文件三分阶段） | 完成 | `Core/Scanner/SwiftScannerEngine.swift`、`RustCore/crates/sift-hasher` |
+| §5.6 设置（分组、阈值、忽略列表、外观） | 完成 | `Core/Settings/`、`Features/Settings/` |
+| §5.7 清理报告与 PDF（本地副本、脱敏、分页、字体回退） | 完成 | `Core/Reporting/` |
+| §6.1–6.5 技术栈、目录、分层、FFI、双架构 | 完成 | 见上方架构与脚本 |
+| §7 数据模型 | 完成 | `Core/Models/` |
+| §8 扫描引擎（协议、事件、安全规则、规则格式） | 完成 | `RustCore/`、`Core/Rules/` |
+| §9 文件操作与恢复（预检、废纸篓、失败分类） | 完成 | `Core/FileOperations/` |
+| §10 权限（无 Full Disk Access 也能工作、明确报告） | 完成 | `Core/Permissions/` |
+| §11 UI/UX（配色、密度、空状态、无障碍、八语言） | 完成 | `Shared/`、`Features/` |
+| §12 购买（免费/买断边界、激活、恢复、离线宽限） | 完成（支付供应商待定） | `Core/Entitlements/` |
+| §13 隐私与安全（日志脱敏、白名单、不执行 shell） | 完成 | `Core/Logging/`、`Core/FileOperations/` |
+| §14 错误码与用户提示 | 完成 | `Core/Models/OperationModels.swift` |
+| §15 性能要求（批量事件、分页、取消、基准） | 完成 | `RustCore` benches |
+| §16 测试计划 | 完成（XCUITest 需 Xcode） | `Tests/`、`SelfTest/`、`RustCore/*/tests` |
+
+### 按规格刻意延后 / 未包含
+
+- **支付与授权服务供应商**：规格 §19 把这个决定留到正式开发前。`DirectLicenseService` 已定义完整合同（校验闭包、Keychain 存储、离线宽限、恢复），接入时只需提供一个 `verify` 闭包。
+- **Sparkle 自动更新**：需要在签名与发布流程确定后接入；`build-rust-xcframework.sh` 已保证更新包内 Rust 二进制的双架构与部署目标一致。
+- **XCUITest**：需要完整 Xcode 才能运行与录制，本机不可用；视图已带 `accessibilityIdentifier`，可直接补录。
+- **Mac App Store 版本**：`StoreKitChannel` 已按 §12.4 预留接口，尚未启用。
+- **应用图标**：未提供资源，打包脚本保留 `AppIcon` 位置。
+
+---
+
+## 已知限制
+
+- **窗口截图不可自动化。** 本机 Screen Recording 权限未授予，无法用脚本截取应用窗口；应用本身已确认可以启动、菜单栏本地化生效、进程稳定运行。
+- **XCTest 需要 Xcode。** 命令行工具包含 Swift 编译器但不含 XCTest；`Scripts/run-tests.sh` 提供了等价的执行路径，`swift test` 仍是标准入口。
+- **`Scripts/swift-env.sh` 是链接 Rust 核心的必要步骤。** 不加这一步 `swift build` 也能产出可用应用，只是使用 Swift 扫描核心。
+
+---
+
+## 许可证
+
+私有软件，保留所有权利。

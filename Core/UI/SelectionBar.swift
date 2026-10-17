@@ -1,0 +1,79 @@
+import Shared
+import SwiftUI
+
+/// The selection bar: how many items are selected, their size, and the action.
+///
+/// The action label names the real operation and the real size (§5.2), and the
+/// paywall appears here rather than at launch (§12.2).
+public struct SelectionBar: View {
+    @ObservedObject var cleanup: CleanupModel
+    let environment: AppEnvironment
+    let onRequestPurchase: () -> Void
+
+    public init(
+        cleanup: CleanupModel,
+        environment: AppEnvironment,
+        onRequestPurchase: @escaping () -> Void
+    ) {
+        self.cleanup = cleanup
+        self.environment = environment
+        self.onRequestPurchase = onRequestPurchase
+    }
+
+    public var body: some View {
+        HStack(spacing: SiftMetrics.spacingM) {
+            Button {
+                cleanup.selectAll(in: cleanup.items)
+            } label: {
+                Text(LocalizationKey.scanSelectAll.localized)
+            }
+            .buttonStyle(.link)
+
+            Button {
+                cleanup.deselectAll()
+            } label: {
+                Text(LocalizationKey.scanDeselectAll.localized)
+            }
+            .buttonStyle(.link)
+
+            Spacer()
+
+            Text(
+                "\(LocalizationKey.commonSelected.localized(cleanup.selectedCount)) · \(cleanup.formattedSelectedBytes)"
+            )
+            .font(SiftFont.bodyEmphasis)
+            .foregroundStyle(.secondary)
+            .accessibilityLabel(
+                Text(LocalizationKey.commonSelected.localized(cleanup.selectedCount))
+            )
+
+            Button {
+                Task { await beginCleanup() }
+            } label: {
+                Text(cleanup.confirmActionTitle)
+                    .font(SiftFont.bodyEmphasis)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .disabled(cleanup.selectedCount == 0 || cleanup.isWorking)
+        }
+        .padding(SiftMetrics.spacingM)
+        .background(SiftColor.panel)
+        .clipShape(RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
+                .stroke(SiftColor.border, lineWidth: 1)
+        }
+    }
+
+    private func beginCleanup() async {
+        // The gate is checked here, not on entry to the app.
+        guard await environment.canClean() else {
+            onRequestPurchase()
+            return
+        }
+        await cleanup.prepareCleanup()
+    }
+}
+
+
