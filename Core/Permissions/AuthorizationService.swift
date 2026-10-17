@@ -130,6 +130,9 @@ public struct GrantRegistry: Sendable {
         urlsByID[id] != nil
     }
 
+    /// The resolved URL a grant stands for, if it is in force.
+    public func url(for id: UUID) -> URL? { urlsByID[id] }
+
     /// The identifier already holding this location, if any.
     ///
     /// Used to replace a grant rather than store a second row for it: a new row

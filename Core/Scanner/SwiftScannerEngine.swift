@@ -859,34 +859,3 @@ actor SwiftScanSession: ScanSession {
     }
 }
 
-/// A lock-free cancellation flag.
-///
-/// `NSLock` would be enough, but the walker polls it once per directory entry:
-/// an atomic keeps that cost invisible.
-final class CancellationFlag: @unchecked Sendable {
-    private let storage = ManagedAtomicFlag()
-
-    var isCancelled: Bool {
-        get { storage.value }
-        set { storage.value = newValue }
-    }
-}
-
-/// Wrapper so the atomic is created once and read without allocation.
-private final class ManagedAtomicFlag: @unchecked Sendable {
-    private let lock = NSLock()
-    private var flag = false
-
-    var value: Bool {
-        get {
-            lock.lock()
-            defer { lock.unlock() }
-            return flag
-        }
-        set {
-            lock.lock()
-            flag = newValue
-            lock.unlock()
-        }
-    }
-}

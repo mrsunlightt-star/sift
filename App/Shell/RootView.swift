@@ -1,5 +1,6 @@
 import Core
 import FeatureDashboard
+import FeatureDiagnostics
 import FeatureFileCleanup
 import FeatureJunkCleanup
 import FeaturePurchase
@@ -202,6 +203,8 @@ struct DetailView: View {
                 FileCleanupView { router.requestPurchase(reason: .cleanFiles) }
             case .storageAnalysis:
                 StorageAnalysisView()
+            case .systemDiagnostics:
+                DiagnosticsView()
             case .settings:
                 SettingsView()
             case .purchase:

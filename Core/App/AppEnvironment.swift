@@ -29,6 +29,9 @@ public final class AppEnvironment: ObservableObject {
     public let applications: ApplicationDiscovery
     public let volumes: VolumeEnumerator
     public let storageAnalyzer: StorageAnalyzer
+    /// The read-only diagnostics. It shares the rule engine, so a location that is
+    /// protected for a scan is protected here too.
+    public let diagnostics: StorageDiagnosticEngine
 
     // Observable state shared by the features.
     public let scan: ScanModel
@@ -93,6 +96,7 @@ public final class AppEnvironment: ObservableObject {
         self.applications = ApplicationDiscovery(rules: rules)
         self.volumes = VolumeEnumerator(rules: rules)
         self.storageAnalyzer = StorageAnalyzer(rules: rules)
+        self.diagnostics = StorageDiagnosticEngine()
         self.scan = ScanModel(engine: scanner, rules: rules)
         self.cleanup = CleanupModel(rules: rules, operations: operations, reports: reports)
         self.engineKind = scanner.kind
@@ -258,6 +262,26 @@ public final class AppEnvironment: ObservableObject {
             .filter { FileManager.default.fileExists(atPath: $0.path) }
             .map(\.path)
         roots.append(contentsOf: restoredAuthorizedURLs.map(\.path))
+        return roots
+    }
+
+    /// Where the diagnostics look.
+    ///
+    /// The home folder and the locations the user granted, plus — only when the
+    /// user asks for it — the root of the volume they are on. Nothing else: the
+    /// analysis widens what the product can see, so its scope has to be as
+    /// explicit as the scan scope is (§7).
+    public func diagnosticRoots(includeVolumeRoot: Bool) -> [DiagnosticRoot] {
+        var roots = [DiagnosticRoot(url: URL(fileURLWithPath: rules.homeDirectory), kind: .home)]
+        for location in authorizedLocations {
+            guard let url = grants.url(for: location.id) else { continue }
+            // A grant for a whole disk is a volume the diagnostics may look at;
+            // a granted folder is just a folder.
+            roots.append(DiagnosticRoot(url: url, kind: location.isVolume ? .volume : .authorized))
+        }
+        if includeVolumeRoot, !roots.contains(where: { $0.kind == .volume }) {
+            roots.append(DiagnosticRoot(url: URL(fileURLWithPath: "/"), kind: .volume))
+        }
         return roots
     }
 
