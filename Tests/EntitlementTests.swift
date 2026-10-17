@@ -4,7 +4,7 @@ import XCTest
 import Shared
 
 /// Purchase gates and the offline grace period (§12, §16.1).
-final class EntitlementTests: XCTestCase {
+final class EntitlementTests: XCTestCase, @unchecked Sendable {
     private var suiteName: String!
 
     override func setUp() {

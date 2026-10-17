@@ -309,33 +309,60 @@ public struct RuleEngine: Sendable {
         return parts.allSatisfy { $0.unicodeScalars.allSatisfy { allowed.contains($0) } }
     }
 
-    /// Resolves a rule anchor to a concrete directory.
-    public func resolvedRoot(for rule: Rule, authorizedRoots: [URL] = []) -> URL? {
+    /// Resolves a rule anchor to the directories it applies under.
+    ///
+    /// Most anchors name one directory that can be resolved when the rule is
+    /// written. The two authorised anchors cannot: they mean "the locations the
+    /// user granted", which a rule file never sees, so they resolve to every
+    /// grant with the rule's `relativePath` applied inside each. The result is
+    /// empty when nothing has been authorised, which is what keeps a rule from
+    /// widening itself onto a tree nobody opened.
+    ///
+    /// `externalVolume` covers mounted volumes only. A folder inside a volume and
+    /// a folder inside home are grants, but they are not volumes, and treating
+    /// them as one would apply a volume-wide rule to a folder.
+    public func resolvedRoots(for rule: Rule) -> [URL] {
         switch rule.root {
         case .home:
-            URL(fileURLWithPath: homeDirectory).appendingPathComponent(rule.relativePath)
+            return [URL(fileURLWithPath: homeDirectory).appendingPathComponent(rule.relativePath)]
         case .homeLibrary:
-            URL(fileURLWithPath: homeDirectory)
-                .appendingPathComponent("Library")
-                .appendingPathComponent(rule.relativePath)
+            return [
+                URL(fileURLWithPath: homeDirectory)
+                    .appendingPathComponent("Library")
+                    .appendingPathComponent(rule.relativePath)
+            ]
         case .applications:
-            URL(fileURLWithPath: "/Applications").appendingPathComponent(rule.relativePath)
+            return [URL(fileURLWithPath: "/Applications").appendingPathComponent(rule.relativePath)]
         case .systemLibrary:
-            URL(fileURLWithPath: "/Library").appendingPathComponent(rule.relativePath)
+            return [URL(fileURLWithPath: "/Library").appendingPathComponent(rule.relativePath)]
         case .authorized, .externalVolume:
             // Never guessed from a mount point name: only roots the user
             // actually authorised are considered (§8.3).
-            authorizedRoots.first { $0.path.hasPrefix(homeDirectory) == false }
+            let grants = rule.root == .externalVolume
+                ? authorized.paths.filter { Self.isMountedVolume($0) }
+                : authorized.paths
+            return grants.sorted().map { grant in
+                rule.relativePath.isEmpty
+                    ? URL(fileURLWithPath: grant)
+                    : URL(fileURLWithPath: grant).appendingPathComponent(rule.relativePath)
+            }
         }
+    }
+
+    /// True for the mount point of a volume rather than a folder on one.
+    static func isMountedVolume(_ path: String) -> Bool {
+        guard isPrefix("/Volumes", path) else { return false }
+        return (path as NSString).deletingLastPathComponent == "/Volumes"
     }
 
     // MARK: - Rule matching
 
     private func matches(rule: Rule, path: String) -> Bool {
         guard rule.isEnabled, rule.risk != .protected else { return false }
-        guard let root = resolvedRoot(for: rule) else { return false }
-        let rootPath = Self.normalize(root.path)
-        guard Self.isPrefix(rootPath, path) else { return false }
+        // A rule can apply under several roots once it names an authorised
+        // anchor; the first one the path sits under decides.
+        let rootPaths = resolvedRoots(for: rule).map { Self.normalize($0.path) }
+        guard let rootPath = rootPaths.first(where: { Self.isPrefix($0, path) }) else { return false }
 
         let name = (path as NSString).lastPathComponent
         if rule.excludes.contains(where: { name == $0 || name.hasPrefix($0 + ".") }) { return false }

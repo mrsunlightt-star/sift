@@ -8,7 +8,7 @@ import Shared
 /// Every test runs the service in dry-run mode: the suite must never touch a real
 /// file, and the dry run exercises the whole path including the pre-flight checks
 /// and the execution-time re-validation.
-final class FileOperationTests: XCTestCase {
+final class FileOperationTests: XCTestCase, @unchecked Sendable {
     private var fixture: TemporaryDirectory!
 
     override func setUp() {

@@ -187,9 +187,13 @@ actor SwiftScanSession: ScanSession {
         setPhase(.scanning)
         for rule in rules.rules {
             if cancelled { break }
-            guard let root = rules.resolvedRoot(for: rule), directoryExists(root) else { continue }
-            if !isAuthorised(root) { continue }
-            scanRule(rule, root: root)
+            // One rule can apply under several roots when it names an authorised
+            // anchor, so each is scanned rather than only the first.
+            for root in rules.resolvedRoots(for: rule) {
+                if cancelled { break }
+                guard directoryExists(root), isAuthorised(root) else { continue }
+                scanRule(rule, root: root)
+            }
         }
 
         if !cancelled { scanApplicationResidue() }

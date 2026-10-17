@@ -8,7 +8,7 @@ import Shared
 /// The spec requires eight languages with English as the fallback, so the tests
 /// check that every key has a translation in every language rather than trusting
 /// the generator.
-final class LocalizationTests: XCTestCase {
+final class LocalizationTests: XCTestCase, @unchecked Sendable {
     private let languages = ["en", "zh-hans", "ko", "ru", "es", "ja", "fr", "de"]
 
     func test_everyKeyResolves() {

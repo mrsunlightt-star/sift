@@ -112,21 +112,64 @@ pub fn effective_rules(extra_rules_json: Option<&str>) -> Result<Vec<Rule>, Stri
     Ok(base.merge(overlay).rules)
 }
 
-/// Turns a rule anchor into an absolute directory.
-pub fn resolve_root(anchor: RootAnchor, relative_path: &str, home: &Path) -> PathBuf {
+/// Turns a fixed rule anchor into an absolute directory.
+///
+/// Returns `None` for the two authorised anchors: they do not name a directory
+/// of their own, they name *the locations the user granted*, which only the
+/// request knows. Those go through [`rule_roots`]; answering "/Volumes" or the
+/// home directory here would silently widen a rule to a tree nobody authorised.
+pub fn resolve_root(anchor: RootAnchor, relative_path: &str, home: &Path) -> Option<PathBuf> {
     let base = match anchor {
         RootAnchor::Home => home.to_path_buf(),
         RootAnchor::HomeLibrary => home.join("Library"),
         RootAnchor::Applications => PathBuf::from("/Applications"),
         RootAnchor::SystemLibrary => PathBuf::from("/Library"),
-        RootAnchor::Authorized => home.to_path_buf(),
-        RootAnchor::ExternalVolume => PathBuf::from("/Volumes"),
+        RootAnchor::Authorized | RootAnchor::ExternalVolume => return None,
     };
-    if relative_path.is_empty() {
+    Some(if relative_path.is_empty() {
         base
     } else {
         base.join(relative_path)
+    })
+}
+
+/// Every root a rule applies to.
+///
+/// A rule anchored at `authorized` or `externalVolume` applies inside each
+/// location the user granted, with its relative path under each of them: the
+/// rule file cannot know those locations, and one rule has to cover the folder
+/// the user happens to have added.
+fn rule_roots(rule: &Rule, home: &Path, grants: &[PathBuf]) -> Vec<PathBuf> {
+    if !matches!(
+        rule.root,
+        RootAnchor::Authorized | RootAnchor::ExternalVolume
+    ) {
+        return resolve_root(rule.root, &rule.relative_path, home)
+            .into_iter()
+            .collect();
     }
+
+    let volumes_only = rule.root == RootAnchor::ExternalVolume;
+    let mut roots: Vec<PathBuf> = grants
+        .iter()
+        .filter(|root| !volumes_only || is_mounted_volume(root))
+        .map(|root| {
+            if rule.relative_path.is_empty() {
+                root.clone()
+            } else {
+                root.join(&rule.relative_path)
+            }
+        })
+        .collect();
+    roots.sort();
+    roots.dedup();
+    roots
+}
+
+/// True when the path is the mount point of a volume rather than a folder on
+/// one. `/Volumes` itself is the container of every disk, not a volume.
+fn is_mounted_volume(path: &Path) -> bool {
+    path.starts_with("/Volumes") && path.parent() == Some(Path::new("/Volumes"))
 }
 
 /// The grants a scan may use, as paths.
@@ -174,29 +217,31 @@ pub fn scan_rules(
     let mut candidates = Vec::new();
     let mut skips = WalkReport::default();
     let rules = context.rules.clone();
+    let grants = authorized_paths(context);
 
     for rule in &rules {
         if cancel.is_cancelled() {
             break;
         }
-        let root = resolve_root(rule.root, &rule.relative_path, &context.home_dir);
-        if !root.exists() {
-            continue;
-        }
+        for root in rule_roots(rule, &context.home_dir, &grants) {
+            if !root.exists() {
+                continue;
+            }
 
-        // Authorised roots and external volumes are only scanned when the user
-        // actually added them to the request.
-        if !root_is_authorised(&root, context.request) {
-            continue;
-        }
+            // Authorised roots and external volumes are only scanned when the user
+            // actually added them to the request.
+            if !root_is_authorised(&root, context.request) {
+                continue;
+            }
 
-        let (found, mut report) = scan_one_rule(rule, &root, context, cancel);
-        candidates.extend(found);
-        skips.skips.append(&mut report.skips);
-        skips.total_files += report.total_files;
-        skips.total_bytes += report.total_bytes;
-        if report.cancelled {
-            break;
+            let (found, mut report) = scan_one_rule(rule, &root, context, cancel);
+            candidates.extend(found);
+            skips.skips.append(&mut report.skips);
+            skips.total_files += report.total_files;
+            skips.total_bytes += report.total_bytes;
+            if report.cancelled || cancel.is_cancelled() {
+                break;
+            }
         }
     }
 
@@ -1416,6 +1461,139 @@ mod tests {
         let rules = effective_rules(None).unwrap();
         assert!(rules.iter().any(|r| r.id == "user-cache"));
         assert!(rules.iter().all(|r| r.risk != Risk::Protected));
+    }
+
+    /// A rule in the shape a user rule file would use for the given anchor.
+    fn anchored_rule(anchor: RootAnchor, relative_path: &str) -> Rule {
+        RuleSet::from_json(&format!(
+            r#"{{"schemaVersion":1,"rules":[
+                 {{"id":"granted-caches","category":"applicationCache","risk":"review",
+                  "root":"{}","relativePath":"{}","matchSpec":"childDirectories",
+                  "explanationKey":"cleanup.explanation.cache"}}
+               ]}}"#,
+            anchor.as_str(),
+            relative_path
+        ))
+        .expect("the rule parses")
+        .rules
+        .into_iter()
+        .next()
+        .expect("one rule")
+    }
+
+    #[test]
+    fn an_authorised_anchor_expands_to_every_grant() {
+        let home = Path::new("/Users/example");
+        let grants = vec![
+            PathBuf::from("/Volumes/Backup"),
+            PathBuf::from("/Volumes/Media"),
+        ];
+        let rule = anchored_rule(RootAnchor::Authorized, "Caches");
+        assert_eq!(
+            rule_roots(&rule, home, &grants),
+            vec![
+                PathBuf::from("/Volumes/Backup/Caches"),
+                PathBuf::from("/Volumes/Media/Caches"),
+            ]
+        );
+    }
+
+    #[test]
+    fn an_external_volume_anchor_covers_mounted_volumes_only() {
+        let home = Path::new("/Users/example");
+        let grants = vec![
+            PathBuf::from("/Volumes/Backup"),
+            PathBuf::from("/Volumes/Backup/Photos"),
+            PathBuf::from("/Users/example/Downloads"),
+        ];
+        let rule = anchored_rule(RootAnchor::ExternalVolume, "");
+        assert_eq!(
+            rule_roots(&rule, home, &grants),
+            vec![PathBuf::from("/Volumes/Backup")],
+            "a folder inside a volume and a folder inside home are not volumes"
+        );
+    }
+
+    #[test]
+    fn a_fixed_anchor_never_resolves_to_a_grant_container() {
+        let home = Path::new("/Users/example");
+        // `/Volumes` and the home directory are containers, not the location a
+        // rule asked about; a caller that guessed one would widen the rule.
+        assert_eq!(resolve_root(RootAnchor::Authorized, "", home), None);
+        assert_eq!(resolve_root(RootAnchor::ExternalVolume, "", home), None);
+        assert_eq!(
+            resolve_root(RootAnchor::Home, "Library/Logs", home),
+            Some(PathBuf::from("/Users/example/Library/Logs"))
+        );
+    }
+
+    #[test]
+    fn an_authorised_rule_scans_the_grant_and_nothing_else() {
+        let tree = TempTree::new("authorised-rule");
+        let granted = tree.root.join("granted");
+        // Only the granted subtree holds anything reclaimable.
+        tree.file("granted/Caches/junk.one/blob.bin", 4096);
+        tree.file("other/Caches/junk.two/blob.bin", 4096);
+
+        let request = ScanRequest {
+            session_id: "test".into(),
+            home_dir: tree.root.to_string_lossy().to_string(),
+            roots: vec![ScanRoot::new(
+                granted.to_string_lossy().to_string(),
+                "authorized",
+            )],
+            authorized_roots: vec![granted.to_string_lossy().to_string()],
+            ..Default::default()
+        };
+        let cancel = CancelToken::new();
+        let mut files = |_: u64, _: u64| {};
+        let mut path = |_: &Path| {};
+        let mut context = ScanContext {
+            request: &request,
+            home_dir: tree.root.clone(),
+            rules: vec![anchored_rule(RootAnchor::Authorized, "Caches")],
+            progress: ProgressSink {
+                on_files: &mut files,
+                on_current_path: &mut path,
+            },
+        };
+
+        let (found, _) = scan_rules(&mut context, &cancel);
+        assert_eq!(found.len(), 1, "only the granted subtree is scanned");
+        assert!(found[0].path.ends_with("granted/Caches/junk.one"));
+    }
+
+    #[test]
+    fn an_authorised_rule_without_the_grant_finds_nothing() {
+        let tree = TempTree::new("authorised-rule-ungranted");
+        tree.file("granted/Caches/junk.one/blob.bin", 4096);
+
+        // The rule names an authorised anchor, but nothing was authorised: the
+        // anchor must expand to no roots rather than to a container.
+        let request = ScanRequest {
+            session_id: "test".into(),
+            home_dir: tree.root.to_string_lossy().to_string(),
+            roots: vec![ScanRoot::new(
+                tree.root.to_string_lossy().to_string(),
+                "home",
+            )],
+            ..Default::default()
+        };
+        let cancel = CancelToken::new();
+        let mut files = |_: u64, _: u64| {};
+        let mut path = |_: &Path| {};
+        let mut context = ScanContext {
+            request: &request,
+            home_dir: tree.root.clone(),
+            rules: vec![anchored_rule(RootAnchor::Authorized, "Caches")],
+            progress: ProgressSink {
+                on_files: &mut files,
+                on_current_path: &mut path,
+            },
+        };
+
+        let (found, _) = scan_rules(&mut context, &cancel);
+        assert!(found.is_empty());
     }
 
     #[test]

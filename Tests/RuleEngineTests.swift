@@ -7,7 +7,7 @@ import Shared
 ///
 /// These are the checks that stand between a bug and a user's Documents folder,
 /// so they state the exact path that must be refused rather than sampling.
-final class RuleEngineTests: XCTestCase {
+final class RuleEngineTests: XCTestCase, @unchecked Sendable {
     private let home = URL(fileURLWithPath: "/Users/example")
 
     func test_builtInRulesAreUsable() {

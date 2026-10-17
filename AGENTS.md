@@ -78,9 +78,20 @@ These are product promises, not implementation details. Each has tests behind it
     consults the grants on every entry, not only on the root, and a stored grant
     is re-validated against the current allowlist before it is restored, so a
     bookmark written by an older build cannot widen what is reachable.
-11. **Path comparisons normalise `.`, `..` and the macOS symlink aliases**
+11. **A grant is one location, recorded and used under its resolved path.** The
+    scope, the scan roots and the settings row all use the URL the authorisation
+    service resolved, never the one the panel handed back, and one location has
+    one row. A grant is in force only while the location can actually be read:
+    the security-scope call reports success even for an unmounted volume and for
+    a directory the process may not list, so readability is what decides.
+12. **The authorised rule anchors expand to the grants, never to a container.**
+    `authorized` and `externalVolume` resolve to every location the user granted
+    (`externalVolume` to mounted volumes only), and to nothing when nothing was
+    granted. `/Volumes` and the home directory are containers: a rule that fell
+    back to either would apply to a tree nobody opened.
+13. **Path comparisons normalise `.`, `..` and the macOS symlink aliases**
     (`/var`, `/tmp`, `/etc`) before matching.
-12. **Two engines, one protection list.** `PROTECTED_*` in
+14. **Two engines, one protection list.** `PROTECTED_*` in
     `RustCore/crates/sift-rules/src/lib.rs` is the source; the Swift list is
     generated from it. `Scripts/verify.sh` fails when the generated copy is stale,
     and both test suites assert every entry on the shared list is refused.

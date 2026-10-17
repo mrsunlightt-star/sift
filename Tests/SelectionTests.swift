@@ -8,7 +8,7 @@ import Shared
 /// These cover the two defects found in review: a random identity per row meant a
 /// checked checkbox never entered the cleanup set, and a measure-only root still
 /// produced cleanup candidates.
-final class SelectionTests: XCTestCase {
+final class SelectionTests: XCTestCase, @unchecked Sendable {
     private var fixture: TemporaryDirectory!
 
     override func setUp() {

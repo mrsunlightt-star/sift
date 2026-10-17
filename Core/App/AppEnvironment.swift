@@ -45,11 +45,15 @@ public final class AppEnvironment: ObservableObject {
     @Published public private(set) var entitlement = EntitlementState(channel: .direct, status: .free)
     /// Authorised locations, as settings shows them.
     @Published public private(set) var authorizedLocations: [AuthorizedLocation] = []
-    /// Resolved URLs for this launch, empty when no bookmark was stored.
-    private var restoredAuthorizedURLs: [URL] = []
-    /// The identifiers that resolved at launch, so availability is a fact rather
-    /// than an inference from counts.
-    private var resolvedAuthorizedIDs: Set<UUID> = []
+    /// The grants in force this launch.
+    ///
+    /// Keyed by identifier, with the resolved URL as the value: availability and
+    /// the scan root are two facts about the same grant, and keeping them in step
+    /// by hand is what let a re-authorised location appear in settings while this
+    /// session had already decided it was unavailable.
+    private var grants = GrantRegistry()
+    /// The resolved URLs, ordered so a scan request is reproducible.
+    private var restoredAuthorizedURLs: [URL] { grants.urls }
     /// Message shown above the result page after an export attempt.
     @Published public private(set) var reportExportMessage: String?
 
@@ -197,17 +201,37 @@ public final class AppEnvironment: ObservableObject {
             SiftLog.permissions.notice("Refused to authorise a protected location")
             return nil
         }
-        guard let location = await authorization.authorize(url) else { return nil }
+        guard let grant = await authorization.authorize(url) else { return nil }
+        // The service resolves symlinks; the panel's URL is what the user clicked,
+        // not what the grant covers. Everything downstream — the scan roots, the
+        // duplicate roots, the deduplication below — has to use the resolved one.
+        let resolved = grant.url
+
+        // One row per location. A second grant for a folder that is already
+        // authorised replaces the stored bookmark under the existing identifier
+        // rather than adding a row that would report itself unavailable.
+        let replacing = grants.identifier(forResolvedPath: resolved.path)
+        let stored = replacing.map { id in
+            AuthorizedLocation(
+                id: id,
+                bookmark: grant.location.bookmark,
+                displayName: grant.location.displayName,
+                isVolume: grant.location.isVolume,
+                addedAt: authorizedLocations.first { $0.id == id }?.addedAt ?? Date()
+            )
+        } ?? grant.location
+
         await settings.update { settings in
-            settings.authorizedLocations.append(location)
+            if let index = settings.authorizedLocations.firstIndex(where: { $0.id == stored.id }) {
+                settings.authorizedLocations[index] = stored
+            } else {
+                settings.authorizedLocations.append(stored)
+            }
         }
         preferences = await settings.current()
         authorizedLocations = preferences.authorizedLocations
-        if !restoredAuthorizedURLs.contains(where: { $0.path == url.path }) {
-            restoredAuthorizedURLs.append(url)
-            resolvedAuthorizedIDs.insert(location.id)
-        }
-        return location
+        grants.remember(stored.id, url: resolved)
+        return stored
     }
 
     /// Removes an authorised location and releases its access.
@@ -237,15 +261,14 @@ public final class AppEnvironment: ObservableObject {
         return roots
     }
 
-    /// True when this stored bookmark resolved at launch.
+    /// True when this stored bookmark resolved at launch and could be opened.
     public func isAvailable(_ location: AuthorizedLocation) -> Bool {
-        resolvedAuthorizedIDs.contains(location.id)
+        grants.isAvailable(location.id)
     }
 
     /// Records which bookmarks resolved and persists any that were refreshed.
     private func applyRestored(_ restored: RestoredGrants) async {
-        restoredAuthorizedURLs = restored.locations.map(\.url)
-        resolvedAuthorizedIDs = Set(restored.locations.map(\.id))
+        grants = GrantRegistry(restored.locations)
 
         var locations = await settings.current().authorizedLocations
         var changed = false

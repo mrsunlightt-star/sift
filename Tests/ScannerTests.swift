@@ -8,7 +8,7 @@ import Shared
 /// The fixture contains every hazard the specification lists: an unreadable
 /// folder, a symlink pointing outside the tree, a package directory, a
 /// same-size-different-content pair, and a fresh file next to a stale one.
-final class ScannerTests: XCTestCase {
+final class ScannerTests: XCTestCase, @unchecked Sendable {
     private var fixture: TemporaryDirectory!
 
     override func setUp() {

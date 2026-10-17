@@ -4,7 +4,7 @@ import XCTest
 import Shared
 
 /// Report counts and categories (§5.7).
-final class ReportAccuracyTests: XCTestCase {
+final class ReportAccuracyTests: XCTestCase, @unchecked Sendable {
     private var fixture: TemporaryDirectory!
 
     override func setUp() {

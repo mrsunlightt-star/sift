@@ -4,7 +4,7 @@ import XCTest
 import Shared
 
 /// Preferences (§5.6, §16.1).
-final class SettingsTests: XCTestCase {
+final class SettingsTests: XCTestCase, @unchecked Sendable {
     private var suiteName: String!
 
     override func setUp() {

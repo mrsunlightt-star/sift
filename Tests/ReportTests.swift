@@ -5,7 +5,7 @@ import XCTest
 import Shared
 
 /// Reports and PDF export (§5.7, §16.1).
-final class ReportTests: XCTestCase {
+final class ReportTests: XCTestCase, @unchecked Sendable {
     private var fixture: TemporaryDirectory!
 
     override func setUp() {

@@ -8,7 +8,7 @@ import Shared
 /// Each test names a path the user would be upset to lose and asserts it is
 /// refused, plus the near-miss paths that must still be allowed so the rules are
 /// not so broad they disable the product.
-final class ProtectionTests: XCTestCase {
+final class ProtectionTests: XCTestCase, @unchecked Sendable {
     private let home = URL(fileURLWithPath: "/Users/example")
     private lazy var engine = RuleEngine(rules: RuleEngine.builtInRules, homeDirectory: home)
 

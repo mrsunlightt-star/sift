@@ -1159,27 +1159,105 @@ final class Harness: @unchecked Sendable {
             equal(outcome.refused.count, 2, "both broad grants are reported as refused")
             check(restoredScope.paths.isEmpty, "a refused grant never reaches the scope")
 
-            coder.paths = ["/Volumes/Backup": "/Volumes/Backup"]
-            let accepted = await service.restore([
-                AuthorizedLocation(bookmark: Data("/Volumes/Backup".utf8), displayName: "Backup", isVolume: true)
+            // A grant is only in force when the location can actually be read:
+            // the bookmark machinery reports success for a volume that is not
+            // mounted and for a directory the process may not list, so the
+            // location itself is the test. The fixture is a real tree because a
+            // made-up path would only ever exercise the refusal.
+            let fixture = TempFixture(tag: "grants")
+            defer { fixture.cleanup() }
+            let granted = fixture.directory("Backup")
+            let fixtureHome = fixture.root
+
+            let grantScope = AuthorizedScope()
+            let grantCoder = SelfTestBookmarkCoder(paths: [
+                granted.path: granted.path,
+                fixture.root.appendingPathComponent("Gone").path:
+                    fixture.root.appendingPathComponent("Gone").path,
             ])
-            equal(accepted.locations.count, 1, "a valid stored grant is restored")
-            equal(restoredScope.paths, ["/Volumes/Backup"], "a valid stored grant reaches the scope")
-            check(
+            let grantService = AuthorizationService(
+                scope: grantScope,
+                policy: { url in
+                    RuleEngine(
+                        rules: RuleEngine.builtInRules,
+                        homeDirectory: fixtureHome,
+                        authorized: grantScope
+                    ).canAuthorize(url: url)
+                },
+                coder: grantCoder
+            )
+
+            let unreadable = await grantService.restore([
+                AuthorizedLocation(
+                    bookmark: Data(fixture.root.appendingPathComponent("Gone").path.utf8),
+                    displayName: "Gone",
+                    isVolume: false
+                ),
+                AuthorizedLocation(
+                    bookmark: Data(granted.path.utf8),
+                    displayName: "Backup",
+                    isVolume: false
+                ),
+            ])
+            equal(unreadable.locations.count, 1, "a grant that cannot be read is not restored")
+            equal(grantScope.paths, [granted.path], "a readable grant reaches the scope")
+
+            // The service resolves symlinks, and the resolved location is what a
+            // scan root has to be: the walk never follows a link.
+            let link = fixture.symlink(to: granted, name: "Link")
+            let authorized = await grantService.authorize(link)
+            equal(
+                authorized?.url.path,
+                granted.resolvingSymlinksInPath().path,
+                "a grant reports the resolved location, not the one that was picked"
+            )
+
+            // A rule anchored at an authorised location applies inside every
+            // grant, at its relative path — and to nothing at all when the user
+            // has not granted anything, rather than to a guessed container.
+            let anchorScope = AuthorizedScope(roots: [
+                URL(fileURLWithPath: "/Volumes/Backup"),
+                URL(fileURLWithPath: "/Volumes/Backup/Photos"),
+            ])
+            let anchorRules = RuleEngine(
+                rules: RuleEngine.builtInRules,
+                homeDirectory: home,
+                authorized: anchorScope
+            )
+            let anchoredRule = RuleEngine.Rule(
+                id: "granted-caches",
+                category: .applicationCache,
+                risk: .safe,
+                root: .externalVolume,
+                relativePath: "Caches",
+                matchSpec: .childDirectories,
+                excludes: [],
+                minAgeDays: nil,
+                requiresFullDiskAccess: false,
+                explanationKey: "cleanup.explanation.cache",
+                isEnabled: true
+            )
+            equal(
+                anchorRules.resolvedRoots(for: anchoredRule).map(\.path),
+                ["/Volumes/Backup/Caches"],
+                "a volume anchor covers mounted volumes only"
+            )
+            equal(
                 RuleEngine(
-                    rules: RuleEngine.builtInRules,
+                    rules: RuleEngine.builtInRules + [anchoredRule],
                     homeDirectory: home,
-                    authorized: restoredScope
-                ).protectionReason(for: "/Volumes/Backup/Photos/a.jpg") == nil,
-                "a restored grant opens the volume it names"
+                    authorized: anchorScope
+                ).risk(for: "/Volumes/Backup/Caches/junk.one"),
+                .safe,
+                "a rule under a volume anchor matches inside the grant"
             )
             check(
                 RuleEngine(
                     rules: RuleEngine.builtInRules,
                     homeDirectory: home,
-                    authorized: restoredScope
-                ).protectionReason(for: "/Volumes/Other/a.jpg") != nil,
-                "a restored grant opens nothing else"
+                    authorized: AuthorizedScope()
+                ).resolvedRoots(for: anchoredRule).isEmpty,
+                "an anchor without a grant resolves to nothing"
             )
 
             // Even a grant that somehow covers a system prefix must not open it.

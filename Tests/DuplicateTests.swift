@@ -7,7 +7,7 @@ import Shared
 ///
 /// The pipeline has four stages, and each test targets one of them, so a
 /// regression names the stage that broke rather than "duplicates stopped working".
-final class DuplicateTests: XCTestCase {
+final class DuplicateTests: XCTestCase, @unchecked Sendable {
     private var fixture: TemporaryDirectory!
 
     override func setUp() {
