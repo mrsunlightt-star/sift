@@ -95,7 +95,13 @@ These are product promises, not implementation details. Each has tests behind it
     `RustCore/crates/sift-rules/src/lib.rs` is the source; the Swift list is
     generated from it. `Scripts/verify.sh` fails when the generated copy is stale,
     and both test suites assert every entry on the shared list is refused.
-15. **System diagnostics widen what the app can see, never what it may remove.**
+15. **A measurement stays inside the volume it started on.** A mount point below a
+    volume root belongs to another disk, and `/System/Volumes` holds the system's
+    own mount points on the same device as `/`, so both are excluded explicitly:
+    counting them attributes the whole disk to one directory, and reads a volume
+    the user never authorised. A walk that hits its budget reports an estimate
+    rather than a total.
+16. **System diagnostics widen what the app can see, never what it may remove.**
     A `StorageFinding` is not a cleanup item: it carries no selection state, no
     risk level and no route into the cleanup pipeline, and no function in
     `Core/Diagnostics` produces anything a scan consumes. The diagnostic engine
@@ -103,7 +109,7 @@ These are product promises, not implementation details. Each has tests behind it
     and explained but can never be `cleanable` or carry a Trash remediation —
     protection removes the deletion path and nothing else, which is what keeps a
     protected index's rebuild advice intact.
-16. **Diagnostics only read.** The only programs the app runs are the two status
+17. **Diagnostics only read.** The only programs the app runs are the two status
     queries in `Core/Diagnostics/SystemQuery.swift`: `mdutil -s` and
     `tmutil listlocalsnapshots`, by absolute path with fixed arguments and no
     shell, and never anything that changes state. A query that fails, times out

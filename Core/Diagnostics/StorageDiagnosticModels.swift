@@ -7,11 +7,16 @@ public enum StorageDiagnostics {
     /// How many directory entries one measurement may visit before it stops and
     /// reports an estimate.
     ///
-    /// A whole-volume analysis has to stay responsive and cancellable, so a
-    /// measurement is bounded rather than exhaustive. When the budget runs out the
-    /// finding says its size is approximate instead of quietly reporting a partial
-    /// total as a whole one.
-    public static let defaultMeasurementBudget = 200_000
+    /// A whole-volume analysis has to stay cancellable, so a measurement is
+    /// bounded rather than exhaustive. When the budget runs out the finding says
+    /// its size is approximate instead of quietly reporting a partial total as a
+    /// whole one.
+    ///
+    /// Two million entries is what a boot volume of a developer's Mac takes to
+    /// measure completely — around a minute, on a page the user asked for and can
+    /// leave. A smaller bound makes the volume-root numbers lower bounds, which is
+    /// honest but not what the user opened the page for.
+    public static let defaultMeasurementBudget = 2_000_000
 }
 
 /// A finding: something that occupies space, what it is, and what may be done

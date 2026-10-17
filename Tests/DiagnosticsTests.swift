@@ -109,6 +109,26 @@ final class DiagnosticsTests: XCTestCase, @unchecked Sendable {
         XCTAssertLessThan(measured.fileCount, 40)
     }
 
+    func test_theFirmlinkContainerIsNeverWalked() {
+        // `/System/Volumes` holds the mount points of the system's own volumes on
+        // the *same* device as `/`, so the volume check cannot catch it: walking
+        // `/System` would count the whole data volume a second time through it.
+        let container = URL(fileURLWithPath: "/System/Volumes")
+        let dataVolume = URL(fileURLWithPath: "/System/Volumes/Data")
+        guard FileManager.default.fileExists(atPath: dataVolume.path) else { return }
+
+        XCTAssertEqual(
+            DiagnosticMeasurer.volumeIdentifier(of: container),
+            DiagnosticMeasurer.volumeIdentifier(of: URL(fileURLWithPath: "/")),
+            "it is on the same volume as the root, which is why it is named explicitly"
+        )
+        XCTAssertEqual(
+            DiagnosticMeasurer.measure(container, budget: 5_000, isCancelled: { false }).fileCount,
+            0,
+            "the container holds mount points, not data"
+        )
+    }
+
     func test_measuringAMissingLocationIsNotAnEmptyLocation() {
         let measured = DiagnosticMeasurer.measure(
             URL(fileURLWithPath: "/Volumes/DefinitelyNotMounted"),

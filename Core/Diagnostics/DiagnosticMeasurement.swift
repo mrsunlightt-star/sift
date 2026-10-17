@@ -39,10 +39,22 @@ enum DiagnosticMeasurer {
     /// How many unreadable paths one measurement reports.
     private static let reportedUnreadableLimit = 20
 
+    /// Directories that hold another volume's mount points rather than data.
+    ///
+    /// `/System/Volumes` contains the mount points of the system's own volumes,
+    /// the data volume among them, and macOS presents it as an ordinary directory
+    /// on the *same* volume — so the volume check below cannot catch it, and
+    /// walking `/System` from the root re-counts everything the disk holds under a
+    /// second name. Measured on a real machine, `/System` came out at 205 GB when
+    /// the sealed system volume holds about 10.
+    private static let mountPointContainers: Set<String> = ["/System/Volumes"]
+
     private static let keys: [URLResourceKey] = [
         .isDirectoryKey, .isSymbolicLinkKey, .totalFileAllocatedSizeKey,
         .fileAllocatedSizeKey, .fileSizeKey,
     ]
+
+    private static let volumeKeys: Set<URLResourceKey> = [.volumeIdentifierKey]
 
     /// Measures `url`, visiting at most `budget` entries.
     ///
@@ -50,6 +62,11 @@ enum DiagnosticMeasurer {
     /// allocate less than the file's length (sparse, compressed) or share blocks
     /// between clones, so a single number cannot describe both what the disk
     /// holds and what the files say they contain.
+    ///
+    /// The walk stays inside the volume it started on. A mount point inside the
+    /// tree — `/Volumes/<disk>` below a volume root — belongs to another disk:
+    /// counting it here would attribute one disk's space to another, and would
+    /// read a volume the user never authorised.
     static func measure(
         _ url: URL,
         budget: Int = StorageDiagnostics.defaultMeasurementBudget,
@@ -83,10 +100,12 @@ enum DiagnosticMeasurer {
             return result
         }
 
+        let rootVolume = volumeIdentifier(of: url)
         var visited = 0
         var stack = [url]
         while let directory = stack.popLast() {
             if isCancelled() { return result }
+            if mountPointContainers.contains(directory.path) { continue }
             guard let contents = try? FileManager.default.contentsOfDirectory(
                 at: directory,
                 includingPropertiesForKeys: keys,
@@ -109,6 +128,10 @@ enum DiagnosticMeasurer {
                 let values = try? child.resourceValues(forKeys: Set(keys))
                 if values?.isSymbolicLink == true { continue }
                 if values?.isDirectory == true {
+                    if let rootVolume, volumeIdentifier(of: child) != rootVolume {
+                        // A mount point: another disk, not this one's data.
+                        continue
+                    }
                     stack.append(child)
                     continue
                 }
@@ -118,6 +141,17 @@ enum DiagnosticMeasurer {
             }
         }
         return result
+    }
+
+    /// The volume a path lives on, as an opaque identifier.
+    ///
+    /// `nil` when the system will not say, in which case the walk crosses nothing:
+    /// refusing to guess is what keeps a measurement inside one disk.
+    static func volumeIdentifier(of url: URL) -> String? {
+        guard let value = (try? url.resourceValues(forKeys: volumeKeys))?.volumeIdentifier else {
+            return nil
+        }
+        return (value as? NSObject)?.description
     }
 
     /// The newest modification time inside a location, checked at the top level.
