@@ -1,12 +1,14 @@
 import AppKit
+import AppShell
 import Core
 import Shared
 import SwiftUI
 
 /// The application entry point.
 ///
-/// The window is a standard `WindowGroup` with a sidebar layout, matching how
-/// System Settings and other native Mac tools present themselves.
+/// This file compiles both in the SwiftPM executable and in the Xcode app target,
+/// so the two builds cannot drift. Everything it needs comes from `AppShell`, a
+/// library the Xcode target links as a local package product.
 @main
 struct SiftApp: App {
     @StateObject private var environment = AppEnvironment()
@@ -20,7 +22,7 @@ struct SiftApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView()
+            RootShellView()
                 .environmentObject(environment)
                 .environmentObject(router)
                 .frame(minWidth: 980, minHeight: 640)

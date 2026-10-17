@@ -62,4 +62,17 @@ enum SiftABILayout {
     }
 }
 
+/// A tiny lifetime helper for the C string buffers used in one call.
+extension String {
+    /// Runs `body` with a UTF-8 buffer whose lifetime covers the call.
+    ///
+    /// The C ABI carries a pointer plus a length and never keeps either, so the
+    /// buffer only needs to outlive the call — which the closure guarantees.
+    func withCStringBuffer<T>(_ body: (CStringBuffer) throws -> T) rethrows -> T {
+        let buffer = CStringBuffer(self)
+        defer { buffer.release() }
+        return try body(buffer)
+    }
+}
+
 #endif

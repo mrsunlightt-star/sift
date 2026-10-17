@@ -14,12 +14,17 @@ import SwiftUI
 /// feature, which owns the confirmation panel the shell presents.
 
 /// The window: a sidebar of destinations and the selected page.
-struct RootView: View {
+///
+/// Public because the app entry point lives in a different target: the entry file
+/// is shared between the SwiftPM executable and the Xcode app target.
+public struct RootShellView: View {
+    public init() {}
+
     @EnvironmentObject private var environment: AppEnvironment
     @EnvironmentObject private var router: AppRouter
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    var body: some View {
+    public var body: some View {
         NavigationSplitView {
             SidebarView()
                 .navigationSplitViewColumnWidth(min: 210, ideal: SiftMetrics.sidebarWidth, max: 280)

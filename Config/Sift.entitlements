@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  The direct-sold build is not sandboxed: it needs to scan caches and logs at
+	  paths the user did not pick with a file panel, and the specification keeps a
+	  root helper out of the first version (§10.1). Hardened runtime is on, and
+	  the app is notarised, so the code itself is still verified.
+
+	  Nothing here grants extra privilege at runtime: Full Disk Access, when the
+	  user grants it, is a TCC decision made in System Settings.
+	-->
+	<key>com.apple.security.app-sandbox</key>
+	<false/>
+	<key>com.apple.security.cs.allow-jit</key>
+	<false/>
+	<key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+	<false/>
+	<key>com.apple.security.cs.disable-library-validation</key>
+	<false/>
+</dict>
+</plist>

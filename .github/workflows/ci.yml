@@ -54,14 +54,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build the Rust scanner core
-        working-directory: RustCore
-        run: cargo build --release -p sift-ffi --target aarch64-apple-darwin
+      - name: Bootstrap (Rust archive, strings, Xcode project)
+        run: ./Scripts/bootstrap.sh
 
       - name: Build the app with the Rust core linked
-        run: |
-          source Scripts/swift-env.sh
-          sift_swift build
+        run: swift build
 
       - name: Self-test suite
         run: swift run SiftSelfTest
@@ -74,8 +71,15 @@ jobs:
       - name: Type-check the XCTest suite
         run: ./Scripts/check-tests.sh
 
-      - name: Assemble the app bundle
+      - name: Assemble the app bundle (SwiftPM)
         run: ./Scripts/build-app.sh
+
+      - name: Xcode build and test plan
+        run: |
+          xcodebuild -project Sift.xcodeproj -scheme Sift -configuration Debug \
+            -destination 'platform=macOS' \
+            -derivedDataPath .build/DerivedData \
+            build test CODE_SIGNING_ALLOWED=NO
 
       - name: Upload the app
         uses: actions/upload-artifact@v4

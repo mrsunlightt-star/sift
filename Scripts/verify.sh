@@ -52,9 +52,8 @@ else
 fi
 
 step "5/7  Swift: build (Rust core linked)"
-# shellcheck disable=SC1091
-source "${REPO_ROOT}/Scripts/swift-env.sh"
-run swift build "${SIFT_SWIFT_FLAGS[@]}"
+"${REPO_ROOT}/Scripts/build-rust-core.sh" >/dev/null
+run swift build
 
 step "6/7  Swift: self-test and XCTest suites"
 run bash -c "cd '${REPO_ROOT}' && swift run SiftSelfTest"

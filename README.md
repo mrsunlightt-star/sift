@@ -11,22 +11,22 @@ Sift 是一款不依赖账号、不上传用户文件、以「扫描 — 解释 
 ## 快速开始
 
 ```bash
-# 1. 准备 Rust 扫描核心并链接进 Swift 包
-source Scripts/swift-env.sh
+# 1. 一次性初始化：编译 Rust 核心、生成字符串、生成 Xcode 工程
+Scripts/bootstrap.sh
 
-# 2. 构建并打包 Sift.app
+# 2. 构建并打包 Sift.app（SwiftPM）
 Scripts/build-app.sh --release
-
-# 3. 运行
 open .build/Sift.app
+
+# 或者用 Xcode 打开完整工程
+open Sift.xcodeproj
 ```
 
-只需要 SwiftPM 的构建（自动回退到 Swift 扫描核心）：
+`bootstrap.sh` 会把 Rust 静态库放到固定路径 `Bridge/macos-universal/libsift_ffi.a`，
+SwiftPM 与 Xcode 工程都从这里链接。固定路径是刻意的：SwiftPM 在沙盒中求值清单，
+文件存在性探测可能误报为「不存在」，所以清单不做任何探测。
 
-```bash
-swift build       # 不加任何参数也能构建出完整应用
-swift run SiftSelfTest
-```
+如果这台机器还没有 Xcode，`Scripts/run-tests.sh` 与 `SiftSelfTest` 仍可完成全部验证。
 
 ---
 
@@ -67,12 +67,34 @@ Rust Scanner Core  →  Rules · SQLite Index · Duplicate Pipeline
 
 | 核心 | 何时使用 | 说明 |
 |---|---|---|
-| `RustScannerEngine` | 生产构建（`Scripts/swift-env.sh` 链接了 Rust 静态库） | 高性能实现，事件/分页经由 C ABI |
-| `SwiftScannerEngine` | 未链接 Rust 时的自动回退；测试参考实现 | 行为与 Rust 核心逐条对齐，便于单独测试 |
+| `RustScannerEngine` | 生产构建（`bootstrap.sh` 已生成 Rust 静态库） | 高性能实现，事件/分页经由 C ABI |
+| `SwiftScannerEngine` | 参考实现，也是 Rust 不可用时的回退 | 行为与 Rust 核心逐条对齐，可脱离 Rust 单独测试 |
 
 `ScannerEngineFactory` 在启动时校验 ABI 版本，版本不一致时拒绝使用 Rust 核心并回退——宁可慢，不可错。设置页「诊断」一栏会写明当前使用哪个核心。
 
 ---
+
+## Xcode 工程
+
+`Sift.xcodeproj` 由 [XcodeGen](https://github.com/yonaskolb/XcodeGen) 从 `project.yml` 生成并已提交，
+因此装有 Xcode 的机器不需要额外安装工具即可打开。
+
+| 内容 | 位置 |
+|---|---|
+| App target（`App/Entry` + 资源） | `project.yml` |
+| 单元测试 target（`Tests/`，72 个测试） | `project.yml` |
+| UI 测试 target（`UITests/`，XCUITest） | `project.yml` |
+| 测试计划（单元 + UI 两组配置） | `Config/Sift.xctestplan` |
+| Info.plist / entitlements | `Config/` |
+| 图标与强调色 | `Resources/Assets.xcassets` |
+| 构建前自动编译 Rust 核心 | `project.yml` 的 `preBuildScripts` |
+
+`project.yml` 里的 app target 只编译入口文件，其余模块来自同一个本地 SwiftPM 包，
+所以 Xcode 与 `swift build` 用的是同一份源码、同一套模块边界。
+
+Mac App Store 变体：把 `CODE_SIGN_ENTITLEMENTS` 换成 `Config/Sift-AppStore.entitlements`
+（启用 App Sandbox 与用户选择文件权限），再按 §12.4 接入 StoreKit。这是一个 target 设置，
+不是 scheme 设置。
 
 ## 构建要求
 
@@ -81,7 +103,8 @@ Rust Scanner Core  →  Rules · SQLite Index · Duplicate Pipeline
 | macOS | 13 Ventura 或更高 | 应用最低部署目标 |
 | Swift | 6.0 | `Package.swift` 使用 swift-tools-version 6.0 |
 | Rust | stable（`RustCore/rust-toolchain.toml` 锁定） | 双架构目标：`aarch64-apple-darwin`、`x86_64-apple-darwin` |
-| Xcode | 可选 | 只有跑 `swift test` 与 XCUITest 时需要；命令行工具即可构建应用 |
+| Xcode | 16+，可选 | 打开 `Sift.xcodeproj`、运行 XCUITest、`swift test` 时需要；仅用命令行工具也能构建并运行应用 |
+| XcodeGen | 2.46+，可选 | 只有修改 `project.yml` 后重新生成工程时需要：`brew install xcodegen` |
 
 Rust 部署目标固定为 13.0（`RustCore/.cargo/config.toml`），否则链接时会出现 "built for newer macOS version" 警告，且产物无法在旧系统加载。
 
@@ -91,7 +114,8 @@ Rust 部署目标固定为 13.0（`RustCore/.cargo/config.toml`），否则链�
 
 | 脚本 | 作用 |
 |---|---|
-| `Scripts/swift-env.sh` | 构建 Rust 静态库，导出 `sift_swift` 包装器与链接参数 |
+| `Scripts/bootstrap.sh` | 一次性初始化：Rust 核心 + 字符串 + Xcode 工程 |
+| `Scripts/build-rust-core.sh` | 构建 Rust 静态库到 `Bridge/macos-universal/`（`--universal` 生成双架构） |
 | `Scripts/build-app.sh` | 构建、打包 `.app`、ad-hoc 签名；`--release`、`--run`、`--install` |
 | `Scripts/build-rust-xcframework.sh` | 生成 Universal（arm64 + x86_64）XCFramework 并校验双架构 |
 | `Scripts/generate-strings.py` | 从单一表格生成 `Localizable.xcstrings` 与 8 个 `.lproj/Localizable.strings` |
@@ -198,9 +222,10 @@ Swift（132 项自检 + 72 个 XCTest）：
 
 ## 已知限制
 
-- **窗口截图不可自动化。** 本机 Screen Recording 权限未授予，无法用脚本截取应用窗口；应用本身已确认可以启动、菜单栏本地化生效、进程稳定运行。
-- **XCTest 需要 Xcode。** 命令行工具包含 Swift 编译器但不含 XCTest；`Scripts/run-tests.sh` 提供了等价的执行路径，`swift test` 仍是标准入口。
-- **`Scripts/swift-env.sh` 是链接 Rust 核心的必要步骤。** 不加这一步 `swift build` 也能产出可用应用，只是使用 Swift 扫描核心。
+- **Xcode 工程未在本机执行构建。** 本机只安装了 Command Line Tools，没有 Xcode，因此 `xcodebuild` 与 XCUITest 无法运行。工程由 XcodeGen 生成并通过 `plutil` 结构校验，CI 中的 `xcodebuild ... build test` 步骤负责真正的构建与测试。
+- **XCTest 需要 Xcode。** 命令行工具包含 Swift 编译器但不含 XCTest；`Scripts/run-tests.sh` 用内置 runner 执行了同一批测试，`swift test` 仍是标准入口。
+- **先运行一次 `Scripts/bootstrap.sh`。** 它编译 Rust 核心并放到固定路径；之后 `swift build` 与 Xcode 都直接可用。
+- **XCUITest 需要 Xcode。** `UITests/` 已提交，可在 Xcode 的测试计划中直接运行；本机没有 Xcode，因此这一层未实际执行。
 
 ---
 

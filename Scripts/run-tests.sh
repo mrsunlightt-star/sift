@@ -25,10 +25,9 @@ rm -rf "${WORK}"
 mkdir -p "${WORK}/transformed" "${WORK}/modules"
 
 SDK_PATH="$(xcrun --show-sdk-path)"
-RUST_LIB="$(cd "${REPO_ROOT}" && rustc -vV | awk '/host:/{print $2}')"
-RUST_LIB="${REPO_ROOT}/RustCore/target/${RUST_LIB}/release/libsift_ffi.a"
+RUST_LIB="${REPO_ROOT}/Bridge/macos-universal/libsift_ffi.a"
 if [[ ! -f "${RUST_LIB}" ]]; then
-  echo "error: the Rust scanner core is missing; run Scripts/swift-env.sh first" >&2
+  echo "error: the Rust scanner core is missing; run Scripts/bootstrap.sh first" >&2
   exit 1
 fi
 TRIPLE="$(uname -m)-apple-macosx13.0"

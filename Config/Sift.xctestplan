@@ -1,0 +1,55 @@
+{
+  "configurations" : [
+    {
+      "id" : "8D1C2B70-0000-4000-8000-000000000001",
+      "name" : "Unit tests",
+      "options" : {
+        "targetForVariableExpansion" : {
+          "containerPath" : "container:Sift.xcodeproj",
+          "identifier" : "Sift",
+          "name" : "Sift"
+        }
+      },
+      "targets" : [
+        {
+          "enabled" : true,
+          "parallelizable" : true,
+          "target" : {
+            "containerPath" : "container:Sift.xcodeproj",
+            "identifier" : "SiftTests",
+            "name" : "SiftTests"
+          }
+        }
+      ]
+    },
+    {
+      "id" : "8D1C2B70-0000-4000-8000-000000000002",
+      "name" : "UI tests",
+      "options" : {},
+      "targets" : [
+        {
+          "enabled" : true,
+          "parallelizable" : false,
+          "target" : {
+            "containerPath" : "container:Sift.xcodeproj",
+            "identifier" : "SiftUITests",
+            "name" : "SiftUITests"
+          }
+        }
+      ]
+    }
+  ],
+  "defaultOptions" : {
+    "codeCoverage" : true,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:Sift.xcodeproj",
+      "identifier" : "Sift",
+      "name" : "Sift"
+    }
+  },
+  "testRunConfiguration" : {
+    "id" : "8D1C2B70-0000-4000-8000-000000000000",
+    "name" : "Sift"
+  },
+  "version" : 1
+}

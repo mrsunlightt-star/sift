@@ -73,8 +73,7 @@ public actor FileOperationService {
     ///  * parent/child overlap, so a folder and a file inside it are not both
     ///    counted,
     ///  * items a running application holds open.
-    public func preflight(_ candidates: [Candidate], homeDirectory: URL? = nil) async -> PreflightReport {
-        let home = homeDirectory ?? fileManager.homeDirectoryForCurrentUser
+    public func preflight(_ candidates: [Candidate]) async -> PreflightReport {
         var ready: [Candidate] = []
         var skipped: [(item: Candidate, code: ErrorCode, message: String)] = []
         var subsumed: [Candidate] = []
