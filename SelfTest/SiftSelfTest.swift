@@ -1114,6 +1114,74 @@ final class Harness: @unchecked Sendable {
             check(rules.canAuthorize(url: URL(fileURLWithPath: "/Users/example/Library/Caches")),
                   "an ordinary cache folder can be authorised")
 
+            // Every entry on the shared list is refused as a scan target and as a
+            // grant. The list is generated from the Rust constants the scanner
+            // core reads, so this doubles as the cross-engine check.
+            for entry in ProtectedPaths.libraryChildren {
+                check(
+                    rules.protectionReason(for: "/Users/example/\(entry.path)/content") != nil,
+                    "\(entry.path) is protected"
+                )
+                check(
+                    !rules.canAuthorize(url: URL(fileURLWithPath: "/Users/example/\(entry.path)")),
+                    "\(entry.path) cannot be authorised"
+                )
+            }
+            for child in ProtectedPaths.homeChildren {
+                check(
+                    !rules.canAuthorize(url: home.appendingPathComponent(child)),
+                    "\(child) cannot be authorised"
+                )
+            }
+
+            // A stored grant is re-validated on the way back in: an older build
+            // could have saved `/Volumes`, which would unprotect every disk.
+            // A security-scoped bookmark cannot be minted outside a signed app,
+            // so the coder stands in for the real one.
+            let coder = SelfTestBookmarkCoder(paths: ["/": "/", "/Volumes": "/Volumes"])
+            let restoredScope = AuthorizedScope()
+            let service = AuthorizationService(
+                scope: restoredScope,
+                policy: { url in
+                    RuleEngine(
+                        rules: RuleEngine.builtInRules,
+                        homeDirectory: home,
+                        authorized: restoredScope
+                    ).canAuthorize(url: url)
+                },
+                coder: coder
+            )
+            let storedBroad = ["/", "/Volumes"].map { path in
+                AuthorizedLocation(bookmark: Data(path.utf8), displayName: path, isVolume: true)
+            }
+            let outcome = await service.restore(storedBroad)
+            equal(outcome.locations.count, 0, "a stored broad grant is not restored")
+            equal(outcome.refused.count, 2, "both broad grants are reported as refused")
+            check(restoredScope.paths.isEmpty, "a refused grant never reaches the scope")
+
+            coder.paths = ["/Volumes/Backup": "/Volumes/Backup"]
+            let accepted = await service.restore([
+                AuthorizedLocation(bookmark: Data("/Volumes/Backup".utf8), displayName: "Backup", isVolume: true)
+            ])
+            equal(accepted.locations.count, 1, "a valid stored grant is restored")
+            equal(restoredScope.paths, ["/Volumes/Backup"], "a valid stored grant reaches the scope")
+            check(
+                RuleEngine(
+                    rules: RuleEngine.builtInRules,
+                    homeDirectory: home,
+                    authorized: restoredScope
+                ).protectionReason(for: "/Volumes/Backup/Photos/a.jpg") == nil,
+                "a restored grant opens the volume it names"
+            )
+            check(
+                RuleEngine(
+                    rules: RuleEngine.builtInRules,
+                    homeDirectory: home,
+                    authorized: restoredScope
+                ).protectionReason(for: "/Volumes/Other/a.jpg") != nil,
+                "a restored grant opens nothing else"
+            )
+
             // Even a grant that somehow covers a system prefix must not open it.
             let broadScope = AuthorizedScope(roots: [URL(fileURLWithPath: "/")])
             let broadRules = RuleEngine(
@@ -1282,6 +1350,48 @@ final class Harness: @unchecked Sendable {
         )
     }
 }
+
+/// Stands in for the security-scoped bookmark machinery.
+///
+/// A bookmark cannot be minted outside a signed, entitled app, so the launch path
+/// — where a stored grant is re-validated — would otherwise be untestable here.
+/// A class so a test can add a location after the service has captured the coder.
+final class SelfTestBookmarkCoder: BookmarkCoder, @unchecked Sendable {
+    private let lock = NSLock()
+    private var routes: [String: String]
+
+    /// Bookmark payload to the path it resolves to.
+    var paths: [String: String] {
+        get {
+            lock.lock()
+            defer { lock.unlock() }
+            return routes
+        }
+        set {
+            lock.lock()
+            routes = newValue
+            lock.unlock()
+        }
+    }
+
+    init(paths: [String: String] = [:]) {
+        routes = paths
+    }
+
+    func makeBookmark(for url: URL) throws -> Data {
+        Data(url.path.utf8)
+    }
+
+    func resolve(_ bookmark: Data) throws -> (url: URL, isStale: Bool) {
+        guard let path = String(data: bookmark, encoding: .utf8), paths[path] != nil else {
+            throw SelfTestBookmarkUnavailable()
+        }
+        return (URL(fileURLWithPath: path), false)
+    }
+}
+
+/// A bookmark that cannot be reopened.
+struct SelfTestBookmarkUnavailable: Error {}
 
 /// A `UserDefaults` suite carried across an isolation boundary.
 ///

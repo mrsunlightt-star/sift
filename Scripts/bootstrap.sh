@@ -5,7 +5,8 @@
 #   1. builds the Rust scanner core and places the archive where SwiftPM and
 #      Xcode both look for it,
 #   2. regenerates the string catalog and its `.lproj` outputs,
-#   3. regenerates the Xcode project from `project.yml`.
+#   3. regenerates the Swift protection list from the Rust constants,
+#   4. regenerates the Xcode project from `project.yml`.
 #
 # Usage: Scripts/bootstrap.sh [--universal]
 
@@ -19,6 +20,9 @@ cd "${REPO_ROOT}"
 
 echo "==> Regenerating localisations"
 python3 Scripts/generate-strings.py >/dev/null
+
+echo "==> Regenerating the protection list"
+python3 Scripts/generate-protection.py >/dev/null
 
 if command -v xcodegen >/dev/null 2>&1; then
   echo "==> Regenerating Sift.xcodeproj"

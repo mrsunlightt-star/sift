@@ -6,8 +6,11 @@
 //!
 //! Two invariants matter for safety:
 //!
-//! 1. `PROTECTED_PATHS` and `PROTECTED_HOME_CHILDREN` are compiled in. A rule file
-//!    can only widen the *recognised* set, never unprotect these paths.
+//! 1. `PROTECTED_PREFIXES`, `PROTECTED_HOME_CHILDREN` and
+//!    `PROTECTED_LIBRARY_CHILDREN` are compiled in. They are also the single
+//!    source for the Swift protection list, which
+//!    `Scripts/generate-protection.py` generates from this file. A rule file can
+//!    only widen the *recognised* set, never unprotect these paths.
 //! 2. Every rule carries an explicit `risk`. Nothing defaults to `Safe`.
 
 use serde::{Deserialize, Serialize};
@@ -218,6 +221,27 @@ pub const PROTECTED_PREFIXES: &[&str] = &[
     "/Library/StagedExtensions",
     "/Volumes",
 ];
+
+/// `~/Library` children that hold secrets or the user's own data.
+///
+/// Listed rather than inferred because the names here look like ordinary
+/// application state, and a miss is a privacy failure rather than a bad result.
+pub const PROTECTED_LIBRARY_CHILDREN: &[&str] = &[
+    "Library/Keychains",
+    "Library/Mobile Documents",
+    "Library/Accounts",
+    "Library/Messages",
+    "Library/Mail",
+    "Library/Safari",
+    "Library/Cookies",
+];
+
+/// The [`PROTECTED_LIBRARY_CHILDREN`] that hold user data rather than
+/// credentials, reported as user content through the FFI.
+pub const PROTECTED_LIBRARY_USER_CONTENT: &[&str] = &["Library/Mobile Documents"];
+
+/// Suffix of a photo library package, protected as one unit.
+pub const PROTECTED_PHOTOS_LIBRARY_SUFFIX: &str = ".photoslibrary";
 
 /// macOS package directories treated as one unit; never expanded file by file.
 pub const DEFAULT_PACKAGE_EXTENSIONS: &[&str] = &[
@@ -520,6 +544,34 @@ fn is_prefix_of(prefix: &str, path: &str) -> bool {
     path == prefix || path.starts_with(&format!("{prefix}/"))
 }
 
+/// Classifies a path that sits inside `~/Library`.
+///
+/// Secrets, private messages and synced documents live here under names that
+/// look like ordinary application state, so they are listed rather than inferred.
+fn protected_library_reason(home: &str, path: &str) -> Option<ProtectedReason> {
+    for child in PROTECTED_LIBRARY_CHILDREN {
+        if is_prefix_of(&format!("{home}/{child}"), path) {
+            return Some(if PROTECTED_LIBRARY_USER_CONTENT.contains(child) {
+                ProtectedReason::UserContent {
+                    child: (*child).to_string(),
+                }
+            } else {
+                ProtectedReason::Secrets {
+                    path: (*child).to_string(),
+                }
+            });
+        }
+    }
+    if path.ends_with(PROTECTED_PHOTOS_LIBRARY_SUFFIX)
+        || path.contains(&format!("{PROTECTED_PHOTOS_LIBRARY_SUFFIX}/"))
+    {
+        return Some(ProtectedReason::UserContent {
+            child: "Photos Library".to_string(),
+        });
+    }
+    None
+}
+
 /// Returns the reason a path is protected, or `None` when it is not.
 ///
 /// This is the last line of defence: it runs on every candidate before it can
@@ -545,24 +597,7 @@ pub fn protection_reason(home: &str, path: &str) -> Option<ProtectedReason> {
         }
     }
 
-    // Extra care for paths that look like user data even without a known name.
-    if is_prefix_of(&format!("{home}/Library/Mobile Documents"), &path) {
-        return Some(ProtectedReason::UserContent {
-            child: "Library/Mobile Documents".to_string(),
-        });
-    }
-    if is_prefix_of(&format!("{home}/Library/Keychains"), &path) {
-        return Some(ProtectedReason::Secrets {
-            path: "Library/Keychains".to_string(),
-        });
-    }
-    if path.ends_with(".photoslibrary") || path.contains(".photoslibrary/") {
-        return Some(ProtectedReason::UserContent {
-            child: "Photos Library".to_string(),
-        });
-    }
-
-    None
+    protected_library_reason(&home, &path)
 }
 
 /// Why a path may not be scanned or cleaned.
@@ -622,26 +657,8 @@ pub fn protection_reason_authorized(
             });
         }
     }
-    if is_prefix_of(
-        &format!("{home_normalized}/Library/Mobile Documents"),
-        &path_normalized,
-    ) {
-        return Some(ProtectedReason::UserContent {
-            child: "Library/Mobile Documents".to_string(),
-        });
-    }
-    if is_prefix_of(
-        &format!("{home_normalized}/Library/Keychains"),
-        &path_normalized,
-    ) {
-        return Some(ProtectedReason::Secrets {
-            path: "Library/Keychains".to_string(),
-        });
-    }
-    if path_normalized.ends_with(".photoslibrary") || path_normalized.contains(".photoslibrary/") {
-        return Some(ProtectedReason::UserContent {
-            child: "Photos Library".to_string(),
-        });
+    if let Some(reason) = protected_library_reason(&home_normalized, &path_normalized) {
+        return Some(reason);
     }
 
     // A grant lifts the blanket `/Volumes` guard for the authorised subtree only.
@@ -773,6 +790,37 @@ mod tests {
         assert!(is_protected_path(
             HOME,
             &format!("{HOME}/Library/Mobile Documents/com~apple~x/f")
+        ));
+    }
+
+    #[test]
+    fn accounts_messages_mail_safari_and_cookies_are_protected() {
+        // These hold the user's mail, messages and browsing history. They are
+        // listed in `PROTECTED_LIBRARY_CHILDREN` and the Swift engine reads the
+        // same list, so neither engine can walk a tree the other refuses.
+        for child in PROTECTED_LIBRARY_CHILDREN {
+            let path = format!("{HOME}/{child}/content");
+            for reason in [protection_reason(HOME, &path), {
+                let grants = [std::path::PathBuf::from("/Volumes/Backup")];
+                protection_reason_authorized(HOME, &path, &grants)
+            }] {
+                assert!(reason.is_some(), "{path} must be protected");
+            }
+        }
+    }
+
+    #[test]
+    fn application_state_in_the_library_is_still_allowed() {
+        // The rule must not be so broad that it protects the library itself, or
+        // every cache the product exists to clean would be refused.
+        assert!(!is_protected_path(HOME, &format!("{HOME}/Library")));
+        assert!(!is_protected_path(
+            HOME,
+            &format!("{HOME}/Library/Application Support/com.example.app")
+        ));
+        assert!(!is_protected_path(
+            HOME,
+            &format!("{HOME}/Library/Accounts-old/settings.json")
         ));
     }
 

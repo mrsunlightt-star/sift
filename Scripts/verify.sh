@@ -34,32 +34,39 @@ run() {
   fi
 }
 
-step "1/7  Rust: formatting and lints"
+step "1/8  Generated sources are current"
+# The Swift side of two shared tables is generated. A stale copy is a silent
+# divergence — localisable text, or the set of paths the two engines protect —
+# so it is checked before anything is built from it.
+run bash -c "python3 Scripts/generate-strings.py --check"
+run bash -c "python3 Scripts/generate-protection.py --check"
+
+step "2/8  Rust: formatting and lints"
 run bash -c "cd RustCore && cargo fmt --all -- --check"
 run bash -c "cd RustCore && cargo clippy --all-targets -- -D warnings"
 
-step "2/7  Rust: unit and contract tests"
+step "3/8  Rust: unit and contract tests"
 run bash -c "cd RustCore && cargo test --workspace"
 
-step "3/7  Rust: benchmarks compile"
+step "4/8  Rust: benchmarks compile"
 run bash -c "cd RustCore && cargo bench -p sift-scanner-core --no-run"
 
 if [[ "${QUICK}" == "0" ]]; then
-  step "4/7  Rust: benchmark smoke run"
+  step "5/8  Rust: benchmark smoke run"
   run bash -c "cd RustCore && cargo bench -p sift-scanner-core --bench scan_stages -- --warm-up-time 0.3 --measurement-time 1 index_insert"
 else
-  step "4/7  Rust: benchmark smoke run (skipped)"
+  step "5/8  Rust: benchmark smoke run (skipped)"
 fi
 
-step "5/7  Swift: build (Rust core linked)"
+step "6/8  Swift: build (Rust core linked)"
 "${REPO_ROOT}/Scripts/build-rust-core.sh" >/dev/null
 run swift build
 
-step "6/7  Swift: self-test and XCTest suites"
+step "7/8  Swift: self-test and XCTest suites"
 run bash -c "cd '${REPO_ROOT}' && swift run SiftSelfTest"
 run bash -c "cd '${REPO_ROOT}' && ./Scripts/run-tests.sh"
 
-step "7/7  App bundle"
+step "8/8  App bundle"
 run bash -c "cd '${REPO_ROOT}' && ./Scripts/build-app.sh"
 
 echo

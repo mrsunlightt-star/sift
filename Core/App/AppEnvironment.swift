@@ -74,7 +74,11 @@ public final class AppEnvironment: ObservableObject {
         self.reports = reports
         self.permissions = PermissionsService()
         self.authorizedScope = authorizedScope
-        self.authorization = AuthorizationService(scope: authorizedScope)
+        self.authorization = AuthorizationService(scope: authorizedScope) { url in
+            // The allowlist lives in the rule engine, so the settings page and
+            // the service that stores bookmarks give the same answer.
+            rules.canAuthorize(url: url)
+        }
         self.entitlements = EntitlementService(channel: DirectLicenseService { _ in
             // No license vendor is wired yet; the specification leaves the choice
             // open (§19). Until then every activation reports that the service is
@@ -239,13 +243,13 @@ public final class AppEnvironment: ObservableObject {
     }
 
     /// Records which bookmarks resolved and persists any that were refreshed.
-    private func applyRestored(_ restored: [RestoredLocation]) async {
-        restoredAuthorizedURLs = restored.map(\.url)
-        resolvedAuthorizedIDs = Set(restored.map(\.id))
+    private func applyRestored(_ restored: RestoredGrants) async {
+        restoredAuthorizedURLs = restored.locations.map(\.url)
+        resolvedAuthorizedIDs = Set(restored.locations.map(\.id))
 
         var locations = await settings.current().authorizedLocations
         var changed = false
-        for entry in restored {
+        for entry in restored.locations {
             guard let refreshed = entry.refreshedBookmark,
                   let index = locations.firstIndex(where: { $0.id == entry.id }) else { continue }
             let existing = locations[index]
@@ -256,6 +260,13 @@ public final class AppEnvironment: ObservableObject {
                 isVolume: existing.isVolume,
                 addedAt: existing.addedAt
             )
+            changed = true
+        }
+        if !restored.refused.isEmpty {
+            // A stored grant the allowlist no longer accepts is removed rather
+            // than kept as an unavailable row: it can never be honoured again, and
+            // leaving it stored is what would let a future build restore it.
+            locations.removeAll { restored.refused.contains($0.id) }
             changed = true
         }
         if changed {

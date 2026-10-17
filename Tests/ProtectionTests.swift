@@ -43,6 +43,40 @@ final class ProtectionTests: XCTestCase {
         )
     }
 
+    func test_everyEntryOnTheSharedProtectionListIsProtected() {
+        // The list comes from `ProtectedPaths`, which is generated from the Rust
+        // constants the scanner core reads. Asserting on the generated list is
+        // what keeps the two engines from protecting different sets.
+        for entry in ProtectedPaths.libraryChildren {
+            XCTAssertNotNil(
+                engine.protectionReason(for: "/Users/example/\(entry.path)/content"),
+                "\(entry.path) is on the shared protection list"
+            )
+        }
+        for child in ProtectedPaths.homeChildren {
+            XCTAssertNotNil(
+                engine.protectionReason(for: "/Users/example/\(child)/file.txt"),
+                "\(child) is on the shared protection list"
+            )
+        }
+        for prefix in ProtectedPaths.prefixes {
+            XCTAssertNotNil(
+                engine.protectionReason(for: "\(prefix)/anything"),
+                "\(prefix) is on the shared protection list"
+            )
+        }
+    }
+
+    func test_theLibraryItselfAndOrdinaryApplicationStateAreAllowed() {
+        // The library is not an entry: almost everything the product cleans lives
+        // inside it, so a rule broad enough to cover the whole folder would
+        // disable the app rather than protect anything.
+        XCTAssertTrue(engine.isAllowed("/Users/example/Library"))
+        XCTAssertTrue(engine.isAllowed("/Users/example/Library/Application Support/com.example.app/x"))
+        XCTAssertTrue(engine.isAllowed("/Users/example/Library/Accounts-old/settings.json"))
+        XCTAssertTrue(engine.isAllowed("/Users/example/Library/Mailbox/data"))
+    }
+
     func test_ordinaryCachesAndDownloadsAreAllowed() {
         XCTAssertTrue(engine.isAllowed("/Users/example/Library/Caches/com.example.app/blob"))
         XCTAssertTrue(engine.isAllowed("/Users/example/Library/Logs/com.example.app/out.log"))

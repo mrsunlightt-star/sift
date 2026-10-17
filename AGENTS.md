@@ -20,7 +20,8 @@ Scripts/bootstrap.sh
 
 It builds the Rust scanner core into `Bridge/macos-universal/libsift_ffi.a`
 (SwiftPM and Xcode both link from that fixed path), regenerates the string
-catalog, and regenerates `Sift.xcodeproj` from `project.yml`.
+catalog, regenerates the Swift protection list, and regenerates `Sift.xcodeproj`
+from `project.yml`.
 
 After changing `project.yml`, install XcodeGen if needed (`brew install
 xcodegen`) and run `xcodegen generate --spec project.yml`. Commit the regenerated
@@ -30,16 +31,22 @@ After changing anything under `Shared/Localization/`, regenerate the catalog and
 its `.lproj` outputs with `python3 Scripts/generate-strings.py`. Never edit
 `Localizable.xcstrings`, `LocalizationKey.swift` or `.lproj` files by hand.
 
+After changing `PROTECTED_HOME_CHILDREN`, `PROTECTED_PREFIXES`,
+`PROTECTED_LIBRARY_CHILDREN` or `PROTECTED_PHOTOS_LIBRARY_SUFFIX` in
+`RustCore/crates/sift-rules/src/lib.rs`, regenerate the Swift half with
+`python3 Scripts/generate-protection.py`. Never edit `Core/Rules/ProtectedPaths.swift`
+by hand: it exists so the two engines cannot protect different sets of paths.
+
 ## Before committing
 
 ```bash
 Scripts/verify.sh
 ```
 
-It runs, in order: Rust formatting and lints, the Rust test suites (including the
-FFI contract tests), the benchmark build, the Swift build, the self-test suite,
-the XCTest suite, and the app bundle. A commit should not land while any stage
-fails.
+It runs, in order: the generated-source checks, Rust formatting and lints, the
+Rust test suites (including the FFI contract tests), the benchmark build, the
+Swift build, the self-test suite, the XCTest suite, and the app bundle. A commit
+should not land while any stage fails.
 
 ## Invariants that must not regress
 
@@ -67,9 +74,16 @@ These are product promises, not implementation details. Each has tests behind it
     or a photo library. Authorisation is an allowlist — one volume under
     `/Volumes`, or a folder inside home — and it lifts only the `/Volumes` blanket
     prefix. System prefixes (`/Library`, `/private/var`, `/System`, ...) stay
-    protected even when a path appears to be authorised.
+    protected even when a path appears to be authorised. The walk that scans
+    consults the grants on every entry, not only on the root, and a stored grant
+    is re-validated against the current allowlist before it is restored, so a
+    bookmark written by an older build cannot widen what is reachable.
 11. **Path comparisons normalise `.`, `..` and the macOS symlink aliases**
     (`/var`, `/tmp`, `/etc`) before matching.
+12. **Two engines, one protection list.** `PROTECTED_*` in
+    `RustCore/crates/sift-rules/src/lib.rs` is the source; the Swift list is
+    generated from it. `Scripts/verify.sh` fails when the generated copy is stale,
+    and both test suites assert every entry on the shared list is refused.
 
 ## Layout notes
 
@@ -80,3 +94,6 @@ These are product promises, not implementation details. Each has tests behind it
 - `Tests/` runs under XCTest (`swift test`, Xcode) and also under
   `Scripts/run-tests.sh`, which supplies a small XCTest-compatible runner for
   machines with only the Command Line Tools.
+- `Core/Rules/ProtectedPaths.swift` is generated (`Scripts/generate-protection.py`)
+  from the Rust constants; `Core/Rules/RuleEngine.swift` reads it and restates
+  none of it.

@@ -4,6 +4,9 @@
 //! call site:
 //!
 //! * symlinks are never followed, so a scan cannot escape its authorised roots,
+//! * the protection check runs on every entry and honours the walk's grants, so
+//!   a volume the user authorised is walked through and an unauthorised one is
+//!   refused entry by entry,
 //! * a directory that cannot be read produces one skip record and the walk
 //!   continues — a single unreadable folder never fails a scan,
 //! * cancellation is checked on every entry,
@@ -11,7 +14,7 @@
 //! * sizes prefer allocated size and fall back to logical size.
 
 use sift_hasher::CancelToken;
-use sift_rules::{is_package_directory, is_protected_path};
+use sift_rules::{is_package_directory, is_protected_path_authorized};
 
 pub use sift_rules::is_package_directory as is_package_directory_export;
 use std::collections::HashSet;
@@ -208,7 +211,7 @@ pub fn walk(root: &Path, options: &WalkOptions, cancel: &CancelToken) -> WalkRep
             if options.skip_paths.iter().any(|skip| path.starts_with(skip)) {
                 continue;
             }
-            if is_protected_path(&options.home_dir.to_string_lossy(), &path.to_string_lossy()) {
+            if is_protected_by_policy(options, &path) {
                 report.skips.push(WalkSkip {
                     path: path.clone(),
                     code: "protectedLocation",
@@ -309,6 +312,21 @@ pub fn walk(root: &Path, options: &WalkOptions, cancel: &CancelToken) -> WalkRep
     }
 
     report
+}
+
+/// True when the walk must not enter `path`.
+///
+/// The grants travel with the walk rather than being checked once by the caller:
+/// the caller checks the scan *root*, but a root is the only path it knows about,
+/// and `/Volumes` is protected for every child of every volume. Leaving the
+/// unauthorised decision here is what made a granted volume scan to nothing —
+/// the root passed, and then every entry below it was refused.
+fn is_protected_by_policy(options: &WalkOptions, path: &Path) -> bool {
+    is_protected_path_authorized(
+        &options.home_dir.to_string_lossy(),
+        &path.to_string_lossy(),
+        &options.authorized_roots,
+    )
 }
 
 struct Measured {
@@ -689,6 +707,65 @@ mod tests {
             .filter(|s| s.code == "protectedLocation")
             .collect();
         assert_eq!(protected.len(), 1);
+    }
+
+    #[test]
+    fn a_granted_volume_is_walked_instead_of_refused_entry_by_entry() {
+        // `/Volumes` is a blanket-protected prefix, so every entry below it is
+        // refused unless the walk carries the grant that covers it. A walk root
+        // only ever has its own path checked, which is why the grants have to
+        // reach this decision rather than staying with the caller.
+        let mut opts = WalkOptions::new("/Users/example", WalkMode::Files);
+        let inside = Path::new("/Volumes/Backup/Photos/holiday.jpg");
+        assert!(is_protected_by_policy(&opts, inside));
+
+        opts.authorized_roots = vec![PathBuf::from("/Volumes/Backup")];
+        assert!(
+            !is_protected_by_policy(&opts, inside),
+            "a granted volume must be walked"
+        );
+
+        // The grant covers that one subtree and nothing else on the volume.
+        assert!(is_protected_by_policy(
+            &opts,
+            Path::new("/Volumes/Other/Photos/holiday.jpg")
+        ));
+        assert!(!is_protected_by_policy(&opts, Path::new("/Volumes/Backup")));
+    }
+
+    #[test]
+    fn a_grant_never_unlocks_system_trees_or_user_content() {
+        let mut opts = WalkOptions::new("/Users/example", WalkMode::Files);
+        opts.authorized_roots = vec![PathBuf::from("/Users/example")];
+        assert!(is_protected_by_policy(
+            &opts,
+            Path::new("/Users/example/Documents/taxes.pdf")
+        ));
+
+        opts.authorized_roots = vec![PathBuf::from("/Library")];
+        assert!(is_protected_by_policy(
+            &opts,
+            Path::new("/Library/LaunchDaemons/com.example.plist")
+        ));
+    }
+
+    #[test]
+    fn the_volumes_container_is_protected_when_nothing_is_granted() {
+        // Reading `/Volumes` itself is one directory listing: the children are
+        // other disks, and none of them may be entered without a grant.
+        let report = walk(
+            Path::new("/Volumes"),
+            &WalkOptions::new("/Users/example", WalkMode::Files),
+            &CancelToken::new(),
+        );
+        assert!(
+            report.entries.is_empty(),
+            "no volume may be walked uninvited"
+        );
+        assert!(
+            report.skips.iter().all(|s| s.code == "protectedLocation"),
+            "every child of /Volumes must be refused as protected"
+        );
     }
 
     #[test]

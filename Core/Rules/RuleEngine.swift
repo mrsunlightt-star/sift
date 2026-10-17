@@ -80,42 +80,10 @@ public struct RuleEngine: Sendable {
     /// Rule file schema version understood by this build.
     public static let supportedSchemaVersion = 1
 
-    /// Paths that are never scanned or cleaned, as children of the home folder.
-    ///
-    /// Compiled in: a rule file can widen what Sift *recognises*, never what it
-    /// may *remove*.
-    public static let protectedHomeChildren: Set<String> = [
-        "Documents", "Desktop", "Movies", "Music", "Pictures", "Projects", "Developer", "Public",
-    ]
-
-    /// Absolute prefixes that are never scanned or cleaned.
-    public static let protectedPrefixes: [String] = [
-        "/System",
-        "/bin",
-        "/sbin",
-        "/usr",
-        "/etc",
-        "/private/etc",
-        "/private/var/db",
-        "/private/var/vm",
-        "/Library/Apple",
-        "/Library/Extensions",
-        "/Library/LaunchDaemons",
-        "/Library/LaunchAgents",
-        "/Library/StagedExtensions",
-        "/Volumes",
-    ]
-
-    /// Paths inside `~/Library` that hold secrets or user data.
-    public static let protectedLibrarySuffixes: [String] = [
-        "Library/Keychains",
-        "Library/Mobile Documents",
-        "Library/Accounts",
-        "Library/Messages",
-        "Library/Mail",
-        "Library/Safari",
-        "Library/Cookies",
-    ]
+    // The protection list itself lives in `ProtectedPaths`, which
+    // `Scripts/generate-protection.py` writes for both this engine and the Rust
+    // scanner core. Nothing here may restate it: a second literal is how the two
+    // engines drift apart.
 
     /// Extensions treated as one unit rather than individual files.
     public static let packageExtensions: Set<String> = [
@@ -218,14 +186,18 @@ public struct RuleEngine: Sendable {
     public func protectionReason(for path: String) -> ProtectionReason? {
         let resolved = Self.normalize(path)
 
-        for child in Self.protectedHomeChildren where Self.isPrefix("\(homeDirectory)/\(child)", resolved) {
+        for child in ProtectedPaths.homeChildren where Self.isPrefix("\(homeDirectory)/\(child)", resolved) {
             return .userContent(child)
         }
-        for suffix in Self.protectedLibrarySuffixes
-        where Self.isPrefix("\(homeDirectory)/\(suffix)", resolved) {
-            return .secrets(suffix)
+        for entry in ProtectedPaths.libraryChildren
+        where Self.isPrefix("\(homeDirectory)/\(entry.path)", resolved) {
+            switch entry.kind {
+            case .userContent: return .userContent(entry.path)
+            case .secrets: return .secrets(entry.path)
+            }
         }
-        if resolved.hasSuffix(".photoslibrary") || resolved.contains(".photoslibrary/") {
+        if resolved.hasSuffix(ProtectedPaths.photosLibrarySuffix)
+            || resolved.contains("\(ProtectedPaths.photosLibrarySuffix)/") {
             return .photosLibrary
         }
         // A grant may lift the blanket `/Volumes` guard for exactly the subtree
@@ -240,7 +212,7 @@ public struct RuleEngine: Sendable {
         }
 
         // Everything else in the protection list is a hard rule.
-        for prefix in Self.protectedPrefixes where prefix != "/Volumes" && Self.isPrefix(prefix, resolved) {
+        for prefix in ProtectedPaths.prefixes where prefix != "/Volumes" && Self.isPrefix(prefix, resolved) {
             return .systemPath(prefix)
         }
         return nil
@@ -266,19 +238,20 @@ public struct RuleEngine: Sendable {
             return false
         }
 
-        if Self.isPrefix("\(homeDirectory)/Documents", path)
-            || Self.isPrefix("\(homeDirectory)/Desktop", path)
-            || Self.isPrefix("\(homeDirectory)/Movies", path)
-            || Self.isPrefix("\(homeDirectory)/Music", path)
-            || Self.isPrefix("\(homeDirectory)/Pictures", path)
-        {
+        // Every compiled-in rule that `protectionReason` refuses is also
+        // unauthorisable: accepting a grant that the protection list would then
+        // ignore would leave the settings page showing access the user does not
+        // actually have. The list comes from the shared table for that reason.
+        for child in ProtectedPaths.homeChildren
+        where Self.isPrefix("\(homeDirectory)/\(child)", path) {
             return false
         }
-        for suffix in Self.protectedLibrarySuffixes
-        where Self.isPrefix("\(homeDirectory)/\(suffix)", path) {
+        for entry in ProtectedPaths.libraryChildren
+        where Self.isPrefix("\(homeDirectory)/\(entry.path)", path) {
             return false
         }
-        if path.hasSuffix(".photoslibrary") || path.contains(".photoslibrary/") {
+        if path.hasSuffix(ProtectedPaths.photosLibrarySuffix)
+            || path.contains("\(ProtectedPaths.photosLibrarySuffix)/") {
             return false
         }
         return true

@@ -84,6 +84,60 @@ public struct RestoredLocation: Sendable {
     }
 }
 
+/// What a call to `restore` produced.
+public struct RestoredGrants: Sendable {
+    /// The grants in force for this launch, in the order they were stored.
+    public let locations: [RestoredLocation]
+    /// Stored grants the current allowlist refuses, by identifier.
+    ///
+    /// They are not in force and belong out of settings: a grant the app cannot
+    /// honour must not keep appearing as one that works.
+    public let refused: [UUID]
+
+    public init(locations: [RestoredLocation], refused: [UUID]) {
+        self.locations = locations
+        self.refused = refused
+    }
+}
+
+/// Mints and reopens security-scoped bookmarks.
+///
+/// A protocol rather than direct `URL` calls so the launch path can be tested.
+/// Minting a security-scoped bookmark needs a signed, entitled app, so in a test
+/// binary those calls fail for a reason that has nothing to do with the logic
+/// under test — which would leave the re-validation of stored grants, the part
+/// that keeps a legacy `/Volumes` grant from unprotecting every disk, untested.
+public protocol BookmarkCoder: Sendable {
+    /// A bookmark for `url` that survives a relaunch.
+    func makeBookmark(for url: URL) throws -> Data
+    /// Reopens one, reporting whether it is stale and needs replacing.
+    func resolve(_ bookmark: Data) throws -> (url: URL, isStale: Bool)
+}
+
+/// The real coder, backed by `URL`'s security-scoped bookmark support.
+public struct SecurityScopedBookmarkCoder: BookmarkCoder {
+    public init() {}
+
+    public func makeBookmark(for url: URL) throws -> Data {
+        try url.bookmarkData(
+            options: [.withSecurityScope],
+            includingResourceValuesForKeys: nil,
+            relativeTo: nil
+        )
+    }
+
+    public func resolve(_ bookmark: Data) throws -> (url: URL, isStale: Bool) {
+        var isStale = false
+        let url = try URL(
+            resolvingBookmarkData: bookmark,
+            options: [.withSecurityScope],
+            relativeTo: nil,
+            bookmarkDataIsStale: &isStale
+        )
+        return (url, isStale)
+    }
+}
+
 /// Persists and reopens security-scoped bookmarks.
 ///
 /// The App Sandbox build can only touch folders the user picked, and the direct
@@ -92,12 +146,26 @@ public struct RestoredLocation: Sendable {
 public actor AuthorizationService {
     private let scope: AuthorizedScope
     private let fileManager: FileManager
+    /// Decides whether a location may be authorised at all.
+    ///
+    /// Injected rather than re-implemented here: the settings page, this service
+    /// and the rule engine have to answer "may this path be granted?" identically,
+    /// and a second copy of the allowlist is how the answers diverge.
+    private let policy: @Sendable (URL) -> Bool
+    private let coder: any BookmarkCoder
     private let logger = SiftLog.permissions
     /// Open accesses, keyed by path, held for the app's lifetime.
     private var active: [String: URL] = [:]
 
-    public init(scope: AuthorizedScope, fileManager: FileManager = .default) {
+    public init(
+        scope: AuthorizedScope,
+        policy: @escaping @Sendable (URL) -> Bool,
+        coder: any BookmarkCoder = SecurityScopedBookmarkCoder(),
+        fileManager: FileManager = .default
+    ) {
         self.scope = scope
+        self.policy = policy
+        self.coder = coder
         self.fileManager = fileManager
     }
 
@@ -108,17 +176,19 @@ public actor AuthorizationService {
     /// like any folder; the caller's open panel allows navigating to `/Volumes`.
     public func authorize(_ url: URL) -> AuthorizedLocation? {
         let resolved = url.resolvingSymlinksInPath()
+        // The allowlist is enforced here as well as in the UI, so no caller can
+        // add a grant the protection list would then refuse to honour.
+        guard policy(resolved) else {
+            logger.notice("Refused to authorise a location outside the allowlist")
+            return nil
+        }
         let didStart = resolved.startAccessingSecurityScopedResource()
         defer {
             if didStart { resolved.stopAccessingSecurityScopedResource() }
         }
 
         do {
-            let bookmark = try resolved.bookmarkData(
-                options: [.withSecurityScope],
-                includingResourceValuesForKeys: nil,
-                relativeTo: nil
-            )
+            let bookmark = try coder.makeBookmark(for: resolved)
             let isVolume = resolved.path == "/" || resolved.path.hasPrefix("/Volumes/")
             let location = AuthorizedLocation(
                 bookmark: bookmark,
@@ -143,42 +213,51 @@ public actor AuthorizationService {
     /// Called once at launch. A bookmark that no longer resolves is dropped from
     /// the scope: a moved or unmounted volume must not widen or narrow the scan
     /// silently, and the settings page reports what is no longer available.
+    ///
+    /// A bookmark that still resolves is *re-validated*, not trusted. It was
+    /// written by whichever build stored it, against that build's rules: an older
+    /// version could hold a grant for `/` or `/Volumes` itself, and restoring it
+    /// unchanged would lift the blanket `/Volumes` guard for every disk. A stored
+    /// grant is therefore a request, checked against the current allowlist before
+    /// it reaches the scope.
     @discardableResult
-    public func restore(_ locations: [AuthorizedLocation]) -> [RestoredLocation] {
+    public func restore(_ locations: [AuthorizedLocation]) -> RestoredGrants {
         var restored: [RestoredLocation] = []
+        var refused: [UUID] = []
         for location in locations {
-            var isStale = false
-            guard let url = try? URL(
-                resolvingBookmarkData: location.bookmark,
-                options: [.withSecurityScope],
-                relativeTo: nil,
-                bookmarkDataIsStale: &isStale
-            ) else {
+            guard let resolved = try? coder.resolve(location.bookmark) else {
                 logger.notice("A stored bookmark no longer resolves and was dropped")
                 continue
             }
+            let url = resolved.url
+
+            guard policy(url) else {
+                refused.append(location.id)
+                logger.notice("A stored grant is outside the allowlist and was dropped")
+                continue
+            }
+
+            // Access first. Creating a replacement bookmark for a security-scoped
+            // resource needs the scope open, so refreshing a stale bookmark before
+            // this point fails and the repair repeats on every launch.
+            startAccess(for: url)
 
             var refreshed: Data?
-            if isStale {
+            if resolved.isStale {
                 // A stale bookmark still resolves, but it must be replaced or the
                 // next launch repeats the repair and it eventually stops working.
-                refreshed = try? url.bookmarkData(
-                    options: [.withSecurityScope],
-                    includingResourceValuesForKeys: nil,
-                    relativeTo: nil
-                )
+                refreshed = try? coder.makeBookmark(for: url)
                 logger.notice(
                     "A stored bookmark was stale and \(refreshed == nil ? "could not be refreshed" : "was refreshed", privacy: .public)"
                 )
             }
 
-            startAccess(for: url)
             restored.append(
                 RestoredLocation(id: location.id, url: url, refreshedBookmark: refreshed)
             )
         }
         scope.replace(with: restored.map(\.url))
-        return restored
+        return RestoredGrants(locations: restored, refused: refused)
     }
 
     /// Stops every access. Called when the app terminates.
