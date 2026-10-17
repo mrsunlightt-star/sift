@@ -8,15 +8,20 @@ import SwiftUI
 public struct SelectionBar: View {
     @ObservedObject var cleanup: CleanupModel
     let environment: AppEnvironment
+    /// Which operation this entry point performs, so its report and history say
+    /// "smart scan" or "duplicate files" instead of always "junk cleanup".
+    let operation: CleanupOperationName
     let onRequestPurchase: () -> Void
 
     public init(
         cleanup: CleanupModel,
         environment: AppEnvironment,
+        operation: CleanupOperationName,
         onRequestPurchase: @escaping () -> Void
     ) {
         self.cleanup = cleanup
         self.environment = environment
+        self.operation = operation
         self.onRequestPurchase = onRequestPurchase
     }
 
@@ -76,7 +81,8 @@ public struct SelectionBar: View {
         // only be off because the user turned it off, and everything still goes
         // to the Trash either way.
         await cleanup.prepareCleanup(
-            requiresConfirmation: environment.preferences.showsConfirmationPanel
+            requiresConfirmation: environment.preferences.showsConfirmationPanel,
+            operation: operation
         )
     }
 }

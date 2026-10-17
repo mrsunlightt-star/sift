@@ -48,6 +48,7 @@ public struct JunkCleanupView: View {
                     SelectionBar(
                         cleanup: environment.cleanup,
                         environment: environment,
+                        operation: .junkCleanup,
                         onRequestPurchase: onRequestPurchase
                     )
                     ScanResultsView(

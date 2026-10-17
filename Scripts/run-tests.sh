@@ -35,7 +35,7 @@ BIN_PATH="$(swift build --show-bin-path)"
 MODULES="${BIN_PATH}/Modules"
 
 echo "==> Building the package"
-swift build --target Core --target Shared >/dev/null
+swift build >/dev/null
 
 echo "==> Compiling the XCTest-compatible runner"
 swiftc -emit-module -emit-library -static \

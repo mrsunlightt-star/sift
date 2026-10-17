@@ -978,6 +978,10 @@ pub unsafe extern "C" fn sift_storage_analyse(
             top_directory_limit: Option<u32>,
             #[serde(default)]
             large_file_threshold_bytes: Option<u64>,
+            /// Roots the caller authorised. Storage analysis honours the same
+            /// grants as a scan, or an authorised volume would be skipped.
+            #[serde(default)]
+            authorized_roots: Vec<String>,
         }
 
         let fail = |message: &str| {
@@ -1000,6 +1004,8 @@ pub unsafe extern "C" fn sift_storage_analyse(
             AnalysisOptions::new(PathBuf::from(&options.home_dir), Vec::new());
         analysis_options.roots = options.roots.iter().map(PathBuf::from).collect();
         analysis_options.ignore_paths = options.ignore_paths.iter().map(PathBuf::from).collect();
+        analysis_options.authorized_roots =
+            options.authorized_roots.iter().map(PathBuf::from).collect();
         if let Some(limit) = options.top_file_limit {
             analysis_options.top_file_limit = limit;
         }

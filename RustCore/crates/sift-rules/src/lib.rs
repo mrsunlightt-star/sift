@@ -644,14 +644,25 @@ pub fn protection_reason_authorized(
         });
     }
 
-    for root in authorized_roots {
-        let root = normalize_path(&root.to_string_lossy());
-        if is_prefix_of(&root, &path_normalized) {
-            return None;
+    // A grant lifts the blanket `/Volumes` guard for the authorised subtree only.
+    // It never lifts a real system prefix: granting `/Library` or `/private/var`
+    // would otherwise expose launch daemons and the system database.
+    if is_prefix_of("/Volumes", &path_normalized) {
+        for root in authorized_roots {
+            let root = normalize_path(&root.to_string_lossy());
+            if is_prefix_of(&root, &path_normalized) {
+                return None;
+            }
         }
+        return Some(ProtectedReason::SystemPath {
+            prefix: "/Volumes".to_string(),
+        });
     }
 
     for prefix in PROTECTED_PREFIXES {
+        if *prefix == "/Volumes" {
+            continue;
+        }
         if is_prefix_of(prefix, &path_normalized) {
             return Some(ProtectedReason::SystemPath {
                 prefix: (*prefix).to_string(),
@@ -881,6 +892,58 @@ mod tests {
             assert!(!rule.explanation_key.is_empty(), "{}", rule.id);
             assert_ne!(rule.risk, Risk::Protected);
         }
+    }
+
+    #[test]
+    fn authorisation_lifts_only_the_volumes_blanket_prefix() {
+        use std::path::PathBuf;
+
+        let home = "/Users/example";
+        let make = |paths: &[&str]| paths.iter().map(PathBuf::from).collect::<Vec<_>>();
+
+        // A concrete volume the user added opens.
+        assert!(
+            !is_protected_path_authorized(
+                home,
+                "/Volumes/External/file.bin",
+                &make(&["/Volumes/External"])
+            ),
+            "an authorised volume is scannable"
+        );
+        // A different volume stays closed.
+        assert!(is_protected_path_authorized(
+            home,
+            "/Volumes/Other/file.bin",
+            &make(&["/Volumes/External"])
+        ));
+
+        // Granting the container or a system tree must not open the system.
+        for grant in ["/", "/Volumes", "/Library", "/private", "/private/var"] {
+            for target in [
+                "/Library/Extensions/foo.kext",
+                "/Library/LaunchDaemons/com.example.plist",
+                "/Library/LaunchAgents/com.example.plist",
+                "/private/var/db/secret",
+                "/private/var/vm/swapfile",
+            ] {
+                assert!(
+                    is_protected_path_authorized(home, target, &make(&[grant])),
+                    "grant {grant} must not unlock {target}"
+                );
+            }
+        }
+
+        // And a grant never unlocks user content or secrets.
+        assert!(is_protected_path_authorized(
+            home,
+            "/Users/example/Documents/taxes.pdf",
+            &make(&["/Users/example"])
+        ));
+        assert!(is_protected_path_authorized(
+            home,
+            "/Users/example/Library/Keychains/login.keychain-db",
+            &make(&["/Users/example"])
+        ));
     }
 
     #[test]

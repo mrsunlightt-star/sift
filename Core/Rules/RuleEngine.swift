@@ -228,13 +228,19 @@ public struct RuleEngine: Sendable {
         if resolved.hasSuffix(".photoslibrary") || resolved.contains(".photoslibrary/") {
             return .photosLibrary
         }
-        // Everything above is a hard rule. Only the blanket prefixes below can be
-        // lifted by an explicit grant, which is what makes an external volume the
-        // user added usable while `/Volumes` stays closed by default.
-        if authorized.contains(resolved) {
-            return nil
+        // A grant may lift the blanket `/Volumes` guard for exactly the subtree
+        // the user added. It must never lift a real system prefix: granting
+        // `/Library` or `/private/var` would otherwise expose launch daemons and
+        // the system database, so authorisation is consulted only here.
+        if Self.isPrefix("/Volumes", resolved) {
+            if authorized.contains(resolved) {
+                return nil
+            }
+            return .systemPath("/Volumes")
         }
-        for prefix in Self.protectedPrefixes where Self.isPrefix(prefix, resolved) {
+
+        // Everything else in the protection list is a hard rule.
+        for prefix in Self.protectedPrefixes where prefix != "/Volumes" && Self.isPrefix(prefix, resolved) {
             return .systemPath(prefix)
         }
         return nil
@@ -247,6 +253,19 @@ public struct RuleEngine: Sendable {
     /// default, not to unlock a Documents folder.
     public func canAuthorize(url: URL) -> Bool {
         let path = Self.normalize(url.resolvingSymlinksInPath().path)
+        let components = path.split(separator: "/")
+
+        // An explicit allowlist: a grant is either one concrete volume or a
+        // folder inside the user's own home. Nothing else is authorisable, which
+        // is what keeps `/`, `/Library` and `/private/var` out of reach.
+        if Self.isPrefix("/Volumes", path) {
+            // `/Volumes` itself is the container of every disk, not a grant.
+            return path != "/Volumes" && components.count >= 2
+        }
+        guard Self.isPrefix(homeDirectory, path), path != homeDirectory else {
+            return false
+        }
+
         if Self.isPrefix("\(homeDirectory)/Documents", path)
             || Self.isPrefix("\(homeDirectory)/Desktop", path)
             || Self.isPrefix("\(homeDirectory)/Movies", path)
@@ -262,13 +281,9 @@ public struct RuleEngine: Sendable {
         if path.hasSuffix(".photoslibrary") || path.contains(".photoslibrary/") {
             return false
         }
-        // `/System` and its siblings are not merely unauthorised, they are
-        // outside what the product may ever touch.
-        for prefix in ["/System", "/bin", "/sbin", "/usr", "/etc", "/private/etc"] {
-            if Self.isPrefix(prefix, path) { return false }
-        }
         return true
     }
+
 
     /// True when the path is safe to scan and clean.
     public func isAllowed(_ path: String) -> Bool {

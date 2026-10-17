@@ -69,6 +69,21 @@ public final class AuthorizedScope: @unchecked Sendable {
     }
 }
 
+/// The outcome of reopening one stored bookmark.
+public struct RestoredLocation: Sendable {
+    public let id: UUID
+    public let url: URL
+    /// A replacement bookmark when the stored one had gone stale, so the caller
+    /// can persist it instead of repeating the repair on every launch.
+    public let refreshedBookmark: Data?
+
+    public init(id: UUID, url: URL, refreshedBookmark: Data?) {
+        self.id = id
+        self.url = url
+        self.refreshedBookmark = refreshedBookmark
+    }
+}
+
 /// Persists and reopens security-scoped bookmarks.
 ///
 /// The App Sandbox build can only touch folders the user picked, and the direct
@@ -129,8 +144,8 @@ public actor AuthorizationService {
     /// the scope: a moved or unmounted volume must not widen or narrow the scan
     /// silently, and the settings page reports what is no longer available.
     @discardableResult
-    public func restore(_ locations: [AuthorizedLocation]) -> [URL] {
-        var restored: [URL] = []
+    public func restore(_ locations: [AuthorizedLocation]) -> [RestoredLocation] {
+        var restored: [RestoredLocation] = []
         for location in locations {
             var isStale = false
             guard let url = try? URL(
@@ -142,13 +157,27 @@ public actor AuthorizationService {
                 logger.notice("A stored bookmark no longer resolves and was dropped")
                 continue
             }
+
+            var refreshed: Data?
             if isStale {
-                logger.notice("A stored bookmark is stale; the access is kept for this launch")
+                // A stale bookmark still resolves, but it must be replaced or the
+                // next launch repeats the repair and it eventually stops working.
+                refreshed = try? url.bookmarkData(
+                    options: [.withSecurityScope],
+                    includingResourceValuesForKeys: nil,
+                    relativeTo: nil
+                )
+                logger.notice(
+                    "A stored bookmark was stale and \(refreshed == nil ? "could not be refreshed" : "was refreshed", privacy: .public)"
+                )
             }
-            restored.append(url)
+
             startAccess(for: url)
+            restored.append(
+                RestoredLocation(id: location.id, url: url, refreshedBookmark: refreshed)
+            )
         }
-        scope.replace(with: restored)
+        scope.replace(with: restored.map(\.url))
         return restored
     }
 

@@ -30,6 +30,15 @@ public struct FileCleanupView: View {
             }
         }
 
+        /// The name recorded in the report and the history.
+        var operationName: CleanupOperationName {
+            switch self {
+            case .large: .largeFiles
+            case .old: .oldFiles
+            case .duplicates: .duplicateFiles
+            }
+        }
+
         /// The categories this mode shows.
         var categories: [CleanupCategory] {
             switch self {
@@ -87,6 +96,7 @@ public struct FileCleanupView: View {
                     SelectionBar(
                         cleanup: environment.cleanup,
                         environment: environment,
+                        operation: mode.operationName,
                         onRequestPurchase: onRequestPurchase
                     )
                     ScanResultsView(scan: environment.scan, cleanup: environment.cleanup)

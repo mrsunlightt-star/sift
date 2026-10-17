@@ -116,6 +116,7 @@ public struct CleanupOutcome: Identifiable, Sendable {
 /// Which operation produced an outcome, used by the report's title and by the
 /// history list.
 public enum CleanupOperationName: String, Codable, Sendable, CaseIterable {
+    case smartScan
     case junkCleanup
     case uninstall
     case largeFiles
@@ -124,6 +125,7 @@ public enum CleanupOperationName: String, Codable, Sendable, CaseIterable {
 
     public var titleKey: LocalizationKey {
         switch self {
+        case .smartScan: .navSmartScan
         case .junkCleanup: .navJunkCleanup
         case .uninstall: .navUninstaller
         case .largeFiles: .filesModeLarge

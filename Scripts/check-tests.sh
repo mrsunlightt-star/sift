@@ -21,7 +21,7 @@ MODULE_DIR="${REPO_ROOT}/.build/check-tests"
 mkdir -p "${MODULE_DIR}"
 
 echo "==> Building the package so the module interfaces exist"
-swift build --target Core --target Shared >/dev/null
+swift build >/dev/null
 
 BIN_PATH="$(swift build --show-bin-path)"
 SDK_PATH="$(xcrun --show-sdk-path)"

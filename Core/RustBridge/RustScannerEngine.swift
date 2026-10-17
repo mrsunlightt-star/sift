@@ -99,6 +99,9 @@ actor RustScannerEngine: ScannerEngine {
             "topFileLimit": ScanDefaults.topFileLimit,
             "topDirectoryLimit": ScanDefaults.topDirectoryLimit,
             "largeFileThresholdBytes": ScanDefaults.largeFileThresholdBytes,
+            // The roots were chosen by the user, so they carry the same grant the
+            // scan does; without it an authorised volume would be skipped.
+            "authorizedRoots": roots.map(\.url.path),
         ]
         guard let json = try? JSONSerialization.data(withJSONObject: payload),
               let text = String(data: json, encoding: .utf8) else {

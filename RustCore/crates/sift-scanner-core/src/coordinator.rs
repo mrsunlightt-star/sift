@@ -475,8 +475,12 @@ fn run_scan(handle: &Arc<ScanHandle>, request: &ScanRequest) {
             })
             .collect();
         if !roots.is_empty() {
-            let mut finder =
-                scanners::DuplicateFinder::new(request.duplicates.clone(), home.clone(), cancel);
+            let mut finder = scanners::DuplicateFinder::new(
+                request.duplicates.clone(),
+                home.clone(),
+                request.authorized_roots.iter().map(PathBuf::from).collect(),
+                cancel,
+            );
             let handle_for_groups = Arc::clone(handle);
             let mut group_index = 0i64;
             duplicate_report = finder.run(&roots, &mut |group| {

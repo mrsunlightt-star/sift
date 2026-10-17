@@ -47,6 +47,7 @@ public struct SmartScanView: View {
                     SelectionBar(
                         cleanup: environment.cleanup,
                         environment: environment,
+                        operation: .smartScan,
                         onRequestPurchase: onRequestPurchase
                     )
                     ScanResultsView(scan: environment.scan, cleanup: environment.cleanup)

@@ -165,7 +165,10 @@ public final class CleanupModel: ObservableObject {
     /// The preference is passed in rather than read here so the model stays free
     /// of the settings store; the caller is the view that knows the user's
     /// choice.
-    public func prepareCleanup(requiresConfirmation: Bool = true) async {
+    public func prepareCleanup(
+        requiresConfirmation: Bool = true,
+        operation: CleanupOperationName = .junkCleanup
+    ) async {
         failure = nil
         guard !selectedItems.isEmpty else { return }
         let candidates = selectedItems.map(FileOperationService.Candidate.init(item:))
@@ -188,7 +191,7 @@ public final class CleanupModel: ObservableObject {
         } else {
             // The user opted out. Everything still goes to the Trash, and the
             // result page still appears, but the list is not shown first.
-            await confirmCleanup()
+            await confirmCleanup(operation: operation)
         }
     }
 

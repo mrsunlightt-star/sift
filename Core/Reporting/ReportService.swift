@@ -160,7 +160,10 @@ public struct PDFPageRenderer {
 
         cursor.section(LocalizationKey.reportScope.localized)
         cursor.body(
-            LocalizationKey.reportScopeDetail.localized(report.scannedFileCount, report.scannedFileCount)
+            LocalizationKey.reportScopeDetail.localized(
+                report.scannedLocationCount,
+                report.scannedFileCount
+            )
         )
 
         cursor.section(LocalizationKey.reportCategories.localized)

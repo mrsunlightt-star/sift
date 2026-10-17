@@ -10,7 +10,7 @@
 
 use crate::walker::{self, DEFAULT_SKIP_DIRECTORY_NAMES};
 use sift_hasher::CancelToken;
-use sift_rules::is_protected_path;
+use sift_rules::is_protected_path_authorized;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -253,6 +253,8 @@ fn filesystem_usage(path: &Path) -> Option<(u64, u64, bool)> {
 #[derive(Debug, Clone)]
 pub struct AnalysisOptions {
     pub home_dir: PathBuf,
+    /// Roots the user authorised; protection checks consult them.
+    pub authorized_roots: Vec<PathBuf>,
     pub roots: Vec<PathBuf>,
     pub ignore_paths: Vec<PathBuf>,
     pub top_file_limit: u32,
@@ -264,6 +266,7 @@ impl AnalysisOptions {
     pub fn new(home_dir: PathBuf, roots: Vec<PathBuf>) -> Self {
         Self {
             home_dir,
+            authorized_roots: Vec::new(),
             roots,
             ignore_paths: Vec::new(),
             top_file_limit: DEFAULT_TOP_FILE_LIMIT,
@@ -368,9 +371,10 @@ impl Accumulator {
             if directory == root {
                 break;
             }
-            if is_protected_path(
+            if is_protected_path_authorized(
                 &self.options.home_dir.to_string_lossy(),
                 &directory.to_string_lossy(),
+                &self.options.authorized_roots,
             ) {
                 break;
             }
@@ -476,7 +480,11 @@ pub fn analyse(options: &AnalysisOptions, cancel: &CancelToken) -> StorageAnalys
             {
                 continue;
             }
-            if is_protected_path(&options.home_dir.to_string_lossy(), &path.to_string_lossy()) {
+            if is_protected_path_authorized(
+                &options.home_dir.to_string_lossy(),
+                &path.to_string_lossy(),
+                &options.authorized_roots,
+            ) {
                 accumulator.skipped += 1;
                 continue;
             }
@@ -497,7 +505,7 @@ pub fn analyse(options: &AnalysisOptions, cancel: &CancelToken) -> StorageAnalys
                 }
                 if walker::is_package_directory_export(&name, &[]) {
                     // A bundle is one item: its contents are summed, not listed.
-                    let (bytes, files) = measure_bundle(&path, cancel);
+                    let (bytes, files) = measure_bundle(&path, cancel, &options.authorized_roots);
                     accumulator.visit_file(&path, bytes, modified_secs_of(&metadata));
                     accumulator.scanned_files += files.saturating_sub(1);
                     continue;
@@ -519,11 +527,12 @@ pub fn analyse(options: &AnalysisOptions, cancel: &CancelToken) -> StorageAnalys
     accumulator.finish()
 }
 
-fn measure_bundle(path: &Path, cancel: &CancelToken) -> (u64, u64) {
-    let options = walker::WalkOptions::new(
+fn measure_bundle(path: &Path, cancel: &CancelToken, authorized_roots: &[PathBuf]) -> (u64, u64) {
+    let mut options = walker::WalkOptions::new(
         path.parent().unwrap_or(Path::new("/")).to_path_buf(),
         walker::WalkMode::Files,
     );
+    options.authorized_roots = authorized_roots.to_vec();
     let report = walker::walk(path, &options, cancel);
     (report.total_bytes, report.total_files)
 }

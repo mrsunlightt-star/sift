@@ -47,6 +47,9 @@ public final class AppEnvironment: ObservableObject {
     @Published public private(set) var authorizedLocations: [AuthorizedLocation] = []
     /// Resolved URLs for this launch, empty when no bookmark was stored.
     private var restoredAuthorizedURLs: [URL] = []
+    /// The identifiers that resolved at launch, so availability is a fact rather
+    /// than an inference from counts.
+    private var resolvedAuthorizedIDs: Set<UUID> = []
     /// Message shown above the result page after an export attempt.
     @Published public private(set) var reportExportMessage: String?
 
@@ -103,7 +106,7 @@ public final class AppEnvironment: ObservableObject {
         // Reopen the user's grants before anything can scan. A bookmark that no
         // longer resolves is dropped, and the settings page shows the remainder.
         authorizedLocations = preferences.authorizedLocations
-        restoredAuthorizedURLs = await authorization.restore(preferences.authorizedLocations)
+        await applyRestored(await authorization.restore(preferences.authorizedLocations))
 
         entitlement = await entitlements.current()
         await entitlements.refresh()
@@ -198,6 +201,7 @@ public final class AppEnvironment: ObservableObject {
         authorizedLocations = preferences.authorizedLocations
         if !restoredAuthorizedURLs.contains(where: { $0.path == url.path }) {
             restoredAuthorizedURLs.append(url)
+            resolvedAuthorizedIDs.insert(location.id)
         }
         return location
     }
@@ -212,7 +216,7 @@ public final class AppEnvironment: ObservableObject {
         // Release every open access before reopening the remainder: otherwise the
         // removed location's security scope stays open for the process lifetime.
         await authorization.releaseAll()
-        restoredAuthorizedURLs = await authorization.restore(preferences.authorizedLocations)
+        await applyRestored(await authorization.restore(preferences.authorizedLocations))
     }
 
     /// Where the duplicate scan looks by default (§5.5).
@@ -229,10 +233,37 @@ public final class AppEnvironment: ObservableObject {
         return roots
     }
 
-    /// True when a stored bookmark resolved at launch.
+    /// True when this stored bookmark resolved at launch.
     public func isAvailable(_ location: AuthorizedLocation) -> Bool {
-        restoredAuthorizedURLs.contains { $0.path.hasSuffix(location.displayName) }
-            || restoredAuthorizedURLs.count == authorizedLocations.count
+        resolvedAuthorizedIDs.contains(location.id)
+    }
+
+    /// Records which bookmarks resolved and persists any that were refreshed.
+    private func applyRestored(_ restored: [RestoredLocation]) async {
+        restoredAuthorizedURLs = restored.map(\.url)
+        resolvedAuthorizedIDs = Set(restored.map(\.id))
+
+        var locations = await settings.current().authorizedLocations
+        var changed = false
+        for entry in restored {
+            guard let refreshed = entry.refreshedBookmark,
+                  let index = locations.firstIndex(where: { $0.id == entry.id }) else { continue }
+            let existing = locations[index]
+            locations[index] = AuthorizedLocation(
+                id: existing.id,
+                bookmark: refreshed,
+                displayName: existing.displayName,
+                isVolume: existing.isVolume,
+                addedAt: existing.addedAt
+            )
+            changed = true
+        }
+        if changed {
+            let updated = locations
+            await settings.update { $0.authorizedLocations = updated }
+            preferences = await settings.current()
+            authorizedLocations = preferences.authorizedLocations
+        }
     }
 
     /// True when the user may perform a destructive action.

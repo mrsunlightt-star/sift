@@ -140,6 +140,11 @@ final class SelectionTests: XCTestCase {
                 if await session.isFinished() { break }
                 try? await Task.sleep(nanoseconds: 30_000_000)
             }
+            // `isFinished` can flip between the last poll and the final batch, so
+            // one more drain is required.
+            for event in await session.pollEvents(maxEvents: 256) {
+                if case let .itemsFound(batch) = event { items.append(contentsOf: batch) }
+            }
             return items
         }
 

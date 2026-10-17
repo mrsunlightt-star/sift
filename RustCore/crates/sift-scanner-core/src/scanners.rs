@@ -129,6 +129,16 @@ pub fn resolve_root(anchor: RootAnchor, relative_path: &str, home: &Path) -> Pat
     }
 }
 
+/// The grants a scan may use, as paths.
+fn authorized_paths(context: &ScanContext<'_>) -> Vec<PathBuf> {
+    context
+        .request
+        .authorized_roots
+        .iter()
+        .map(PathBuf::from)
+        .collect()
+}
+
 /// Measured size of a directory tree, without producing per-file entries.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct Measured {
@@ -315,6 +325,7 @@ fn child_directory_candidates(
 ) -> (Vec<Candidate>, WalkReport) {
     let mut options = WalkOptions::new(context.home_dir.clone(), WalkMode::ImmediateChildren);
     options.max_depth = Some(1);
+    options.authorized_roots = authorized_paths(context);
     options.skip_directory_names = walker::DEFAULT_SKIP_DIRECTORY_NAMES
         .iter()
         .map(|s| (*s).to_string())
@@ -431,6 +442,7 @@ fn file_candidates(
     cancel: &CancelToken,
 ) -> (Vec<Candidate>, WalkReport) {
     let mut options = WalkOptions::new(context.home_dir.clone(), WalkMode::Files);
+    options.authorized_roots = authorized_paths(context);
     options.skip_directory_names = walker::DEFAULT_SKIP_DIRECTORY_NAMES
         .iter()
         .map(|s| (*s).to_string())
@@ -696,6 +708,7 @@ fn file_threshold_scan(
 
     for root in roots {
         let mut options = WalkOptions::new(context.home_dir.clone(), WalkMode::Files);
+        options.authorized_roots = authorized_paths(context);
         options.skip_directory_names = walker::DEFAULT_SKIP_DIRECTORY_NAMES
             .iter()
             .map(|s| (*s).to_string())
@@ -830,8 +843,9 @@ pub fn scan_application_residue(
         if !directory.is_dir() {
             continue;
         }
-        let options = WalkOptions::new(context.home_dir.clone(), WalkMode::ImmediateChildren)
+        let mut options = WalkOptions::new(context.home_dir.clone(), WalkMode::ImmediateChildren)
             .with_max_depth(1);
+        options.authorized_roots = authorized_paths(context);
         let report = walker::walk(&directory, &options, cancel);
         combined.skips.extend(report.skips.iter().cloned());
 
@@ -899,8 +913,9 @@ pub fn scan_application_residue(
     // bundle identifier after the team prefix belongs to an app that is gone.
     let group_containers = context.home_dir.join("Library/Group Containers");
     if group_containers.is_dir() {
-        let options = WalkOptions::new(context.home_dir.clone(), WalkMode::ImmediateChildren)
+        let mut options = WalkOptions::new(context.home_dir.clone(), WalkMode::ImmediateChildren)
             .with_max_depth(1);
+        options.authorized_roots = authorized_paths(context);
         let report = walker::walk(&group_containers, &options, cancel);
         for entry in &report.entries {
             if !entry.is_directory {
@@ -963,7 +978,9 @@ pub fn scan_application_residue(
         if !directory.is_dir() {
             continue;
         }
-        let options = WalkOptions::new(context.home_dir.clone(), WalkMode::Files).with_max_depth(1);
+        let mut options =
+            WalkOptions::new(context.home_dir.clone(), WalkMode::Files).with_max_depth(1);
+        options.authorized_roots = authorized_paths(context);
         let report = walker::walk(&directory, &options, cancel);
         for entry in &report.entries {
             let name = entry.display_name();
@@ -1057,6 +1074,7 @@ pub struct DuplicateFinder<'a> {
     options: DuplicateOptions,
     cancel: &'a CancelToken,
     home_dir: PathBuf,
+    authorized_roots: Vec<PathBuf>,
     hashes_computed: u64,
 }
 
@@ -1080,11 +1098,17 @@ pub struct DuplicateReport {
 }
 
 impl<'a> DuplicateFinder<'a> {
-    pub fn new(options: DuplicateOptions, home_dir: PathBuf, cancel: &'a CancelToken) -> Self {
+    pub fn new(
+        options: DuplicateOptions,
+        home_dir: PathBuf,
+        authorized_roots: Vec<PathBuf>,
+        cancel: &'a CancelToken,
+    ) -> Self {
         Self {
             options,
             cancel,
             home_dir,
+            authorized_roots,
             hashes_computed: 0,
         }
     }
@@ -1109,6 +1133,7 @@ impl<'a> DuplicateFinder<'a> {
         // Stage 1: group by exact byte size.
         for root in roots {
             let mut options = WalkOptions::new(self.home_dir.clone(), WalkMode::Files);
+            options.authorized_roots = self.authorized_roots.clone();
             options.skip_directory_names = walker::DEFAULT_SKIP_DIRECTORY_NAMES
                 .iter()
                 .map(|s| (*s).to_string())
@@ -1701,7 +1726,8 @@ mod tests {
             min_size_bytes: 1,
             ..Default::default()
         };
-        let mut finder = DuplicateFinder::new(options, harness.tree.root.clone(), &cancel);
+        let mut finder =
+            DuplicateFinder::new(options, harness.tree.root.clone(), Vec::new(), &cancel);
         let mut seen: Vec<DuplicateGroupResult> = Vec::new();
         let report = finder.run(std::slice::from_ref(&harness.tree.root), &mut |group| {
             seen.push(group.clone())
@@ -1731,7 +1757,8 @@ mod tests {
             min_size_bytes: 1,
             ..Default::default()
         };
-        let mut finder = DuplicateFinder::new(options, harness.tree.root.clone(), &cancel);
+        let mut finder =
+            DuplicateFinder::new(options, harness.tree.root.clone(), Vec::new(), &cancel);
         let report = finder.run(std::slice::from_ref(&harness.tree.root), &mut |_| {});
 
         let group = &report.groups[0];
@@ -1752,7 +1779,8 @@ mod tests {
             min_size_bytes: 1,
             ..Default::default()
         };
-        let mut finder = DuplicateFinder::new(options, harness.tree.root.clone(), &cancel);
+        let mut finder =
+            DuplicateFinder::new(options, harness.tree.root.clone(), Vec::new(), &cancel);
         let report = finder.run(std::slice::from_ref(&harness.tree.root), &mut |_| {});
         assert!(
             report.groups.is_empty(),
@@ -1770,8 +1798,12 @@ mod tests {
         }
         let cancel = CancelToken::new();
         cancel.cancel();
-        let mut finder =
-            DuplicateFinder::new(Default::default(), harness.tree.root.clone(), &cancel);
+        let mut finder = DuplicateFinder::new(
+            Default::default(),
+            harness.tree.root.clone(),
+            Vec::new(),
+            &cancel,
+        );
         let report = finder.run(std::slice::from_ref(&harness.tree.root), &mut |_| {});
         assert!(report.cancelled);
     }

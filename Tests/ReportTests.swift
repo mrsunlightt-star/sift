@@ -1,4 +1,5 @@
 import Foundation
+import PDFKit
 import XCTest
 @testable import Core
 import Shared
@@ -74,6 +75,26 @@ final class ReportTests: XCTestCase {
         let pdf = await service.renderPDF(makeReport(entries: 200), title: "Cleanup report")
         XCTAssertGreaterThan(pdf.count, 1000)
         XCTAssertEqual(pdf.prefix(5), Data("%PDF-".utf8))
+    }
+
+    func test_pdfStatesTheScanScopeAndFileCountSeparately() async {
+        let service = ReportService(supportDirectory: fixture.url)
+        let report = makeReport(entries: 2)
+        XCTAssertEqual(report.scannedLocationCount, 4, "the fixture states four locations")
+        XCTAssertEqual(report.scannedFileCount, 120, "the fixture states 120 files")
+        let pdf = await service.renderPDF(report, title: "Scope")
+        let text = PDFDocument(data: pdf)?.string ?? ""
+        // The scope line used to be given the file count twice, so the PDF
+        // reported "42 locations, 42 files" for every cleanup.
+        let expected = LocalizationKey.reportScopeDetail.localized(
+            report.scannedLocationCount,
+            report.scannedFileCount
+        )
+        XCTAssertFalse(text.isEmpty, "the PDF carries extractable text")
+        XCTAssertTrue(
+            text.contains(expected),
+            "the PDF states \"\(expected)\" (count=\(text.count), extracted: \(text.prefix(600)))"
+        )
     }
 
     func test_pdfRendersWithNoEntries() async {

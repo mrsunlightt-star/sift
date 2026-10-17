@@ -1102,6 +1102,36 @@ final class Harness: @unchecked Sendable {
             )
             check(!rules.canAuthorize(url: home.appendingPathComponent("Documents")), "Documents cannot be authorised")
             check(rules.canAuthorize(url: URL(fileURLWithPath: "/Volumes/External")), "a volume can be authorised")
+
+            // An allowlist: a grant is a concrete folder or volume, never a
+            // system tree or the volume container.
+            for broad in ["/", "/Volumes", "/Library", "/private/var", "/Library/Extensions", "/System"] {
+                check(
+                    !rules.canAuthorize(url: URL(fileURLWithPath: broad)),
+                    "\(broad) cannot be authorised"
+                )
+            }
+            check(rules.canAuthorize(url: URL(fileURLWithPath: "/Users/example/Library/Caches")),
+                  "an ordinary cache folder can be authorised")
+
+            // Even a grant that somehow covers a system prefix must not open it.
+            let broadScope = AuthorizedScope(roots: [URL(fileURLWithPath: "/")])
+            let broadRules = RuleEngine(
+                rules: RuleEngine.builtInRules,
+                homeDirectory: home,
+                authorized: broadScope
+            )
+            for target in [
+                "/Library/Extensions/foo.kext",
+                "/Library/LaunchDaemons/com.example.plist",
+                "/private/var/db/secret",
+                "/private/var/vm/swapfile",
+            ] {
+                check(
+                    broadRules.protectionReason(for: target) != nil,
+                    "a broad grant does not unlock \(target)"
+                )
+            }
         }
     }
 

@@ -64,7 +64,10 @@ These are product promises, not implementation details. Each has tests behind it
 9. **A measure-only scan root produces no cleanup candidates**, in both engines.
 10. **Mount points are never scanned without an explicit grant.** Only locations
     the user added are included, and a grant never unlocks user content, keychains
-    or a photo library.
+    or a photo library. Authorisation is an allowlist — one volume under
+    `/Volumes`, or a folder inside home — and it lifts only the `/Volumes` blanket
+    prefix. System prefixes (`/Library`, `/private/var`, `/System`, ...) stay
+    protected even when a path appears to be authorised.
 11. **Path comparisons normalise `.`, `..` and the macOS symlink aliases**
     (`/var`, `/tmp`, `/etc`) before matching.
 
