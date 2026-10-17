@@ -10,6 +10,22 @@ repository asked for a single-branch workflow: commit, then push to `main`.
 Commit messages describe the change and, when relevant, the reason. No
 co-authored or tool attribution lines.
 
+## The build machine
+
+**macOS is not upgraded.** The owner's standing rule: this machine stays on
+macOS 15, and no tool, update or "fix" may upgrade it. A task that appears to
+need a newer macOS is either solved on macOS 15 or left undone.
+
+That fixes the Xcode version: the 16.x line is the one that runs on macOS 15
+(Xcode 16.4 requires 15.3 or later, and is the last of that line). A newer Xcode
+— 26.x and later — requires macOS 26 and must not be installed here.
+
+Xcode itself is optional. The Command Line Tools that are installed provide
+`swift build` and the SDK; they do **not** provide XCTest, so `swift test` and
+`xcodebuild` fail until a full Xcode is present. `Scripts/run-tests.sh` is why the
+suite still runs, and `Scripts/verify.sh` adds the Xcode stages automatically once
+`xcodebuild -version` succeeds.
+
 ## Before changing code
 
 Run the bootstrap once per checkout:
