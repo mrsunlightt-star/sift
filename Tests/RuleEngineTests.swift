@@ -17,6 +17,107 @@ final class RuleEngineTests: XCTestCase, @unchecked Sendable {
         XCTAssertNil(engine.userRulesJSON, "an explicit rule list carries no user document")
     }
 
+    /// The fallback table and the shipped rule file are one table.
+    ///
+    /// They had drifted: the file held seven rules and the fallback those same
+    /// seven, against twelve in the Rust table the shipped scanner actually
+    /// applies — so a rule could be running that was invisible in the file a
+    /// reviewer reads. Both are generated from the Rust table now; this is the
+    /// check that keeps them the same document.
+    func test_theFallbackTableIsTheShippedRuleFile() throws {
+        let shipped = try RuleEngine.decode(try Data(contentsOf: try Self.shippedRuleFile()))
+
+        XCTAssertFalse(shipped.isEmpty, "the shipped rule file must carry the built-in rules")
+        XCTAssertEqual(
+            shipped,
+            RuleEngine.builtInRules,
+            "run Scripts/generate-rules.py: the fallback table and the shipped file must be one table"
+        )
+        XCTAssertEqual(
+            RuleEngine(homeDirectory: home).rules,
+            RuleEngine.builtInRules,
+            "the table the app loads from the bundle is the generated one"
+        )
+    }
+
+    /// `Core/Resources/CleaningRules.json`, found from wherever this file runs.
+    ///
+    /// The suite runs from three places — Xcode, `swift test`, and
+    /// `Scripts/run-tests.sh`, which copies the sources under `.build/test-run` —
+    /// so the path comes from walking up to the repository rather than from
+    /// counting parent directories.
+    private static func shippedRuleFile() throws -> URL {
+        var directory = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+        while directory.path != "/" {
+            let marker = directory.appendingPathComponent("RustCore/Cargo.toml")
+            if FileManager.default.fileExists(atPath: marker.path) {
+                return directory.appendingPathComponent("Core/Resources/CleaningRules.json")
+            }
+            directory = directory.deletingLastPathComponent()
+        }
+        throw NSError(
+            domain: "SiftTests",
+            code: 1,
+            userInfo: [
+                NSLocalizedDescriptionKey: "the repository root is not reachable from \(#filePath)"
+            ]
+        )
+    }
+
+    /// Every shipped rule names an explanation the user can read.
+    ///
+    /// The scanner hands the UI a key rather than a sentence, and nothing used to
+    /// connect the two: the Rust core emitted `cleanup.<rule-id>.explanation` for
+    /// every rule, no such key existed in the catalog, and each item quietly fell
+    /// back to its category's generic line. An explanation is rendered with no
+    /// arguments, so a key carrying a placeholder reaches that same outcome from
+    /// the other side — the user reads `%d`.
+    func test_everyShippedRuleExplanationResolves() throws {
+        for rule in RuleEngine.builtInRules {
+            let key = try XCTUnwrap(
+                LocalizationKey(rawValue: rule.explanationKey),
+                "rule `\(rule.id)` names an explanation the catalog does not carry: \(rule.explanationKey)"
+            )
+            XCTAssertNotEqual(
+                key.localized,
+                rule.explanationKey,
+                "rule `\(rule.id)` has no translation for \(rule.explanationKey)"
+            )
+            XCTAssertFalse(
+                key.localized.contains("%"),
+                "an explanation is rendered with no arguments, so no rule may carry a placeholder: \(key.localized)"
+            )
+        }
+    }
+
+    /// No shipped rule offers a container of every application's data.
+    ///
+    /// A rule matches a name shape or an age and cannot know whether an
+    /// application is installed, so the two locations that hold one directory per
+    /// application are refused here: `Directory` made one cleanup item out of the
+    /// whole store, and `ChildDirectories` offered each application's live data as
+    /// junk. Residue is decided by the scanner, which compares names against the
+    /// installed bundle identifiers.
+    func test_noShippedRuleOffersAContainerOrClaimsResidue() {
+        for rule in RuleEngine.builtInRules {
+            XCTAssertNotEqual(
+                rule.relativePath,
+                "Containers",
+                "rule `\(rule.id)` targets every sandboxed application's container"
+            )
+            XCTAssertNotEqual(
+                rule.relativePath,
+                "Group Containers",
+                "rule `\(rule.id)` targets the containers applications share"
+            )
+            XCTAssertNotEqual(
+                rule.category,
+                .applicationResidue,
+                "rule `\(rule.id)` claims residue; only the scanner may, because only it knows what is installed"
+            )
+        }
+    }
+
     /// The document the Rust core is handed.
     ///
     /// The scanner core discovers candidates and cannot see this engine's rule

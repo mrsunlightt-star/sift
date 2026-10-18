@@ -400,6 +400,16 @@ struct RelatedFileRow: View {
                     .foregroundStyle(.tertiary)
                     .lineLimit(1)
                     .truncationMode(.middle)
+                // The match is shown where the user has to judge it. A confirmed
+                // file is one macOS names after the application itself, so the
+                // sentence would read the same on every row of that list; a file
+                // needing review is the case §5.3 asks the reason for.
+                if file.confidence == .needsReview {
+                    Text(file.reason.titleKey.localized)
+                        .font(SiftFont.caption)
+                        .foregroundStyle(SiftColor.review)
+                        .lineLimit(2)
+                }
             }
             Spacer(minLength: SiftMetrics.spacingS)
             Text(file.formattedSize)

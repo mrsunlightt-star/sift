@@ -14,11 +14,13 @@ Usage:
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CATALOG = REPO_ROOT / "Shared" / "Localization" / "Localizable.xcstrings"
+KEYS = REPO_ROOT / "Shared" / "Localization" / "LocalizationKey.swift"
 
 # Source language. English is the fallback for every missing translation.
 SOURCE = "en"
@@ -233,6 +235,30 @@ STRINGS: dict[str, list[str]] = {
         "Journaux de plus de %d jours. Sans effet sur le fonctionnement des apps.",
         "Protokolldateien älter als %d Tage. Sie beeinflussen Apps nicht.",
     ],
+    # The `…Item` keys are what an individual cleanup item carries. The scanner
+    # hands one key per item and the row renders it with no arguments, so these
+    # sentences hold no `%d`/`%@`: the parameterised sentences above belong to the
+    # category line, which the page formats with the number it knows.
+    "cleanup.explanation.logsItem": [
+        "Stale log files. Removing them does not change how apps run.",
+        "过期日志文件。删除它们不会影响应用运行。",
+        "오래된 로그 파일입니다. 삭제해도 앱 실행에는 영향이 없습니다.",
+        "Устаревшие файлы журналов. Их удаление не влияет на работу приложений.",
+        "Archivos de registro obsoletos. Eliminarlos no afecta al funcionamiento de las apps.",
+        "古いログファイルです。削除してもアプリの動作には影響しません。",
+        "Journaux obsolètes. Les supprimer ne change rien au fonctionnement des apps.",
+        "Veraltete Protokolldateien. Ihr Entfernen ändert nichts an der Arbeitsweise der Apps.",
+    ],
+    "cleanup.explanation.systemLogsItem": [
+        "Stale system log files. Reading some of them needs Full Disk Access.",
+        "过期的系统日志文件。读取其中一部分需要“完全磁盘访问权限”。",
+        "오래된 시스템 로그 파일입니다. 일부를 읽으려면 전체 디스크 접근 권한이 필요합니다.",
+        "Устаревшие системные журналы. Для чтения некоторых нужен полный доступ к диску.",
+        "Archivos de registro del sistema obsoletos. Leer algunos requiere acceso total al disco.",
+        "古いシステムログファイルです。一部の読み取りにはフルディスクアクセスが必要です。",
+        "Journaux système obsolètes. En lire certains nécessite un accès complet au disque.",
+        "Veraltete Systemprotokolle. Zum Lesen einiger ist Vollzugriff auf die Festplatte nötig.",
+    ],
     "cleanup.explanation.installers": [
         "Installers you already used. You may still need them, so confirm first.",
         "已经使用过的安装包。你可能仍需要它们，请先确认。",
@@ -263,6 +289,16 @@ STRINGS: dict[str, list[str]] = {
         "Fichiers de plus de %@. Sift ne devine pas : c’est vous qui décidez.",
         "Dateien größer als %@. Sift rät nicht – Sie entscheiden.",
     ],
+    "cleanup.explanation.largeFilesItem": [
+        "A large file. Sift never guesses: you decide which to remove.",
+        "大文件。Sift 不做猜测，由你决定删除哪些。",
+        "큰 파일입니다. 지울지는 사용자가 결정합니다.",
+        "Большой файл. Sift не угадывает: решение за вами.",
+        "Un archivo grande. Sift no adivina: tú decides cuáles eliminar.",
+        "大きなファイルです。削除するかどうかはご自身で決められます。",
+        "Un fichier volumineux. Sift ne devine pas : c’est vous qui décidez.",
+        "Eine große Datei. Sift rät nicht – Sie entscheiden.",
+    ],
     "cleanup.explanation.oldFiles": [
         "Not modified for %d days and larger than 10 MB.",
         "%d 天未修改且大于 10 MB。",
@@ -272,6 +308,16 @@ STRINGS: dict[str, list[str]] = {
         "%d 日以上変更がなく、10 MB を超えるファイルです。",
         "Non modifiés depuis %d jours et de plus de 10 Mo.",
         "Seit %d Tagen unverändert und größer als 10 MB.",
+    ],
+    "cleanup.explanation.oldFilesItem": [
+        "Not modified for a long time, and larger than 10 MB.",
+        "长期未修改且大于 10 MB。",
+        "오랫동안 수정되지 않았고 10MB 이상입니다.",
+        "Давно не изменялись и больше 10 МБ.",
+        "Sin cambios durante mucho tiempo y mayores de 10 MB.",
+        "長期間変更がなく、10 MB を超えるファイルです。",
+        "Non modifiés depuis longtemps et de plus de 10 Mo.",
+        "Seit langem unverändert und größer als 10 MB.",
     ],
     "cleanup.explanation.duplicates": [
         "Identical content. Keep one copy and remove the rest.",
@@ -302,6 +348,16 @@ STRINGS: dict[str, list[str]] = {
         "対応するアプリがない環境設定ファイルです。",
         "Fichier de préférences sans app installée correspondante.",
         "Einstellungsdatei ohne passende installierte App.",
+    ],
+    "cleanup.explanation.residueWebStorage": [
+        "Web storage for an app that is no longer installed.",
+        "已卸载应用的网页存储数据。",
+        "더 이상 설치되지 않은 앱의 웹 저장 데이터입니다.",
+        "Веб-хранилище приложения, которое больше не установлено.",
+        "Almacenamiento web de una app que ya no está instalada.",
+        "アンインストール済みアプリの Web ストレージです。",
+        "Stockage web d’une app qui n’est plus installée.",
+        "Web-Speicher einer nicht mehr installierten App.",
     ],
     "cleanup.explanation.residueGroupContainer": [
         "Shared container of an app that is no longer installed.",
@@ -469,6 +525,48 @@ STRINGS: dict[str, list[str]] = {
     "uninstall.relatedFiles": ["Related files", "关联文件", "관련 파일", "Связанные файлы", "Archivos relacionados", "関連ファイル", "Fichiers associés", "Zugehörige Dateien"],
     "uninstall.confirmedRelated": ["Confirmed for this app", "明确关联", "확실한 관련 파일", "Точно относятся к приложению", "Confirmados para esta app", "このアプリに確実に関連", "Confirmés pour cette app", "Sicher zugehörig"],
     "uninstall.needsReview": ["Needs your confirmation", "需要手动确认", "확인 필요", "Требуют подтверждения", "Necesitan tu confirmación", "確認が必要", "À confirmer", "Prüfung erforderlich"],
+    # Why a file was matched to an application. Shown with the files that need
+    # confirming, which is where the user has to weigh the match (§5.3).
+    "uninstall.reason.bundleIdentifier": [
+        "The name is this app's bundle identifier.",
+        "名称就是该应用的 bundle identifier。",
+        "이름이 이 앱의 번들 ID입니다.",
+        "Имя совпадает с идентификатором этого приложения.",
+        "El nombre es el identificador de esta app.",
+        "名前がこのアプリの Bundle ID です。",
+        "Le nom est l’identifiant de cette app.",
+        "Der Name ist die Bundle-ID dieser App.",
+    ],
+    "uninstall.reason.identifierPrefix": [
+        "The name starts with this app's bundle identifier.",
+        "名称以该应用的 bundle identifier 开头。",
+        "이름이 이 앱의 번들 ID로 시작합니다.",
+        "Имя начинается с идентификатора этого приложения.",
+        "El nombre empieza por el identificador de esta app.",
+        "名前がこのアプリの Bundle ID で始まります。",
+        "Le nom commence par l’identifiant de cette app.",
+        "Der Name beginnt mit der Bundle-ID dieser App.",
+    ],
+    "uninstall.reason.applicationName": [
+        "The name is exactly the application name, in a folder macOS keeps per app.",
+        "名称与应用名完全一致，且位于 macOS 按应用存放数据的目录。",
+        "이름이 앱 이름과 정확히 일치하며, macOS가 앱별로 사용하는 폴더입니다.",
+        "Имя точно совпадает с приложением, и папка предназначена для данных приложений.",
+        "El nombre coincide exactamente y la carpeta es la que macOS usa por app.",
+        "名前がアプリ名と完全に一致し、macOS がアプリごとに使うフォルダーです。",
+        "Le nom correspond exactement, dans un dossier que macOS réserve aux apps.",
+        "Der Name stimmt genau überein, in einem Ordner, den macOS je App verwendet.",
+    ],
+    "uninstall.reason.identifierSuffix": [
+        "The name matches the last part of this app's bundle identifier.",
+        "名称与该应用 bundle identifier 的最后一段一致。",
+        "이름이 이 앱 번들 ID의 마지막 부분과 일치합니다.",
+        "Имя совпадает с последней частью идентификатора этого приложения.",
+        "El nombre coincide con la última parte del identificador de esta app.",
+        "名前がこのアプリの Bundle ID の最後の部分と一致します。",
+        "Le nom correspond à la dernière partie de l’identifiant de cette app.",
+        "Der Name entspricht dem letzten Teil der Bundle-ID dieser App.",
+    ],
     "uninstall.bundleId": ["Bundle ID: %@", "Bundle ID：%@", "번들 ID: %@", "Bundle ID: %@", "Bundle ID: %@", "バンドル ID: %@", "Bundle ID : %@", "Bundle-ID: %@"],
     "uninstall.version": ["Version %@", "版本 %@", "버전 %@", "Версия %@", "Versión %@", "バージョン %@", "Version %@", "Version %@"],
     "uninstall.appSize": ["App: %@", "应用：%@", "앱: %@", "Приложение: %@", "App: %@", "アプリ: %@", "App : %@", "App: %@"],
@@ -902,22 +1000,84 @@ def rendered_strings_files() -> dict[str, str]:
     return files
 
 
+def swift_case_name(key: str) -> str:
+    """`cleanup.explanation.largeFiles` -> `cleanupExplanationLargeFiles`."""
+    parts = re.split(r"[^0-9A-Za-z]+", key)
+    name = parts[0] + "".join(part[:1].upper() + part[1:] for part in parts[1:])
+    if not name or not name[0].isalpha() or not name.isidentifier():
+        raise SystemExit(f"{key!r} does not make a Swift identifier")
+    return name
+
+
+def swift_keys_source() -> str:
+    cases = "".join(
+        f'    case {swift_case_name(key)} = "{key}"\n' for key in sorted(STRINGS)
+    )
+    return (
+        "import Foundation\n"
+        "import SwiftUI\n"
+        "\n"
+        "/// Every user-visible string in the app.\n"
+        "///\n"
+        "/// Generated by `Scripts/generate-strings.py` from the same table that writes\n"
+        "/// `Localizable.xcstrings`: the raw value is the key the catalog uses, and a\n"
+        "/// key added there without a case here could never be referenced. Views never\n"
+        "/// spell a key inline, so a typo cannot reach a user as a raw identifier.\n"
+        "public enum LocalizationKey: String, Sendable, CaseIterable {\n"
+        f"{cases}"
+        "}\n"
+        "\n"
+        "extension LocalizationKey {\n"
+        "    /// The localised string, resolved against the bundled catalog.\n"
+        "    ///\n"
+        "    /// Resolution goes through `Bundle.module` rather than `LocalizedStringKey`:\n"
+        "    /// SwiftUI looks a key up in the main bundle, and the catalog ships inside the\n"
+        "    /// `Shared` resource bundle. Returning the resolved string is what keeps a\n"
+        "    /// translation from being replaced by a raw key at runtime.\n"
+        "    ///\n"
+        "    /// Missing translations fall back to English, which the catalog records as\n"
+        "    /// the source language.\n"
+        "    public var localized: String {\n"
+        '        Bundle.module.localizedString(forKey: rawValue, value: nil, table: "Localizable")\n'
+        "    }\n"
+        "\n"
+        "    /// The localised string with positional arguments substituted.\n"
+        "    public func localized(_ arguments: CVarArg...) -> String {\n"
+        "        String(format: localized, arguments: arguments)\n"
+        "    }\n"
+        "}\n"
+    )
+
+
 def main() -> int:
     catalog = build_catalog()
     rendered = json.dumps(catalog, ensure_ascii=False, indent=2, sort_keys=False) + "\n"
+    rendered_keys = swift_keys_source()
 
     if "--check" in sys.argv:
         current = CATALOG.read_text(encoding="utf-8") if CATALOG.exists() else ""
         if current != rendered:
             print("Localizable.xcstrings is out of date; run Scripts/generate-strings.py")
             return 1
-        print(f"Localizable.xcstrings is current ({len(STRINGS)} keys, {len(LANGUAGES)} languages)")
+        keys_current = KEYS.read_text(encoding="utf-8") if KEYS.exists() else ""
+        if keys_current != rendered_keys:
+            print("LocalizationKey.swift is out of date; run Scripts/generate-strings.py")
+            return 1
+        print(
+            f"Localizable.xcstrings and LocalizationKey.swift are current "
+            f"({len(STRINGS)} keys, {len(LANGUAGES)} languages)"
+        )
         return 0
 
     CATALOG.parent.mkdir(parents=True, exist_ok=True)
     with CATALOG.open("w", encoding="utf-8", newline="\n") as handle:
         handle.write(rendered)
     print(f"wrote {CATALOG.relative_to(REPO_ROOT)} ({len(STRINGS)} keys, {len(LANGUAGES)} languages)")
+
+    KEYS.parent.mkdir(parents=True, exist_ok=True)
+    with KEYS.open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write(rendered_keys)
+    print(f"wrote {KEYS.relative_to(REPO_ROOT)} ({len(STRINGS)} keys)")
 
     strings_root = CATALOG.parent / "Compiled"
     for language, content in rendered_strings_files().items():

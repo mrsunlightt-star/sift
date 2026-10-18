@@ -182,30 +182,36 @@ public struct ApplicationDiscovery: @unchecked Sendable {
     ///
     /// Returns `nil` unless the match is exact: the bundle identifier, the full
     /// `<bundle-id>.<suffix>` form macOS uses for per-app files, or the exact
-    /// application name. A prefix or substring match is never enough.
-    private func match(candidate: URL, identifier: String, appName: String) -> String? {
+    /// application name. A prefix or substring match is never enough. The reason
+    /// travels with the file so the uninstaller can show what the match was, which
+    /// is what lets the user judge the ones it is unsure about (§5.3).
+    private func match(
+        candidate: URL,
+        identifier: String,
+        appName: String
+    ) -> RelatedFile.MatchReason? {
         let name = candidate.lastPathComponent
         let stem = name.contains(".") ? String(name.split(separator: ".").first ?? "") : name
 
         if !identifier.isEmpty {
             // Exact identifier, or `<identifier>.<something>` (caches, plists).
             if name.caseInsensitiveCompare(identifier) == .orderedSame {
-                return "Matches the app's bundle identifier."
+                return .bundleIdentifier
             }
             if name.lowercased().hasPrefix(identifier.lowercased() + ".") {
-                return "Name starts with the app's bundle identifier."
+                return .identifierPrefix
             }
         }
 
         // An exact application-name match is only accepted where macOS itself
         // names per-app data, which the caller's location list already encodes.
         if name.caseInsensitiveCompare(appName) == .orderedSame {
-            return "Matches the application name exactly."
+            return .applicationName
         }
         if !identifier.isEmpty,
            stem.caseInsensitiveCompare(identifier.split(separator: ".").last.map(String.init) ?? identifier)
             == .orderedSame {
-            return "Matches the last component of the bundle identifier."
+            return .identifierSuffix
         }
         return nil
     }

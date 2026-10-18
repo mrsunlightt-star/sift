@@ -45,7 +45,7 @@ public actor PermissionsService {
             (home.appendingPathComponent("Downloads"), .filesModeLarge, false),
             (
                 URL(fileURLWithPath: "/Library/Logs"),
-                .cleanupExplanationSystemLogs,
+                .cleanupExplanationSystemLogsItem,
                 true
             ),
         ]

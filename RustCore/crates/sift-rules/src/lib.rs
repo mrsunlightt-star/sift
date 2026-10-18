@@ -402,7 +402,26 @@ impl RuleSet {
     }
 }
 
-fn rule(id: &str, category: Category, risk: Risk, root: RootAnchor, rel: &str) -> Rule {
+/// A rule, with the localisation key of the sentence the user reads.
+///
+/// The key is a required argument rather than derived from the id. A derived key
+/// (`cleanup.<id>.explanation`) reads well and resolves to nothing: no rule id is
+/// a string the catalog knows, so every item fell back to its category's generic
+/// sentence and the per-rule explanation never reached the user. Naming the key
+/// here also makes it visible to `Scripts/check-explanation-keys.py`, which
+/// refuses a key the catalog does not carry.
+///
+/// An explanation an *item* carries is rendered with no arguments, so these keys
+/// must have no `%` placeholder; the sentences that take a number stay on the
+/// category-level keys the pages format for themselves.
+fn rule(
+    id: &str,
+    category: Category,
+    risk: Risk,
+    root: RootAnchor,
+    rel: &str,
+    explanation_key: &str,
+) -> Rule {
     Rule {
         id: id.to_string(),
         category,
@@ -416,7 +435,7 @@ fn rule(id: &str, category: Category, risk: Risk, root: RootAnchor, rel: &str) -
         uses_stale_threshold: false,
         package_extensions: Vec::new(),
         requires_full_disk_access: false,
-        explanation_key: format!("cleanup.{id}.explanation"),
+        explanation_key: explanation_key.to_string(),
         enabled: true,
     }
 }
@@ -460,6 +479,33 @@ fn with_fda(mut r: Rule) -> Rule {
 ///
 /// The list is built by pushing, one named block per category: writing it as a
 /// single literal would lose the per-category documentation.
+///
+/// This table is the only source for the shipped rule document and for the Swift
+/// fallback table: `Scripts/generate-rules.py` renders `Core/Resources/CleaningRules.json`
+/// and `Core/Rules/BuiltInRules.swift` from it, and `Scripts/verify.sh` fails when
+/// either is stale. A rule added here therefore reaches both engines, and a rule
+/// that must not be offered to the user cannot exist in only one of them.
+///
+/// Two things are deliberately **not** rules, because a rule can only match a name
+/// shape or an age and both would offer data that belongs to an installed
+/// application:
+///
+/// 1. **Residue.** `~/Library/Application Support/<bundle-id>` and its siblings are
+///    found by [`scan_application_residue`], which requires the name to be the
+///    bundle identifier of an application that is *not* installed. Rules named
+///    `app-residue-*` used to sit here as ordinary child-directory rules, so every
+///    directory under `Application Support` — including the live data of installed
+///    applications — was offered as "application residue", which is the exact
+///    guess the uninstaller's own documentation refuses to make.
+/// 2. **Containers as a whole.** Every sandboxed application keeps its state in one
+///    directory under `~/Library/Containers`, and applications that share state use
+///    one under `~/Library/Group Containers`. A rule over either directory made one
+///    cleanup item out of *every* application's data. The orphaned ones are reported
+///    by the residue scanner (application gone, container left behind); a live one
+///    belongs to the uninstaller, which shows it next to the application it came
+///    from and only when the user asked to remove that application.
+///
+/// [`scan_application_residue`]: ../../sift_scanner_core/scanners/fn.scan_application_residue.html
 #[allow(clippy::vec_init_then_push)]
 pub fn default_rules() -> Vec<Rule> {
     use Category::*;
@@ -471,7 +517,14 @@ pub fn default_rules() -> Vec<Rule> {
     // --- Application caches ------------------------------------------------
     rules.push(with_spec(
         with_excludes(
-            rule("user-cache", ApplicationCache, Safe, HomeLibrary, "Caches"),
+            rule(
+                "user-cache",
+                ApplicationCache,
+                Safe,
+                HomeLibrary,
+                "Caches",
+                "cleanup.explanation.cache",
+            ),
             // CloudKit and container caches hold state that is expensive to
             // rebuild or that belongs to a sandboxed app's data directory.
             &[
@@ -483,31 +536,18 @@ pub fn default_rules() -> Vec<Rule> {
         ),
         MatchSpec::ChildDirectories,
     ));
-    rules.push(with_spec(
-        rule(
-            "user-cache-sandboxed",
-            ApplicationCache,
-            Review,
-            HomeLibrary,
-            "Containers",
-        ),
-        MatchSpec::Directory,
-    ));
-    rules.push(with_spec(
-        rule(
-            "user-group-cache",
-            ApplicationCache,
-            Review,
-            HomeLibrary,
-            "Group Containers",
-        ),
-        MatchSpec::Directory,
-    ));
 
     // --- Logs --------------------------------------------------------------
     rules.push(following_stale_threshold(with_min_age(
         with_spec(
-            rule("user-logs", Logs, Safe, HomeLibrary, "Logs"),
+            rule(
+                "user-logs",
+                Logs,
+                Safe,
+                HomeLibrary,
+                "Logs",
+                "cleanup.explanation.logsItem",
+            ),
             MatchSpec::ChildDirectories,
         ),
         30,
@@ -520,6 +560,7 @@ pub fn default_rules() -> Vec<Rule> {
                 Review,
                 HomeLibrary,
                 "Logs/DiagnosticReports",
+                "cleanup.explanation.logsItem",
             ),
             MatchSpec::AnyFile,
         ),
@@ -527,7 +568,14 @@ pub fn default_rules() -> Vec<Rule> {
     )));
     rules.push(with_fda(following_stale_threshold(with_min_age(
         with_spec(
-            rule("system-logs", Logs, Review, SystemLibrary, "Logs"),
+            rule(
+                "system-logs",
+                Logs,
+                Review,
+                SystemLibrary,
+                "Logs",
+                "cleanup.explanation.systemLogsItem",
+            ),
             MatchSpec::ChildDirectories,
         ),
         30,
@@ -536,7 +584,14 @@ pub fn default_rules() -> Vec<Rule> {
     // --- Installers --------------------------------------------------------
     rules.push(following_stale_threshold(with_min_age(
         with_spec(
-            rule("download-installers", Installers, Review, Home, "Downloads"),
+            rule(
+                "download-installers",
+                Installers,
+                Review,
+                Home,
+                "Downloads",
+                "cleanup.explanation.installers",
+            ),
             MatchSpec::FilesByExtension {
                 extensions: vec![
                     "dmg".into(),
@@ -551,7 +606,14 @@ pub fn default_rules() -> Vec<Rule> {
     )));
     rules.push(with_min_age(
         with_spec(
-            rule("download-archives", Installers, Review, Home, "Downloads"),
+            rule(
+                "download-archives",
+                Installers,
+                Review,
+                Home,
+                "Downloads",
+                "cleanup.explanation.installers",
+            ),
             MatchSpec::FilesByExtension {
                 extensions: vec!["zip".into(), "tar".into(), "gz".into(), "tgz".into()],
             },
@@ -568,6 +630,7 @@ pub fn default_rules() -> Vec<Rule> {
                 Review,
                 HomeLibrary,
                 "Application Support",
+                "cleanup.explanation.temporary",
             ),
             MatchSpec::ChildDirectories,
         ),
@@ -580,35 +643,33 @@ pub fn default_rules() -> Vec<Rule> {
             Safe,
             HomeLibrary,
             "Saved Application State",
-        ),
-        MatchSpec::ChildDirectories,
-    ));
-
-    // --- Application residue ----------------------------------------------
-    // Populated at scan time from installed bundle identifiers, never guessed
-    // from a name match.
-    rules.push(with_spec(
-        rule(
-            "app-residue-caches",
-            ApplicationResidue,
-            Review,
-            HomeLibrary,
-            "Caches",
-        ),
-        MatchSpec::ChildDirectories,
-    ));
-    rules.push(with_spec(
-        rule(
-            "app-residue-support",
-            ApplicationResidue,
-            Review,
-            HomeLibrary,
-            "Application Support",
+            "cleanup.explanation.savedState",
         ),
         MatchSpec::ChildDirectories,
     ));
 
     rules
+}
+
+/// The built-in rule table as the document the app ships.
+///
+/// One function decides the serialisation, so the file a reviewer reads
+/// (`Core/Resources/CleaningRules.json`), the fallback table the Swift engine
+/// keeps and the JSON the FFI hands to Swift are the same document rather than
+/// three transcriptions of one table.
+///
+/// `Scripts/generate-rules.py` writes both artifacts from this; run it after
+/// changing the table, and `Scripts/verify.sh` fails when a checked-in copy is
+/// stale.
+pub fn shipped_rules_json() -> String {
+    let document = RuleSet {
+        schema_version: RULE_SCHEMA_VERSION,
+        rules: default_rules(),
+    };
+    let mut json =
+        serde_json::to_string_pretty(&document).expect("the built-in rule table serialises");
+    json.push('\n');
+    json
 }
 
 /// Normalises a path for prefix comparison: no trailing slash, no `.`/`..`
@@ -1179,34 +1240,94 @@ mod tests {
     }
 
     #[test]
-    fn the_shipped_rule_file_parses_as_an_overlay() {
-        // `Core/Resources/CleaningRules.json` is what a user copies to write
-        // their own rules and what the Swift engine reads. The Rust core receives
-        // the same document as `extraRulesJson`, so it has to parse it.
+    fn the_shipped_rule_file_is_the_built_in_table() {
+        // `Core/Resources/CleaningRules.json` is generated from `default_rules()`
+        // by `Scripts/generate-rules.py`, and it is what a user copies to write
+        // their own rules and what the Swift engine reads. Parsing it was the
+        // whole check once, which passed while the document held seven rules and
+        // the Rust table held twelve: both engines then recognised a different
+        // set, and the rules one of them applied were invisible in the file a
+        // reviewer reads.
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../../Core/Resources/CleaningRules.json");
         let json = std::fs::read_to_string(&path)
             .unwrap_or_else(|error| panic!("{} must be readable: {error}", path.display()));
 
         let set = RuleSet::from_json(&json).expect("the shipped rule file must parse in Rust");
-        assert!(!set.rules.is_empty());
+        assert_eq!(
+            set,
+            RuleSet {
+                schema_version: RULE_SCHEMA_VERSION,
+                rules: default_rules()
+            },
+            "the shipped rule file must be the built-in table; \
+             run Scripts/generate-rules.py"
+        );
+    }
 
-        let installers = set
-            .rules
-            .iter()
-            .find(|rule| rule.id == "download-installers")
-            .expect("the shipped file still has the installer rule");
-        match installers.effective_match_spec() {
-            MatchSpec::FilesByExtension { extensions } => {
-                assert!(extensions.contains(&"dmg".to_string()), "{extensions:?}");
-            }
-            other => panic!("download-installers must match by extension, got {other:?}"),
+    #[test]
+    fn no_built_in_rule_offers_a_container_of_other_applications() {
+        // Two shapes are refused here rather than left to review, because both
+        // read as one innocuous cleanup item and are not:
+        //
+        //   * a rule over `~/Library/Containers` or `~/Library/Group Containers`,
+        //     where every sandboxed application keeps its state — `Directory`
+        //     makes one item of all of it, `ChildDirectories` offers the live
+        //     data of installed applications one by one;
+        //   * a rule whose category is `ApplicationResidue`, which is decided at
+        //     scan time by comparing names against installed bundle identifiers,
+        //     not by a name shape or an age.
+        for rule in default_rules() {
+            assert!(
+                rule.relative_path != "Containers" && rule.relative_path != "Group Containers",
+                "rule `{}` targets a container of every application's data",
+                rule.id
+            );
+            assert_ne!(
+                rule.category,
+                Category::ApplicationResidue,
+                "rule `{}` claims residue; only the residue scanner may do that, \
+                 because it is the only thing that knows which applications are installed",
+                rule.id
+            );
+        }
+    }
+
+    #[test]
+    fn every_built_in_rule_names_an_explanation_without_a_placeholder() {
+        // The scanner hands the key to the UI, which renders it with no
+        // arguments. A key derived from the rule id (`cleanup.<id>.explanation`)
+        // resolves to nothing and silently fell back to the category sentence;
+        // a key carrying `%d` reaches the user with the placeholder in it, which
+        // is why the item-level sentences are separate from the ones that take a
+        // number. `Scripts/check-explanation-keys.py` holds the other half: that
+        // the catalog actually carries each key.
+        for rule in default_rules() {
+            assert!(
+                rule.explanation_key.starts_with("cleanup.explanation."),
+                "rule `{}` names `{}`, which is not a shipped explanation key",
+                rule.id,
+                rule.explanation_key
+            );
+            assert!(
+                !rule.explanation_key.contains('%'),
+                "rule `{}` names a key with a format placeholder: {}",
+                rule.id,
+                rule.explanation_key
+            );
         }
     }
 
     #[test]
     fn match_spec_defaults_follow_the_rule_shape() {
-        let root_rule = rule("x", Category::Logs, Risk::Safe, RootAnchor::HomeLibrary, "");
+        let root_rule = rule(
+            "x",
+            Category::Logs,
+            Risk::Safe,
+            RootAnchor::HomeLibrary,
+            "",
+            "cleanup.explanation.logsItem",
+        );
         assert_eq!(
             root_rule.effective_match_spec(),
             MatchSpec::ChildDirectories
@@ -1217,6 +1338,7 @@ mod tests {
             Risk::Safe,
             RootAnchor::HomeLibrary,
             "Logs",
+            "cleanup.explanation.logsItem",
         );
         assert_eq!(dir_rule.effective_match_spec(), MatchSpec::Directory);
     }
@@ -1230,6 +1352,7 @@ mod tests {
                 Risk::Safe,
                 RootAnchor::HomeLibrary,
                 "Logs",
+                "cleanup.explanation.logsItem",
             ),
             30,
         ));
@@ -1254,6 +1377,7 @@ mod tests {
                 Risk::Review,
                 RootAnchor::Home,
                 "Downloads",
+                "cleanup.explanation.installers",
             ),
             90,
         );
@@ -1266,6 +1390,7 @@ mod tests {
             Risk::Safe,
             RootAnchor::HomeLibrary,
             "Caches",
+            "cleanup.explanation.cache",
         );
         assert_eq!(ageless.effective_min_age_days(14), None);
     }

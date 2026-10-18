@@ -330,4 +330,59 @@ final class ScannerTests: XCTestCase, @unchecked Sendable {
             XCTAssertFalse(item.explanationKey.isEmpty)
         }
     }
+
+    /// A sandbox container is claimed only when its application is gone.
+    ///
+    /// `~/Library/Containers/<bundle-id>` is an application's whole data directory,
+    /// so no rule matches it: a rule knows a name shape, not whether the
+    /// application is installed. The Rust scanner refuses the same two shapes, and
+    /// this is what keeps the fallback engine from finding less than it.
+    func test_containerResidueNeedsTheApplicationToBeGone() async throws {
+        fixture.write("Library/Containers/com.gone.app/Data/blob.bin", bytes: 4096)
+        fixture.write("Library/Containers/com.installed.app/Data/blob.bin", bytes: 4096)
+
+        var request = makeRequest()
+        request.installedBundleIdentifiers = ["com.installed.app"]
+        let residue = try await runScan(request).items
+            .filter { $0.category == .applicationResidue }
+            .map(\.displayName)
+
+        XCTAssertTrue(residue.contains("com.gone.app"), "the container of a removed app is residue")
+        XCTAssertFalse(
+            residue.contains("com.installed.app"),
+            "the container of an installed app is its data, not leftover"
+        )
+    }
+
+    /// A shared container is read in both spellings macOS writes.
+    ///
+    /// `TEAMID.com.example.app` never equals an installed identifier, so accepting
+    /// it on that reading alone offers the shared container of an installed
+    /// application for removal.
+    func test_groupContainerResidueReadsBothSpellingsOfTheName() async throws {
+        fixture.write("Library/Group Containers/TEAM1.com.gone.app/blob.bin", bytes: 4096)
+        fixture.write("Library/Group Containers/TEAM2.com.installed.app/blob.bin", bytes: 4096)
+        fixture.write("Library/Group Containers/com.also-gone.app/blob.bin", bytes: 4096)
+        fixture.write("Library/Group Containers/UBF8T346G9.Office/blob.bin", bytes: 4096)
+
+        var request = makeRequest()
+        request.installedBundleIdentifiers = ["com.installed.app"]
+        let residue = try await runScan(request).items
+            .filter { $0.category == .applicationResidue }
+            .map(\.displayName)
+
+        XCTAssertTrue(residue.contains("TEAM1.com.gone.app"))
+        XCTAssertTrue(
+            residue.contains("com.also-gone.app"),
+            "a container named after the bundle id alone is residue too"
+        )
+        XCTAssertFalse(
+            residue.contains("TEAM2.com.installed.app"),
+            "the reading after the team prefix names an installed application"
+        )
+        XCTAssertFalse(
+            residue.contains("UBF8T346G9.Office"),
+            "a name in neither spelling is left alone"
+        )
+    }
 }

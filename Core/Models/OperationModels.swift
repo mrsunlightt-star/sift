@@ -466,13 +466,40 @@ public struct RelatedFile: Identifiable, Hashable, Sendable {
         case needsReview
     }
 
+    /// Why Sift believes the file belongs to the application.
+    ///
+    /// §5.3 asks for the reason a file was claimed, not the claim alone, and it is
+    /// what lets a person judge a match for themselves. A reason rather than a
+    /// sentence: the sentence is user-visible text, so it lives in the catalog
+    /// with the rest, and the matches the uninstaller accepts are a closed set.
+    public enum MatchReason: String, Sendable, Hashable, CaseIterable {
+        /// `~/Library/Caches/<bundle-id>`
+        case bundleIdentifier
+        /// `~/Library/Caches/<bundle-id>.suffix`
+        case identifierPrefix
+        /// `~/Library/Application Support/<application name>`
+        case applicationName
+        /// The last component of the bundle identifier, as macOS names some files.
+        case identifierSuffix
+
+        /// The localisation key of the sentence shown with the file.
+        public var titleKey: LocalizationKey {
+            switch self {
+            case .bundleIdentifier: .uninstallReasonBundleIdentifier
+            case .identifierPrefix: .uninstallReasonIdentifierPrefix
+            case .applicationName: .uninstallReasonApplicationName
+            case .identifierSuffix: .uninstallReasonIdentifierSuffix
+            }
+        }
+    }
+
     public let id: String
     public let url: URL
     public let sizeInBytes: Int64
     public let confidence: Confidence
-    public let reason: String
+    public let reason: MatchReason
 
-    public init(url: URL, sizeInBytes: Int64, confidence: Confidence, reason: String) {
+    public init(url: URL, sizeInBytes: Int64, confidence: Confidence, reason: MatchReason) {
         self.id = url.path
         self.url = url
         self.sizeInBytes = sizeInBytes
@@ -552,8 +579,7 @@ public struct UninstallPlan: Identifiable, Sendable {
             fileCount: 1,
             explanationKey: "cleanup.explanation.residue",
             relatedBundleID: application.bundleIdentifier,
-            sourceRuleID: "uninstall-related-file",
-            note: file.reason
+            sourceRuleID: "uninstall-related-file"
         )
     }
 }

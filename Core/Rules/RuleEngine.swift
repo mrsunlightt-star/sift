@@ -467,106 +467,13 @@ public struct RuleEngine: Sendable {
         return builtInRules
     }
 
-    /// The fallback table, identical in effect to `CleaningRules.json`.
+    /// The fallback table, used when the bundled rule file cannot be read.
     ///
-    /// Present so a packaging mistake cannot leave the app with no rules at all,
-    /// which would silently make every scan return nothing.
-    public static let builtInRules: [Rule] = [
-        Rule(
-            id: "user-cache",
-            category: .applicationCache,
-            risk: .safe,
-            root: .homeLibrary,
-            relativePath: "Caches",
-            matchSpec: .childDirectories,
-            excludes: ["CloudKit", "com.apple.bird", "com.apple.iCloud", "FamilyCircle"],
-            minAgeDays: nil,
-            requiresFullDiskAccess: false,
-            explanationKey: "cleanup.explanation.cache",
-            isEnabled: true
-        ),
-        Rule(
-            id: "user-cache-sandboxed",
-            category: .applicationCache,
-            risk: .review,
-            root: .homeLibrary,
-            relativePath: "Containers",
-            matchSpec: .directory,
-            excludes: [],
-            minAgeDays: nil,
-            requiresFullDiskAccess: false,
-            explanationKey: "cleanup.explanation.cache",
-            isEnabled: true
-        ),
-        Rule(
-            id: "user-logs",
-            category: .logs,
-            risk: .safe,
-            root: .homeLibrary,
-            relativePath: "Logs",
-            matchSpec: .childDirectories,
-            excludes: [],
-            minAgeDays: 30,
-            usesStaleThreshold: true,
-            requiresFullDiskAccess: false,
-            explanationKey: "cleanup.explanation.logs",
-            isEnabled: true
-        ),
-        Rule(
-            id: "user-saved-state",
-            category: .temporaryFiles,
-            risk: .safe,
-            root: .homeLibrary,
-            relativePath: "Saved Application State",
-            matchSpec: .childDirectories,
-            excludes: [],
-            minAgeDays: nil,
-            requiresFullDiskAccess: false,
-            explanationKey: "cleanup.explanation.savedState",
-            isEnabled: true
-        ),
-        Rule(
-            id: "download-installers",
-            category: .installers,
-            risk: .review,
-            root: .home,
-            relativePath: "Downloads",
-            matchSpec: .filesByExtension(["dmg", "pkg", "mpkg", "xip", "iso"]),
-            excludes: [],
-            minAgeDays: 30,
-            usesStaleThreshold: true,
-            requiresFullDiskAccess: false,
-            explanationKey: "cleanup.explanation.installers",
-            isEnabled: true
-        ),
-        Rule(
-            id: "download-archives",
-            category: .installers,
-            risk: .review,
-            root: .home,
-            relativePath: "Downloads",
-            matchSpec: .filesByExtension(["zip", "tar", "gz", "tgz"]),
-            excludes: [],
-            minAgeDays: 90,
-            requiresFullDiskAccess: false,
-            explanationKey: "cleanup.explanation.installers",
-            isEnabled: true
-        ),
-        Rule(
-            id: "system-logs",
-            category: .logs,
-            risk: .review,
-            root: .systemLibrary,
-            relativePath: "Logs",
-            matchSpec: .childDirectories,
-            excludes: [],
-            minAgeDays: 30,
-            usesStaleThreshold: true,
-            requiresFullDiskAccess: true,
-            explanationKey: "cleanup.explanation.systemLogs",
-            isEnabled: true
-        ),
-    ]
+    /// Generated from the Rust table by `Scripts/generate-rules.py`, so this and
+    /// the shipped file are the same rules rather than two transcriptions of one
+    /// list — the two had drifted, and the engines then recognised different sets
+    /// of files while sharing one protection list.
+    public static let builtInRules: [Rule] = BuiltInRules.table
 
     /// Decodes a rule file, rejecting unknown schema versions.
     ///

@@ -845,13 +845,13 @@ fn file_threshold_scan(
                 FileThreshold::Large { bytes } => (
                     Category::LargeFiles,
                     "large-files",
-                    "cleanup.largeFiles.explanation",
+                    "cleanup.explanation.largeFilesItem",
                     size >= bytes,
                 ),
                 FileThreshold::Old { days } => (
                     Category::OldFiles,
                     "old-files",
-                    "cleanup.oldFiles.explanation",
+                    "cleanup.explanation.oldFilesItem",
                     // Small files are excluded: cleaning thousands of 4 KB files
                     // is noise, not space recovery.
                     size >= 10 * 1024 * 1024 && older_than_days(entry.modified_secs, days),
@@ -905,10 +905,15 @@ fn file_threshold_scan(
 
 /// Application residue, discovered strictly through bundle identifiers.
 ///
-/// A directory is residue only when its name matches the bundle identifier (or
-/// exact application name) of an app that is **not** installed. Fuzzy name
-/// matching is deliberately absent: `~/Library/Application Support/Editor` must
-/// never be classified as residue because some app is called "Editor".
+/// A directory is residue only when its name matches the bundle identifier of an
+/// app that is **not** installed. Fuzzy name matching is deliberately absent:
+/// `~/Library/Application Support/Editor` must never be classified as residue
+/// because some app is called "Editor".
+///
+/// This is the only thing that decides residue. A rule in the shipped table
+/// cannot: it can match a name shape or an age, and neither knows whether the
+/// application is still installed, so a rule over `Application Support` offered
+/// the live data of installed applications as leftover (§`default_rules`).
 pub fn scan_application_residue(
     context: &mut ScanContext<'_>,
     cancel: &CancelToken,
@@ -927,7 +932,11 @@ pub fn scan_application_residue(
         .map(|id| id.to_ascii_lowercase())
         .collect();
 
-    // Where residue may live, mirroring the specification's rule list.
+    // Where residue may live, mirroring the specification's association list.
+    //
+    // `Library/Containers` is here rather than in a rule because a sandboxed
+    // application's container is its whole data directory: it may only be offered
+    // when the application it belongs to is gone.
     let residue_locations: &[(&str, Category, Risk)] = &[
         (
             "Library/Application Support",
@@ -935,6 +944,11 @@ pub fn scan_application_residue(
             Risk::Review,
         ),
         ("Library/Caches", Category::ApplicationResidue, Risk::Review),
+        (
+            "Library/Containers",
+            Category::ApplicationResidue,
+            Risk::Review,
+        ),
         ("Library/Logs", Category::ApplicationResidue, Risk::Safe),
         (
             "Library/Saved Application State",
@@ -1006,7 +1020,7 @@ pub fn scan_application_residue(
                 file_count: measured.files,
                 modified_secs: entry.modified_secs,
                 created_secs: entry.created_secs,
-                explanation_key: "cleanup.appResidue.explanation".to_string(),
+                explanation_key: "cleanup.explanation.residue".to_string(),
                 rule_id: "app-residue".to_string(),
                 bundle_id: Some(name),
                 is_directory: true,
@@ -1021,8 +1035,15 @@ pub fn scan_application_residue(
         // `~/Library/Logs/<app>` style single files are handled below.
     }
 
-    // `~/Library/Group Containers/<team-id>.<bundle-id>` is only residue when the
-    // bundle identifier after the team prefix belongs to an app that is gone.
+    // `~/Library/Group Containers/<team-id>.<bundle-id>` belongs to an
+    // application that is gone when the bundle identifier after the team prefix
+    // names no installed application.
+    //
+    // The name is accepted in either spelling, because macOS writes both: the
+    // App Store style `TEAMID.com.example.app` (the team prefix has no dots) and
+    // the name that is already a bundle identifier, `com.example.app`. What is
+    // *not* accepted is a name that is neither, so a container with a bare name
+    // is left alone.
     let group_containers = context.home_dir.join("Library/Group Containers");
     if group_containers.is_dir() {
         let mut options = WalkOptions::new(context.home_dir.clone(), WalkMode::ImmediateChildren)
@@ -1035,28 +1056,38 @@ pub fn scan_application_residue(
                 continue;
             }
             let name = entry.display_name();
-            let Some((_, bundle_suffix)) = name.split_once('.') else {
+            if is_excluded_bundle_name(&name) {
+                continue;
+            }
+            let readings = group_container_bundle_ids(&name);
+            if readings
+                .iter()
+                .any(|id| installed.iter().any(|app| app == id))
+            {
+                continue;
+            }
+            let Some(bundle_id) = readings
+                .into_iter()
+                .find(|id| looks_like_bundle_identifier(id))
+            else {
+                // A name in neither spelling. The specification says to
+                // associate a group container only when the rule is
+                // unambiguous, so it is left alone.
                 continue;
             };
-            let bundle_suffix = bundle_suffix.to_ascii_lowercase();
-            if bundle_suffix.len() < 2 {
-                continue;
-            }
-            if installed.contains(&bundle_suffix) {
-                continue;
-            }
-            if !installed.iter().any(|id| id.ends_with(&bundle_suffix)) {
-                // The group container does not correspond to any application we
-                // know about. The specification says to associate it only when
-                // the rule is unambiguous, so it is left alone.
-                continue;
-            }
             let authorized: Vec<PathBuf> = context
                 .request
                 .authorized_roots
                 .iter()
                 .map(PathBuf::from)
                 .collect();
+            if is_protected_path_authorized(
+                &context.home_dir.to_string_lossy(),
+                &entry.path.to_string_lossy(),
+                &authorized,
+            ) {
+                continue;
+            }
             // Whole, as above: the container is the item.
             let (measured, inner) =
                 measure_directory(&entry.path, cancel, &context.home_dir, &authorized, false);
@@ -1076,9 +1107,9 @@ pub fn scan_application_residue(
                 file_count: measured.files,
                 modified_secs: entry.modified_secs,
                 created_secs: entry.created_secs,
-                explanation_key: "cleanup.appResidue.groupContainer.explanation".to_string(),
+                explanation_key: "cleanup.explanation.residueGroupContainer".to_string(),
                 rule_id: "app-residue-group-containers".to_string(),
-                bundle_id: Some(bundle_suffix),
+                bundle_id: Some(bundle_id),
                 is_directory: true,
                 selected_by_default: false,
                 note: Some("Shared container of an uninstalled application.".to_string()),
@@ -1092,6 +1123,20 @@ pub fn scan_application_residue(
         if !directory.is_dir() {
             continue;
         }
+        // One loop over both directories, but not one sentence: a preference file
+        // and a web-storage file are different things to the user deciding
+        // whether to remove them.
+        let (explanation_key, note) = if prefix.ends_with("HTTPStorages") {
+            (
+                "cleanup.explanation.residueWebStorage",
+                "Web storage for an application that is no longer installed.",
+            )
+        } else {
+            (
+                "cleanup.explanation.residuePreferences",
+                "Preference file without an installed matching application.",
+            )
+        };
         let mut options =
             WalkOptions::new(context.home_dir.clone(), WalkMode::Files).with_max_depth(1);
         options.authorized_roots = authorized_paths(context);
@@ -1119,14 +1164,12 @@ pub fn scan_application_residue(
                 file_count: 1,
                 modified_secs: entry.modified_secs,
                 created_secs: entry.created_secs,
-                explanation_key: "cleanup.appResidue.preferences.explanation".to_string(),
+                explanation_key: explanation_key.to_string(),
                 rule_id: "app-residue-preferences".to_string(),
                 bundle_id: Some(stem.to_string()),
                 is_directory: false,
                 selected_by_default: false,
-                note: Some(
-                    "Preference file without an installed matching application.".to_string(),
-                ),
+                note: Some(note.to_string()),
             });
         }
     }
@@ -1152,6 +1195,33 @@ pub fn is_excluded_bundle_name(name: &str) -> bool {
     EXCLUDED_BUNDLE_IDENTIFIERS
         .iter()
         .any(|excluded| name.eq_ignore_ascii_case(excluded))
+}
+
+/// The bundle identifiers the name of a group container could stand for.
+///
+/// macOS writes a group container as `<team-id>.<bundle-id>`, where the team id
+/// carries no dot — which is what makes splitting on the first dot safe — or as
+/// the bundle identifier on its own, and an app group may add a leading `group.`.
+/// The readings come in the order the caller prefers to report them — the part
+/// after a dot-free first component, then the whole name — and in lower case,
+/// because the caller compares *every* reading against the installed
+/// applications.
+///
+/// That comparison is the point of the list. Deciding on one reading alone is how
+/// a shared container of an installed application gets offered for removal: the
+/// App Store spelling `TEAMID.com.example.app` never equals an installed
+/// identifier, so the reading that does name the application has to be consulted
+/// as well.
+fn group_container_bundle_ids(name: &str) -> Vec<String> {
+    let lowered = name.to_ascii_lowercase();
+    let mut readings = Vec::new();
+    if let Some((prefix, suffix)) = lowered.split_once('.') {
+        if !prefix.contains('.') && !suffix.is_empty() {
+            readings.push(suffix.to_string());
+        }
+    }
+    readings.push(lowered);
+    readings
 }
 
 /// A name that can only come from a reverse-DNS identifier, never a folder a
@@ -1428,15 +1498,17 @@ pub fn choose_keeper(paths: &[PathBuf]) -> PathBuf {
     best
 }
 
-/// Drops candidates contained inside another candidate.
+/// Drops candidates contained inside another candidate, and folds the ones that
+/// name the same path into a single item.
 ///
 /// Selecting both a folder and the files inside it would double-count bytes and
 /// double-report items, so the parent is kept and the child is dropped with a
 /// note explaining why.
-pub fn dedupe_parent_child(mut candidates: Vec<Candidate>) -> Vec<Candidate> {
+pub fn dedupe_parent_child(candidates: Vec<Candidate>) -> Vec<Candidate> {
     if candidates.len() < 2 {
         return candidates;
     }
+    let mut candidates = merge_same_path(candidates);
     candidates.sort_unstable_by(|a, b| {
         a.path
             .components()
@@ -1462,6 +1534,42 @@ pub fn dedupe_parent_child(mut candidates: Vec<Candidate>) -> Vec<Candidate> {
         }
     }
     kept
+}
+
+/// Turns candidates that name the same path into one.
+///
+/// Two rules can match one path. The index keeps a single row per
+/// `(session, path)` and its upsert rewrites category, risk and the preselection
+/// flag, so whichever candidate was written last decided all three — and which
+/// one that was fell out of the order the sort happened to leave two equal keys
+/// in. The same directory was therefore sometimes a preselected cache and
+/// sometimes an unchecked item of another category, from the same files on disk.
+///
+/// The more cautious risk wins, because a path carries one risk level and
+/// reporting the lower of two would understate it. The rule id then breaks the
+/// tie, so two runs over the same tree produce the same list.
+fn merge_same_path(candidates: Vec<Candidate>) -> Vec<Candidate> {
+    let mut merged: Vec<Candidate> = Vec::with_capacity(candidates.len());
+    let mut seen: std::collections::HashMap<PathBuf, usize> =
+        std::collections::HashMap::with_capacity(candidates.len());
+
+    for candidate in candidates {
+        match seen.get(&candidate.path) {
+            Some(&index) => {
+                let kept = &merged[index];
+                let more_cautious =
+                    (candidate.risk, &candidate.rule_id) > (kept.risk, &kept.rule_id);
+                if more_cautious {
+                    merged[index] = candidate;
+                }
+            }
+            None => {
+                seen.insert(candidate.path.clone(), merged.len());
+                merged.push(candidate);
+            }
+        }
+    }
+    merged
 }
 
 /// Builds the roots a duplicate scan should use, defaulting to the user's
@@ -2039,6 +2147,193 @@ mod tests {
         assert!(!looks_like_bundle_identifier("My Project"));
         assert!(!looks_like_bundle_identifier("Notes"));
         assert!(!looks_like_bundle_identifier("com..x"));
+    }
+
+    /// A candidate for `path`, with the fields the merge under test reads.
+    fn candidate_for(path: &str, risk: Risk, rule_id: &str) -> Candidate {
+        Candidate {
+            path: PathBuf::from(path),
+            display_name: "x".into(),
+            parent_path: "/tmp/x".into(),
+            category: Category::ApplicationCache,
+            risk,
+            size_bytes: 100,
+            file_count: 1,
+            modified_secs: 1,
+            created_secs: 1,
+            explanation_key: "cleanup.explanation.cache".into(),
+            rule_id: rule_id.into(),
+            bundle_id: None,
+            is_directory: true,
+            selected_by_default: risk == Risk::Safe,
+            note: None,
+        }
+    }
+
+    #[test]
+    fn one_path_from_two_rules_becomes_one_candidate_at_the_more_cautious_risk() {
+        // The index keeps one row per `(session, path)` and its upsert rewrites
+        // category, risk and preselection, so without this merge the row the user
+        // saw was decided by whichever candidate happened to be written last.
+        let path = "/tmp/x/Library/Caches/com.example.app";
+
+        for pair in [
+            vec![
+                candidate_for(path, Risk::Safe, "user-cache"),
+                candidate_for(path, Risk::Review, "user-residue"),
+            ],
+            // The other order must give the same answer: the result may not
+            // depend on which rule the walk reached first.
+            vec![
+                candidate_for(path, Risk::Review, "user-residue"),
+                candidate_for(path, Risk::Safe, "user-cache"),
+            ],
+        ] {
+            let deduped = dedupe_parent_child(pair);
+            assert_eq!(deduped.len(), 1, "one path is one item");
+            assert_eq!(
+                deduped[0].risk,
+                Risk::Review,
+                "the more cautious risk is the one a path carries"
+            );
+            assert_eq!(deduped[0].rule_id, "user-residue");
+            assert!(!deduped[0].selected_by_default);
+        }
+    }
+
+    #[test]
+    fn one_path_from_two_rules_is_resolved_by_rule_id_when_the_risk_is_equal() {
+        let path = "/tmp/x/Library/Caches/com.example.app";
+        let mut first = candidate_for(path, Risk::Review, "aaa-rule");
+        first.size_bytes = 1;
+        let mut second = candidate_for(path, Risk::Review, "zzz-rule");
+        second.size_bytes = 2;
+
+        let forward = dedupe_parent_child(vec![first.clone(), second.clone()]);
+        let backward = dedupe_parent_child(vec![second, first]);
+        assert_eq!(forward.len(), 1);
+        assert_eq!(backward.len(), 1);
+        assert_eq!(
+            forward[0].rule_id, backward[0].rule_id,
+            "order must not decide"
+        );
+        assert_eq!(forward[0].rule_id, "zzz-rule");
+    }
+
+    #[test]
+    fn container_residue_requires_the_application_to_be_gone() {
+        // `~/Library/Containers/<bundle-id>` is an application's whole sandbox.
+        let harness = Harness::new("residue-containers");
+        harness
+            .tree
+            .file("Library/Containers/com.gone.app/Data/blob.bin", 4096);
+        harness
+            .tree
+            .file("Library/Containers/com.installed.app/Data/blob.bin", 4096);
+
+        let mut request = harness.request.clone();
+        request.installed_bundle_ids = vec!["com.installed.app".to_string()];
+        let cancel = CancelToken::new();
+        let mut files = |_: u64, _: u64| {};
+        let mut path = |_: &Path| {};
+        let mut context = ScanContext {
+            request: &request,
+            home_dir: harness.tree.root.clone(),
+            rules: effective_rules(None).unwrap(),
+            progress: ProgressSink {
+                on_files: &mut files,
+                on_current_path: &mut path,
+            },
+        };
+
+        let (candidates, _) = scan_application_residue(&mut context, &cancel);
+        let paths: Vec<String> = candidates
+            .iter()
+            .map(|c| c.path.to_string_lossy().to_string())
+            .collect();
+        assert!(
+            paths.iter().any(|p| p.contains("com.gone.app")),
+            "the container of an uninstalled application is residue: {paths:?}"
+        );
+        assert!(
+            !paths.iter().any(|p| p.contains("com.installed.app")),
+            "the container of an installed application is its data: {paths:?}"
+        );
+    }
+
+    #[test]
+    fn group_container_residue_reads_both_spellings_of_the_name() {
+        let harness = Harness::new("residue-group-containers");
+        // App Store spelling: a team prefix with no dot, then the bundle id.
+        harness
+            .tree
+            .file("Library/Group Containers/TEAM1.com.gone.app/blob.bin", 4096);
+        harness.tree.file(
+            "Library/Group Containers/TEAM2.com.installed.app/blob.bin",
+            4096,
+        );
+        // The bundle identifier on its own.
+        harness
+            .tree
+            .file("Library/Group Containers/com.also-gone.app/blob.bin", 4096);
+        // `com.also-gone.app` is not installed, but the container names an
+        // application that is: the reading after the dot decides.
+        harness
+            .tree
+            .file("Library/Group Containers/TEAM3.com.half.app/blob.bin", 4096);
+        // A name in neither spelling is left alone.
+        harness
+            .tree
+            .file("Library/Group Containers/UBF8T346G9.Office/blob.bin", 4096);
+
+        let mut request = harness.request.clone();
+        request.installed_bundle_ids =
+            vec!["com.installed.app".to_string(), "com.half.app".to_string()];
+        let cancel = CancelToken::new();
+        let mut files = |_: u64, _: u64| {};
+        let mut path = |_: &Path| {};
+        let mut context = ScanContext {
+            request: &request,
+            home_dir: harness.tree.root.clone(),
+            rules: effective_rules(None).unwrap(),
+            progress: ProgressSink {
+                on_files: &mut files,
+                on_current_path: &mut path,
+            },
+        };
+
+        let (candidates, _) = scan_application_residue(&mut context, &cancel);
+        let paths: Vec<String> = candidates
+            .iter()
+            .map(|c| c.path.to_string_lossy().to_string())
+            .collect();
+
+        assert!(
+            paths.iter().any(|p| p.contains("TEAM1.com.gone.app")),
+            "the shared container of a gone application is residue: {paths:?}"
+        );
+        assert!(
+            paths.iter().any(|p| p.contains("com.also-gone.app")),
+            "a container named after the bundle id alone is residue too: {paths:?}"
+        );
+        assert!(
+            !paths.iter().any(|p| p.contains("TEAM2.com.installed.app")),
+            "an installed application keeps its shared container: {paths:?}"
+        );
+        assert!(
+            !paths.iter().any(|p| p.contains("TEAM3.com.half.app")),
+            "one reading naming an installed application is enough to keep it: {paths:?}"
+        );
+        assert!(
+            !paths.iter().any(|p| p.contains("UBF8T346G9.Office")),
+            "a name in neither spelling is left alone: {paths:?}"
+        );
+
+        let half = candidates
+            .iter()
+            .find(|c| c.path.to_string_lossy().contains("com.also-gone.app"))
+            .expect("the bare-name container");
+        assert_eq!(half.bundle_id.as_deref(), Some("com.also-gone.app"));
     }
 
     #[test]

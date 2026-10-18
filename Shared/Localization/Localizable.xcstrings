@@ -1459,6 +1459,60 @@
         }
       }
     },
+    "cleanup.explanation.largeFilesItem": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A large file. Sift never guesses: you decide which to remove."
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "大文件。Sift 不做猜测，由你决定删除哪些。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "큰 파일입니다. 지울지는 사용자가 결정합니다."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Большой файл. Sift не угадывает: решение за вами."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un archivo grande. Sift no adivina: tú decides cuáles eliminar."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "大きなファイルです。削除するかどうかはご自身で決められます。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un fichier volumineux. Sift ne devine pas : c’est vous qui décidez."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eine große Datei. Sift rät nicht – Sie entscheiden."
+          }
+        }
+      }
+    },
     "cleanup.explanation.logs": {
       "comment": null,
       "extractionState": "manual",
@@ -1513,6 +1567,60 @@
         }
       }
     },
+    "cleanup.explanation.logsItem": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stale log files. Removing them does not change how apps run."
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "过期日志文件。删除它们不会影响应用运行。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "오래된 로그 파일입니다. 삭제해도 앱 실행에는 영향이 없습니다."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Устаревшие файлы журналов. Их удаление не влияет на работу приложений."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Archivos de registro obsoletos. Eliminarlos no afecta al funcionamiento de las apps."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "古いログファイルです。削除してもアプリの動作には影響しません。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Journaux obsolètes. Les supprimer ne change rien au fonctionnement des apps."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Veraltete Protokolldateien. Ihr Entfernen ändert nichts an der Arbeitsweise der Apps."
+          }
+        }
+      }
+    },
     "cleanup.explanation.oldFiles": {
       "comment": null,
       "extractionState": "manual",
@@ -1563,6 +1671,60 @@
           "stringUnit": {
             "state": "translated",
             "value": "Seit %d Tagen unverändert und größer als 10 MB."
+          }
+        }
+      }
+    },
+    "cleanup.explanation.oldFilesItem": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not modified for a long time, and larger than 10 MB."
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "长期未修改且大于 10 MB。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "오랫동안 수정되지 않았고 10MB 이상입니다."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Давно не изменялись и больше 10 МБ."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sin cambios durante mucho tiempo y mayores de 10 MB."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "長期間変更がなく、10 MB を超えるファイルです。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Non modifiés depuis longtemps et de plus de 10 Mo."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seit langem unverändert und größer als 10 MB."
           }
         }
       }
@@ -1729,6 +1891,60 @@
         }
       }
     },
+    "cleanup.explanation.residueWebStorage": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Web storage for an app that is no longer installed."
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已卸载应用的网页存储数据。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "더 이상 설치되지 않은 앱의 웹 저장 데이터입니다."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Веб-хранилище приложения, которое больше не установлено."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Almacenamiento web de una app que ya no está instalada."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アンインストール済みアプリの Web ストレージです。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stockage web d’une app qui n’est plus installée."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Web-Speicher einer nicht mehr installierten App."
+          }
+        }
+      }
+    },
     "cleanup.explanation.savedState": {
       "comment": null,
       "extractionState": "manual",
@@ -1833,6 +2049,60 @@
           "stringUnit": {
             "state": "translated",
             "value": "Systemprotokolle älter als %d Tage. Einige erfordern vollständigen Festplattenzugriff."
+          }
+        }
+      }
+    },
+    "cleanup.explanation.systemLogsItem": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stale system log files. Reading some of them needs Full Disk Access."
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "过期的系统日志文件。读取其中一部分需要“完全磁盘访问权限”。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "오래된 시스템 로그 파일입니다. 일부를 읽으려면 전체 디스크 접근 권한이 필요합니다."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Устаревшие системные журналы. Для чтения некоторых нужен полный доступ к диску."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Archivos de registro del sistema obsoletos. Leer algunos requiere acceso total al disco."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "古いシステムログファイルです。一部の読み取りにはフルディスクアクセスが必要です。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Journaux système obsolètes. En lire certains nécessite un accès complet au disque."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Veraltete Systemprotokolle. Zum Lesen einiger ist Vollzugriff auf die Festplatte nötig."
           }
         }
       }
@@ -18195,6 +18465,222 @@
           "stringUnit": {
             "state": "translated",
             "value": "Keine Apps von Drittanbietern gefunden"
+          }
+        }
+      }
+    },
+    "uninstall.reason.applicationName": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The name is exactly the application name, in a folder macOS keeps per app."
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "名称与应用名完全一致，且位于 macOS 按应用存放数据的目录。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이름이 앱 이름과 정확히 일치하며, macOS가 앱별로 사용하는 폴더입니다."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Имя точно совпадает с приложением, и папка предназначена для данных приложений."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El nombre coincide exactamente y la carpeta es la que macOS usa por app."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "名前がアプリ名と完全に一致し、macOS がアプリごとに使うフォルダーです。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le nom correspond exactement, dans un dossier que macOS réserve aux apps."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Name stimmt genau überein, in einem Ordner, den macOS je App verwendet."
+          }
+        }
+      }
+    },
+    "uninstall.reason.bundleIdentifier": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The name is this app's bundle identifier."
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "名称就是该应用的 bundle identifier。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이름이 이 앱의 번들 ID입니다."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Имя совпадает с идентификатором этого приложения."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El nombre es el identificador de esta app."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "名前がこのアプリの Bundle ID です。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le nom est l’identifiant de cette app."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Name ist die Bundle-ID dieser App."
+          }
+        }
+      }
+    },
+    "uninstall.reason.identifierPrefix": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The name starts with this app's bundle identifier."
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "名称以该应用的 bundle identifier 开头。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이름이 이 앱의 번들 ID로 시작합니다."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Имя начинается с идентификатора этого приложения."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El nombre empieza por el identificador de esta app."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "名前がこのアプリの Bundle ID で始まります。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le nom commence par l’identifiant de cette app."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Name beginnt mit der Bundle-ID dieser App."
+          }
+        }
+      }
+    },
+    "uninstall.reason.identifierSuffix": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The name matches the last part of this app's bundle identifier."
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "名称与该应用 bundle identifier 的最后一段一致。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이름이 이 앱 번들 ID의 마지막 부분과 일치합니다."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Имя совпадает с последней частью идентификатора этого приложения."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El nombre coincide con la última parte del identificador de esta app."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "名前がこのアプリの Bundle ID の最後の部分と一致します。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le nom correspond à la dernière partie de l’identifiant de cette app."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Name entspricht dem letzten Teil der Bundle-ID dieser App."
           }
         }
       }

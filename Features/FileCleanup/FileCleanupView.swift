@@ -61,7 +61,7 @@ public struct FileCleanupView: View {
                         titleKey: mode.titleKey,
                         detailKey: mode == .duplicates
                             ? .filesRequiresAuthorization
-                            : .cleanupExplanationLargeFiles,
+                            : .cleanupExplanationLargeFilesItem,
                         onStart: { Task { await environment.runScan(.files(mode)) } }
                     )
                 }

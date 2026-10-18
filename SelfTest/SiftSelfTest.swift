@@ -933,6 +933,31 @@ final class Harness: @unchecked Sendable {
                 plan.confirmedFiles.allSatisfy { $0.confidence == .confirmed },
                 "confirmed files carry the confirmed confidence"
             )
+
+            // The reason travels with the file, and it is user-visible text: the
+            // sentence lives in the catalog, so a match the user is asked to judge
+            // can say what the match was (§5.3).
+            equal(
+                plan.confirmedFiles.first { $0.displayName == identifier }?.reason,
+                .bundleIdentifier,
+                "a directory named exactly after the identifier says so"
+            )
+            equal(
+                plan.confirmedFiles.first { $0.displayName.hasSuffix(".plist") }?.reason,
+                .identifierPrefix,
+                "a file named <identifier>.<suffix> says the name starts with the identifier"
+            )
+            for reason in RelatedFile.MatchReason.allCases {
+                let sentence = reason.titleKey.localized
+                check(
+                    sentence != reason.titleKey.rawValue,
+                    "the reason `\(reason.rawValue)` is translated"
+                )
+                check(
+                    !sentence.contains("%"),
+                    "the reason `\(reason.rawValue)` renders without a placeholder"
+                )
+            }
         }
     }
 

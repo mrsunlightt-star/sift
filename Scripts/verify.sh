@@ -78,11 +78,22 @@ run() {
 }
 
 step "1/9  Generated sources are current"
-# The Swift side of two shared tables is generated. A stale copy is a silent
-# divergence — localisable text, or the set of paths the two engines protect —
-# so it is checked before anything is built from it.
+# Three shared tables have a generated half: the localisable text, the set of
+# paths the two engines protect, and the rule table both engines scan with. A
+# stale copy is a silent divergence — text, a path one engine refuses and the
+# other walks, or a rule only one of them applies — so each is checked before
+# anything is built from it.
+#
+# The rule table is read from the Rust core instead of parsed out of its source,
+# so this step needs cargo; the steps after it do too.
 run bash -c "python3 Scripts/generate-strings.py --check"
 run bash -c "python3 Scripts/generate-protection.py --check"
+run bash -c "python3 Scripts/generate-rules.py --check"
+
+# And the other direction: a key the code hands to the UI that the catalog does
+# not carry. That is not a crash, it is an item that quietly falls back to a
+# generic sentence, so nothing else in this script would notice.
+run bash -c "python3 Scripts/check-explanation-keys.py"
 
 step "2/9  Rust: formatting and lints"
 run bash -c "cd RustCore && cargo fmt --all -- --check"

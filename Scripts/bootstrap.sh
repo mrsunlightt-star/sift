@@ -6,7 +6,8 @@
 #      Xcode both look for it,
 #   2. regenerates the string catalog and its `.lproj` outputs,
 #   3. regenerates the Swift protection list from the Rust constants,
-#   4. regenerates the Xcode project from `project.yml`.
+#   4. regenerates the rule table the app ships from the Rust rule table,
+#   5. regenerates the Xcode project from `project.yml`.
 #
 # Usage: Scripts/bootstrap.sh [--universal]
 
@@ -23,6 +24,9 @@ python3 Scripts/generate-strings.py >/dev/null
 
 echo "==> Regenerating the protection list"
 python3 Scripts/generate-protection.py >/dev/null
+
+echo "==> Regenerating the rule table"
+python3 Scripts/generate-rules.py >/dev/null
 
 if command -v xcodegen >/dev/null 2>&1; then
   echo "==> Regenerating Sift.xcodeproj"

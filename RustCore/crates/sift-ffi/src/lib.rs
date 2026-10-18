@@ -307,40 +307,16 @@ pub extern "C" fn sift_ffi_version() -> u32 {
 
 /// Returns the built-in rule table as JSON so Swift can show the same
 /// explanations and risk levels the scanner applies.
+///
+/// The document is the one the app ships (`Core/Resources/CleaningRules.json`),
+/// not a projection of it: a second shape for the same table is a second thing to
+/// keep in step, and this one had already fallen behind — it carried the rule ids
+/// and risk levels but not the match specification or the exclusions, and nothing
+/// read it, so the drift was invisible.
 #[no_mangle]
 pub extern "C" fn sift_rules_json() -> SiftString {
     guard(SiftString::EMPTY, || {
-        #[derive(serde::Serialize)]
-        #[serde(rename_all = "camelCase")]
-        struct ExportedRule<'a> {
-            id: &'a str,
-            category: &'a str,
-            risk: &'a str,
-            root: &'a str,
-            relative_path: &'a str,
-            explanation_key: &'a str,
-            requires_full_disk_access: bool,
-            min_age_days: Option<u32>,
-        }
-        // Bound to a local: the exported rows borrow the rule table.
-        let table = default_rules();
-        let rules: Vec<ExportedRule<'_>> = table
-            .iter()
-            .map(|rule| ExportedRule {
-                id: &rule.id,
-                category: rule.category.as_str(),
-                risk: rule.risk.as_str(),
-                root: rule.root.as_str(),
-                relative_path: &rule.relative_path,
-                explanation_key: &rule.explanation_key,
-                requires_full_disk_access: rule.requires_full_disk_access,
-                min_age_days: rule.min_age_days,
-            })
-            .collect();
-        match serde_json::to_string(&rules) {
-            Ok(json) => SiftString::from_string(json),
-            Err(_) => SiftString::EMPTY,
-        }
+        SiftString::from_string(sift_rules::shipped_rules_json())
     })
 }
 

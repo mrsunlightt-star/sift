@@ -8,24 +8,19 @@
       "root": "homeLibrary",
       "relativePath": "Caches",
       "matchSpec": "childDirectories",
+      "extensions": [],
       "excludes": [
         "CloudKit",
         "com.apple.bird",
         "com.apple.iCloud",
         "FamilyCircle"
       ],
+      "minAgeDays": null,
+      "usesStaleThreshold": false,
+      "packageExtensions": [],
       "requiresFullDiskAccess": false,
-      "explanationKey": "cleanup.explanation.cache"
-    },
-    {
-      "id": "user-cache-sandboxed",
-      "category": "applicationCache",
-      "risk": "review",
-      "root": "homeLibrary",
-      "relativePath": "Containers",
-      "matchSpec": "directory",
-      "requiresFullDiskAccess": false,
-      "explanationKey": "cleanup.explanation.cache"
+      "explanationKey": "cleanup.explanation.cache",
+      "enabled": true
     },
     {
       "id": "user-logs",
@@ -34,20 +29,46 @@
       "root": "homeLibrary",
       "relativePath": "Logs",
       "matchSpec": "childDirectories",
+      "extensions": [],
+      "excludes": [],
       "minAgeDays": 30,
       "usesStaleThreshold": true,
+      "packageExtensions": [],
       "requiresFullDiskAccess": false,
-      "explanationKey": "cleanup.explanation.logs"
+      "explanationKey": "cleanup.explanation.logsItem",
+      "enabled": true
     },
     {
-      "id": "user-saved-state",
-      "category": "temporaryFiles",
-      "risk": "safe",
+      "id": "user-diagnostic-reports",
+      "category": "logs",
+      "risk": "review",
       "root": "homeLibrary",
-      "relativePath": "Saved Application State",
-      "matchSpec": "childDirectories",
+      "relativePath": "Logs/DiagnosticReports",
+      "matchSpec": "anyFile",
+      "extensions": [],
+      "excludes": [],
+      "minAgeDays": 30,
+      "usesStaleThreshold": true,
+      "packageExtensions": [],
       "requiresFullDiskAccess": false,
-      "explanationKey": "cleanup.explanation.savedState"
+      "explanationKey": "cleanup.explanation.logsItem",
+      "enabled": true
+    },
+    {
+      "id": "system-logs",
+      "category": "logs",
+      "risk": "review",
+      "root": "systemLibrary",
+      "relativePath": "Logs",
+      "matchSpec": "childDirectories",
+      "extensions": [],
+      "excludes": [],
+      "minAgeDays": 30,
+      "usesStaleThreshold": true,
+      "packageExtensions": [],
+      "requiresFullDiskAccess": true,
+      "explanationKey": "cleanup.explanation.systemLogsItem",
+      "enabled": true
     },
     {
       "id": "download-installers",
@@ -63,10 +84,13 @@
         "xip",
         "iso"
       ],
+      "excludes": [],
       "minAgeDays": 30,
       "usesStaleThreshold": true,
+      "packageExtensions": [],
       "requiresFullDiskAccess": false,
-      "explanationKey": "cleanup.explanation.installers"
+      "explanationKey": "cleanup.explanation.installers",
+      "enabled": true
     },
     {
       "id": "download-archives",
@@ -81,21 +105,45 @@
         "gz",
         "tgz"
       ],
+      "excludes": [],
       "minAgeDays": 90,
+      "usesStaleThreshold": false,
+      "packageExtensions": [],
       "requiresFullDiskAccess": false,
-      "explanationKey": "cleanup.explanation.installers"
+      "explanationKey": "cleanup.explanation.installers",
+      "enabled": true
     },
     {
-      "id": "system-logs",
-      "category": "logs",
+      "id": "user-temporary-items",
+      "category": "temporaryFiles",
       "risk": "review",
-      "root": "systemLibrary",
-      "relativePath": "Logs",
+      "root": "homeLibrary",
+      "relativePath": "Application Support",
       "matchSpec": "childDirectories",
+      "extensions": [],
+      "excludes": [],
       "minAgeDays": 30,
-      "usesStaleThreshold": true,
-      "requiresFullDiskAccess": true,
-      "explanationKey": "cleanup.explanation.systemLogs"
+      "usesStaleThreshold": false,
+      "packageExtensions": [],
+      "requiresFullDiskAccess": false,
+      "explanationKey": "cleanup.explanation.temporary",
+      "enabled": true
+    },
+    {
+      "id": "user-saved-state",
+      "category": "temporaryFiles",
+      "risk": "safe",
+      "root": "homeLibrary",
+      "relativePath": "Saved Application State",
+      "matchSpec": "childDirectories",
+      "extensions": [],
+      "excludes": [],
+      "minAgeDays": null,
+      "usesStaleThreshold": false,
+      "packageExtensions": [],
+      "requiresFullDiskAccess": false,
+      "explanationKey": "cleanup.explanation.savedState",
+      "enabled": true
     }
   ]
 }

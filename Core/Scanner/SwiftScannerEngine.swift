@@ -247,6 +247,29 @@ actor SwiftScanSession: ScanSession {
         return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) && isDirectory.boolValue
     }
 
+    /// The bundle identifiers the name of a group container could stand for.
+    ///
+    /// macOS writes a group container as `<team-id>.<bundle-id>`, where the team id
+    /// carries no dot — which is what makes splitting on the first dot safe — or as
+    /// the bundle identifier on its own, and an app group may add a leading
+    /// `group.`. The readings are returned in lower case, longest-lived first, and
+    /// the caller compares *every* one against the installed applications: deciding
+    /// on a single reading is how a shared container of an installed application
+    /// gets offered for removal. The Rust scanner reads the same two spellings.
+    static func groupContainerBundleIdentifiers(_ name: String) -> [String] {
+        let lowered = name.lowercased()
+        var readings: [String] = []
+        if let dot = lowered.firstIndex(of: ".") {
+            let prefix = String(lowered[lowered.startIndex..<dot])
+            let suffix = String(lowered[lowered.index(after: dot)...])
+            if !prefix.contains("."), !suffix.isEmpty {
+                readings.append(suffix)
+            }
+        }
+        readings.append(lowered)
+        return readings
+    }
+
     private func options(for mode: FileWalker.Mode, maxDepth: Int? = nil, home: URL) -> FileWalker.Options {
         FileWalker.Options(
             mode: mode,
@@ -460,9 +483,14 @@ actor SwiftScanSession: ScanSession {
         let installed = Set(request.installedBundleIdentifiers.map { $0.lowercased() })
         var found: [CleanupItemSummary] = []
 
+        // The locations residue may live in, mirroring the Rust scanner. A
+        // container is an application's whole data directory, so it is here — where
+        // the name is checked against the installed bundle identifiers — rather than
+        // in a rule, which can only match a name shape or an age.
         let locations: [(String, CleanupCategory, CleanupRisk)] = [
             ("Library/Application Support", .applicationResidue, .review),
             ("Library/Caches", .applicationResidue, .review),
+            ("Library/Containers", .applicationResidue, .review),
             ("Library/Logs", .applicationResidue, .safe),
             ("Library/Saved Application State", .applicationResidue, .review),
         ]
@@ -517,11 +545,62 @@ actor SwiftScanSession: ScanSession {
             }
         }
 
-        // Preference files, matched on the full `<bundle-id>.plist` name.
-        let preferences = home.appendingPathComponent("Library/Preferences")
-        if directoryExists(preferences) {
+        // `~/Library/Group Containers/<team-id>.<bundle-id>` belongs to an
+        // application that is gone when the bundle identifier it names is not
+        // installed. macOS writes the name with the team prefix or as the bundle
+        // identifier alone, so both readings are consulted: deciding on one alone
+        // offers the shared container of an installed application for removal, as
+        // `TEAMID.com.example.app` never equals an installed identifier.
+        let groupContainers = home.appendingPathComponent("Library/Group Containers")
+        if directoryExists(groupContainers) {
             let report = FileWalker.walk(
-                root: preferences,
+                root: groupContainers,
+                options: options(for: .immediateChildren, maxDepth: 1, home: home),
+                rules: rules,
+                isCancelled: { self.cancelledSync },
+                onFile: nil
+            )
+            for entry in report.entries where entry.isDirectory {
+                let name = entry.displayName
+                if rules.isExcludedBundleName(name) { continue }
+                let readings = Self.groupContainerBundleIdentifiers(name)
+                if readings.contains(where: { installed.contains($0) }) { continue }
+                guard let bundleID = readings.first(where: { rules.looksLikeBundleIdentifier($0) })
+                else { continue }
+                let measured = FileWalker.measure(url: entry.url, rules: rules, isCancelled: { self.cancelledSync })
+                guard measured.bytes > 0 else { continue }
+                found.append(
+                    CleanupItemSummary(
+                        id: nextIdentifier(),
+                        url: entry.url,
+                        displayName: name,
+                        parentPath: entry.parentPath,
+                        category: .applicationResidue,
+                        risk: .review,
+                        sizeInBytes: measured.bytes,
+                        fileCount: measured.files,
+                        explanationKey: "cleanup.explanation.residueGroupContainer",
+                        sourceRuleID: "app-residue-group-containers",
+                        relatedBundleID: bundleID,
+                        modifiedAt: entry.modifiedAt,
+                        isDirectory: true
+                    )
+                )
+            }
+        }
+
+        // Preference and web-storage files, matched on the full `<bundle-id>.plist`
+        // (or `<bundle-id>.binarycookies`) name. One loop over both directories, but
+        // not one sentence: a preference file and a web store are different things
+        // to the user deciding whether to remove them.
+        for (relative, explanationKey) in [
+            ("Library/Preferences", "cleanup.explanation.residuePreferences"),
+            ("Library/HTTPStorages", "cleanup.explanation.residueWebStorage"),
+        ] {
+            let directory = home.appendingPathComponent(relative)
+            guard directoryExists(directory) else { continue }
+            let report = FileWalker.walk(
+                root: directory,
                 options: options(for: .files, maxDepth: 1, home: home),
                 rules: rules,
                 isCancelled: { self.cancelledSync },
@@ -529,7 +608,9 @@ actor SwiftScanSession: ScanSession {
             )
             for entry in report.entries where !entry.isDirectory {
                 let name = entry.displayName
-                let stem = name.hasSuffix(".plist") ? String(name.dropLast(6)) : name
+                let stem = name.hasSuffix(".plist")
+                    ? String(name.dropLast(6))
+                    : (name.hasSuffix(".binarycookies") ? String(name.dropLast(14)) : name)
                 if rules.isExcludedBundleName(stem) { continue }
                 guard rules.looksLikeBundleIdentifier(stem) else { continue }
                 if installed.contains(stem.lowercased()) { continue }
@@ -543,7 +624,7 @@ actor SwiftScanSession: ScanSession {
                         risk: .review,
                         sizeInBytes: entry.sizeBytes ?? 0,
                         fileCount: 1,
-                        explanationKey: "cleanup.explanation.residuePreferences",
+                        explanationKey: explanationKey,
                         sourceRuleID: "app-residue-preferences",
                         relatedBundleID: stem,
                         modifiedAt: entry.modifiedAt,
@@ -583,7 +664,7 @@ actor SwiftScanSession: ScanSession {
                             risk: .review,
                             sizeInBytes: size,
                             fileCount: 1,
-                            explanationKey: "cleanup.explanation.largeFiles",
+                            explanationKey: "cleanup.explanation.largeFilesItem",
                             sourceRuleID: "large-files",
                             modifiedAt: entry.modifiedAt,
                             isDirectory: false
@@ -601,7 +682,7 @@ actor SwiftScanSession: ScanSession {
                             risk: .review,
                             sizeInBytes: size,
                             fileCount: 1,
-                            explanationKey: "cleanup.explanation.oldFiles",
+                            explanationKey: "cleanup.explanation.oldFilesItem",
                             sourceRuleID: "old-files",
                             modifiedAt: entry.modifiedAt,
                             isDirectory: false

@@ -113,6 +113,20 @@ by hand: it exists so the two engines cannot protect different sets of paths, an
 `SYMLINK_ALIASES`/`SYMLINK_ALIAS_TARGETS` are one table read index for index, so
 moving one without the other is rejected by the generator.
 
+After changing `default_rules()` in the same file, regenerate the rule table the
+app ships with `python3 Scripts/generate-rules.py`. `default_rules()` is the
+source for all three copies — the Rust engine's, `Core/Resources/CleaningRules.json`
+and `Core/Rules/BuiltInRules.swift` — and the generator reads the table out of the
+Rust core rather than parsing its source, so a rule the table gains cannot be
+missing from the copies. Never edit either generated file by hand: the Rust test
+`the_shipped_rule_file_is_the_built_in_table` and the Swift test
+`test_theFallbackTableIsTheShippedRuleFile` both fail when they disagree.
+
+`Scripts/check-explanation-keys.py` covers the other direction, and
+`Scripts/verify.sh` runs it: every `explanation_key` the code attaches to an item
+must be a key `Shared/Localization/Localizable.xcstrings` carries, and must have no
+format placeholder, because a row renders its explanation with no arguments.
+
 ## Before committing
 
 ```bash
@@ -228,6 +242,30 @@ These are product promises, not implementation details. Each has tests behind it
     rule really is off; filtering first would discard the override and leave the
     shipped rule running. Marking a shipped rule `protected` therefore leaves no
     hole where the shipped rule was.
+23. **One rule table, and residue is the scanner's decision.** `default_rules()` is
+    the single source; the shipped `CleaningRules.json` and the Swift fallback
+    table are generated from it, and `Scripts/verify.sh` fails when either is
+    stale. No shipped rule carries the `applicationResidue` category, and none
+    targets `~/Library/Containers` or `~/Library/Group Containers`: a rule matches
+    a name shape or an age and cannot know whether an application is installed, so
+    a rule over those locations offered the live data of installed applications —
+    every directory under `Application Support` as "residue", and the whole store
+    as one cleanup item. Residue comes from `scan_application_residue`, which
+    compares the name against the installed bundle identifiers, and a container
+    that belongs to a live application belongs to the uninstaller instead.
+24. **Every explanation the scanner attaches resolves.** A rule names the key of
+    the sentence the user reads and the row renders it with no arguments, so the
+    key has to exist in the catalog and carry no `%d`/`%@`; the parameterised
+    sentences stay on the category-level keys the pages format for themselves. A
+    key derived from the rule id resolves to nothing, which is how every item came
+    to fall back to its category's generic line after the Rust rule table and the
+    catalog were written in two different naming schemes. `Scripts/check-explanation-keys.py`
+    checks the direction a test cannot: a key in the code that the catalog lacks.
+25. **A path carries the most cautious risk that matched it.** Two rules that
+    match one path produce one item, at the higher of the two risk levels, with the
+    rule id breaking a tie — the index keeps one row per path and rewrites it, so
+    otherwise the row the user saw was decided by the order an unstable sort left
+    two equal keys in.
 
 ## Layout notes
 
@@ -240,7 +278,9 @@ These are product promises, not implementation details. Each has tests behind it
   machines with only the Command Line Tools.
 - `Core/Rules/ProtectedPaths.swift` is generated (`Scripts/generate-protection.py`)
   from the Rust constants; `Core/Rules/RuleEngine.swift` reads it and restates
-  none of it.
+  none of it. `Core/Rules/BuiltInRules.swift` is generated the same way
+  (`Scripts/generate-rules.py`) from `default_rules()`, and is what
+  `RuleEngine.builtInRules` reads.
 - `Core/Diagnostics/` is the read-only half of the product: providers that report
   what occupies space, an engine that applies protection and aggregates coverage,
   and a measurer of its own (`DiagnosticMeasurement.swift`) rather than
