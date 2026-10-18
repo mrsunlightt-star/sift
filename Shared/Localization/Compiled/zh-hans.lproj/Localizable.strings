@@ -300,6 +300,7 @@
 "settings.oldFileThreshold" = "旧文件阈值";
 "settings.privacyStatement" = "Sift 不采集文件内容、文件名、完整路径、浏览历史、应用使用记录或账号信息。扫描结果只保存在本机，不会上传。";
 "settings.reduceMotion" = "减少动态效果";
+"settings.removeLicense" = "移除已存的许可证密钥";
 "settings.requireConfirmation" = "清理前要求确认";
 "settings.resetDefaults" = "恢复默认设置";
 "settings.scanHistory" = "扫描历史";

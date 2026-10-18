@@ -307,6 +307,7 @@ public enum LocalizationKey: String, Sendable, CaseIterable {
     case settingsOldFileThreshold = "settings.oldFileThreshold"
     case settingsPrivacyStatement = "settings.privacyStatement"
     case settingsReduceMotion = "settings.reduceMotion"
+    case settingsRemoveLicense = "settings.removeLicense"
     case settingsRequireConfirmation = "settings.requireConfirmation"
     case settingsResetDefaults = "settings.resetDefaults"
     case settingsScanHistory = "settings.scanHistory"

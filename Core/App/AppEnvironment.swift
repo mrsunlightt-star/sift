@@ -315,6 +315,16 @@ public final class AppEnvironment: ObservableObject {
         preferences = await settings.current()
     }
 
+    /// True when a licence key is stored on this machine.
+    public func hasStoredLicense() async -> Bool {
+        await entitlements.hasStoredLicense()
+    }
+
+    /// Removes the stored licence key and returns to the free tier.
+    public func removeStoredLicense() async {
+        entitlement = await entitlements.removeStoredLicense()
+    }
+
     /// True when this stored bookmark resolved at launch and could be opened.
     public func isAvailable(_ location: AuthorizedLocation) -> Bool {
         grants.isAvailable(location.id)

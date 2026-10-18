@@ -206,6 +206,22 @@ public actor EntitlementService {
         }
     }
 
+    /// True when a licence key is stored on this machine.
+    public func hasStoredLicense() async -> Bool {
+        guard let direct = channel as? DirectLicenseService else { return false }
+        return await direct.hasStoredLicense()
+    }
+
+    /// Removes the stored key and returns to the free tier.
+    @discardableResult
+    public func removeStoredLicense() async -> EntitlementState {
+        guard let direct = channel as? DirectLicenseService else { return cachedState }
+        await direct.clearStoredLicense()
+        let state = EntitlementState(channel: channel.channel, status: .free)
+        apply(state)
+        return state
+    }
+
     /// Runs the purchase flow.
     @discardableResult
     public func purchase() async throws -> EntitlementState {
@@ -267,6 +283,21 @@ public actor DirectLicenseService: PurchaseChannel {
     public init(keychain: any LicenseKeyStoring = LicenseKeyStore(), verify: @escaping Verify) {
         self.keychain = keychain
         self.verify = verify
+    }
+
+    /// True when a key is stored on this machine.
+    public func hasStoredLicense() async -> Bool {
+        await keychain.hasStoredKey()
+    }
+
+    /// Removes the stored key.
+    ///
+    /// A keychain item can outlive the build that wrote it: an ad-hoc-signed app
+    /// has no stable identity, so macOS asks for permission again after every
+    /// rebuild. Without this the prompt has no way out from inside the app.
+    public func clearStoredLicense() async {
+        await keychain.clear()
+        licenseKey = nil
     }
 
     public func load() async throws -> EntitlementState {

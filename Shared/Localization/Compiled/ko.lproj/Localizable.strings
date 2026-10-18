@@ -300,6 +300,7 @@
 "settings.oldFileThreshold" = "오래된 파일 기준";
 "settings.privacyStatement" = "Sift는 파일 내용, 파일 이름, 전체 경로, 방문 기록, 앱 사용 기록 또는 계정 정보를 수집하지 않습니다. 검사 결과는 이 Mac에만 남습니다.";
 "settings.reduceMotion" = "동작 줄이기";
+"settings.removeLicense" = "저장된 라이선스 키 제거";
 "settings.requireConfirmation" = "정리 전 확인";
 "settings.resetDefaults" = "기본값 복원";
 "settings.scanHistory" = "검사 기록";

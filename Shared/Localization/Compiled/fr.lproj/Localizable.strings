@@ -300,6 +300,7 @@
 "settings.oldFileThreshold" = "Seuil des fichiers anciens";
 "settings.privacyStatement" = "Sift ne collecte ni contenu, ni noms de fichiers, ni chemins complets, ni historique, ni usage des apps, ni données de compte. Les résultats restent sur ce Mac.";
 "settings.reduceMotion" = "Réduire les animations";
+"settings.removeLicense" = "Supprimer la clé de licence enregistrée";
 "settings.requireConfirmation" = "Demander confirmation avant nettoyage";
 "settings.resetDefaults" = "Rétablir les réglages";
 "settings.scanHistory" = "Historique des analyses";

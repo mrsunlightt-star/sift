@@ -300,6 +300,7 @@
 "settings.oldFileThreshold" = "Schwelle für alte Dateien";
 "settings.privacyStatement" = "Sift erfasst keine Dateiinhalte, Dateinamen, vollständigen Pfade, Verläufe, App-Nutzung oder Kontodaten. Ergebnisse bleiben auf diesem Mac.";
 "settings.reduceMotion" = "Bewegung reduzieren";
+"settings.removeLicense" = "Gespeicherten Lizenzschlüssel entfernen";
 "settings.requireConfirmation" = "Vor dem Bereinigen bestätigen";
 "settings.resetDefaults" = "Standard wiederherstellen";
 "settings.scanHistory" = "Scan-Verlauf";

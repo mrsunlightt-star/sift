@@ -129,6 +129,29 @@ final class EntitlementTests: XCTestCase, @unchecked Sendable {
         XCTAssertFalse(state.isUnlocked, "an expired window must not keep unlocking")
     }
 
+    func test_removingAStoredLicenseReturnsToTheFreeTier() async {
+        // The way out of a keychain item the app can no longer read, which is
+        // what an ad-hoc build leaves behind after a rebuild.
+        let store = InMemoryLicenseStore()
+        await store.save("SIFT-TEST-KEY")
+        let service = EntitlementService(
+            channel: DirectLicenseService(keychain: store) { _ in
+                EntitlementState(channel: .direct, status: .unlocked(verifiedAt: Date()))
+            },
+            defaults: UserDefaults(suiteName: suiteName) ?? .standard
+        )
+
+        let storedBefore = await service.hasStoredLicense()
+        XCTAssertTrue(storedBefore)
+        let state = await service.removeStoredLicense()
+
+        XCTAssertFalse(state.isUnlocked)
+        let stillStored = await service.hasStoredLicense()
+        let remaining = await store.load()
+        XCTAssertFalse(stillStored)
+        XCTAssertNil(remaining, "the stored key is gone")
+    }
+
     func test_priceFallsBackToTheReferenceAmount() {
         let state = EntitlementState(channel: .direct, status: .free)
         XCTAssertFalse(state.formattedPrice.isEmpty)

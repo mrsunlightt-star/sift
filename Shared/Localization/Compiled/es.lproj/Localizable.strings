@@ -300,6 +300,7 @@
 "settings.oldFileThreshold" = "Umbral de archivos antiguos";
 "settings.privacyStatement" = "Sift no recopila contenidos, nombres de archivo, rutas completas, historial de navegación, uso de apps ni datos de cuenta. Los resultados se quedan en este Mac.";
 "settings.reduceMotion" = "Reducir movimiento";
+"settings.removeLicense" = "Eliminar la clave de licencia guardada";
 "settings.requireConfirmation" = "Pedir confirmación antes de limpiar";
 "settings.resetDefaults" = "Restaurar valores";
 "settings.scanHistory" = "Historial de análisis";

@@ -13,6 +13,7 @@ public struct SettingsView: View {
     @State private var permissionReport: [PermissionsService.LocationAccess] = []
     @State private var exportMessage: String?
     @State private var permissionHint = false
+    @State private var hasStoredLicense = false
 
     public init() {}
 
@@ -35,6 +36,7 @@ public struct SettingsView: View {
         }
         .task {
             permissionReport = await environment.permissions.accessReport()
+            hasStoredLicense = await environment.hasStoredLicense()
         }
     }
 
@@ -396,6 +398,23 @@ public struct SettingsView: View {
                 Text(LocalizationKey.purchasePriceLine.localized)
                     .font(SiftFont.caption)
                     .foregroundStyle(.secondary)
+                if hasStoredLicense {
+                    // The only way to remove a stored key. macOS binds the
+                    // keychain item to the app's code signature, so an ad-hoc
+                    // build asks for permission again after every rebuild; a
+                    // user who no longer wants the key stored needs a way to say
+                    // so without the terminal.
+                    Button {
+                        Task {
+                            await environment.removeStoredLicense()
+                            hasStoredLicense = await environment.hasStoredLicense()
+                        }
+                    } label: {
+                        Text(LocalizationKey.settingsRemoveLicense.localized)
+                            .font(SiftFont.caption)
+                    }
+                    .buttonStyle(.link)
+                }
             }
         }
     }

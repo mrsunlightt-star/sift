@@ -300,6 +300,7 @@
 "settings.oldFileThreshold" = "古いファイルの基準";
 "settings.privacyStatement" = "Sift はファイル内容、ファイル名、完全なパス、閲覧履歴、アプリの使用履歴、アカウント情報を収集しません。結果はこの Mac にのみ保存されます。";
 "settings.reduceMotion" = "視差効果を減らす";
+"settings.removeLicense" = "保存済みのライセンスキーを削除";
 "settings.requireConfirmation" = "削除前に確認する";
 "settings.resetDefaults" = "既定値に戻す";
 "settings.scanHistory" = "スキャン履歴";

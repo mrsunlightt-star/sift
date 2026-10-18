@@ -300,6 +300,7 @@
 "settings.oldFileThreshold" = "Порог старых файлов";
 "settings.privacyStatement" = "Sift не собирает содержимое файлов, имена, полные пути, историю браузера, данные об использовании приложений или аккаунт. Результаты остаются на этом Mac.";
 "settings.reduceMotion" = "Уменьшить движение";
+"settings.removeLicense" = "Удалить сохранённый лицензионный ключ";
 "settings.requireConfirmation" = "Спрашивать перед очисткой";
 "settings.resetDefaults" = "Восстановить значения по умолчанию";
 "settings.scanHistory" = "История сканирований";

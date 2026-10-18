@@ -300,6 +300,7 @@
 "settings.oldFileThreshold" = "Old file threshold";
 "settings.privacyStatement" = "Sift does not collect file contents, file names, full paths, browsing history, app usage or account details. Scan results stay on this Mac, and nothing is uploaded.";
 "settings.reduceMotion" = "Reduce motion";
+"settings.removeLicense" = "Remove stored licence key";
 "settings.requireConfirmation" = "Ask for confirmation before cleaning";
 "settings.resetDefaults" = "Restore defaults";
 "settings.scanHistory" = "Scan history";
