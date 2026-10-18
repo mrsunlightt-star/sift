@@ -99,13 +99,13 @@ step "8/9  Xcode: XCTest and test-plan build (skipped without Xcode)"
 # can execute.
 if xcode_available; then
   run xcode_run swift test --package-path "${REPO_ROOT}"
-  # The UI target is compiled and signed here, which is what catches a broken
-  # UI test. Running it is left to the operator: the UI-test runner on
-  # Xcode 16.4 / macOS 15.7 fails intermittently to resolve the app bundle
-  # ("The bundle identifier for Sift couldn't be read"), and a verification stage
-  # that fails half the time decides nothing. The command is in AGENTS.md, and
-  # the suite passes when the runner starts.
+  # Build and run in two steps. `xcodebuild test` starts the run while the app
+  # bundle is still being signed, and then sometimes fails to resolve the UI
+  # test's target application ("The bundle identifier for Sift couldn't be
+  # read"). Separating the phases removes the race and is the flow Apple
+  # documents for CI.
   run xcode_run xcodebuild build-for-testing -scheme Sift -testPlan Sift -derivedDataPath "${REPO_ROOT}/.build/xcode" -quiet
+  run xcode_run xcodebuild test-without-building -scheme Sift -testPlan Sift -destination 'platform=macOS' -derivedDataPath "${REPO_ROOT}/.build/xcode" -quiet
 else
   echo "  → skipped (no Xcode; Scripts/run-tests.sh covered the suite)"
 fi

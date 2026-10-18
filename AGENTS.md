@@ -43,17 +43,13 @@ the first time a real Xcode compiled this project:
   project. XcodeGen derives those IDs from the target names, so they survive
   regeneration; renaming a target means updating the plan.
 
-The UI suite is compiled by `Scripts/verify.sh` but not executed by it: on
-Xcode 16.4 with macOS 15.7 the UI-test runner intermittently fails to resolve the
-app bundle before the first test starts ("The bundle identifier for Sift couldn't
-be read"), and a stage that fails half the time cannot decide a verification.
-Run it directly, and re-run if the runner fails to start — the tests themselves
-pass:
-
-```bash
-xcodebuild test-without-building -scheme Sift -testPlan Sift \
-  -destination "platform=macOS,arch=$(uname -m)" -derivedDataPath .build/xcode
-```
+The Xcode stage builds the test plan and then runs it with
+`test-without-building`, in two steps: a single `xcodebuild test` starts the run
+while the app bundle is still being signed and can fail to resolve the UI test's
+target application ("The bundle identifier for Sift couldn't be read"). The UI
+tests only ran reliably once `xcode-select` pointed at Xcode itself — with the
+Command Line Tools selected and `DEVELOPER_DIR` set for one stage, the runner
+mixed two toolchains and failed most of the time.
 
 ## Before changing code
 
