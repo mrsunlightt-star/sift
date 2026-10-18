@@ -56,7 +56,7 @@ struct DuplicateGroupsCard: View {
                 // The list is paged, so it has to say how much of the result it
                 // is showing. A list that stopped at one page and looked complete
                 // would hide reclaimable space the scan had already found.
-                if scan.hasMoreDuplicateGroups || groups.count < scan.duplicateGroupsTotal {
+                if scan.hasMoreDuplicateGroups {
                     Divider()
                     HStack(spacing: SiftMetrics.spacingM) {
                         Text(

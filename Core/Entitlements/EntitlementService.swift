@@ -277,7 +277,7 @@ public actor EntitlementService {
         await direct.clearStoredLicense()
         let state = EntitlementState(channel: channel.channel, status: .free)
         apply(state)
-        return state
+        return evaluated(state)
     }
 
     /// Runs the purchase flow.
@@ -287,7 +287,7 @@ public actor EntitlementService {
         guard state.isUnlocked else { throw PurchaseError.verificationFailed }
         apply(state)
         logger.notice("Purchase verified")
-        return state
+        return evaluated(state)
     }
 
     /// Re-verifies an existing purchase, e.g. after a reinstall.
@@ -295,7 +295,7 @@ public actor EntitlementService {
     public func restore() async throws -> EntitlementState {
         let state = try await channel.restore()
         apply(state)
-        return state
+        return evaluated(state)
     }
 
     /// Activates a license key on the direct channel.
@@ -305,7 +305,7 @@ public actor EntitlementService {
         }
         let state = try await direct.activate(licenseKey: licenseKey)
         apply(state)
-        return state
+        return evaluated(state)
     }
 
     private func apply(_ state: EntitlementState) {
