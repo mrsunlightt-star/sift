@@ -162,7 +162,7 @@ public actor EntitlementService {
         self.defaults = defaults
         self.cachedState = EntitlementState(
             channel: channel.channel,
-            status: EntitlementService.restoredStatus(from: defaults)
+            status: EntitlementService.restoredStatus(from: defaults, channel: channel.channel)
         )
     }
 
@@ -171,7 +171,20 @@ public actor EntitlementService {
     /// A timestamp alone never unlocks anything permanently: it produces an
     /// `offlineGrace` window that expires, and the next successful verification
     /// is what refreshes it.
-    private static func restoredStatus(from defaults: UserDefaults) -> EntitlementState.Status {
+    ///
+    /// The cache belongs to the channel that wrote it. A direct-sold licence key
+    /// proves nothing about a Mac App Store build and a verified StoreKit
+    /// transaction proves nothing about the direct one, so a timestamp left by
+    /// the other channel is ignored rather than carried across: both channels
+    /// ship the same executable and share one `UserDefaults` domain when a build
+    /// changes distribution.
+    private static func restoredStatus(
+        from defaults: UserDefaults,
+        channel: EntitlementState.Channel
+    ) -> EntitlementState.Status {
+        guard defaults.string(forKey: Key.channel) == channel.rawValue else {
+            return .free
+        }
         guard let verifiedAt = defaults.object(forKey: Key.verifiedAt) as? Date else {
             return .free
         }
@@ -336,9 +349,16 @@ public actor DirectLicenseService: PurchaseChannel {
     }
 
     public func restore() async throws -> EntitlementState {
-        guard let stored = await keychain.load() else { return EntitlementState(channel: .direct, status: .free) }
-        let state = try await verify(stored)
-        return state
+        // Same rule as `load()`: never touch the Keychain unless a key was
+        // stored. Reading it on a machine that never bought anything raises a
+        // system password prompt for a purchase that does not exist.
+        guard await keychain.hasStoredKey() else {
+            return EntitlementState(channel: .direct, status: .free)
+        }
+        guard let stored = await keychain.load() else {
+            return EntitlementState(channel: .direct, status: .free)
+        }
+        return try await verify(stored)
     }
 
     /// The license key, for display masking in settings. Never logged.

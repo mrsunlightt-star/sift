@@ -628,6 +628,7 @@ private struct RustScanRequest: Encodable {
     let ignorePaths: [String]
     let authorizedRoots: [String]
     let installedBundleIds: [String]
+    let includeHiddenFiles: Bool
     let extraRulesJson: String?
     let includeDuplicates: Bool
     let duplicates: Duplicates
@@ -666,6 +667,7 @@ private struct RustScanRequest: Encodable {
         self.ignorePaths = request.ignoredPaths
         self.authorizedRoots = request.authorizedRoots
         self.installedBundleIds = request.installedBundleIdentifiers
+        self.includeHiddenFiles = request.includeHiddenFiles
         self.extraRulesJson = request.extraRulesJSON
         self.includeDuplicates = request.includeDuplicates
         self.duplicates = Duplicates(

@@ -190,10 +190,18 @@ public final class AppEnvironment: ObservableObject {
             ignoredPaths: current.ignoredPaths,
             authorizedRoots: restoredAuthorizedURLs.map(\.path),
             installedBundleIdentifiers: bundleIdentifiers,
+            // The preference is a scan scope, so it is applied by the engines
+            // rather than filtered out of the list afterwards.
+            includeHiddenFiles: current.showHiddenFiles,
             includeDuplicates: includeDuplicates,
             // Sorted and deduplicated: a granted folder that is also a default
             // root would otherwise appear twice.
-            duplicateRoots: Array(Set(defaultDuplicateRoots())).sorted()
+            duplicateRoots: Array(Set(defaultDuplicateRoots())).sorted(),
+            // The Rust core only reads rule JSON; it has no access to this
+            // engine's rule list. Without this the two engines ran different
+            // rule sets and a user's own rule was honoured by the Swift
+            // fallback but ignored by the shipped scanner.
+            extraRulesJSON: rules.userRulesJSON
         )
     }
 

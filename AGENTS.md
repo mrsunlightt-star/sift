@@ -27,7 +27,7 @@ suite still runs, and `Scripts/verify.sh` adds the Xcode stages automatically on
 it finds an Xcode — in `xcode-select` or, before that step has been run, in
 `/Applications`.
 
-Four things about the Xcode path are load-bearing and were each a build failure
+Five things about the Xcode path are load-bearing and were each a build failure
 the first time a real Xcode compiled this project:
 
 - the package exports `AppShell`, `Core` and `Shared` as **static** library
@@ -42,6 +42,12 @@ the first time a real Xcode compiled this project:
 - `Config/Sift.xctestplan` names targets by their object IDs in the generated
   project. XcodeGen derives those IDs from the target names, so they survive
   regeneration; renaming a target means updating the plan.
+- the app target sets `ENABLE_DEBUG_DYLIB: NO`. Xcode 16's default builds a
+  Debug app as a small launcher plus `Sift.debug.dylib`, and the bundle is
+  reassembled and re-signed while the UI test is being set up. The run then
+  fails with `The bundle identifier for Sift couldn't be read. No such file or
+  directory: ".../Debug/Sift"` — and it fails intermittently, so a green run
+  proves nothing. A UI test needs one fully linked, signed bundle.
 
 The Xcode stage builds the test plan and then runs it with
 `test-without-building`, in two steps: a single `xcodebuild test` starts the run
@@ -50,6 +56,11 @@ target application ("The bundle identifier for Sift couldn't be read"). The UI
 tests only ran reliably once `xcode-select` pointed at Xcode itself — with the
 Command Line Tools selected and `DEVELOPER_DIR` set for one stage, the runner
 mixed two toolchains and failed most of the time.
+
+Both steps name the destination as `platform=macOS,arch=$(uname -m)`.
+`platform=macOS` alone matches arm64 and x86_64 on an Apple Silicon Mac, and
+xcodebuild picks one with "using the first of multiple matching destinations";
+the CI job uses the same two commands and the same destination.
 
 ## Before changing code
 
@@ -73,10 +84,13 @@ its `.lproj` outputs with `python3 Scripts/generate-strings.py`. Never edit
 `Localizable.xcstrings`, `LocalizationKey.swift` or `.lproj` files by hand.
 
 After changing `PROTECTED_HOME_CHILDREN`, `PROTECTED_PREFIXES`,
-`PROTECTED_LIBRARY_CHILDREN` or `PROTECTED_PHOTOS_LIBRARY_SUFFIX` in
+`PROTECTED_LIBRARY_CHILDREN`, `PROTECTED_PHOTOS_LIBRARY_SUFFIX`,
+`SYMLINK_ALIASES` or `SYMLINK_ALIAS_TARGETS` in
 `RustCore/crates/sift-rules/src/lib.rs`, regenerate the Swift half with
 `python3 Scripts/generate-protection.py`. Never edit `Core/Rules/ProtectedPaths.swift`
-by hand: it exists so the two engines cannot protect different sets of paths.
+by hand: it exists so the two engines cannot protect different sets of paths, and
+`SYMLINK_ALIASES`/`SYMLINK_ALIAS_TARGETS` are one table read index for index, so
+moving one without the other is rejected by the generator.
 
 ## Before committing
 
@@ -131,7 +145,10 @@ These are product promises, not implementation details. Each has tests behind it
     granted. `/Volumes` and the home directory are containers: a rule that fell
     back to either would apply to a tree nobody opened.
 13. **Path comparisons normalise `.`, `..` and the macOS symlink aliases**
-    (`/var`, `/tmp`, `/etc`) before matching.
+    (`/var`, `/tmp`, `/etc`) before matching, in both engines, from one table.
+    `SYMLINK_ALIASES`/`SYMLINK_ALIAS_TARGETS` are the source and the Swift copy is
+    generated; a private literal in either engine is how `/var/db/...` came to be
+    refused by one and walked by the other.
 14. **Two engines, one protection list.** `PROTECTED_*` in
     `RustCore/crates/sift-rules/src/lib.rs` is the source; the Swift list is
     generated from it. `Scripts/verify.sh` fails when the generated copy is stale,
@@ -189,3 +206,24 @@ These are product promises, not implementation details. Each has tests behind it
   scopes live, and `AppEnvironment.runScan` is the one function that starts a
   scan. A page supplies an intent and renders its own categories; it does not
   assemble a request.
+
+## Two preferences that are scan scopes
+
+Both of these change what a scan *produces*, not what a list happens to display.
+Filtering at display time was the tempting shortcut in each case, and it is wrong
+for the same reason: the rows, the category totals and the report would then
+describe different runs, and the numbers the user acts on are the totals.
+
+- **Show hidden files.** Off means an entry whose name starts with `.` is not a
+  candidate: `WalkOptions.skip_hidden` in the Rust walker, `FileWalker.Options.skipHidden`
+  in the Swift one, and the measuring functions take the same flag so a directory's
+  reported size is the part a cleanup would actually reclaim. A file inside a
+  package or an uninstalled app's data directory is still counted, because the item
+  is the whole directory.
+- **Stale threshold.** A rule whose `usesStaleThreshold` is true takes its age
+  from `ScanRequest.staleThresholdDays`; every other rule keeps the age it states,
+  so `download-archives` stays at 90 days. `effective_min_age_days` /
+  `effectiveMinAgeDays` resolve it identically in both engines, and a threshold of
+  zero leaves each rule's own value in force. Defaults match the shipped table
+  (30 days where the rule opts in), so neither engine's behaviour depends on
+  whether the request carried the field.

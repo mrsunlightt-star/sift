@@ -118,7 +118,7 @@ public actor FileOperationService {
                 continue
             }
 
-            if isInUse(candidate, attributes: attributes) {
+            if await isInUse(candidate, attributes: attributes) {
                 skipped.append((candidate, .fileInUse, LocalizationKey.cleanupFailureFileInUse.localized))
                 continue
             }
@@ -172,50 +172,36 @@ public actor FileOperationService {
 
     /// True when an application currently holds the file open.
     ///
-    /// Uses the file's open-count through `NSFileCoordinator`-free means: a
-    /// readable descriptor plus a non-zero open count from the volume is the
-    /// cheap check; anything else is treated as available and the move itself
-    /// will report the real failure.
-    private func isInUse(_ candidate: Candidate, attributes: [FileAttributeKey: Any]?) -> Bool {
+    /// A running `.app` bundle is the case the user hits in practice: removing
+    /// it while it runs produces an opaque failure, so it is reported as
+    /// `fileInUse` up front. The check runs on the main actor because only
+    /// AppKit knows which applications are running.
+    private func isInUse(_ candidate: Candidate, attributes: [FileAttributeKey: Any]?) async -> Bool {
         _ = attributes
-        // A running `.app` bundle is the case the user hits in practice: removing
-        // it while it runs produces an opaque failure, so it is reported as
-        // `fileInUse` up front. The check runs on the main actor because only
-        // AppKit knows which applications are running.
         guard candidate.url.pathExtension == "app" else { return false }
-        return cachedRunningBundlePaths().contains(
+        let running = await cachedRunningBundlePaths()
+        return running.contains(
             candidate.url.standardizedFileURL.resolvingSymlinksInPath().path
         )
     }
 
     /// Snapshot of running bundle paths, refreshed at most once per second.
     ///
-    /// The pre-flight check asks about every selected item, and a snapshot keeps
-    /// that from becoming one main-actor hop per file.
-    private func cachedRunningBundlePaths() -> Set<String> {
+    /// The pre-flight check asks about every selected item, and a cached snapshot
+    /// keeps that from becoming one main-actor hop per file.
+    ///
+    /// The hop is an `await` rather than a semaphore with a timeout. A wait that
+    /// gave up returned an empty set — "nothing is running" about a question that
+    /// was never answered — and the main thread went on to write its answer into
+    /// the same box the reader had already walked away from.
+    private func cachedRunningBundlePaths() async -> Set<String> {
         let now = Date()
         if let cached = runningPathsCache, now.timeIntervalSince(cached.0) < 1 {
             return cached.1
         }
-        let paths = Self.runningBundlePathsSnapshot()
+        let paths = Set(await NSWorkspaceWorker.shared.runningApplicationBundlePaths())
         runningPathsCache = (now, paths)
         return paths
-    }
-
-    /// Reads the running-application list from the main actor, synchronously.
-    ///
-    /// Pre-flight already runs off the main thread, so a short wait here costs
-    /// nothing compared to the disk work that follows.
-    private static func runningBundlePathsSnapshot() -> Set<String> {
-        let semaphore = DispatchSemaphore(value: 0)
-        let box = PathBox()
-        DispatchQueue.main.async {
-            box.paths = Set(NSWorkspaceWorker.shared.runningApplicationBundlePaths())
-            semaphore.signal()
-        }
-        // A timeout keeps a hung main thread from blocking a cleanup forever.
-        _ = semaphore.wait(timeout: .now() + 2)
-        return box.paths
     }
 
     // MARK: - Execution
@@ -393,9 +379,4 @@ extension FileOperationService.Candidate {
             sourceRuleID: "preflight"
         )
     }
-}
-
-/// A tiny reference box used to move the main-actor result out of the closure.
-private final class PathBox: @unchecked Sendable {
-    var paths: Set<String> = []
 }

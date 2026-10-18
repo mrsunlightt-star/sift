@@ -52,6 +52,14 @@ targets:
         PRODUCT_NAME: Sift
         PRODUCT_BUNDLE_IDENTIFIER: com.siftmac.cleaner
         INFOPLIST_FILE: Config/Info.plist
+        # Not Xcode 16's debug dylib. That mode builds the app as a small
+        # launcher plus `Sift.debug.dylib`, and the runner reassembles the pair
+        # while the UI test is being set up — the app bundle then changes after
+        # it was signed, and the run fails with "The bundle identifier for Sift
+        # couldn't be read. No such file or directory: .../Debug/Sift". A UI
+        # test needs one fully linked, signed bundle, so the setting is off for
+        # every configuration rather than only for the test action.
+        ENABLE_DEBUG_DYLIB: NO
         # Swap this to Config/Sift-AppStore.entitlements for a sandboxed Mac App
         # Store build (§12.4). It is a target setting, so it cannot be a scheme.
         CODE_SIGN_ENTITLEMENTS: Config/Sift.entitlements

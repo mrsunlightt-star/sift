@@ -47,6 +47,12 @@ pub struct WalkOptions {
     pub authorized_roots: Vec<PathBuf>,
     /// Stop after this many entries; `None` means unlimited.
     pub max_entries: Option<u64>,
+    /// Skip entries whose name starts with `.`.
+    ///
+    /// The "show hidden files" setting decides what the walk *produces* rather
+    /// than what a list displays: filtering later would leave the candidates, the
+    /// category totals and the report disagreeing about the same run.
+    pub skip_hidden: bool,
     /// Report package directories as entries instead of descending into them.
     pub stop_at_packages: bool,
 }
@@ -61,6 +67,7 @@ impl WalkOptions {
             skip_paths: Vec::new(),
             authorized_roots: Vec::new(),
             max_entries: None,
+            skip_hidden: false,
             stop_at_packages: true,
         }
     }
@@ -243,6 +250,9 @@ pub fn walk(root: &Path, options: &WalkOptions, cancel: &CancelToken) -> WalkRep
                 .file_name()
                 .map(|n| n.to_string_lossy().to_string())
                 .unwrap_or_default();
+            if options.skip_hidden && name.starts_with('.') {
+                continue;
+            }
             let is_package = is_directory && is_package_directory(&name, &[]);
 
             if is_directory {
@@ -263,12 +273,20 @@ pub fn walk(root: &Path, options: &WalkOptions, cancel: &CancelToken) -> WalkRep
                     WalkMode::Files => false,
                 };
                 if report_directory && !is_package {
+                    if budget_spent(options, &report) {
+                        report.truncated = true;
+                        return report;
+                    }
                     if let Some(entry) = build_entry(&path, true, &metadata, 0) {
                         report.entries.push(entry);
                     }
                 }
 
                 if is_package && options.stop_at_packages {
+                    if budget_spent(options, &report) {
+                        report.truncated = true;
+                        return report;
+                    }
                     // A bundle counts as one item: report it and measure it as a
                     // unit rather than descending file by file.
                     let measured = measure_within(&path, cancel, options, &mut report);
@@ -289,11 +307,7 @@ pub fn walk(root: &Path, options: &WalkOptions, cancel: &CancelToken) -> WalkRep
                     // Sockets, FIFOs and devices are not cleanup candidates.
                     continue;
                 }
-                if options
-                    .max_entries
-                    .map(|max| report.entries.len() as u64 >= max)
-                    .unwrap_or(false)
-                {
+                if budget_spent(options, &report) {
                     report.truncated = true;
                     return report;
                 }
@@ -312,6 +326,19 @@ pub fn walk(root: &Path, options: &WalkOptions, cancel: &CancelToken) -> WalkRep
     }
 
     report
+}
+
+/// True when the walk has already produced as many entries as it may.
+///
+/// Every reported entry counts, directories and package directories included:
+/// `max_entries` is a bound on the result the caller receives, and a walk that
+/// only counted files still let a tree of a million empty folders build a
+/// million entries.
+fn budget_spent(options: &WalkOptions, report: &WalkReport) -> bool {
+    options
+        .max_entries
+        .map(|max| report.entries.len() as u64 >= max)
+        .unwrap_or(false)
 }
 
 /// True when the walk must not enter `path`.
@@ -671,6 +698,42 @@ mod tests {
     }
 
     #[test]
+    fn hidden_entries_are_out_of_scope_when_the_scan_says_so() {
+        let tree = TempTree::new("hidden-scope");
+        tree.file("visible.bin", 1024);
+        tree.file(".hidden.bin", 1024);
+        tree.file(".hidden-dir/inside.bin", 1024);
+        tree.file("visible-dir/inside.bin", 1024);
+
+        let cancel = CancelToken::new();
+        let names = |skip_hidden: bool| {
+            let mut options = WalkOptions::new(tree.root.clone(), WalkMode::FilesAndDirectories);
+            options.skip_hidden = skip_hidden;
+            let report = walk(&tree.root, &options, &cancel);
+            let mut names: Vec<String> = report.entries.iter().map(|e| e.display_name()).collect();
+            names.sort();
+            names
+        };
+
+        let with_hidden = names(true);
+        assert!(
+            !with_hidden.contains(&".hidden.bin".to_string()),
+            "a dotfile is not a candidate when the setting is off: {with_hidden:?}"
+        );
+        assert!(!with_hidden.contains(&".hidden-dir".to_string()));
+
+        let without_filter = names(false);
+        assert!(
+            without_filter.contains(&".hidden.bin".to_string()),
+            "the same walk reports it when the setting is on: {without_filter:?}"
+        );
+        // The filter is a scope, not a cap: nothing else changed.
+        for name in with_hidden {
+            assert!(without_filter.contains(&name), "{name} disappeared");
+        }
+    }
+
+    #[test]
     fn missing_root_is_reported_not_panicked() {
         let missing = std::env::temp_dir().join("sift-definitely-missing-dir-xyz");
         let report = walk(
@@ -779,6 +842,42 @@ mod tests {
         let report = walk(&tree.root, &opts, &CancelToken::new());
         assert!(report.truncated);
         assert_eq!(report.entries.len(), 10);
+    }
+
+    #[test]
+    fn the_entry_budget_covers_directory_entries_too() {
+        // The limit bounds what the caller receives. Counting only files let a
+        // tree of empty folders — or of packages — return unbounded entries with
+        // `truncated` left false.
+        let tree = TempTree::new("walk-max-dirs");
+        for i in 0..30 {
+            tree.dir(&format!("dir{i}"));
+        }
+        let mut opts = options(&tree.root);
+        opts.mode = WalkMode::FilesAndDirectories;
+        opts.max_entries = Some(5);
+        let report = walk(&tree.root, &opts, &CancelToken::new());
+        assert!(report.truncated);
+        assert_eq!(report.entries.len(), 5);
+    }
+
+    #[test]
+    fn the_entry_budget_covers_package_directories_too() {
+        let tree = TempTree::new("walk-max-packages");
+        for i in 0..6 {
+            tree.dir(&format!("Bundle{i}.app/Contents"));
+        }
+        let mut opts = options(&tree.root);
+        opts.mode = WalkMode::FilesAndDirectories;
+        opts.max_entries = Some(2);
+        let report = walk(&tree.root, &opts, &CancelToken::new());
+        assert!(report.truncated);
+        assert_eq!(
+            report.entries.len(),
+            2,
+            "a package is an entry and must count against the budget"
+        );
+        assert!(report.entries.iter().all(|entry| entry.is_package));
     }
 
     #[test]

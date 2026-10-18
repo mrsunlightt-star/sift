@@ -172,6 +172,11 @@ fn is_mounted_volume(path: &Path) -> bool {
     path.starts_with("/Volumes") && path.parent() == Some(Path::new("/Volumes"))
 }
 
+/// True when a dotfile is outside this scan, from the request's scope.
+fn skips_hidden(context: &ScanContext<'_>) -> bool {
+    !context.request.include_hidden_files
+}
+
 /// The grants a scan may use, as paths.
 fn authorized_paths(context: &ScanContext<'_>) -> Vec<PathBuf> {
     context
@@ -195,10 +200,12 @@ pub fn measure_directory(
     cancel: &CancelToken,
     home: &Path,
     authorized_roots: &[PathBuf],
+    skip_hidden: bool,
 ) -> (Measured, WalkReport) {
     let mut options = WalkOptions::new(home.to_path_buf(), WalkMode::Files)
         .with_ignores(walker::DEFAULT_SKIP_DIRECTORY_NAMES);
     options.authorized_roots = authorized_roots.to_vec();
+    options.skip_hidden = skip_hidden;
     options.stop_at_packages = true;
     let _ = &mut options;
     let report = walker::walk(path, &options, cancel);
@@ -329,7 +336,13 @@ fn directory_candidate(
         return None;
     }
     context.progress.note_path(path);
-    let (measured, report) = measure_directory(path, cancel, &context.home_dir, &authorized);
+    let (measured, report) = measure_directory(
+        path,
+        cancel,
+        &context.home_dir,
+        &authorized,
+        skips_hidden(context),
+    );
     context
         .progress
         .note_files(report.total_files, report.total_bytes);
@@ -381,6 +394,11 @@ fn child_directory_candidates(
         .iter()
         .map(PathBuf::from)
         .collect();
+    options.skip_hidden = skips_hidden(context);
+
+    // The user's stale threshold governs a rule that opted into it (§5.2); every
+    // other rule keeps the age its own definition states.
+    let min_age_days = rule.effective_min_age_days(context.request.stale_threshold_days);
 
     let report = walker::walk(root, &options, cancel);
     let mut candidates = Vec::new();
@@ -399,7 +417,7 @@ fn child_directory_candidates(
         // the reported size is exactly the reclaimable part. Filtering on the
         // directory's own mtime would be wrong: creating one fresh log inside it
         // would hide every stale log sitting next to it.
-        let measured = match rule.min_age_days {
+        let measured = match min_age_days {
             Some(min_age_days) => {
                 let authorized: Vec<PathBuf> = context
                     .request
@@ -412,6 +430,7 @@ fn child_directory_candidates(
                     cancel,
                     &context.home_dir,
                     &authorized,
+                    skips_hidden(context),
                     &|modified| older_than_days(modified, min_age_days),
                 )
             }
@@ -422,7 +441,14 @@ fn child_directory_candidates(
                     .iter()
                     .map(PathBuf::from)
                     .collect();
-                measure_directory(&entry.path, cancel, &context.home_dir, &authorized).0
+                measure_directory(
+                    &entry.path,
+                    cancel,
+                    &context.home_dir,
+                    &authorized,
+                    skips_hidden(context),
+                )
+                .0
             }
         };
         context.progress.note_files(measured.files, measured.bytes);
@@ -433,7 +459,7 @@ fn child_directory_candidates(
             continue;
         }
 
-        let modified = match rule.min_age_days {
+        let modified = match min_age_days {
             // The oldest surviving file is what the explanation reports.
             Some(min_age_days) => {
                 let authorized: Vec<PathBuf> = context
@@ -447,12 +473,13 @@ fn child_directory_candidates(
                     cancel,
                     &context.home_dir,
                     &authorized,
+                    skips_hidden(context),
                     min_age_days,
                 )
             }
             None => entry.modified_secs,
         };
-        if rule.min_age_days.is_some() && modified == 0 {
+        if min_age_days.is_some() && modified == 0 {
             continue;
         }
 
@@ -498,6 +525,11 @@ fn file_candidates(
         .iter()
         .map(PathBuf::from)
         .collect();
+    options.skip_hidden = skips_hidden(context);
+
+    // Same rule as the directory case above: only a rule that opted into the
+    // stale threshold reads its age from the request.
+    let min_age_days = rule.effective_min_age_days(context.request.stale_threshold_days);
 
     let report = walker::walk(root, &options, cancel);
     let mut candidates = Vec::new();
@@ -512,7 +544,7 @@ fn file_candidates(
         if filter_by_extension && !has_extension(entry, extensions) {
             continue;
         }
-        if let Some(min_age_days) = rule.min_age_days {
+        if let Some(min_age_days) = min_age_days {
             if !older_than_days(entry.modified_secs, min_age_days) {
                 continue;
             }
@@ -551,6 +583,7 @@ pub fn measure_directory_matching(
     cancel: &CancelToken,
     home: &Path,
     authorized_roots: &[PathBuf],
+    skip_hidden: bool,
     accept_file: &dyn Fn(i64) -> bool,
 ) -> Measured {
     let mut measured = Measured::default();
@@ -568,6 +601,9 @@ pub fn measure_directory_matching(
                 continue;
             };
             if metadata.file_type().is_symlink() {
+                continue;
+            }
+            if skip_hidden && is_hidden_name(&entry_path) {
                 continue;
             }
             if metadata.is_dir() {
@@ -600,6 +636,7 @@ fn oldest_matching_modified_secs(
     cancel: &CancelToken,
     home: &Path,
     authorized_roots: &[PathBuf],
+    skip_hidden: bool,
     min_age_days: u32,
 ) -> i64 {
     let mut stack = vec![path.to_path_buf()];
@@ -617,6 +654,9 @@ fn oldest_matching_modified_secs(
                 continue;
             };
             if metadata.file_type().is_symlink() {
+                continue;
+            }
+            if skip_hidden && is_hidden_name(&entry_path) {
                 continue;
             }
             if metadata.is_dir() {
@@ -673,6 +713,13 @@ fn has_extension(entry: &WalkEntry, extensions: &[String]) -> bool {
         }
         None => false,
     }
+}
+
+/// True when the path's last component starts with `.`.
+fn is_hidden_name(path: &Path) -> bool {
+    path.file_name()
+        .map(|name| name.to_string_lossy().starts_with('.'))
+        .unwrap_or(false)
 }
 
 fn older_than_days(modified_secs: i64, days: u32) -> bool {
@@ -764,6 +811,7 @@ fn file_threshold_scan(
             .iter()
             .map(PathBuf::from)
             .collect();
+        options.skip_hidden = skips_hidden(context);
 
         let report = walker::walk(&root, &options, cancel);
         combined.total_files += report.total_files;
@@ -891,6 +939,7 @@ pub fn scan_application_residue(
         let mut options = WalkOptions::new(context.home_dir.clone(), WalkMode::ImmediateChildren)
             .with_max_depth(1);
         options.authorized_roots = authorized_paths(context);
+        options.skip_hidden = skips_hidden(context);
         let report = walker::walk(&directory, &options, cancel);
         combined.skips.extend(report.skips.iter().cloned());
 
@@ -921,8 +970,10 @@ pub fn scan_application_residue(
             ) {
                 continue;
             }
+            // Measured whole and without the hidden filter: the item is the
+            // directory, and trashing it takes the dotfiles inside it as well.
             let (measured, inner) =
-                measure_directory(&entry.path, cancel, &context.home_dir, &authorized);
+                measure_directory(&entry.path, cancel, &context.home_dir, &authorized, false);
             if measured.bytes == 0 {
                 continue;
             }
@@ -961,6 +1012,7 @@ pub fn scan_application_residue(
         let mut options = WalkOptions::new(context.home_dir.clone(), WalkMode::ImmediateChildren)
             .with_max_depth(1);
         options.authorized_roots = authorized_paths(context);
+        options.skip_hidden = skips_hidden(context);
         let report = walker::walk(&group_containers, &options, cancel);
         for entry in &report.entries {
             if !entry.is_directory {
@@ -989,8 +1041,9 @@ pub fn scan_application_residue(
                 .iter()
                 .map(PathBuf::from)
                 .collect();
+            // Whole, as above: the container is the item.
             let (measured, inner) =
-                measure_directory(&entry.path, cancel, &context.home_dir, &authorized);
+                measure_directory(&entry.path, cancel, &context.home_dir, &authorized, false);
             if measured.bytes == 0 {
                 continue;
             }
@@ -1026,6 +1079,7 @@ pub fn scan_application_residue(
         let mut options =
             WalkOptions::new(context.home_dir.clone(), WalkMode::Files).with_max_depth(1);
         options.authorized_roots = authorized_paths(context);
+        options.skip_hidden = skips_hidden(context);
         let report = walker::walk(&directory, &options, cancel);
         for entry in &report.entries {
             let name = entry.display_name();
@@ -1120,6 +1174,8 @@ pub struct DuplicateFinder<'a> {
     cancel: &'a CancelToken,
     home_dir: PathBuf,
     authorized_roots: Vec<PathBuf>,
+    /// Whether dotfiles are outside this run, from the request's scope.
+    skip_hidden: bool,
     hashes_computed: u64,
 }
 
@@ -1154,8 +1210,15 @@ impl<'a> DuplicateFinder<'a> {
             cancel,
             home_dir,
             authorized_roots,
+            skip_hidden: false,
             hashes_computed: 0,
         }
+    }
+
+    /// Sets whether dotfiles are outside this run.
+    pub fn with_skip_hidden(mut self, skip_hidden: bool) -> Self {
+        self.skip_hidden = skip_hidden;
+        self
     }
 
     pub fn report(&self) -> DuplicateReport {
@@ -1179,6 +1242,7 @@ impl<'a> DuplicateFinder<'a> {
         for root in roots {
             let mut options = WalkOptions::new(self.home_dir.clone(), WalkMode::Files);
             options.authorized_roots = self.authorized_roots.clone();
+            options.skip_hidden = self.skip_hidden;
             options.skip_directory_names = walker::DEFAULT_SKIP_DIRECTORY_NAMES
                 .iter()
                 .map(|s| (*s).to_string())
@@ -1669,6 +1733,71 @@ mod tests {
     }
 
     #[test]
+    fn the_stale_threshold_setting_reaches_the_log_scan() {
+        // §5.2: the user sets one age at which a log or installer counts as stale.
+        // A 60-day-old log is stale at the default 30 and still fresh at 90, so
+        // this fails if the request field never reaches the walk.
+        let harness = Harness::new("stale-threshold");
+        let log = harness
+            .tree
+            .file("Library/Logs/com.example.app/old.log", 2048);
+        harness.tree.age(&log, 60);
+
+        let cancel = CancelToken::new();
+        let count_logs = |days: u32| {
+            let mut request = harness.request.clone();
+            request.stale_threshold_days = days;
+            let mut files = |_: u64, _: u64| {};
+            let mut path = |_: &Path| {};
+            let mut context = ScanContext {
+                request: &request,
+                home_dir: harness.tree.root.clone(),
+                rules: effective_rules(None).unwrap(),
+                progress: ProgressSink {
+                    on_files: &mut files,
+                    on_current_path: &mut path,
+                },
+            };
+            let (candidates, _) = scan_rules(&mut context, &cancel);
+            candidates
+                .iter()
+                .filter(|c| c.category == Category::Logs)
+                .count()
+        };
+
+        assert_eq!(
+            count_logs(30),
+            1,
+            "60 days is stale at the default threshold"
+        );
+        assert_eq!(count_logs(90), 0, "the same log is still fresh at 90 days");
+        assert_eq!(
+            count_logs(0),
+            1,
+            "an unset threshold leaves each rule's own age in force"
+        );
+    }
+
+    #[test]
+    fn the_stale_threshold_leaves_a_fixed_age_rule_alone() {
+        // The shipped archive rule states 90 days and must not follow the
+        // setting, or every zip in Downloads would become stale at 14 days.
+        let rules = effective_rules(None).unwrap();
+        let archives = rules
+            .iter()
+            .find(|r| r.id == "download-archives")
+            .expect("the shipped archive rule");
+        assert_eq!(archives.effective_min_age_days(14), Some(90));
+
+        // While the installer rule the setting is meant to govern does follow it.
+        let installers = rules
+            .iter()
+            .find(|r| r.id == "download-installers")
+            .expect("the shipped installer rule");
+        assert_eq!(installers.effective_min_age_days(14), Some(14));
+    }
+
+    #[test]
     fn installer_rule_only_matches_installer_extensions() {
         let harness = Harness::new("rules-installers");
         let dmg = harness.tree.file("Downloads/App.dmg", 4096);
@@ -1723,6 +1852,49 @@ mod tests {
                 .iter()
                 .any(|c| c.path.to_string_lossy().contains("CloudKit")),
             "CloudKit must be excluded: rebuilding it costs the user data"
+        );
+    }
+
+    #[test]
+    fn the_hidden_file_setting_decides_what_a_rule_scan_produces() {
+        // The setting is a scope: with it off, a dotfile is not a candidate and
+        // the bytes it holds are not reported as reclaimable either.
+        let harness = Harness::new("hidden-scope-rules");
+        harness
+            .tree
+            .file("Library/Caches/com.example.app/blob.bin", 4096);
+        harness
+            .tree
+            .file("Library/Caches/com.example.app/.hidden.bin", 4096);
+
+        let cancel = CancelToken::new();
+        let measured = |include_hidden: bool| {
+            let mut request = harness.request.clone();
+            request.include_hidden_files = include_hidden;
+            let mut files = |_: u64, _: u64| {};
+            let mut path = |_: &Path| {};
+            let mut context = ScanContext {
+                request: &request,
+                home_dir: harness.tree.root.clone(),
+                rules: effective_rules(None).unwrap(),
+                progress: ProgressSink {
+                    on_files: &mut files,
+                    on_current_path: &mut path,
+                },
+            };
+            let (candidates, _) = scan_rules(&mut context, &cancel);
+            candidates
+                .iter()
+                .find(|c| c.category == Category::ApplicationCache)
+                .map(|c| c.size_bytes)
+                .unwrap_or(0)
+        };
+
+        let shown = measured(true);
+        let hidden = measured(false);
+        assert!(
+            hidden < shown,
+            "excluding the dotfile must reduce the measured size: {hidden} vs {shown}"
         );
     }
 
@@ -2022,6 +2194,7 @@ mod tests {
             &cancel,
             &harness.tree.root,
             &[],
+            false,
         );
         assert_eq!(report.total_files, 2);
         assert!(measured.bytes >= 4096 + 8192);

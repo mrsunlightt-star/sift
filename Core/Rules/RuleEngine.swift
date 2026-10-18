@@ -28,6 +28,13 @@ public struct RuleEngine: Sendable {
         public let matchSpec: MatchSpec?
         public let excludes: [String]
         public let minAgeDays: Int?
+        /// Whether the user's stale threshold replaces `minAgeDays`.
+        ///
+        /// §5.2 gives the user one age at which a log or installer counts as
+        /// stale. A rule that says so here follows that setting; one that does
+        /// not keeps the age it states, so the archive rule stays at 90 days
+        /// however the setting is moved.
+        public let usesStaleThreshold: Bool
         public let requiresFullDiskAccess: Bool
         public let explanationKey: String
         public let isEnabled: Bool
@@ -41,6 +48,7 @@ public struct RuleEngine: Sendable {
             matchSpec: MatchSpec?,
             excludes: [String],
             minAgeDays: Int?,
+            usesStaleThreshold: Bool = false,
             requiresFullDiskAccess: Bool,
             explanationKey: String,
             isEnabled: Bool
@@ -53,9 +61,23 @@ public struct RuleEngine: Sendable {
             self.matchSpec = matchSpec
             self.excludes = excludes
             self.minAgeDays = minAgeDays
+            self.usesStaleThreshold = usesStaleThreshold
             self.requiresFullDiskAccess = requiresFullDiskAccess
             self.explanationKey = explanationKey
             self.isEnabled = isEnabled
+        }
+
+        /// The age threshold this rule applies for a scan, in days.
+        ///
+        /// The Rust core resolves this identically from the same request field,
+        /// so both engines treat the same file as stale. A threshold of zero
+        /// leaves the rule's own age in force: a setting that was never stored
+        /// must not make every file instantly stale.
+        public func effectiveMinAgeDays(staleThresholdDays: Int) -> Int? {
+            guard usesStaleThreshold, minAgeDays != nil, staleThresholdDays > 0 else {
+                return minAgeDays
+            }
+            return staleThresholdDays
         }
     }
 
@@ -97,6 +119,14 @@ public struct RuleEngine: Sendable {
     ]
 
     public let rules: [Rule]
+    /// The user's rule file, exactly as it was accepted, for the Rust core.
+    ///
+    /// The Rust scanner discovers candidates and never sees this engine's
+    /// `[Rule]`, so a rule the user wrote has to travel to it as the document it
+    /// came from. Stored only once `decode` has accepted it, so the Rust core is
+    /// handed a document this engine has already validated rather than raw bytes
+    /// that might fail the scan with `invalidRequest`.
+    public let userRulesJSON: String?
     /// Locations the user explicitly authorised in settings.
     ///
     /// Authorisation only lifts the blanket `/Volumes` and `/private/var` prefixes
@@ -129,20 +159,27 @@ public struct RuleEngine: Sendable {
         self.authorized = authorized
 
         var table = Self.bundledRules()
+        var acceptedUserRules: String?
         if let userRuleURL, let data = try? Data(contentsOf: userRuleURL) {
             do {
                 let overlay = try Self.decode(data)
                 table = Self.merge(base: table, overlay: overlay)
+                // Kept verbatim: the Rust core merges the same document onto the
+                // same built-ins, so re-encoding it here could only introduce a
+                // second shape for the two engines to disagree about.
+                acceptedUserRules = String(data: data, encoding: .utf8)
                 Self.logger.info("Loaded \(overlay.count) extra rules from the user rule file")
             } catch {
                 // Fail soft: the shipped rules stay in force, and the reason is
-                // logged without the file's path.
+                // logged without the file's path. Nothing is handed to the Rust
+                // core either, so both engines keep the same rule set.
                 Self.logger.error(
                     "User rule file rejected (\(String(describing: error)); keeping built-in rules)"
                 )
             }
         }
         self.rules = table
+        self.userRulesJSON = acceptedUserRules
     }
 
     /// Test and preview initialiser with an explicit rule list.
@@ -154,6 +191,7 @@ public struct RuleEngine: Sendable {
         self.rules = rules
         self.homeDirectory = Self.normalize(homeDirectory.path)
         self.authorized = authorized
+        self.userRulesJSON = nil
     }
 
     // MARK: - Protection
@@ -447,6 +485,7 @@ public struct RuleEngine: Sendable {
             matchSpec: .childDirectories,
             excludes: [],
             minAgeDays: 30,
+            usesStaleThreshold: true,
             requiresFullDiskAccess: false,
             explanationKey: "cleanup.explanation.logs",
             isEnabled: true
@@ -473,6 +512,7 @@ public struct RuleEngine: Sendable {
             matchSpec: .filesByExtension(["dmg", "pkg", "mpkg", "xip", "iso"]),
             excludes: [],
             minAgeDays: 30,
+            usesStaleThreshold: true,
             requiresFullDiskAccess: false,
             explanationKey: "cleanup.explanation.installers",
             isEnabled: true
@@ -499,6 +539,7 @@ public struct RuleEngine: Sendable {
             matchSpec: .childDirectories,
             excludes: [],
             minAgeDays: 30,
+            usesStaleThreshold: true,
             requiresFullDiskAccess: true,
             explanationKey: "cleanup.explanation.systemLogs",
             isEnabled: true
@@ -556,7 +597,10 @@ public struct RuleEngine: Sendable {
     /// string transformation.
     static func normalize(_ path: String) -> String {
         let collapsed = collapse(path)
-        for entry in Self.symlinkAliases {
+        // Read from the generated table rather than a literal here: the Rust
+        // core normalises with the same list, and a private copy is how the two
+        // engines came to disagree about `/var/db/...`.
+        for entry in ProtectedPaths.symlinkAliases {
             // Compared on collapsed forms, never through `isPrefix`: that calls
             // `normalize` itself, and recursing here would not terminate.
             if collapsed == entry.alias {
@@ -568,23 +612,6 @@ public struct RuleEngine: Sendable {
         }
         return collapsed
     }
-
-    /// One directory alias macOS ships as a symlink.
-    ///
-    /// A named struct rather than a tuple: a global `let` of tuples is not
-    /// `Sendable` under strict concurrency, and the compiler's metadata lookup
-    /// for it does not terminate.
-    struct SymlinkAlias: Sendable {
-        let alias: String
-        let target: String
-    }
-
-    /// The directory aliases macOS ships as symlinks.
-    static let symlinkAliases: [SymlinkAlias] = [
-        SymlinkAlias(alias: "/var", target: "/private/var"),
-        SymlinkAlias(alias: "/tmp", target: "/private/tmp"),
-        SymlinkAlias(alias: "/etc", target: "/private/etc"),
-    ]
 
     /// Collapses `.`, `..` and duplicate separators only.
     private static func collapse(_ path: String) -> String {
@@ -643,6 +670,7 @@ extension RuleEngine.Rule: Decodable {
         case extensions
         case excludes
         case minAgeDays
+        case usesStaleThreshold
         case requiresFullDiskAccess
         case explanationKey
         case enabled
@@ -657,6 +685,7 @@ extension RuleEngine.Rule: Decodable {
         relativePath = try container.decodeIfPresent(String.self, forKey: .relativePath) ?? ""
         excludes = try container.decodeIfPresent([String].self, forKey: .excludes) ?? []
         minAgeDays = try container.decodeIfPresent(Int.self, forKey: .minAgeDays)
+        usesStaleThreshold = try container.decodeIfPresent(Bool.self, forKey: .usesStaleThreshold) ?? false
         requiresFullDiskAccess = try container.decodeIfPresent(Bool.self, forKey: .requiresFullDiskAccess) ?? false
         explanationKey = try container.decode(String.self, forKey: .explanationKey)
         isEnabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? true

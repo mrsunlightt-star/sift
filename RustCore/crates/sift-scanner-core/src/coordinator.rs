@@ -480,7 +480,8 @@ fn run_scan(handle: &Arc<ScanHandle>, request: &ScanRequest) {
                 home.clone(),
                 request.authorized_roots.iter().map(PathBuf::from).collect(),
                 cancel,
-            );
+            )
+            .with_skip_hidden(!request.include_hidden_files);
             let handle_for_groups = Arc::clone(handle);
             let mut group_index = 0i64;
             duplicate_report = finder.run(&roots, &mut |group| {

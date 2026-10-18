@@ -74,12 +74,25 @@ jobs:
       - name: Assemble the app bundle (SwiftPM)
         run: ./Scripts/build-app.sh
 
-      - name: Xcode build and test plan
+      # The same two-step flow as Scripts/verify.sh, with the same flags, so a
+      # green CI run means what a green local run means. A single
+      # `xcodebuild build test` starts the run while the app bundle is still
+      # being signed, and then fails to resolve the UI test's target application.
+      # The architecture is named because `platform=macOS` alone matches both on
+      # an Apple Silicon runner and xcodebuild picks one arbitrarily.
+      - name: Xcode: build the test plan
         run: |
-          xcodebuild -project Sift.xcodeproj -scheme Sift -configuration Debug \
-            -destination 'platform=macOS' \
-            -derivedDataPath .build/DerivedData \
-            build test CODE_SIGNING_ALLOWED=NO
+          xcodebuild -project Sift.xcodeproj -scheme Sift -testPlan Sift \
+            -destination "platform=macOS,arch=$(uname -m)" \
+            -derivedDataPath .build/xcode \
+            build-for-testing -quiet
+
+      - name: Xcode: run the test plan
+        run: |
+          xcodebuild -project Sift.xcodeproj -scheme Sift -testPlan Sift \
+            -destination "platform=macOS,arch=$(uname -m)" \
+            -derivedDataPath .build/xcode \
+            test-without-building -quiet
 
       - name: Upload the app
         uses: actions/upload-artifact@v4

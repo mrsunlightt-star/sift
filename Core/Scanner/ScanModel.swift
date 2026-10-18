@@ -33,6 +33,14 @@ public final class ScanModel: ObservableObject {
     private var session: (any ScanSession)?
     private var pollTask: Task<Void, Never>?
 
+    /// Identifies the run the visible state belongs to.
+    ///
+    /// Cancelling cannot interrupt a poll that is already in flight, so the
+    /// events it finally returns arrive after the next run has cleared the state
+    /// and started. A pump may only write into the run it was started for, or a
+    /// cancelled scan's results appear under the new scan's heading.
+    private var generation = 0
+
     public init(engine: any ScannerEngine, rules: RuleEngine) {
         self.engine = engine
         self.rules = rules
@@ -59,10 +67,12 @@ public final class ScanModel: ObservableObject {
         await cancel()
         reset()
 
+        generation &+= 1
+        let run = generation
         do {
             let session = try await engine.startScan(request)
             self.session = session
-            beginPolling(session)
+            beginPolling(session, run: run)
         } catch let error as ScannerError {
             failure = (error.code, error.message)
             phase = .failed
@@ -73,12 +83,22 @@ public final class ScanModel: ObservableObject {
     }
 
     /// Requests cancellation. The engine stops within its next checkpoint.
+    ///
+    /// The run is retired before anything is awaited, so whatever the pump is
+    /// holding comes back to a model that no longer wants it, and the phase is
+    /// settled here: the engine's own final event is dropped with the retired
+    /// run, and a scan left in `scanning` would offer a cancel button forever.
     public func cancel() async {
+        generation &+= 1
         pollTask?.cancel()
         pollTask = nil
-        guard let session else { return }
+        guard let session else {
+            if phase.isRunning { phase = .cancelled }
+            return
+        }
         await session.cancel()
         self.session = nil
+        phase = .cancelled
     }
 
     /// Clears the previous run so a new scan starts from a clean slate.
@@ -127,13 +147,20 @@ public final class ScanModel: ObservableObject {
     ///
     /// Polling rather than callbacks: the engine is free to publish from any
     /// thread, and a single pump keeps event ordering trivial to reason about.
-    private func beginPolling(_ session: any ScanSession) {
+    ///
+    /// Every write is guarded by `run`, and the pump clears its own handle only
+    /// while it is still the current one: a task that finished after being
+    /// replaced must not take the new run's handle with it, or cancelling would
+    /// find nothing to cancel.
+    private func beginPolling(_ session: any ScanSession, run: Int) {
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self else { return }
                 let events = await session.pollEvents(maxEvents: 64)
+                guard self.isCurrent(run) else { return }
                 self.apply(events)
                 if await session.isFinished() {
+                    guard self.isCurrent(run) else { return }
                     self.apply(await session.pollEvents(maxEvents: 256))
                     break
                 }
@@ -141,8 +168,17 @@ public final class ScanModel: ObservableObject {
                 // works on a large directory.
                 try? await Task.sleep(nanoseconds: 60_000_000)
             }
-            self?.pollTask = nil
+            self?.retirePump(run)
         }
+    }
+
+    /// True while `run` is still the scan the model is showing.
+    private func isCurrent(_ run: Int) -> Bool { run == generation }
+
+    /// Clears the pump handle when it still belongs to `run`.
+    private func retirePump(_ run: Int) {
+        guard isCurrent(run) else { return }
+        pollTask = nil
     }
 
     private func apply(_ events: [ScanEvent]) {

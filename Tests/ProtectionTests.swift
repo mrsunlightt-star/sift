@@ -98,11 +98,50 @@ final class ProtectionTests: XCTestCase, @unchecked Sendable {
 
     func test_symlinkedVariantOfASystemPathIsStillProtected() {
         // `/var` is a symlink to `/private/var`, so the same directory arrives
-        // under two spellings; both must be refused.
+        // under two spellings; both must be refused. The Rust core asserts the
+        // same matrix against the same generated table.
         XCTAssertNotNil(engine.protectionReason(for: "/private/var/vm/swapfile"))
         XCTAssertNotNil(engine.protectionReason(for: "/var/vm/swapfile"))
         XCTAssertNotNil(engine.protectionReason(for: "/private/etc/hosts"))
         XCTAssertNotNil(engine.protectionReason(for: "/etc/hosts"))
+    }
+
+    func test_everySymlinkAliasNormalisesToItsTarget() {
+        // The table is generated from `SYMLINK_ALIASES`/`SYMLINK_ALIAS_TARGETS`
+        // in the Rust source, so this is the Swift half of one shared contract.
+        XCTAssertFalse(ProtectedPaths.symlinkAliases.isEmpty, "the alias table must not be empty")
+        for entry in ProtectedPaths.symlinkAliases {
+            XCTAssertEqual(
+                RuleEngine.normalize(entry.alias),
+                entry.target,
+                "\(entry.alias) must normalise to its target"
+            )
+            XCTAssertEqual(
+                RuleEngine.normalize("\(entry.alias)/child/leaf"),
+                "\(entry.target)/child/leaf",
+                "\(entry.alias) must normalise as a parent"
+            )
+            // Aliases are a whole-segment match: a directory whose name merely
+            // starts with the alias text is a different place.
+            XCTAssertEqual(RuleEngine.normalize("\(entry.alias)file"), "\(entry.alias)file")
+        }
+        XCTAssertEqual(RuleEngine.normalize("/variables/file"), "/variables/file")
+        XCTAssertEqual(RuleEngine.normalize("/etcetera/x"), "/etcetera/x")
+    }
+
+    func test_everyAliasedSystemPrefixIsProtected() {
+        // A prefix the list spells `/private/...` must also be refused in its
+        // `/var/...` spelling, which is the bug this table exists to prevent.
+        for prefix in ProtectedPaths.prefixes {
+            for entry in ProtectedPaths.symlinkAliases
+            where prefix.hasPrefix("\(entry.target)/") {
+                let aliased = entry.alias + prefix.dropFirst(entry.target.count)
+                XCTAssertNotNil(
+                    engine.protectionReason(for: "\(aliased)/anything"),
+                    "\(aliased) is \(prefix) under its alias"
+                )
+            }
+        }
     }
 
     func test_riskIsTheMostCautiousMatchingRule() {

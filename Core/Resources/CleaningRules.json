@@ -35,6 +35,7 @@
       "relativePath": "Logs",
       "matchSpec": "childDirectories",
       "minAgeDays": 30,
+      "usesStaleThreshold": true,
       "requiresFullDiskAccess": false,
       "explanationKey": "cleanup.explanation.logs"
     },
@@ -63,6 +64,7 @@
         "iso"
       ],
       "minAgeDays": 30,
+      "usesStaleThreshold": true,
       "requiresFullDiskAccess": false,
       "explanationKey": "cleanup.explanation.installers"
     },
@@ -91,6 +93,7 @@
       "relativePath": "Logs",
       "matchSpec": "childDirectories",
       "minAgeDays": 30,
+      "usesStaleThreshold": true,
       "requiresFullDiskAccess": true,
       "explanationKey": "cleanup.explanation.systemLogs"
     }

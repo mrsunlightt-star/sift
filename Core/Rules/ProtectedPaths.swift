@@ -13,6 +13,20 @@ public enum ProtectedPaths {
         case secrets
     }
 
+    /// One directory alias macOS ships as a symlink.
+    ///
+    /// A named struct rather than a tuple: a global `let` of tuples is not
+    /// `Sendable` under strict concurrency.
+    public struct SymlinkAlias: Sendable, Equatable {
+        public let alias: String
+        public let target: String
+
+        public init(alias: String, target: String) {
+            self.alias = alias
+            self.target = target
+        }
+    }
+
     /// Paths that are never scanned or cleaned, as children of the home folder.
     public static let homeChildren: Set<String> = [
         "Documents",
@@ -57,4 +71,16 @@ public enum ProtectedPaths {
 
     /// Suffix of a photo library package, protected as one unit.
     public static let photosLibrarySuffix = ".photoslibrary"
+
+    /// The directory aliases macOS ships as symlinks.
+    ///
+    /// `/var` is a symlink to `/private/var`, so a path arriving as
+    /// `/var/db/...` has to be compared in its `/private/var/db` spelling or
+    /// it would match none of the prefixes above. The Rust side normalises
+    /// with this same table.
+    public static let symlinkAliases: [SymlinkAlias] = [
+        SymlinkAlias(alias: "/var", target: "/private/var"),
+        SymlinkAlias(alias: "/tmp", target: "/private/tmp"),
+        SymlinkAlias(alias: "/etc", target: "/private/etc"),
+    ]
 }

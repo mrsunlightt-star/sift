@@ -19,6 +19,10 @@ public struct AppSettings: Sendable, Equatable {
     public var largeFileThresholdBytes: Int64
     public var oldFileThresholdDays: Int
     public var staleThresholdDays: Int
+    /// Whether entries whose name starts with `.` are part of a scan.
+    ///
+    /// A scan scope rather than a display filter: the engines apply it, so the
+    /// rows, the category totals and the report describe the same run.
     public var showHiddenFiles: Bool
     public var requireConfirmation: Bool
     public var skipConfirmation: Bool
@@ -151,19 +155,6 @@ public actor SettingsStore {
     public func userRuleURL() -> URL? {
         let url = supportDirectory.appendingPathComponent("CleaningRules.json")
         return FileManager.default.fileExists(atPath: url.path) ? url : nil
-    }
-
-    /// Resolved ignore list, used by the scan request.
-    public func ignoredPathsForScan() -> [String] {
-        // Hidden files that the user does not want to see are excluded at the
-        // scan level rather than filtered in the UI, so they never affect totals.
-        var paths = settings.ignoredPaths
-        if !settings.showHiddenFiles {
-            // No implicit path is added: hidden items are filtered when shown,
-            // which keeps the totals honest. Listed here for clarity.
-            paths = settings.ignoredPaths
-        }
-        return paths
     }
 
     public func current() -> AppSettings { settings }

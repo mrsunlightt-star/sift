@@ -97,6 +97,12 @@ step "8/9  Xcode: XCTest and test-plan build (skipped without Xcode)"
 # that needs it. The suite above runs either way; this runs the same files under
 # the real framework and then the UI tests and the test plan, which nothing else
 # can execute.
+#
+# The destination names the architecture. `platform=macOS` alone matches both
+# arm64 and x86_64 on an Apple Silicon Mac, and xcodebuild then picks one with
+# "using the first of multiple matching destinations" — a UI test launched
+# against the other one fails in ways that read like a broken test plan.
+DESTINATION="platform=macOS,arch=$(uname -m)"
 if xcode_available; then
   run xcode_run swift test --package-path "${REPO_ROOT}"
   # Build and run in two steps. `xcodebuild test` starts the run while the app
@@ -104,8 +110,8 @@ if xcode_available; then
   # test's target application ("The bundle identifier for Sift couldn't be
   # read"). Separating the phases removes the race and is the flow Apple
   # documents for CI.
-  run xcode_run xcodebuild build-for-testing -scheme Sift -testPlan Sift -derivedDataPath "${REPO_ROOT}/.build/xcode" -quiet
-  run xcode_run xcodebuild test-without-building -scheme Sift -testPlan Sift -destination 'platform=macOS' -derivedDataPath "${REPO_ROOT}/.build/xcode" -quiet
+  run xcode_run xcodebuild build-for-testing -scheme Sift -testPlan Sift -destination "${DESTINATION}" -derivedDataPath "${REPO_ROOT}/.build/xcode" -quiet
+  run xcode_run xcodebuild test-without-building -scheme Sift -testPlan Sift -destination "${DESTINATION}" -derivedDataPath "${REPO_ROOT}/.build/xcode" -quiet
 else
   echo "  → skipped (no Xcode; Scripts/run-tests.sh covered the suite)"
 fi

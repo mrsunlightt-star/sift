@@ -253,17 +253,24 @@ actor SwiftScanSession: ScanSession {
             homeDirectory: home,
             maxDepth: maxDepth,
             skipDirectoryNames: FileWalker.defaultSkipDirectoryNames,
-            skipPaths: request.ignoredPaths
+            skipPaths: request.ignoredPaths,
+            skipHidden: skipsHiddenEntries
         )
     }
 
     private func scanRule(_ rule: RuleEngine.Rule, root: URL) {
         let home = URL(fileURLWithPath: rules.homeDirectory)
         let spec = rule.matchSpec ?? (rule.relativePath.isEmpty ? .childDirectories : .directory)
+        // Resolved once per rule, exactly as the Rust core resolves it: a rule
+        // that follows the user's stale threshold reads its age from the request
+        // rather than from the rule file.
+        let minimumAgeDays = rule.effectiveMinAgeDays(
+            staleThresholdDays: request.staleThresholdDays
+        )
 
         switch spec {
         case .directory:
-            if let item = directoryItem(rule: rule, url: root, minimumAgeDays: rule.minAgeDays) {
+            if let item = directoryItem(rule: rule, url: root, minimumAgeDays: minimumAgeDays) {
                 add([item])
             }
 
@@ -282,7 +289,7 @@ actor SwiftScanSession: ScanSession {
                     continue
                 }
                 if rules.isExcludedBundleName(entry.displayName) { continue }
-                guard let item = directoryItem(rule: rule, url: entry.url, minimumAgeDays: rule.minAgeDays) else {
+                guard let item = directoryItem(rule: rule, url: entry.url, minimumAgeDays: minimumAgeDays) else {
                     continue
                 }
                 found.append(item)
@@ -302,7 +309,7 @@ actor SwiftScanSession: ScanSession {
                 guard !entry.isDirectory else { return nil }
                 let ext = entry.url.pathExtension.lowercased()
                 guard extensions.contains(ext) else { return nil }
-                if let minimumAgeDays = rule.minAgeDays,
+                if let minimumAgeDays,
                    !olderThanDays(entry.modifiedAt, days: minimumAgeDays) {
                     return nil
                 }
@@ -321,7 +328,7 @@ actor SwiftScanSession: ScanSession {
             recordSkips(report.skips)
             let found = report.entries.compactMap { entry -> CleanupItemSummary? in
                 guard !entry.isDirectory else { return nil }
-                if let minimumAgeDays = rule.minAgeDays,
+                if let minimumAgeDays,
                    !olderThanDays(entry.modifiedAt, days: minimumAgeDays) {
                     return nil
                 }
@@ -335,6 +342,18 @@ actor SwiftScanSession: ScanSession {
     /// for its own state and the walker only needs a boolean.
     private nonisolated var cancelledSync: Bool {
         cancellationFlag.isCancelled
+    }
+
+    /// True when a dotfile is outside this scan.
+    ///
+    /// The "show hidden files" setting changes what a scan produces, so every
+    /// traversal in this engine asks the same question, and the Rust core applies
+    /// the same rule.
+    private var skipsHiddenEntries: Bool { !request.includeHiddenFiles }
+
+    /// True when a name is one this scan must not report.
+    private func isOutOfScope(_ name: String) -> Bool {
+        skipsHiddenEntries && name.hasPrefix(".")
     }
 
     /// A directory candidate, measured through the age filter when the rule has one.
@@ -351,7 +370,12 @@ actor SwiftScanSession: ScanSession {
             // A directory whose files are all still fresh is not a cleanup item.
             guard measured.bytes > 0 else { return nil }
         } else {
-            measured = FileWalker.measure(url: url, rules: rules, isCancelled: { self.cancelledSync })
+            measured = FileWalker.measure(
+                url: url,
+                rules: rules,
+                skipHidden: skipsHiddenEntries,
+                isCancelled: { self.cancelledSync }
+            )
             guard measured.bytes > 0 else { return nil }
         }
         let values = try? url.resourceValues(forKeys: [.contentModificationDateKey, .creationDateKey])
@@ -393,6 +417,7 @@ actor SwiftScanSession: ScanSession {
                 ])
                 if values?.isSymbolicLink == true { continue }
                 if rules.protectionReason(for: child.path) != nil { continue }
+                if isOutOfScope(child.lastPathComponent) { continue }
                 if values?.isDirectory == true {
                     stack.append(child)
                     continue

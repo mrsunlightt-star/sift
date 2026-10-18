@@ -95,7 +95,10 @@ final class EntitlementTests: XCTestCase, @unchecked Sendable {
 
     func test_aFailedVerificationDoesNotDowngradeAGracePeriod() async {
         let defaults = UserDefaults(suiteName: suiteName) ?? .standard
+        // Both keys: the cache belongs to the channel that wrote it, so a
+        // timestamp without its channel is not restored.
         defaults.set(Date(), forKey: "purchase.verifiedAt")
+        defaults.set("direct", forKey: "purchase.channel")
 
         // A stored key is what makes the channel *try* to verify. Without one,
         // `load()` reports the free tier without contacting anything, and a
@@ -118,6 +121,7 @@ final class EntitlementTests: XCTestCase, @unchecked Sendable {
         let defaults = UserDefaults(suiteName: suiteName) ?? .standard
         let longAgo = Date().addingTimeInterval(-Double(EntitlementService.offlineGraceDays + 1) * 86_400)
         defaults.set(longAgo, forKey: "purchase.verifiedAt")
+        defaults.set("direct", forKey: "purchase.channel")
 
         let service = EntitlementService(
             channel: DirectLicenseService(keychain: InMemoryLicenseStore()) { _ in
@@ -127,6 +131,23 @@ final class EntitlementTests: XCTestCase, @unchecked Sendable {
         )
         let state = await service.current()
         XCTAssertFalse(state.isUnlocked, "an expired window must not keep unlocking")
+    }
+
+    func test_aCachedGracePeriodFromTheOtherChannelIsNotReused() async {
+        // Both channels ship the same executable and share one UserDefaults
+        // domain when a build changes distribution. A timestamp the direct build
+        // wrote says nothing about the App Store build, so it must not unlock it.
+        let defaults = UserDefaults(suiteName: suiteName) ?? .standard
+        defaults.set(Date(), forKey: "purchase.verifiedAt")
+        defaults.set("direct", forKey: "purchase.channel")
+
+        let service = EntitlementService(channel: StoreKitChannel(), defaults: defaults)
+        let state = await service.current()
+        XCTAssertFalse(
+            state.isUnlocked,
+            "a direct-sold licence is not a StoreKit entitlement"
+        )
+        XCTAssertEqual(state.channel, .appStore)
     }
 
     func test_removingAStoredLicenseReturnsToTheFreeTier() async {

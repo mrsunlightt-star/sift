@@ -14,6 +14,61 @@ final class RuleEngineTests: XCTestCase, @unchecked Sendable {
         let engine = RuleEngine(rules: RuleEngine.builtInRules, homeDirectory: home)
         XCTAssertFalse(engine.rules.isEmpty)
         XCTAssertTrue(engine.rules.allSatisfy { $0.risk != .protected })
+        XCTAssertNil(engine.userRulesJSON, "an explicit rule list carries no user document")
+    }
+
+    /// The document the Rust core is handed.
+    ///
+    /// The scanner core discovers candidates and cannot see this engine's rule
+    /// list, so a user's own rule only reaches it through this string. It must be
+    /// the accepted file, and nothing at all when the file was rejected.
+    func test_theAcceptedUserRuleFileIsTheDocumentHandedToTheOtherEngine() {
+        let fixture = TemporaryDirectory(tag: "user-rules-overlay")
+        let ruleFile = fixture.url.appendingPathComponent("CleaningRules.json")
+        let overlay = """
+        {"schemaVersion":1,"rules":[
+          {"id":"custom-installers","category":"installers","risk":"review","root":"home",
+           "relativePath":"Downloads","matchSpec":"filesByExtension",
+           "extensions":["dmg"],"minAgeDays":7,"explanationKey":"k"}
+        ]}
+        """
+        try? overlay.data(using: .utf8)?.write(to: ruleFile)
+
+        let engine = RuleEngine(homeDirectory: home, userRuleURL: ruleFile)
+        XCTAssertTrue(engine.rules.contains { $0.id == "custom-installers" })
+        XCTAssertEqual(engine.userRulesJSON, overlay, "the file must travel verbatim")
+    }
+
+    /// The shipped rules and the fallback table must agree on which ages the
+    /// user's stale threshold governs, or a scan would depend on which file the
+    /// app managed to read.
+    func test_theStaleThresholdIsDeclaredAlikeInTheShippedFileAndTheFallback() throws {
+        let shipped = RuleEngine(homeDirectory: home).rules
+        for table in [shipped, RuleEngine.builtInRules] {
+            let logs = try XCTUnwrap(table.first { $0.id == "user-logs" })
+            XCTAssertEqual(logs.effectiveMinAgeDays(staleThresholdDays: 14), 14)
+            XCTAssertEqual(logs.effectiveMinAgeDays(staleThresholdDays: 90), 90)
+
+            let archives = try XCTUnwrap(table.first { $0.id == "download-archives" })
+            XCTAssertEqual(
+                archives.effectiveMinAgeDays(staleThresholdDays: 14),
+                90,
+                "an archive rule with its own age must not follow the setting"
+            )
+        }
+    }
+
+    func test_aRejectedUserRuleFileIsNotHandedToTheOtherEngine() {
+        let fixture = TemporaryDirectory(tag: "user-rules-rejected")
+        let ruleFile = fixture.url.appendingPathComponent("CleaningRules.json")
+        // A schema version this build does not understand.
+        try? "{\"schemaVersion\":99,\"rules\":[]}".data(using: .utf8)?.write(to: ruleFile)
+
+        let engine = RuleEngine(homeDirectory: home, userRuleURL: ruleFile)
+        XCTAssertNil(
+            engine.userRulesJSON,
+            "an unvalidated document must not reach the Rust core: it fails the scan"
+        )
     }
 }
 

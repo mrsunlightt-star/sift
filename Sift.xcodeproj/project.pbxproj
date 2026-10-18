@@ -24,6 +24,7 @@
 		CC38A73315221188C9BA4226 /* ReportAccuracyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8369A7E538B720EC1DED083B /* ReportAccuracyTests.swift */; };
 		CD2728389611D4CFBF4FBFA2 /* DuplicateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1C086283BE23A66F7F113E6 /* DuplicateTests.swift */; };
 		D7480F7B26A74F3C63F4BBC3 /* Core in Frameworks */ = {isa = PBXBuildFile; productRef = 330DF71F4132CD8213AE8E4F /* Core */; };
+		DCAE4E6BDCA780F643C78D2E /* ScanModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC33CEC8D838AAEFC66045CC /* ScanModelTests.swift */; };
 		E43D72ECE1F5E29E11433C1F /* ProtectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A53233BFDB3533EB2FC2B43 /* ProtectionTests.swift */; };
 		F324BD4828BF8F1ED7604B01 /* SiftUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A0C25908FECAA2D76EE0313 /* SiftUITests.swift */; };
 		F911C7F8E1916B88218FE046 /* DiagnosticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDF792F92B19FCA9E06D51C0 /* DiagnosticsTests.swift */; };
@@ -68,6 +69,7 @@
 		CDF792F92B19FCA9E06D51C0 /* DiagnosticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsTests.swift; sourceTree = "<group>"; };
 		CFDDF3FC5E599ECDA179E3C2 /* RuleEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuleEngineTests.swift; sourceTree = "<group>"; };
 		D0A82EFF95D94FE10F5901DB /* Sift.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Sift.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		FC33CEC8D838AAEFC66045CC /* ScanModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanModelTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -116,6 +118,7 @@
 				B76040A89C350DEF2D138342 /* ReportTests.swift */,
 				CFDDF3FC5E599ECDA179E3C2 /* RuleEngineTests.swift */,
 				38C1627CE48F67B5D02E8B77 /* ScanIntentTests.swift */,
+				FC33CEC8D838AAEFC66045CC /* ScanModelTests.swift */,
 				38734EE8C9B6FFCE053D2CAD /* ScannerTests.swift */,
 				5F94E18D02C67B92975550E7 /* SelectionTests.swift */,
 				921BA13E319C34E8ABDFFDD8 /* SettingsTests.swift */,
@@ -342,6 +345,7 @@
 				BD35790072644C70DD574F74 /* ReportTests.swift in Sources */,
 				115520CF099E64BA79F95959 /* RuleEngineTests.swift in Sources */,
 				71B8F1C441870A52E7EBD499 /* ScanIntentTests.swift in Sources */,
+				DCAE4E6BDCA780F643C78D2E /* ScanModelTests.swift in Sources */,
 				88FC5524A8EDD6B78DECC54D /* ScannerTests.swift in Sources */,
 				9792A5E99AAED7439380F870 /* SelectionTests.swift in Sources */,
 				2A8E152209B5054681072AE5 /* SettingsTests.swift in Sources */,
@@ -371,6 +375,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Config/Sift.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_DEBUG_DYLIB = NO;
 				HEADER_SEARCH_PATHS = (
 					"$(SRCROOT)/Bridge/include",
 					"$(SRCROOT)/Bridge",
@@ -611,6 +616,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Config/Sift.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_DEBUG_DYLIB = NO;
 				HEADER_SEARCH_PATHS = (
 					"$(SRCROOT)/Bridge/include",
 					"$(SRCROOT)/Bridge",

@@ -116,7 +116,28 @@ impl RootAnchor {
     }
 }
 
-/// What a rule considers a match.
+/// The match specification as a rule file writes it.
+///
+/// A rule file says `{"matchSpec": "filesByExtension", "extensions": ["dmg"]}`:
+/// the extension list is a sibling of `matchSpec`, which is the shape
+/// `Core/Resources/CleaningRules.json` ships and the shape a user rule file
+/// copies. An externally tagged enum cannot express that — serde would demand
+/// `{"filesByExtension": {"extensions": [...]}}` and reject the shipped file
+/// with a parse error, which for an overlay means the whole scan fails.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum MatchSpecName {
+    /// The directory itself is the cleanup item.
+    Directory,
+    /// Direct children directories are individual cleanup items.
+    ChildDirectories,
+    /// Files under the root with one of the rule's extensions.
+    FilesByExtension,
+    /// Any file below the root; used together with an age threshold.
+    AnyFile,
+}
+
+/// What a rule considers a match, with the extension list resolved.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum MatchSpec {
@@ -143,13 +164,27 @@ pub struct Rule {
     #[serde(default)]
     pub relative_path: String,
     #[serde(default)]
-    pub match_spec: Option<MatchSpec>,
+    pub match_spec: Option<MatchSpecName>,
+    /// Extensions a `filesByExtension` rule matches, lower-cased on use.
+    ///
+    /// A sibling of `match_spec` in the document, matching the Swift decoder and
+    /// the shipped rule file.
+    #[serde(default)]
+    pub extensions: Vec<String>,
     /// Path fragments that must be skipped even inside a matching rule.
     #[serde(default)]
     pub excludes: Vec<String>,
     /// Only match entries not modified for at least this many days.
     #[serde(default)]
     pub min_age_days: Option<u32>,
+    /// Whether the user's stale threshold replaces [`Rule::min_age_days`].
+    ///
+    /// §5.2 gives the user one age at which a log or installer counts as stale.
+    /// A rule that says so here follows that setting; one that does not keeps the
+    /// age it states, so `download-archives` stays at its own 90 days however the
+    /// setting is moved.
+    #[serde(default)]
+    pub uses_stale_threshold: bool,
     /// Directory names below the root that are scanned as a unit instead of
     /// being expanded file by file (macOS application bundles).
     #[serde(default)]
@@ -167,15 +202,38 @@ const fn default_enabled() -> bool {
 }
 
 impl Rule {
-    /// The concrete relative path, defaulting the match spec from the layout.
+    /// The concrete match specification, with the extension list resolved and
+    /// the layout default applied.
     pub fn effective_match_spec(&self) -> MatchSpec {
-        if let Some(spec) = &self.match_spec {
-            return spec.clone();
+        match self.match_spec {
+            Some(MatchSpecName::Directory) => MatchSpec::Directory,
+            Some(MatchSpecName::ChildDirectories) => MatchSpec::ChildDirectories,
+            Some(MatchSpecName::AnyFile) => MatchSpec::AnyFile,
+            Some(MatchSpecName::FilesByExtension) => MatchSpec::FilesByExtension {
+                // Lower-cased here rather than at the comparison, so the defaults
+                // and a hand-written rule file behave identically.
+                extensions: self
+                    .extensions
+                    .iter()
+                    .map(|e| e.to_ascii_lowercase())
+                    .collect(),
+            },
+            None if self.relative_path.is_empty() => MatchSpec::ChildDirectories,
+            None => MatchSpec::Directory,
         }
-        if self.relative_path.is_empty() {
-            MatchSpec::ChildDirectories
+    }
+
+    /// The age threshold this rule applies for a scan, in days.
+    ///
+    /// The user sets one stale threshold for logs and installers (§5.2), and a
+    /// rule marked `uses_stale_threshold` takes its age from there. A threshold of
+    /// zero leaves the rule's own age in force: a setting that was never stored
+    /// must not make every file instantly stale.
+    pub fn effective_min_age_days(&self, stale_threshold_days: u32) -> Option<u32> {
+        if self.uses_stale_threshold && self.min_age_days.is_some() && stale_threshold_days > 0 {
+            Some(stale_threshold_days)
         } else {
-            MatchSpec::Directory
+            self.min_age_days
         }
     }
 }
@@ -242,6 +300,22 @@ pub const PROTECTED_LIBRARY_USER_CONTENT: &[&str] = &["Library/Mobile Documents"
 
 /// Suffix of a photo library package, protected as one unit.
 pub const PROTECTED_PHOTOS_LIBRARY_SUFFIX: &str = ".photoslibrary";
+
+/// The directory aliases macOS ships as symlinks.
+///
+/// `/var` is a symlink to `/private/var`, `/tmp` to `/private/tmp` and `/etc` to
+/// `/private/etc`, so the same directory can arrive under either spelling. The
+/// protection list names `/private/etc` and `/private/var/db`, and a path handed
+/// to [`normalize_path`] as `/var/db` has to match them: without this table the
+/// two engines disagree about a path that is protected by construction.
+///
+/// These two arrays are one table read index for index, and
+/// `Scripts/generate-protection.py` renders them into the Swift file the Swift
+/// rule engine reads, so neither language carries a private copy that can drift.
+pub const SYMLINK_ALIASES: &[&str] = &["/var", "/tmp", "/etc"];
+
+/// Where each [`SYMLINK_ALIASES`] entry points, index for index.
+pub const SYMLINK_ALIAS_TARGETS: &[&str] = &["/private/var", "/private/tmp", "/private/etc"];
 
 /// macOS package directories treated as one unit; never expanded file by file.
 pub const DEFAULT_PACKAGE_EXTENSIONS: &[&str] = &[
@@ -327,8 +401,10 @@ fn rule(id: &str, category: Category, risk: Risk, root: RootAnchor, rel: &str) -
         root,
         relative_path: rel.to_string(),
         match_spec: None,
+        extensions: Vec::new(),
         excludes: Vec::new(),
         min_age_days: None,
+        uses_stale_threshold: false,
         package_extensions: Vec::new(),
         requires_full_disk_access: false,
         explanation_key: format!("cleanup.{id}.explanation"),
@@ -337,7 +413,15 @@ fn rule(id: &str, category: Category, risk: Risk, root: RootAnchor, rel: &str) -
 }
 
 fn with_spec(mut r: Rule, spec: MatchSpec) -> Rule {
-    r.match_spec = Some(spec);
+    match spec {
+        MatchSpec::Directory => r.match_spec = Some(MatchSpecName::Directory),
+        MatchSpec::ChildDirectories => r.match_spec = Some(MatchSpecName::ChildDirectories),
+        MatchSpec::AnyFile => r.match_spec = Some(MatchSpecName::AnyFile),
+        MatchSpec::FilesByExtension { extensions } => {
+            r.match_spec = Some(MatchSpecName::FilesByExtension);
+            r.extensions = extensions;
+        }
+    }
     r
 }
 
@@ -348,6 +432,12 @@ fn with_excludes(mut r: Rule, excludes: &[&str]) -> Rule {
 
 fn with_min_age(mut r: Rule, days: u32) -> Rule {
     r.min_age_days = Some(days);
+    r
+}
+
+/// Marks a rule whose age the user's stale threshold governs.
+fn following_stale_threshold(mut r: Rule) -> Rule {
+    r.uses_stale_threshold = true;
     r
 }
 
@@ -406,14 +496,14 @@ pub fn default_rules() -> Vec<Rule> {
     ));
 
     // --- Logs --------------------------------------------------------------
-    rules.push(with_min_age(
+    rules.push(following_stale_threshold(with_min_age(
         with_spec(
             rule("user-logs", Logs, Safe, HomeLibrary, "Logs"),
             MatchSpec::ChildDirectories,
         ),
         30,
-    ));
-    rules.push(with_min_age(
+    )));
+    rules.push(following_stale_threshold(with_min_age(
         with_spec(
             rule(
                 "user-diagnostic-reports",
@@ -425,17 +515,17 @@ pub fn default_rules() -> Vec<Rule> {
             MatchSpec::AnyFile,
         ),
         30,
-    ));
-    rules.push(with_fda(with_min_age(
+    )));
+    rules.push(with_fda(following_stale_threshold(with_min_age(
         with_spec(
             rule("system-logs", Logs, Review, SystemLibrary, "Logs"),
             MatchSpec::ChildDirectories,
         ),
         30,
-    )));
+    ))));
 
     // --- Installers --------------------------------------------------------
-    rules.push(with_min_age(
+    rules.push(following_stale_threshold(with_min_age(
         with_spec(
             rule("download-installers", Installers, Review, Home, "Downloads"),
             MatchSpec::FilesByExtension {
@@ -449,7 +539,7 @@ pub fn default_rules() -> Vec<Rule> {
             },
         ),
         30,
-    ));
+    )));
     rules.push(with_min_age(
         with_spec(
             rule("download-archives", Installers, Review, Home, "Downloads"),
@@ -513,8 +603,30 @@ pub fn default_rules() -> Vec<Rule> {
 }
 
 /// Normalises a path for prefix comparison: no trailing slash, no `.`/`..`
-/// segments. The input must already be absolute.
+/// segments, and no alias macOS ships as a symlink. The input must already be
+/// absolute.
+///
+/// The alias step is what makes the same directory comparable however it is
+/// spelled: `/var/db/secret` and `/private/var/db/secret` are one location, and
+/// the protection list writes the `/private` spelling. A caller that skipped the
+/// mapping would let a path through that the Swift engine refuses.
 pub fn normalize_path(path: &str) -> String {
+    let collapsed = collapse_segments(path);
+    // The mapping is its own inverse-free, one step: every target is a real
+    // directory, so a second pass would find nothing.
+    for (alias, target) in SYMLINK_ALIASES.iter().zip(SYMLINK_ALIAS_TARGETS) {
+        if collapsed == *alias {
+            return (*target).to_string();
+        }
+        if let Some(rest) = collapsed.strip_prefix(&format!("{alias}/")) {
+            return format!("{target}/{rest}");
+        }
+    }
+    collapsed
+}
+
+/// Collapses `.`, `..` and duplicate separators, without touching the disk.
+fn collapse_segments(path: &str) -> String {
     let mut parts: Vec<&str> = Vec::new();
     for segment in path.split('/') {
         match segment {
@@ -832,6 +944,71 @@ mod tests {
     }
 
     #[test]
+    fn the_symlink_alias_table_is_paired() {
+        // Read index for index, so a mismatched pair would silently drop the
+        // entries past the shorter array.
+        assert_eq!(SYMLINK_ALIASES.len(), SYMLINK_ALIAS_TARGETS.len());
+        for (alias, target) in SYMLINK_ALIASES.iter().zip(SYMLINK_ALIAS_TARGETS) {
+            assert!(alias.starts_with('/'), "{alias} must be absolute");
+            assert!(
+                target.starts_with("/private/"),
+                "{target} must be the real directory behind {alias}"
+            );
+        }
+    }
+
+    #[test]
+    fn macos_symlink_aliases_normalise_to_their_targets() {
+        // The same matrix the Swift engine asserts, so a path both engines see
+        // receives the same answer.
+        for (alias, target) in SYMLINK_ALIASES.iter().zip(SYMLINK_ALIAS_TARGETS) {
+            assert_eq!(normalize_path(alias), *target, "{alias} itself");
+            assert_eq!(
+                normalize_path(&format!("{alias}/child/leaf")),
+                format!("{target}/child/leaf"),
+                "{alias} as a parent"
+            );
+            // Trailing separators and `.` collapse before the alias is looked
+            // up, so an untidy caller still gets the mapped path.
+            assert_eq!(normalize_path(&format!("{alias}/./")), *target);
+        }
+        // Aliases are a whole-segment match: a directory that merely starts with
+        // the alias text is a different place.
+        assert_eq!(normalize_path("/variables/file"), "/variables/file");
+        assert_eq!(normalize_path("/tmpfile"), "/tmpfile");
+        assert_eq!(normalize_path("/etcetera/x"), "/etcetera/x");
+    }
+
+    #[test]
+    fn aliased_system_paths_are_protected() {
+        // Without the alias mapping these reached the scanner spelled `/var/...`
+        // and matched no `/private/var/...` prefix.
+        assert!(is_protected_path(HOME, "/var/db/secret"));
+        assert!(is_protected_path(HOME, "/var/vm/swapfile"));
+        assert!(is_protected_path(HOME, "/etc/hosts"));
+        assert!(is_protected_path(HOME, "/var/db/../db/secret"));
+    }
+
+    #[test]
+    fn a_grant_for_an_alias_does_not_unlock_the_system_tree() {
+        use std::path::PathBuf;
+        // A grant is compared in its normalised spelling, so granting `/var` is
+        // granting `/private/var` — which is not enough to reach the system
+        // database or the swap files.
+        let grants = [PathBuf::from("/var")];
+        for target in [
+            "/var/db/secret",
+            "/private/var/db/secret",
+            "/var/vm/swapfile",
+        ] {
+            assert!(
+                is_protected_path_authorized(HOME, target, &grants),
+                "{target} must stay protected under a /var grant"
+            );
+        }
+    }
+
+    #[test]
     fn package_extensions_are_recognised() {
         let exts: Vec<String> = vec!["app".into(), "dmg".into()];
         assert!(is_package_directory("Safari.app", &exts));
@@ -889,6 +1066,52 @@ mod tests {
     }
 
     #[test]
+    fn a_fixed_extension_rule_parses_in_the_shape_the_rule_file_ships() {
+        // The extension list is a sibling of `matchSpec`, not nested inside it.
+        // Reading it as an externally tagged enum rejected this document, and an
+        // overlay that fails to parse fails the whole scan on the Rust side.
+        let json = r#"{"schemaVersion":1,"rules":[
+            {"id":"only-xip","category":"installers","risk":"review","root":"home",
+             "relativePath":"Downloads","matchSpec":"filesByExtension",
+             "extensions":["XIP","dmg"],"explanationKey":"k"}
+        ]}"#;
+        let set = RuleSet::from_json(json).expect("the shipped extension shape must parse");
+        assert_eq!(
+            set.rules[0].effective_match_spec(),
+            MatchSpec::FilesByExtension {
+                extensions: vec!["xip".to_string(), "dmg".to_string()]
+            },
+            "extensions are lower-cased so they match the comparison"
+        );
+    }
+
+    #[test]
+    fn the_shipped_rule_file_parses_as_an_overlay() {
+        // `Core/Resources/CleaningRules.json` is what a user copies to write
+        // their own rules and what the Swift engine reads. The Rust core receives
+        // the same document as `extraRulesJson`, so it has to parse it.
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../Core/Resources/CleaningRules.json");
+        let json = std::fs::read_to_string(&path)
+            .unwrap_or_else(|error| panic!("{} must be readable: {error}", path.display()));
+
+        let set = RuleSet::from_json(&json).expect("the shipped rule file must parse in Rust");
+        assert!(!set.rules.is_empty());
+
+        let installers = set
+            .rules
+            .iter()
+            .find(|rule| rule.id == "download-installers")
+            .expect("the shipped file still has the installer rule");
+        match installers.effective_match_spec() {
+            MatchSpec::FilesByExtension { extensions } => {
+                assert!(extensions.contains(&"dmg".to_string()), "{extensions:?}");
+            }
+            other => panic!("download-installers must match by extension, got {other:?}"),
+        }
+    }
+
+    #[test]
     fn match_spec_defaults_follow_the_rule_shape() {
         let root_rule = rule("x", Category::Logs, Risk::Safe, RootAnchor::HomeLibrary, "");
         assert_eq!(
@@ -903,6 +1126,55 @@ mod tests {
             "Logs",
         );
         assert_eq!(dir_rule.effective_match_spec(), MatchSpec::Directory);
+    }
+
+    #[test]
+    fn the_stale_threshold_replaces_the_age_of_a_rule_that_follows_it() {
+        let following = following_stale_threshold(with_min_age(
+            rule(
+                "logs",
+                Category::Logs,
+                Risk::Safe,
+                RootAnchor::HomeLibrary,
+                "Logs",
+            ),
+            30,
+        ));
+        assert_eq!(following.effective_min_age_days(14), Some(14));
+        assert_eq!(following.effective_min_age_days(90), Some(90));
+        // A threshold that was never stored must not make everything stale now.
+        assert_eq!(
+            following.effective_min_age_days(0),
+            Some(30),
+            "zero leaves the rule's own age in force"
+        );
+    }
+
+    #[test]
+    fn a_rule_that_does_not_follow_the_threshold_keeps_its_own_age() {
+        // `download-archives` states 90 days deliberately; the setting must not
+        // quietly make every zip in Downloads stale after a fortnight.
+        let fixed = with_min_age(
+            rule(
+                "archives",
+                Category::Installers,
+                Risk::Review,
+                RootAnchor::Home,
+                "Downloads",
+            ),
+            90,
+        );
+        assert_eq!(fixed.effective_min_age_days(14), Some(90));
+        assert_eq!(fixed.effective_min_age_days(365), Some(90));
+        // And a rule with no age at all stays without one.
+        let ageless = rule(
+            "cache",
+            Category::ApplicationCache,
+            Risk::Safe,
+            RootAnchor::HomeLibrary,
+            "Caches",
+        );
+        assert_eq!(ageless.effective_min_age_days(14), None);
     }
 
     #[test]

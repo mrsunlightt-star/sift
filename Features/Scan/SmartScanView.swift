@@ -24,7 +24,12 @@ public struct SmartScanView: View {
                     }
                 }
 
-                if environment.scan.phase == .idle {
+                // Offered whenever a scan is not running and left no results to
+                // act on — cancelled and failed included, not just a first run.
+                // The other pages already show their gate card on `!hasResults`;
+                // gating on `.idle` alone left "cancelled" as a dead end with no
+                // way to start again.
+                if !environment.scan.hasResults, !environment.scan.isRunning {
                     StartScanCard {
                         Task { await startScan() }
                     }

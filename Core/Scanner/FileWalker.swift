@@ -27,6 +27,13 @@ enum FileWalker {
         var skipPaths: [String] = []
         /// Report a package directory as one entry instead of descending into it.
         var stopAtPackages = true
+        /// Skip entries whose name starts with `.`.
+        ///
+        /// The "show hidden files" setting decides what the scan *produces*, not
+        /// what the list happens to display: filtering only at display time would
+        /// leave the category totals, the report and the rows disagreeing about
+        /// the same run.
+        var skipHidden = false
     }
 
     /// Directory names that never hold cleanup targets and are expensive to walk.
@@ -147,6 +154,7 @@ enum FileWalker {
 
                 let isDirectory = values?.isDirectory == true
                 let name = url.lastPathComponent
+                if options.skipHidden, name.hasPrefix(".") { continue }
                 let isPackage = isDirectory && rules.isPackageDirectory(name: name)
 
                 if isDirectory {
@@ -168,7 +176,14 @@ enum FileWalker {
                     }
 
                     if isPackage, options.stopAtPackages {
-                        let measured = measure(url: url, rules: rules, isCancelled: isCancelled)
+                        // A package is one item: its whole size is what removing it
+                        // reclaims, so the hidden filter does not apply inside it.
+                        let measured = measure(
+                            url: url,
+                            rules: rules,
+                            skipHidden: false,
+                            isCancelled: isCancelled
+                        )
                         report.totalFiles += measured.files
                         report.totalBytes += measured.bytes
                         report.entries.append(
@@ -218,7 +233,15 @@ enum FileWalker {
     ]
 
     /// Totals inside a directory, without producing per-file entries.
-    static func measure(url: URL, rules: RuleEngine, isCancelled: () -> Bool) -> (bytes: Int64, files: Int) {
+    ///
+    /// `skipHidden` matches the walk's scope, so a measured directory reports the
+    /// same bytes the scan would offer to remove.
+    static func measure(
+        url: URL,
+        rules: RuleEngine,
+        skipHidden: Bool = false,
+        isCancelled: () -> Bool
+    ) -> (bytes: Int64, files: Int) {
         var bytes: Int64 = 0
         var files = 0
         var stack = [url]
@@ -232,6 +255,7 @@ enum FileWalker {
             for child in contents {
                 let values = try? child.resourceValues(forKeys: Set(resourceKeys))
                 if values?.isSymbolicLink == true { continue }
+                if skipHidden, child.lastPathComponent.hasPrefix(".") { continue }
                 if values?.isDirectory == true {
                     if rules.protectionReason(for: child.path) != nil { continue }
                     stack.append(child)

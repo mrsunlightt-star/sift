@@ -44,6 +44,13 @@ public struct ScanRequest: Sendable {
     public var authorizedRoots: [String]
     /// Bundle identifiers of installed apps, used for residue detection.
     public var installedBundleIdentifiers: [String]
+    /// Whether entries whose name starts with `.` are part of the scan (§5.6).
+    ///
+    /// A scope, not a display filter: the setting decides what the engines
+    /// produce, so the rows, the category totals and the report describe the same
+    /// run. Defaults to `true` because a caller that says nothing gets the whole
+    /// tree; the app sets it from the user's "show hidden files" preference.
+    public var includeHiddenFiles: Bool
     /// Whether to run the duplicate-file pipeline.
     public var includeDuplicates: Bool
     /// Roots the duplicate pipeline may search. Empty means "use `roots`".
@@ -63,6 +70,7 @@ public struct ScanRequest: Sendable {
         ignoredPaths: [String] = [],
         authorizedRoots: [String] = [],
         installedBundleIdentifiers: [String] = [],
+        includeHiddenFiles: Bool = true,
         includeDuplicates: Bool = true,
         duplicateRoots: [String] = [],
         extraRulesJSON: String? = nil
@@ -75,6 +83,7 @@ public struct ScanRequest: Sendable {
         self.ignoredPaths = ignoredPaths
         self.authorizedRoots = authorizedRoots
         self.installedBundleIdentifiers = installedBundleIdentifiers
+        self.includeHiddenFiles = includeHiddenFiles
         self.includeDuplicates = includeDuplicates
         self.duplicateRoots = duplicateRoots
         self.extraRulesJSON = extraRulesJSON

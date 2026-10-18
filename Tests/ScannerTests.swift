@@ -128,6 +128,89 @@ final class ScannerTests: XCTestCase, @unchecked Sendable {
         )
     }
 
+    func test_theStaleThresholdSettingChangesWhatCountsAsStale() async throws {
+        // §5.2: the user sets one age at which a log counts as stale. A 60-day-old
+        // log is stale at the default 30 and still fresh at 90, so this fails if
+        // the setting never reaches the rule that scans logs.
+        let log = fixture.write("Library/Logs/com.example.app/old.log", bytes: 2048)
+        fixture.age(log, days: 60)
+
+        var request = makeRequest()
+        request.staleThresholdDays = 30
+        let defaultRun = try await runScan(request)
+        XCTAssertEqual(
+            defaultRun.items.filter { $0.category == .logs }.count,
+            1,
+            "60 days is stale at the default threshold"
+        )
+
+        request.staleThresholdDays = 90
+        let raised = try await runScan(request)
+        XCTAssertEqual(
+            raised.items.filter { $0.category == .logs }.count,
+            0,
+            "the same log is still fresh at 90 days"
+        )
+    }
+
+    func test_theStaleThresholdLeavesARuleWithItsOwnAgeAlone() async throws {
+        // The archive rule states 90 days and must not follow the setting, or
+        // every zip in Downloads would become stale after a fortnight.
+        let archive = fixture.write("Downloads/notes.zip", bytes: 4096)
+        fixture.age(archive, days: 30)
+
+        var request = makeRequest()
+        request.staleThresholdDays = 14
+        let result = try await runScan(request)
+        XCTAssertFalse(
+            result.items.contains { $0.displayName == "notes.zip" },
+            "a fixed-age rule keeps its own threshold"
+        )
+    }
+
+    func test_theHiddenFileSettingDecidesWhatAScanProduces() async throws {
+        // §5.6: the preference is a scan scope, so with it off the dotfile is not
+        // a candidate and the bytes it holds are not reported as reclaimable.
+        fixture.write("Library/Caches/com.example.app/blob.bin", bytes: 4096)
+        fixture.write("Library/Caches/com.example.app/.hidden.bin", bytes: 8192)
+
+        var request = makeRequest()
+        request.includeHiddenFiles = true
+        let shown = try await runScan(request)
+        let shownItem = try XCTUnwrap(shown.items.first { $0.category == .applicationCache })
+
+        request.includeHiddenFiles = false
+        let hidden = try await runScan(request)
+        let hiddenItem = try XCTUnwrap(hidden.items.first { $0.category == .applicationCache })
+
+        XCTAssertLessThan(
+            hiddenItem.sizeInBytes,
+            shownItem.sizeInBytes,
+            "excluding the dotfile must reduce the measured size"
+        )
+    }
+
+    func test_aHiddenInstallerIsNotOfferedUnlessHiddenFilesAreShown() async throws {
+        // The file rules read the same scope as the directory rules.
+        let installer = fixture.write("Downloads/.Old.dmg", bytes: 4096)
+        fixture.age(installer, days: 60)
+
+        var request = makeRequest()
+        request.includeHiddenFiles = false
+        let hidden = try await runScan(request)
+        XCTAssertFalse(
+            hidden.items.contains { $0.displayName == ".Old.dmg" },
+            "a dotfile must not appear while the setting is off"
+        )
+
+        request.includeHiddenFiles = true
+        let shown = try await runScan(request)
+        XCTAssertTrue(
+            shown.items.contains { $0.displayName == ".Old.dmg" },
+            "and it must appear once the user asks to see hidden files"
+        )
+    }
+
     func test_symlinkIsNotFollowed() async throws {
         let outside = TemporaryDirectory(tag: "outside")
         outside.write("secret.bin", bytes: 4096)

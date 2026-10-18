@@ -95,6 +95,14 @@ pub struct ScanRequest {
     pub authorized_roots: Vec<String>,
     /// Bundle identifiers of installed applications, used for residue matching.
     pub installed_bundle_ids: Vec<String>,
+    /// Whether entries whose name starts with `.` are part of the scan.
+    ///
+    /// A scope, not a display filter: the "show hidden files" setting decides
+    /// what the walk produces, so the candidates, the totals and the report
+    /// describe the same run. Defaults to scanning them, so a request that omits
+    /// the field keeps the permissive behaviour.
+    #[serde(default = "include_hidden_files_by_default")]
+    pub include_hidden_files: bool,
     /// Extra rule definitions, already validated by Swift. Additive only.
     pub extra_rules_json: Option<String>,
     pub include_duplicates: bool,
@@ -103,6 +111,11 @@ pub struct ScanRequest {
     pub event_batch_items: u32,
     /// Filesystem path of the SQLite index for this session.
     pub index_path: String,
+}
+
+/// The default for a request that does not mention hidden files.
+fn include_hidden_files_by_default() -> bool {
+    true
 }
 
 impl Default for ScanRequest {
@@ -117,6 +130,7 @@ impl Default for ScanRequest {
             ignore_paths: Vec::new(),
             authorized_roots: Vec::new(),
             installed_bundle_ids: Vec::new(),
+            include_hidden_files: true,
             extra_rules_json: None,
             include_duplicates: true,
             duplicates: DuplicateOptions::default(),

@@ -71,17 +71,31 @@ def swift_source() -> str:
     library_children = read_rust_constant("PROTECTED_LIBRARY_CHILDREN")
     user_content = read_rust_constant("PROTECTED_LIBRARY_USER_CONTENT")
     photos_suffix = read_rust_constant("PROTECTED_PHOTOS_LIBRARY_SUFFIX")
+    aliases = read_rust_constant("SYMLINK_ALIASES")
+    alias_targets = read_rust_constant("SYMLINK_ALIAS_TARGETS")
 
     assert isinstance(home_children, list)
     assert isinstance(prefixes, list)
     assert isinstance(library_children, list)
     assert isinstance(user_content, list)
     assert isinstance(photos_suffix, str)
+    assert isinstance(aliases, list)
+    assert isinstance(alias_targets, list)
+    if len(aliases) != len(alias_targets):
+        raise SystemExit(
+            "SYMLINK_ALIASES and SYMLINK_ALIAS_TARGETS are one table read index "
+            "for index and must be the same length"
+        )
 
     library_entries = []
     for path in library_children:
         kind = "userContent" if path in user_content else "secrets"
         library_entries.append(f'        ("{path}", .{kind}),\n')
+
+    alias_entries = "".join(
+        f'        SymlinkAlias(alias: "{alias}", target: "{target}"),\n'
+        for alias, target in zip(aliases, alias_targets)
+    )
 
     return (
         "/// The compiled-in protection list.\n"
@@ -97,6 +111,20 @@ def swift_source() -> str:
         "        case userContent\n"
         "        /// Holds credentials, accounts or private messages.\n"
         "        case secrets\n"
+        "    }\n"
+        "\n"
+        "    /// One directory alias macOS ships as a symlink.\n"
+        "    ///\n"
+        "    /// A named struct rather than a tuple: a global `let` of tuples is not\n"
+        "    /// `Sendable` under strict concurrency.\n"
+        "    public struct SymlinkAlias: Sendable, Equatable {\n"
+        "        public let alias: String\n"
+        "        public let target: String\n"
+        "\n"
+        "        public init(alias: String, target: String) {\n"
+        "            self.alias = alias\n"
+        "            self.target = target\n"
+        "        }\n"
         "    }\n"
         "\n"
         "    /// Paths that are never scanned or cleaned, as children of the home folder.\n"
@@ -117,6 +145,16 @@ def swift_source() -> str:
         "\n"
         "    /// Suffix of a photo library package, protected as one unit.\n"
         f'    public static let photosLibrarySuffix = "{photos_suffix}"\n'
+        "\n"
+        "    /// The directory aliases macOS ships as symlinks.\n"
+        "    ///\n"
+        "    /// `/var` is a symlink to `/private/var`, so a path arriving as\n"
+        "    /// `/var/db/...` has to be compared in its `/private/var/db` spelling or\n"
+        "    /// it would match none of the prefixes above. The Rust side normalises\n"
+        "    /// with this same table.\n"
+        "    public static let symlinkAliases: [SymlinkAlias] = [\n"
+        f"{alias_entries}"
+        "    ]\n"
         "}\n"
     )
 
@@ -136,10 +174,12 @@ def main() -> int:
             len(read_rust_constant("PROTECTED_HOME_CHILDREN")),
             len(read_rust_constant("PROTECTED_PREFIXES")),
             len(read_rust_constant("PROTECTED_LIBRARY_CHILDREN")),
+            len(read_rust_constant("SYMLINK_ALIASES")),
         )
         print(
             "the Swift protection list matches the Rust one "
-            f"({counts[0]} home children, {counts[1]} prefixes, {counts[2]} library children)"
+            f"({counts[0]} home children, {counts[1]} prefixes, {counts[2]} library children, "
+            f"{counts[3]} symlink aliases)"
         )
         return 0
 
