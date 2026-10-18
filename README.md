@@ -43,7 +43,7 @@ SwiftPM 与 Xcode 工程都从这里链接。固定路径是刻意的：SwiftPM 
 | `RustCore/` | Rust workspace：规则、哈希、SQLite 索引、扫描协调器、FFI |
 | `Bridge/` | C 头文件、SwiftPM 的 module map、XCFramework 输出目录 |
 | `Scripts/` | 构建、环境、字符串生成、测试运行脚本 |
-| `Tests/` | XCTest 测试套件（136 个测试方法） |
+| `Tests/` | XCTest 测试套件（162 个测试方法） |
 | `SelfTest/` | 无需 Xcode 即可运行的自检套件（234 项检查） |
 
 ---
@@ -82,7 +82,7 @@ Rust Scanner Core  →  Rules · SQLite Index · Duplicate Pipeline
 | 内容 | 位置 |
 |---|---|
 | App target（`App/Entry` + 资源） | `project.yml` |
-| 单元测试 target（`Tests/`，136 个测试） | `project.yml` |
+| 单元测试 target（`Tests/`，162 个测试方法） | `project.yml` |
 | UI 测试 target（`UITests/`，XCUITest） | `project.yml` |
 | 测试计划（单元 + UI 两组配置） | `Config/Sift.xctestplan` |
 | Info.plist / entitlements | `Config/` |
@@ -136,21 +136,25 @@ Scripts/verify.sh            # 全部检查
 ```bash
 # Rust：单元测试、FFI 契约测试、基准
 cd RustCore
-cargo test                              # 154 个测试
+cargo test                              # 173 个测试
 cargo clippy --all-targets              # 无警告
 cargo bench -p sift-scanner-core        # 目录遍历 / 局部比较 / 完整哈希 / 索引写入
 
 # Swift 自检（234 项检查，无需 Xcode）
 swift run SiftSelfTest
 
-# XCTest 套件（136 个测试方法）
+# XCTest 套件（162 个测试方法）+ 5 个 XCUITest
 ./Scripts/run-tests.sh                  # 命令行工具即可运行
 swift test                              # 装了 Xcode 时的标准方式
+xcodebuild test-without-building -scheme Sift -testPlan Sift -destination "platform=macOS,arch=$(uname -m)" -derivedDataPath .build/xcode
 ```
+
+`Scripts/verify.sh` 结束时会把三套测试的实际数量打印出来（Rust 173、XCTest 162、自检
+234，以及 XCUITest 5）。文档里引用的是这份输出，而不是另外记一份数字：数字会漂。
 
 ### 测试覆盖了什么
 
-Rust（154 个测试）：
+Rust（173 个测试）：
 
 - 规则匹配、保护路径（含 `/var` → `/private/var` 这类别名）、风险等级合并
 - 规则文件版本、重复 ID、非法覆盖
@@ -159,7 +163,7 @@ Rust（154 个测试）：
 - 扫描协调器：事件顺序、取消、不可读目录、受保护内容零泄漏、panic 不越界
 - FFI 契约：头文件与 Rust 结构体逐字段比对（大小、偏移、对齐、版本号、枚举值）
 
-Swift（234 项自检 + 136 个 XCTest）：
+Swift（234 项自检 + 162 个 XCTest）：
 
 - 保护清单、路径穿越、符号链接、包目录、CloudKit 排除
 - 预检（父子去重、缺失文件、占用文件、受保护路径在**执行时**再拒绝）
@@ -192,7 +196,7 @@ Swift（234 项自检 + 136 个 XCTest）：
 10. **`isCleanable` 是硬约束。** 仅测量根不产生任何清理候选，Rust 与 Swift 两个引擎都执行这一约束，残留扫描同样受 home 根策略约束。
 11. **结果与报告来自实际操作。** 报告不再把跳过数重复相加，也不用跳过位置数冒充扫描范围（PDF 的范围行同样使用真实位置数）；每条结果携带真实分类，结果页在清理后呈现并可导出 PDF。不同入口（智能扫描、垃圾清理、大文件、旧文件、重复文件、卸载）各自记录正确的操作名称。
 12. **确认偏好真正生效。** 关闭确认后直接执行，但内容仍然进入废纸篓、结果页仍然显示；默认开启。
-13. **XCTest 与自检并存。** 本机只有 Command Line Tools，无法运行 XCTest。`Scripts/run-tests.sh` 用内置 runner 真正执行全部 136 个测试（在主 actor 上、不阻塞主线程），`swift test` 在 Xcode 环境下运行同一批文件。
+13. **XCTest 与自检并存。** 只装 Command Line Tools 的机器无法运行 XCTest，`Scripts/run-tests.sh` 用内置 runner 真正执行全部 162 个测试（在主 actor 上、不阻塞主线程），`swift test` 与 `xcodebuild` 在装了 Xcode 的环境运行同一批文件。UI 测试只有 `xcodebuild` 能跑，`Scripts/verify.sh` 与 CI 都会执行它们。
 14. **多语言两种产物。** `.xcstrings` 是权威来源（Xcode 编译），同时生成 `.lproj/Localizable.strings`，使没有 `xcstringstool` 的构建也能正确显示八种语言。
 
 ---
@@ -219,25 +223,47 @@ Swift（234 项自检 + 136 个 XCTest）：
 | §13 隐私与安全（日志脱敏、白名单；除两条只读状态查询外不执行任何命令） | 完成 | `Core/Logging/`、`Core/FileOperations/`、`Core/Diagnostics/SystemQuery.swift` |
 | §14 错误码与用户提示 | 完成 | `Core/Models/OperationModels.swift` |
 | §15 性能要求（批量事件、分页、取消、基准） | 完成 | `RustCore` benches |
-| §16 测试计划 | 完成（XCUITest 需 Xcode） | `Tests/`、`SelfTest/`、`RustCore/*/tests` |
+| §16 测试计划 | 完成（含 XCUITest，见 `Scripts/verify.sh` 与 CI） | `Tests/`、`UITests/`、`SelfTest/`、`RustCore/*/tests` |
 
 ### 按规格刻意延后 / 未包含
 
 - **支付与授权服务供应商**：规格 §19 把这个决定留到正式开发前。`DirectLicenseService` 已定义完整合同（校验闭包、Keychain 存储、离线宽限、恢复），接入时只需提供一个 `verify` 闭包。
 - **Sparkle 自动更新**：需要在签名与发布流程确定后接入；`build-rust-xcframework.sh` 已保证更新包内 Rust 二进制的双架构与部署目标一致。
-- **XCUITest**：需要完整 Xcode 才能运行与录制，本机不可用；视图已带 `accessibilityIdentifier`，可直接补录。
+- **UI 测试录制**：`UITests/` 已提交并在 `Scripts/verify.sh` 与 CI 中执行（5 个用例）；录制新的交互仍需要 Xcode GUI。
 - **Mac App Store 版本**：`StoreKitChannel` 已按 §12.4 预留接口，尚未启用。
 - **应用图标**：未提供资源，打包脚本保留 `AppIcon` 位置。
+- **发布流水线**：Developer ID 签名、Hardened Runtime、公证、产物校验与 Sparkle 更新。这些需要一个
+  真实的签名身份，仓库里只能先留出位置——`Scripts/build-app.sh` 是开发构建脚本，不是发布脚本。
 
 ---
 
 ## 已知限制
 
-- **Xcode 工程未在本机执行构建。** 本机只安装了 Command Line Tools，没有 Xcode，因此 `xcodebuild` 与 XCUITest 无法运行。工程由 XcodeGen 生成并通过 `plutil` 结构校验，CI 中的 `xcodebuild ... build test` 步骤负责真正的构建与测试。
-- **XCTest 需要 Xcode。** 命令行工具包含 Swift 编译器但不含 XCTest；`Scripts/run-tests.sh` 用内置 runner 执行了同一批测试，`swift test` 仍是标准入口。
-- **先运行一次 `Scripts/bootstrap.sh`。** 它编译 Rust 核心并放到固定路径；之后 `swift build` 与 Xcode 都直接可用。
-- **XCUITest 需要 Xcode。** `UITests/` 已提交，可在 Xcode 的测试计划中直接运行；本机没有 Xcode，因此这一层未实际执行。
-- **未接入真实支付服务。** 许可证校验目前是一个明确的「服务不可用」占位，购买流程的接口、Keychain 存储与离线宽限已就绪。
+- **发布构建尚未签名与公证。** `Scripts/build-app.sh` 与 `project.yml` 使用的是 ad-hoc 签名
+  （`CODE_SIGN_IDENTITY: "-"`），只为让本机与 CI 能构建并运行测试。面向用户的直接下载版本还需要
+  Developer ID 签名、Hardened Runtime、公证与发布产物校验；仓库里目前没有这些步骤，也没有对应的
+  发布配置。**当前的构建产物是开发构建，不是可交付给用户的版本。**
+- **直接下载版本不是 App Sandbox。** 这与「扫描整台机器」的产品定位一致，但也意味着路径边界、
+  最小授权与隐私说明承担了更多责任：`Config/Sift-AppStore.entitlements` 已预留沙盒配置，两条渠道
+  共享同一套规则与风险等级。
+- **未接入真实支付服务。** 许可证校验目前是一个明确的「服务不可用」占位；购买流程的接口、
+  Keychain 存储、离线宽限（14 天，每次授权判断都会重新核对是否过期）与恢复流程已就绪。
+- **两个引擎的内置规则表并不相同。** Rust 的 `default_rules()` 有 12 条，Swift 读取的
+  `Core/Resources/CleaningRules.json`（以及 `builtInRules` 兜底表）有 7 条；Rust 多出
+  `user-diagnostic-reports`、`user-group-cache`、`user-temporary-items` 三条参与扫描的规则。
+  正式构建跑的是 Rust 引擎，因此用户看到的是 12 条；但两个引擎的「基准规则集」仍有差异，需要先
+  决定哪张表是唯一来源（例如像保护清单那样由 Rust 生成 JSON）。
+- **`Scripts/verify.sh` 需要 Xcode 16 才能跑 UI 测试。** 只装 Command Line Tools 时，Xcode 阶段
+  会跳过并明确打印「skipped」，其余阶段照常执行。
+- **本机的 XCUITest runner 不稳定。** Xcode 16.4 在这台机器上约有一半概率无法启动 UI 测试
+  runner，报 `The bundle identifier for Sift couldn't be read` 并指向一个并不存在的
+  `.../Debug/Sift`，而 app bundle 就在旁边且名字正确。同样的构建产物、同样的 `xctestrun`、
+  同样的命令，一分钟前通过、一分钟后失败，同一计划里的单元测试每次都正常执行——是 runner，
+  不是测试。`Scripts/verify.sh` 与 CI 因此把两个 target 分开跑：单元测试不重试，UI target 重试
+  一次并打印每次结果，两次都失败才算失败。已排除的原因：app 的 debug dylib 布局、result bundle
+  的位置、`-destination`。CI（macOS 15 + Xcode 16.4）上这一个 target 是正常通过的。
+- **先运行一次 `Scripts/bootstrap.sh`。** 它编译 Rust 核心并放到固定路径；之后 `swift build`
+  与 Xcode 都直接可用。
 
 ---
 

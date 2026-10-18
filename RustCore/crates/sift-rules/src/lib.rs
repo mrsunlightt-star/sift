@@ -14,6 +14,7 @@
 //! 2. Every rule carries an explicit `risk`. Nothing defaults to `Safe`.
 
 use serde::{Deserialize, Serialize};
+use std::path::{Component, Path};
 
 /// Risk levels, mirroring `CleanupRisk` on the Swift side.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -345,6 +346,8 @@ pub enum RuleError {
     EmptyRuleID(String),
     #[error("duplicate rule id `{0}`")]
     DuplicateRuleID(String),
+    #[error("rule `{id}` has a relativePath that leaves its anchor: {path}")]
+    EscapingRelativePath { id: String, path: String },
 }
 
 impl RuleSet {
@@ -368,6 +371,12 @@ impl RuleSet {
             }
             if !seen.insert(rule.id.clone()) {
                 return Err(RuleError::DuplicateRuleID(rule.id.clone()));
+            }
+            if !relative_path_stays_inside_anchor(&rule.relative_path) {
+                return Err(RuleError::EscapingRelativePath {
+                    id: rule.id.clone(),
+                    path: rule.relative_path.clone(),
+                });
             }
         }
         Ok(parsed)
@@ -625,6 +634,18 @@ pub fn normalize_path(path: &str) -> String {
     collapsed
 }
 
+/// Collapses `.`, `..` and duplicate separators, without touching the disk and
+/// without the alias mapping.
+///
+/// Separate from [`normalize_path`], which also rewrites `/var` to
+/// `/private/var`. That mapping is right for a protection comparison and wrong
+/// for a scan root: it would rewrite a root under `/var/folders` into its
+/// `/private` spelling, and the root would then no longer match the request that
+/// authorised it.
+pub fn collapse_path(path: &str) -> String {
+    collapse_segments(path)
+}
+
 /// Collapses `.`, `..` and duplicate separators, without touching the disk.
 fn collapse_segments(path: &str) -> String {
     let mut parts: Vec<&str> = Vec::new();
@@ -648,7 +669,21 @@ fn collapse_segments(path: &str) -> String {
     out
 }
 
-fn is_prefix_of(prefix: &str, path: &str) -> bool {
+/// True when a rule's `relativePath` only ever descends from its anchor.
+///
+/// Two shapes have to be refused, and both arrive as an ordinary-looking string:
+/// an absolute path, because `Path::join` *replaces* the base rather than
+/// extending it, and a `..` component, because `/Users/alice/Library/../../Shared`
+/// is still spelled as though it sits under the home directory while the file
+/// system resolves it to `/Users/Shared`. The check is per component, so a
+/// directory genuinely named `..notes` is still allowed.
+pub fn relative_path_stays_inside_anchor(path: &str) -> bool {
+    Path::new(path)
+        .components()
+        .all(|c| matches!(c, Component::Normal(_)))
+}
+
+pub fn is_prefix_of(prefix: &str, path: &str) -> bool {
     let prefix = prefix.trim_end_matches('/');
     if prefix.is_empty() {
         return false;
@@ -1031,6 +1066,60 @@ mod tests {
     }
 
     #[test]
+    fn a_relative_path_that_leaves_its_anchor_is_rejected() {
+        // `Path::join` replaces the base when the argument is absolute, and a
+        // `..` component walks out of it, so both spellings have to be refused
+        // where the file is read rather than where the root is walked.
+        for escaping in [
+            "/etc",
+            "/Library/LaunchDaemons",
+            "../Shared",
+            "../../Shared",
+            "Logs/../../Shared",
+            "Logs/./../../Shared",
+            ".",
+            "..",
+        ] {
+            let json = format!(
+                r#"{{"schemaVersion":1,"rules":[
+                    {{"id":"escape","category":"logs","risk":"safe","root":"homeLibrary",
+                     "relativePath":"{escaping}","explanationKey":"k"}}
+                ]}}"#
+            );
+            assert!(
+                matches!(
+                    RuleSet::from_json(&json),
+                    Err(RuleError::EscapingRelativePath { .. })
+                ),
+                "{escaping:?} must be refused"
+            );
+        }
+    }
+
+    #[test]
+    fn ordinary_relative_paths_are_still_accepted() {
+        for allowed in [
+            "",
+            "Logs",
+            "Library/Logs/DiagnosticReports",
+            "Saved Application State",
+            "Logs/",
+            "..notes",
+        ] {
+            let json = format!(
+                r#"{{"schemaVersion":1,"rules":[
+                    {{"id":"fine","category":"logs","risk":"safe","root":"homeLibrary",
+                     "relativePath":"{allowed}","explanationKey":"k"}}
+                ]}}"#
+            );
+            assert!(
+                RuleSet::from_json(&json).is_ok(),
+                "{allowed:?} must be accepted"
+            );
+        }
+    }
+
+    #[test]
     fn rule_set_rejects_duplicate_ids() {
         let json = r#"{"schemaVersion":1,"rules":[
             {"id":"a","category":"logs","risk":"safe","root":"homeLibrary","relativePath":"Logs","explanationKey":"k"},
@@ -1198,6 +1287,48 @@ mod tests {
             .expect("rule survives merge");
         assert_eq!(user_logs.risk, Risk::Review, "overlay must retune the rule");
         assert!(!merged.rules.iter().any(|r| r.id == "never"));
+    }
+
+    #[test]
+    fn the_overlay_replaces_before_it_filters() {
+        // Swift's counterpart is `test_aDisabledOverrideSwitchesTheShippedRuleOff`
+        // in `RuleEngineTests`: the same document, the same semantics, so a rule
+        // file cannot mean one thing to the scanner and another to the engine
+        // that checks the results.
+        let base = RuleSet {
+            schema_version: RULE_SCHEMA_VERSION,
+            rules: default_rules(),
+        };
+
+        // Switching a shipped rule off removes it.
+        let disabling = RuleSet::from_json(
+            r#"{"schemaVersion":1,"rules":[
+                {"id":"user-logs","category":"logs","risk":"safe","root":"homeLibrary",
+                 "relativePath":"Logs","matchSpec":"childDirectories","enabled":false,
+                 "explanationKey":"k"}
+            ]}"#,
+        )
+        .expect("the file parses");
+        let merged = base.clone().merge(disabling);
+        assert!(
+            !merged.rules.iter().any(|r| r.id == "user-logs"),
+            "a disabled override replaces the shipped rule and is then dropped"
+        );
+        assert!(
+            merged.rules.iter().any(|r| r.id == "user-cache"),
+            "and nothing else is touched"
+        );
+
+        // Marking one `protected` leaves no hole where the shipped rule was.
+        let raising = RuleSet::from_json(
+            r#"{"schemaVersion":1,"rules":[
+                {"id":"user-logs","category":"logs","risk":"protected","root":"homeLibrary",
+                 "relativePath":"Logs","matchSpec":"childDirectories","explanationKey":"k"}
+            ]}"#,
+        )
+        .expect("the file parses");
+        let merged = base.merge(raising);
+        assert!(!merged.rules.iter().any(|r| r.id == "user-logs"));
     }
 
     #[test]

@@ -140,6 +140,12 @@ public enum ErrorCode: String, Codable, Sendable, CaseIterable {
     case permissionDenied
     case fileNotFound
     case fileInUse
+    /// The path no longer resolves to the item the user selected.
+    ///
+    /// Raised when the item was replaced between the pre-flight check and the
+    /// move — by a symlink in particular, because a move follows a link in any
+    /// component of the path and would then act on whatever it points at.
+    case itemChanged
     case volumeUnavailable
     case protectedLocation
     case partialFailure
@@ -155,6 +161,7 @@ public enum ErrorCode: String, Codable, Sendable, CaseIterable {
         case .permissionDenied: .cleanupFailurePermissionDenied
         case .fileNotFound: .cleanupFailureFileNotFound
         case .fileInUse: .cleanupFailureFileInUse
+        case .itemChanged: .cleanupFailureItemChanged
         case .volumeUnavailable: .cleanupFailureVolumeUnavailable
         case .protectedLocation: .cleanupFailureProtectedLocation
         case .partialFailure: .cleanupFailurePartialFailure
@@ -173,6 +180,7 @@ public enum ErrorCode: String, Codable, Sendable, CaseIterable {
         switch self {
         case .permissionDenied: .openSystemSettings
         case .volumeUnavailable: .retry
+        case .itemChanged: .retry
         case .partialFailure: .retry
         case .licenseServiceUnavailable, .storeUnavailable: .retry
         case .fileInUse: .quitApp

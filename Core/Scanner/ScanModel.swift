@@ -129,10 +129,46 @@ public final class ScanModel: ObservableObject {
             ?? ScanPage(items: [], remaining: 0)
     }
 
-    /// Loads the duplicate groups once a scan has finished.
-    public func loadDuplicateGroups(limit: Int = 200) async {
+    /// How many duplicate groups one page holds.
+    ///
+    /// A scan of a full disk can find thousands, and each group carries its
+    /// members, so the list is paged rather than loaded whole.
+    public static let duplicateGroupsPageSize = 200
+
+    /// How many groups the scan found in total.
+    ///
+    /// The report's count, not the loaded list's: the difference between the two
+    /// is what the page has to show, and a list that quietly stopped at one page
+    /// would read as the whole result.
+    public var duplicateGroupsTotal: Int {
+        report?.duplicateGroupCount ?? duplicateGroups.count
+    }
+
+    /// True when the engine holds more groups than the list is showing.
+    public var hasMoreDuplicateGroups: Bool {
+        duplicateGroups.count < duplicateGroupsTotal
+    }
+
+    /// Loads the first page of duplicate groups, once a scan has finished.
+    public func loadDuplicateGroups(limit: Int = ScanModel.duplicateGroupsPageSize) async {
         guard let session else { return }
         duplicateGroups = (try? await session.duplicateGroups(offset: 0, limit: limit)) ?? []
+    }
+
+    /// Appends the next page of duplicate groups.
+    ///
+    /// Appends rather than replaces: the ids are the index's, so a group already
+    /// on screen keeps its expansion and its selection.
+    public func loadMoreDuplicateGroups(limit: Int = ScanModel.duplicateGroupsPageSize) async {
+        guard let session, hasMoreDuplicateGroups else { return }
+        let next = (try? await session.duplicateGroups(
+            offset: duplicateGroups.count,
+            limit: limit
+        )) ?? []
+        // A page that repeats what is already loaded would leave the button
+        // offering a load that never advances.
+        let known = Set(duplicateGroups.map(\.id))
+        duplicateGroups.append(contentsOf: next.filter { !known.contains($0.id) })
     }
 
     /// Loads the members of one duplicate group.

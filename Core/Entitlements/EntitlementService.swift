@@ -144,6 +144,11 @@ public actor EntitlementService {
 
     private let channel: any PurchaseChannel
     private let defaults: UserDefaults
+    /// The clock every window is measured against.
+    ///
+    /// Injected so the one case that matters can be tested without waiting two
+    /// weeks: an app that stays open past the end of its offline grace period.
+    private let now: @Sendable () -> Date
     private let logger = SiftLog.purchase
     private var cachedState: EntitlementState
 
@@ -157,12 +162,29 @@ public actor EntitlementService {
         static let channel = "purchase.channel"
     }
 
-    public init(channel: any PurchaseChannel, defaults: UserDefaults = .standard) {
+    /// How far into the future a verification timestamp may sit and still count.
+    ///
+    /// A clock corrected by NTP between the verification and the next launch can
+    /// put the stored instant slightly ahead; anything further ahead is not a
+    /// verification at all, and treating it as one would move the end of the
+    /// window forward by however far the clock was pushed.
+    public static let clockSkewTolerance: TimeInterval = 300
+
+    public init(
+        channel: any PurchaseChannel,
+        defaults: UserDefaults = .standard,
+        now: @escaping @Sendable () -> Date = { Date() }
+    ) {
         self.channel = channel
         self.defaults = defaults
+        self.now = now
         self.cachedState = EntitlementState(
             channel: channel.channel,
-            status: EntitlementService.restoredStatus(from: defaults, channel: channel.channel)
+            status: EntitlementService.restoredStatus(
+                from: defaults,
+                channel: channel.channel,
+                now: now()
+            )
         )
     }
 
@@ -180,7 +202,8 @@ public actor EntitlementService {
     /// changes distribution.
     private static func restoredStatus(
         from defaults: UserDefaults,
-        channel: EntitlementState.Channel
+        channel: EntitlementState.Channel,
+        now: Date
     ) -> EntitlementState.Status {
         guard defaults.string(forKey: Key.channel) == channel.rawValue else {
             return .free
@@ -188,19 +211,41 @@ public actor EntitlementService {
         guard let verifiedAt = defaults.object(forKey: Key.verifiedAt) as? Date else {
             return .free
         }
+        guard verifiedAt <= now.addingTimeInterval(clockSkewTolerance) else {
+            return .free
+        }
         let expiresAt = Calendar.current.date(byAdding: .day, value: offlineGraceDays, to: verifiedAt) ?? verifiedAt
-        if expiresAt > Date() {
+        if expiresAt > now {
             return .offlineGrace(verifiedAt: verifiedAt, expiresAt: expiresAt)
         }
         return .free
     }
 
-    public func current() -> EntitlementState { cachedState }
+    /// The state as it stands at `now`.
+    ///
+    /// An offline window is measured against the clock, not against the moment
+    /// the process started. `refresh()` cannot be what enforces it: the refresh
+    /// only runs when the channel answers, and a lease that stops being verified
+    /// is exactly the case where it does not. A Mac left open past the end of the
+    /// window therefore stops being unlocked without being relaunched.
+    private func evaluated(_ state: EntitlementState) -> EntitlementState {
+        guard case let .offlineGrace(_, expiresAt) = state.status, expiresAt <= now() else {
+            return state
+        }
+        return EntitlementState(
+            channel: state.channel,
+            status: .free,
+            localizedPrice: state.localizedPrice,
+            currencyCode: state.currencyCode
+        )
+    }
+
+    public func current() -> EntitlementState { evaluated(cachedState) }
 
     /// True when the capability is available right now.
     public func allows(_ capability: Capability) -> Bool {
         if capability.isFree { return true }
-        return cachedState.isUnlocked
+        return evaluated(cachedState).isUnlocked
     }
 
     /// Refreshes the entitlement from the channel.
@@ -212,10 +257,10 @@ public actor EntitlementService {
         do {
             let state = try await channel.load()
             apply(state)
-            return state
+            return evaluated(state)
         } catch {
             logger.notice("Purchase refresh failed; keeping the cached state")
-            return cachedState
+            return evaluated(cachedState)
         }
     }
 

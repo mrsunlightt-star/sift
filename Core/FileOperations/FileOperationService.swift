@@ -113,6 +113,14 @@ public actor FileOperationService {
                 continue
             }
 
+            // Reported here as well as at the move, so the confirmation panel
+            // says which items are no longer the ones that were scanned.
+            if let refusal = Self.refusalForARelocatedPath(candidate.url) {
+                logger.notice("Refused an item whose path resolves elsewhere (code=itemChanged)")
+                skipped.append((candidate, refusal.code, refusal.message))
+                continue
+            }
+
             if isSubsumed(candidate, by: ready) {
                 subsumed.append(candidate)
                 continue
@@ -185,6 +193,33 @@ public actor FileOperationService {
         )
     }
 
+    /// Why the path no longer names the item that was selected, if it does not.
+    ///
+    /// A scan result can be minutes old, and the item it names can be replaced
+    /// in that window. The dangerous substitution is a symlink in an ancestor:
+    /// `trashItem` follows a link in any component of the path, so
+    ///
+    ///   ~/Library/Caches/com.example.app   ->  ~/Documents
+    ///
+    /// turns a request to move a cache directory into a request to move
+    /// `~/Documents/<whatever the item was called>`. The protection list cannot
+    /// catch that: it compares the path as it is written, and the written path
+    /// sits under `Caches`.
+    ///
+    /// The comparison is lexical-versus-resolved through the product's own
+    /// normalisation, because `resolvingSymlinksInPath` answers `/var` for a path
+    /// under `/private/var` and the alias mapping is what reconciles the two
+    /// spellings. A legitimate path therefore compares equal whichever spelling
+    /// it arrived in.
+    private static func refusalForARelocatedPath(_ url: URL) -> (code: ErrorCode, message: String)? {
+        let written = RuleEngine.normalize(url.path)
+        let resolved = RuleEngine.normalize(url.resolvingSymlinksInPath().path)
+        guard written == resolved else {
+            return (.itemChanged, LocalizationKey.cleanupFailureItemChanged.localized)
+        }
+        return nil
+    }
+
     /// Snapshot of running bundle paths, refreshed at most once per second.
     ///
     /// The pre-flight check asks about every selected item, and a cached snapshot
@@ -244,6 +279,23 @@ public actor FileOperationService {
                         status: .skipped,
                         errorCode: ErrorCode.fileNotFound.rawValue,
                         message: LocalizationKey.cleanupFailureFileNotFound.localized,
+                        sizeInBytes: item.sizeInBytes,
+                        category: item.category
+                    )
+                )
+                continue
+            }
+
+            // The last word before the move, and the reason it exists: between
+            // the pre-flight check and this line the path can be re-pointed.
+            if let refusal = Self.refusalForARelocatedPath(item.url) {
+                logger.error("Refused an item whose path resolves elsewhere before the move")
+                results.append(
+                    FileOperationResult(
+                        sourceURL: item.url,
+                        status: .skipped,
+                        errorCode: refusal.code.rawValue,
+                        message: refusal.message,
                         sizeInBytes: item.sizeInBytes,
                         category: item.category
                     )

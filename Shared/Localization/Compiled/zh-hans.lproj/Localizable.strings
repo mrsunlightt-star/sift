@@ -38,6 +38,7 @@
 "cleanup.explanation.temporary" = "应用留下的临时文件。";
 "cleanup.failure.fileInUse" = "文件正在使用";
 "cleanup.failure.fileNotFound" = "已被移除";
+"cleanup.failure.itemChanged" = "已移动或被替换";
 "cleanup.failure.partialFailure" = "部分完成";
 "cleanup.failure.permissionDenied" = "权限不足";
 "cleanup.failure.protectedLocation" = "受保护的位置";
@@ -62,6 +63,7 @@
 "common.itemCount" = "%d 个项目";
 "common.keep" = "保留";
 "common.learnMore" = "了解更多";
+"common.loadMore" = "加载更多";
 "common.loading" = "加载中…";
 "common.modified" = "修改时间";
 "common.notAvailable" = "不可用";
@@ -164,6 +166,7 @@
 "files.addFolder" = "添加文件夹";
 "files.chooseFolders" = "选择要检查的文件夹";
 "files.duplicateGroups" = "%d 个重复组，可释放 %@";
+"files.duplicateGroupsShown" = "已显示 %d / %d 组";
 "files.emptyFolder" = "此文件夹中没有符合条件的文件。";
 "files.groupMembers" = "%d 份副本";
 "files.ignore" = "加入忽略列表";
@@ -268,6 +271,7 @@
 "scan.results" = "扫描结果";
 "scan.reviewDetails" = "查看明细";
 "scan.selectAll" = "全选";
+"scan.selectAllShown" = "全选已显示（%d 项）";
 "scan.skippedReason.fileNotFound" = "项目在扫描过程中被移除，已跳过。";
 "scan.skippedReason.partialFailure" = "此位置的一部分无法读取。";
 "scan.skippedReason.permissionDenied" = "这个位置需要额外权限。";

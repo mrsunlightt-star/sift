@@ -362,29 +362,51 @@ public struct RuleEngine: Sendable {
     public func resolvedRoots(for rule: Rule) -> [URL] {
         switch rule.root {
         case .home:
-            return [URL(fileURLWithPath: homeDirectory).appendingPathComponent(rule.relativePath)]
+            return Self.roots(under: homeDirectory, relativePath: rule.relativePath)
         case .homeLibrary:
-            return [
-                URL(fileURLWithPath: homeDirectory)
-                    .appendingPathComponent("Library")
-                    .appendingPathComponent(rule.relativePath)
-            ]
+            return Self.roots(
+                under: "\(homeDirectory)/Library",
+                relativePath: rule.relativePath
+            )
         case .applications:
-            return [URL(fileURLWithPath: "/Applications").appendingPathComponent(rule.relativePath)]
+            return Self.roots(under: "/Applications", relativePath: rule.relativePath)
         case .systemLibrary:
-            return [URL(fileURLWithPath: "/Library").appendingPathComponent(rule.relativePath)]
+            return Self.roots(under: "/Library", relativePath: rule.relativePath)
         case .authorized, .externalVolume:
             // Never guessed from a mount point name: only roots the user
             // actually authorised are considered (§8.3).
             let grants = rule.root == .externalVolume
                 ? authorized.paths.filter { Self.isMountedVolume($0) }
                 : authorized.paths
-            return grants.sorted().map { grant in
-                rule.relativePath.isEmpty
-                    ? URL(fileURLWithPath: grant)
-                    : URL(fileURLWithPath: grant).appendingPathComponent(rule.relativePath)
+            return grants.sorted().flatMap { grant in
+                Self.roots(under: grant, relativePath: rule.relativePath)
             }
         }
+    }
+
+    /// The roots inside `base` that `relativePath` names, collapsed.
+    ///
+    /// Empty when the relative path would leave `base`. `decode` already refuses
+    /// such a file, so this is the second line rather than the only one: it also
+    /// covers the built-in table, and it is what makes the path the engine walks
+    /// the same one the protection check judges. Without it
+    /// `/Users/alice/Library/../../Shared` is checked as `/Users/Shared` and
+    /// walked as written.
+    ///
+    /// Only lexical collapsing — `.`, `..`, duplicate separators. The alias
+    /// mapping stays out of it: rewriting `/var/folders/...` to its `/private`
+    /// spelling here would leave a root that no longer matches the request that
+    /// authorised it.
+    static func roots(under base: String, relativePath: String) -> [URL] {
+        // An absolute relative path is not a descendant. The join here is
+        // textual, so it *reads* as a child named `etc`, while on the Rust side
+        // `Path::join` replaces the anchor with it outright: refusing it is what
+        // keeps one rule from meaning two things.
+        guard !relativePath.hasPrefix("/") else { return [] }
+        let basePath = collapse(base)
+        let joined = relativePath.isEmpty ? basePath : collapse("\(basePath)/\(relativePath)")
+        guard isPrefix(basePath, joined) else { return [] }
+        return [URL(fileURLWithPath: joined)]
     }
 
     /// True for the mount point of a volume rather than a folder on one.
@@ -438,7 +460,7 @@ public struct RuleEngine: Sendable {
         if let url = Bundle.module.url(forResource: "CleaningRules", withExtension: "json"),
            let data = try? Data(contentsOf: url) {
             if let rules = try? decode(data) {
-                return rules
+                return sanitized(rules)
             }
             logger.error("The bundled rule file could not be decoded; using the built-in table")
         }
@@ -547,6 +569,13 @@ public struct RuleEngine: Sendable {
     ]
 
     /// Decodes a rule file, rejecting unknown schema versions.
+    ///
+    /// Nothing is filtered out here. A rule the file switches off, or marks
+    /// `protected`, has to reach [`merge`] so that it *replaces* the shipped rule
+    /// of the same id and is dropped with it. Filtering first would drop the
+    /// override instead and leave the shipped rule running, which is the opposite
+    /// of what the file asked for — and it is what the Rust core, which merges
+    /// before it filters, would not do.
     static func decode(_ data: Data) throws -> [Rule] {
         let decoder = JSONDecoder()
         let file = try decoder.decode(RuleFile.self, from: data)
@@ -561,11 +590,35 @@ public struct RuleEngine: Sendable {
             guard seen.insert(rule.id).inserted else {
                 throw RuleError.duplicateRuleID(rule.id)
             }
+            guard Self.relativePathStaysInsideAnchor(rule.relativePath) else {
+                throw RuleError.escapingRelativePath(rule.relativePath)
+            }
         }
-        return file.rules.filter { $0.isEnabled && $0.risk != .protected }
+        return file.rules
     }
 
-    /// Merges an overlay on top of the base rules, replacing matching ids.
+    /// True when a `relativePath` only ever descends from its anchor.
+    ///
+    /// An absolute path does not descend at all — `Path::join` replaces the base
+    /// and `appendingPathComponent` can escape it — and a `..` component climbs
+    /// out: `/Users/alice/Library/../../Shared` reads as though it sits under the
+    /// home directory and resolves to `/Users/Shared`. The check is per component,
+    /// so a folder genuinely named `..notes` is still allowed. The Rust parser
+    /// refuses the same two shapes.
+    static func relativePathStaysInsideAnchor(_ path: String) -> Bool {
+        guard !path.hasPrefix("/") else { return false }
+        return path
+            .split(separator: "/", omittingEmptySubsequences: true)
+            .allSatisfy { $0 != ".." && $0 != "." }
+    }
+
+    /// Merges an overlay on top of the base rules, replacing matching ids, then
+    /// applies the enable/risk filter to the result.
+    ///
+    /// The order matters and matches `RuleSet::merge` in the Rust core: replace
+    /// first, filter second. That is what lets a rule file switch a shipped rule
+    /// off, and what stops one from retuning a rule into `protected` and leaving
+    /// a hole where the shipped rule used to be.
     static func merge(base: [Rule], overlay: [Rule]) -> [Rule] {
         var merged = base
         for rule in overlay {
@@ -575,12 +628,18 @@ public struct RuleEngine: Sendable {
                 merged.append(rule)
             }
         }
-        return merged
+        return sanitized(merged)
+    }
+
+    /// The rules that may run: enabled, and not `protected`.
+    private static func sanitized(_ rules: [Rule]) -> [Rule] {
+        rules.filter { $0.isEnabled && $0.risk != .protected }
     }
 
     /// Errors a malformed rule file can produce.
     public enum RuleError: Error, Equatable {
         case unsupportedSchemaVersion(Int)
+        case escapingRelativePath(String)
         case emptyRuleID
         case duplicateRuleID(String)
     }

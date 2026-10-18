@@ -52,6 +52,33 @@ struct DuplicateGroupsCard: View {
                     )
                     if group.id != groups.last?.id { Divider() }
                 }
+
+                // The list is paged, so it has to say how much of the result it
+                // is showing. A list that stopped at one page and looked complete
+                // would hide reclaimable space the scan had already found.
+                if scan.hasMoreDuplicateGroups || groups.count < scan.duplicateGroupsTotal {
+                    Divider()
+                    HStack(spacing: SiftMetrics.spacingM) {
+                        Text(
+                            LocalizationKey.filesDuplicateGroupsShown.localized(
+                                groups.count,
+                                scan.duplicateGroupsTotal
+                            )
+                        )
+                        .font(SiftFont.caption)
+                        .foregroundStyle(.secondary)
+                        Spacer()
+                        if scan.hasMoreDuplicateGroups {
+                            Button {
+                                Task { await scan.loadMoreDuplicateGroups() }
+                            } label: {
+                                Text(LocalizationKey.commonLoadMore.localized)
+                                    .font(SiftFont.caption)
+                            }
+                            .buttonStyle(.link)
+                        }
+                    }
+                }
             }
         }
     }

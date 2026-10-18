@@ -38,6 +38,7 @@
 "cleanup.explanation.temporary" = "Fichiers temporaires laissés par les apps.";
 "cleanup.failure.fileInUse" = "Fichier en cours d’utilisation";
 "cleanup.failure.fileNotFound" = "Déjà supprimé";
+"cleanup.failure.itemChanged" = "Déplacé ou remplacé";
 "cleanup.failure.partialFailure" = "Partiellement terminé";
 "cleanup.failure.permissionDenied" = "Autorisation refusée";
 "cleanup.failure.protectedLocation" = "Emplacement protégé";
@@ -62,6 +63,7 @@
 "common.itemCount" = "%d éléments";
 "common.keep" = "Conserver";
 "common.learnMore" = "En savoir plus";
+"common.loadMore" = "Afficher plus";
 "common.loading" = "Chargement…";
 "common.modified" = "Modifié";
 "common.notAvailable" = "Indisponible";
@@ -164,6 +166,7 @@
 "files.addFolder" = "Ajouter un dossier";
 "files.chooseFolders" = "Choisir les dossiers à vérifier";
 "files.duplicateGroups" = "%d groupes de doublons, %@ récupérables";
+"files.duplicateGroupsShown" = "%d groupes sur %d affichés";
 "files.emptyFolder" = "Aucun fichier correspondant dans ce dossier.";
 "files.groupMembers" = "%d copies";
 "files.ignore" = "Ignorer cet élément";
@@ -268,6 +271,7 @@
 "scan.results" = "Résultats";
 "scan.reviewDetails" = "Voir le détail";
 "scan.selectAll" = "Tout sélectionner";
+"scan.selectAllShown" = "Tout sélectionner parmi les %d affichés";
 "scan.skippedReason.fileNotFound" = "L’élément a disparu pendant l’analyse, il a été ignoré.";
 "scan.skippedReason.partialFailure" = "Une partie de cet emplacement n’a pas pu être lue.";
 "scan.skippedReason.permissionDenied" = "Cet emplacement nécessite une autorisation supplémentaire.";

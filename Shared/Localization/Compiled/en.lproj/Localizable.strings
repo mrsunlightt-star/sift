@@ -38,6 +38,7 @@
 "cleanup.explanation.temporary" = "Scratch files left behind by apps.";
 "cleanup.failure.fileInUse" = "File is in use";
 "cleanup.failure.fileNotFound" = "Already removed";
+"cleanup.failure.itemChanged" = "Moved or replaced";
 "cleanup.failure.partialFailure" = "Partly completed";
 "cleanup.failure.permissionDenied" = "Permission denied";
 "cleanup.failure.protectedLocation" = "Protected location";
@@ -62,6 +63,7 @@
 "common.itemCount" = "%d items";
 "common.keep" = "Keep";
 "common.learnMore" = "Learn more";
+"common.loadMore" = "Load more";
 "common.loading" = "Loading…";
 "common.modified" = "Modified";
 "common.notAvailable" = "Not available";
@@ -164,6 +166,7 @@
 "files.addFolder" = "Add folder";
 "files.chooseFolders" = "Choose folders to check";
 "files.duplicateGroups" = "%d duplicate groups, %@ reclaimable";
+"files.duplicateGroupsShown" = "Showing %d of %d groups";
 "files.emptyFolder" = "No files matched in this folder.";
 "files.groupMembers" = "%d copies";
 "files.ignore" = "Ignore this item";
@@ -268,6 +271,7 @@
 "scan.results" = "Results";
 "scan.reviewDetails" = "View details";
 "scan.selectAll" = "Select all";
+"scan.selectAllShown" = "Select all shown (%d)";
 "scan.skippedReason.fileNotFound" = "The item disappeared during the scan, so it was skipped.";
 "scan.skippedReason.partialFailure" = "Part of this location could not be read.";
 "scan.skippedReason.permissionDenied" = "Sift needs extra permission for this location.";

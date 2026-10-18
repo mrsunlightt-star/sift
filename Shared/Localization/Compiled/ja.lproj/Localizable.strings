@@ -38,6 +38,7 @@
 "cleanup.explanation.temporary" = "アプリが残した一時ファイルです。";
 "cleanup.failure.fileInUse" = "ファイルが使用中";
 "cleanup.failure.fileNotFound" = "すでに削除済み";
+"cleanup.failure.itemChanged" = "移動または置換済み";
 "cleanup.failure.partialFailure" = "一部完了";
 "cleanup.failure.permissionDenied" = "権限がありません";
 "cleanup.failure.protectedLocation" = "保護された場所";
@@ -62,6 +63,7 @@
 "common.itemCount" = "%d 項目";
 "common.keep" = "残す";
 "common.learnMore" = "詳細を見る";
+"common.loadMore" = "さらに読み込む";
 "common.loading" = "読み込み中…";
 "common.modified" = "変更日";
 "common.notAvailable" = "利用できません";
@@ -164,6 +166,7 @@
 "files.addFolder" = "フォルダを追加";
 "files.chooseFolders" = "確認するフォルダを選択";
 "files.duplicateGroups" = "重複グループ %d 件、%@ を解放可能";
+"files.duplicateGroupsShown" = "%d / %d グループを表示";
 "files.emptyFolder" = "このフォルダに該当ファイルはありません。";
 "files.groupMembers" = "%d 個のコピー";
 "files.ignore" = "この項目を無視";
@@ -268,6 +271,7 @@
 "scan.results" = "結果";
 "scan.reviewDetails" = "詳細を表示";
 "scan.selectAll" = "すべて選択";
+"scan.selectAllShown" = "表示中の %d 件をすべて選択";
 "scan.skippedReason.fileNotFound" = "スキャン中に項目が消えたためスキップしました。";
 "scan.skippedReason.partialFailure" = "この場所の一部を読み取れませんでした。";
 "scan.skippedReason.permissionDenied" = "この場所には追加の権限が必要です。";

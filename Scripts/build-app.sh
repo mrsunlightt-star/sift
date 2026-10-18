@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 #
-# Builds Sift.app.
+# Builds Sift.app — a development build.
+#
+# This is not a release pipeline. The bundle is ad-hoc signed, so macOS will run
+# it on the machine that built it and nowhere else: Gatekeeper refuses it on
+# another Mac, and there is no notarization. A build for users needs a Developer
+# ID identity, Hardened Runtime, `notarytool` and a verification of the published
+# artefact — none of which can be done without a signing identity, which is why
+# this script only claims to produce something runnable and testable.
 #
 # What this does, in order:
 #   1. resolves the Rust scanner core (builds it if missing),
@@ -137,7 +144,7 @@ if [[ -f "${REPO_ROOT}/Resources/AppIcon.icns" ]]; then
   cp "${REPO_ROOT}/Resources/AppIcon.icns" "${APP_DIR}/Contents/Resources/AppIcon.icns"
 fi
 
-echo "==> Signing (ad-hoc)"
+echo "==> Signing (ad-hoc, development only)"
 codesign --force --deep --sign - "${APP_DIR}" 2>&1 | grep -v "replacing existing signature" || true
 codesign --verify --deep --strict "${APP_DIR}" && echo "    signature verified"
 

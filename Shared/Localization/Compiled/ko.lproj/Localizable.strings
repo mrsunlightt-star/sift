@@ -38,6 +38,7 @@
 "cleanup.explanation.temporary" = "앱이 남긴 임시 파일입니다.";
 "cleanup.failure.fileInUse" = "파일 사용 중";
 "cleanup.failure.fileNotFound" = "이미 제거됨";
+"cleanup.failure.itemChanged" = "이동 또는 교체됨";
 "cleanup.failure.partialFailure" = "일부 완료";
 "cleanup.failure.permissionDenied" = "권한 없음";
 "cleanup.failure.protectedLocation" = "보호된 위치";
@@ -62,6 +63,7 @@
 "common.itemCount" = "%d개 항목";
 "common.keep" = "유지";
 "common.learnMore" = "자세히 알아보기";
+"common.loadMore" = "더 불러오기";
 "common.loading" = "불러오는 중…";
 "common.modified" = "수정일";
 "common.notAvailable" = "사용할 수 없음";
@@ -164,6 +166,7 @@
 "files.addFolder" = "폴더 추가";
 "files.chooseFolders" = "검사할 폴더 선택";
 "files.duplicateGroups" = "중복 그룹 %d개, %@ 확보 가능";
+"files.duplicateGroupsShown" = "%d / %d 그룹 표시";
 "files.emptyFolder" = "이 폴더에서 조건에 맞는 파일이 없습니다.";
 "files.groupMembers" = "%d개 사본";
 "files.ignore" = "이 항목 무시";
@@ -268,6 +271,7 @@
 "scan.results" = "검사 결과";
 "scan.reviewDetails" = "세부 정보 보기";
 "scan.selectAll" = "전체 선택";
+"scan.selectAllShown" = "표시된 항목 모두 선택(%d)";
 "scan.skippedReason.fileNotFound" = "검사 중 항목이 사라져 건너뛰었습니다.";
 "scan.skippedReason.partialFailure" = "이 위치의 일부를 읽을 수 없습니다.";
 "scan.skippedReason.permissionDenied" = "이 위치에는 추가 권한이 필요합니다.";

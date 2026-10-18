@@ -144,6 +144,10 @@ STRINGS: dict[str, list[str]] = {
     "scan.reviewDetails": ["View details", "查看明细", "세부 정보 보기", "Подробнее", "Ver detalles", "詳細を表示", "Voir le détail", "Details anzeigen"],
     "scan.selectAll": ["Select all", "全选", "전체 선택", "Выбрать всё", "Seleccionar todo", "すべて選択", "Tout sélectionner", "Alle auswählen"],
     "scan.deselectAll": ["Deselect all", "取消全选", "선택 해제", "Снять выбор", "Deselect all", "すべて解除", "Tout désélectionner", "Auswahl aufheben"],
+    # The list is paged, so "select all" can only mean what the model holds. The
+    # count is in the label rather than the ARIA text alone: the affordance is
+    # what sets the expectation of how much will be selected.
+    "scan.selectAllShown": ["Select all shown (%d)", "全选已显示（%d 项）", "표시된 항목 모두 선택(%d)", "Выбрать все показанные (%d)", "Seleccionar los mostrados (%d)", "表示中の %d 件をすべて選択", "Tout sélectionner parmi les %d affichés", "Alle %d angezeigten auswählen"],
     "scan.nothingFound": ["Nothing to clean up", "没有可清理项目", "정리할 항목이 없습니다", "Нечего очищать", "Nada que limpiar", "削除する項目はありません", "Rien à nettoyer", "Nichts zu bereinigen"],
     "scan.nothingFoundDetail": [
         "Your Mac looks tidy. Sift found no caches, logs or installers worth removing.",
@@ -435,6 +439,10 @@ STRINGS: dict[str, list[str]] = {
     "cleanup.failure.permissionDenied": ["Permission denied", "权限不足", "권한 없음", "Нет доступа", "Permiso denegado", "権限がありません", "Autorisation refusée", "Keine Berechtigung"],
     "cleanup.failure.fileNotFound": ["Already removed", "已被移除", "이미 제거됨", "Уже удалено", "Ya eliminado", "すでに削除済み", "Déjà supprimé", "Bereits entfernt"],
     "cleanup.failure.fileInUse": ["File is in use", "文件正在使用", "파일 사용 중", "Файл используется", "Archivo en uso", "ファイルが使用中", "Fichier en cours d’utilisation", "Datei wird verwendet"],
+    # The path no longer resolves to what the user selected: the item was moved,
+    # or an ancestor was replaced by a symlink, between the pre-flight check and
+    # the move. Refused rather than followed.
+    "cleanup.failure.itemChanged": ["Moved or replaced", "已移动或被替换", "이동 또는 교체됨", "Перемещено или заменено", "Movido o reemplazado", "移動または置換済み", "Déplacé ou remplacé", "Verschoben oder ersetzt"],
     "cleanup.failure.volumeUnavailable": ["Disk disconnected", "磁盘已断开", "디스크 연결 끊김", "Диск отключён", "Disco desconectado", "ディスクが接続されていません", "Disque déconnecté", "Datenträger getrennt"],
     "cleanup.failure.protectedLocation": ["Protected location", "受保护的位置", "보호된 위치", "Защищённое место", "Ubicación protegida", "保護された場所", "Emplacement protégé", "Geschützter Ort"],
     "cleanup.failure.partialFailure": ["Partly completed", "部分完成", "일부 완료", "Выполнено частично", "Completado parcialmente", "一部完了", "Partiellement terminé", "Teilweise abgeschlossen"],
@@ -490,6 +498,9 @@ STRINGS: dict[str, list[str]] = {
     "files.scanDuplicates": ["Find duplicates", "查找重复文件", "중복 파일 찾기", "Найти дубликаты", "Buscar duplicados", "重複を検索", "Trouver les doublons", "Duplikate finden"],
     "files.chooseFolders": ["Choose folders to check", "选择要检查的文件夹", "검사할 폴더 선택", "Выбрать папки для проверки", "Elegir carpetas a revisar", "確認するフォルダを選択", "Choisir les dossiers à vérifier", "Ordner zum Prüfen wählen"],
     "files.duplicateGroups": ["%d duplicate groups, %@ reclaimable", "%d 个重复组，可释放 %@", "중복 그룹 %d개, %@ 확보 가능", "Групп дубликатов: %d, можно освободить %@", "%d grupos de duplicados, %@ recuperables", "重複グループ %d 件、%@ を解放可能", "%d groupes de doublons, %@ récupérables", "%d Duplikatgruppen, %@ freigebbar"],
+    # Shown when the group list is paged: the user has to be able to tell how
+    # much of the result they are looking at.
+    "files.duplicateGroupsShown": ["Showing %d of %d groups", "已显示 %d / %d 组", "%d / %d 그룹 표시", "Показано %d из %d групп", "Mostrando %d de %d grupos", "%d / %d グループを表示", "%d groupes sur %d affichés", "%d von %d Gruppen angezeigt"],
     "files.groupMembers": ["%d copies", "%d 份副本", "%d개 사본", "Копий: %d", "%d copias", "%d 個のコピー", "%d copies", "%d Kopien"],
     "files.keepThis": ["Keep this one", "保留此项", "이 항목 유지", "Оставить этот", "Conservar este", "これを残す", "Conserver celui-ci", "Diese behalten"],
     "files.removeThese": ["%d copies will be removed", "%d 份副本将被删除", "%d개 사본이 삭제됩니다", "Будет удалено копий: %d", "Se eliminarán %d copias", "%d 個のコピーを削除します", "%d copies seront supprimées", "%d Kopien werden entfernt"],
@@ -812,6 +823,7 @@ STRINGS: dict[str, list[str]] = {
     "common.yesterday": ["Yesterday", "昨天", "어제", "Вчера", "Ayer", "昨日", "Hier", "Gestern"],
     "common.daysAgo": ["%d days ago", "%d 天前", "%d일 전", "%d дней назад", "Hace %d días", "%d 日前", "Il y a %d jours", "Vor %d Tagen"],
     "common.notAvailable": ["Not available", "不可用", "사용할 수 없음", "Недоступно", "No disponible", "利用できません", "Indisponible", "Nicht verfügbar"],
+    "common.loadMore": ["Load more", "加载更多", "더 불러오기", "Показать ещё", "Cargar más", "さらに読み込む", "Afficher plus", "Mehr laden"],
     "common.learnMore": ["Learn more", "了解更多", "자세히 알아보기", "Подробнее", "Más información", "詳細を見る", "En savoir plus", "Mehr erfahren"],
     "common.retry": ["Try again", "重试", "다시 시도", "Повторить", "Reintentar", "再試行", "Réessayer", "Erneut versuchen"],
     "common.selected": ["%d selected", "已选 %d 项", "%d개 선택", "Выбрано: %d", "%d seleccionados", "%d 件選択", "%d sélectionnés", "%d ausgewählt"],

@@ -27,12 +27,19 @@ public struct SelectionBar: View {
 
     public var body: some View {
         HStack(spacing: SiftMetrics.spacingM) {
+            // The results are paged, and the model holds the pages that have been
+            // loaded, so this can only select those. The count is in the label
+            // because the label is what sets the expectation: "Select all" over a
+            // list that is showing part of the result reads as the whole thing.
             Button {
                 cleanup.selectAll(in: cleanup.items)
             } label: {
-                Text(LocalizationKey.scanSelectAll.localized)
+                Text(LocalizationKey.scanSelectAllShown.localized(cleanup.items.count))
             }
             .buttonStyle(.link)
+            .accessibilityLabel(
+                Text(LocalizationKey.scanSelectAllShown.localized(cleanup.items.count))
+            )
 
             Button {
                 cleanup.deselectAll()

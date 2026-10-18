@@ -27,7 +27,7 @@ suite still runs, and `Scripts/verify.sh` adds the Xcode stages automatically on
 it finds an Xcode — in `xcode-select` or, before that step has been run, in
 `/Applications`.
 
-Five things about the Xcode path are load-bearing and were each a build failure
+Four things about the Xcode path are load-bearing and were each a build failure
 the first time a real Xcode compiled this project:
 
 - the package exports `AppShell`, `Core` and `Shared` as **static** library
@@ -42,25 +42,36 @@ the first time a real Xcode compiled this project:
 - `Config/Sift.xctestplan` names targets by their object IDs in the generated
   project. XcodeGen derives those IDs from the target names, so they survive
   regeneration; renaming a target means updating the plan.
-- the app target sets `ENABLE_DEBUG_DYLIB: NO`. Xcode 16's default builds a
-  Debug app as a small launcher plus `Sift.debug.dylib`, and the bundle is
-  reassembled and re-signed while the UI test is being set up. The run then
-  fails with `The bundle identifier for Sift couldn't be read. No such file or
-  directory: ".../Debug/Sift"` — and it fails intermittently, so a green run
-  proves nothing. A UI test needs one fully linked, signed bundle.
 
-The Xcode stage builds the test plan and then runs it with
-`test-without-building`, in two steps: a single `xcodebuild test` starts the run
-while the app bundle is still being signed and can fail to resolve the UI test's
-target application ("The bundle identifier for Sift couldn't be read"). The UI
-tests only ran reliably once `xcode-select` pointed at Xcode itself — with the
-Command Line Tools selected and `DEVELOPER_DIR` set for one stage, the runner
-mixed two toolchains and failed most of the time.
+The Xcode stage builds the test plan and then runs the two test targets with
+`test-without-building`. Two things about that are load-bearing, and each was
+found by a failure rather than by reading documentation.
 
-Both steps name the destination as `platform=macOS,arch=$(uname -m)`.
-`platform=macOS` alone matches arm64 and x86_64 on an Apple Silicon Mac, and
-xcodebuild picks one with "using the first of multiple matching destinations";
-the CI job uses the same two commands and the same destination.
+`build-for-testing` is given **no** `-destination`. With one, xcodebuild writes
+`UITargetAppPath` into the generated `*.xctestrun` as `<products>/Debug/Sift` —
+without the `.app` suffix, so it names a path that does not exist. Without one it
+writes `Debug/Sift.app`. The run step does need a destination, because it has to
+choose a runner, and there it is `platform=macOS,arch=$(uname -m)`: bare
+`platform=macOS` matches both architectures on an Apple Silicon Mac and
+xcodebuild picks one with "using the first of multiple matching destinations".
+
+The two targets are then run **separately**, with `-only-testing:SiftTests` and
+`-only-testing:SiftUITests`. Xcode 16.4's UI-test runner on this machine fails to
+start about half the time, reporting
+
+    Test target SiftUITests encountered an error (The bundle identifier for Sift
+    couldn't be read. No such file or directory: ".../Debug/Sift".)
+
+about a bundle that is present and correctly named. It is the runner, not the
+tests: the same built products, the same `xctestrun` and the same command pass or
+fail from one minute to the next, and the unit tests in the same plan always run.
+(The `xctestrun` on a failing run still says `Sift.app`; the debug-dylib app
+layout, the result-bundle location and the destination were each suspected and
+each ruled out.) Running the targets apart is what stops a flaky runner from
+being reported as a failing suite — and stops a real failure in the unit tests
+from being written off as the runner. The UI target gets one retry, and every
+attempt is printed. If both attempts fail the stage fails, and the log path is
+the first thing to read.
 
 ## Before changing code
 
@@ -180,6 +191,33 @@ These are product promises, not implementation details. Each has tests behind it
     shell, and never anything that changes state. A query that fails, times out
     or is refused is reported as unknown or as an incomplete result, never as a
     finding: an answer that was not given must not be invented.
+
+19. **A rule descends from its anchor and from nothing else.** A `relativePath`
+    that is absolute, or that contains a `..` component, is refused where the file
+    is read: `Path::join` *replaces* the base for an absolute argument, and
+    `/Users/alice/Library/../../Shared` is spelled as though it sits under the home
+    directory while resolving to `/Users/Shared`. Resolution checks containment a
+    second time, so a table assembled in code cannot climb out either, and the path
+    the engine walks is the collapsed one the protection check judged. Both
+    engines refuse the same two shapes.
+20. **A move acts on the object the user selected.** `trashItem` follows a symlink
+    in *any* component of the path, so an ancestor replaced by a link turns a cache
+    path into a request to move something under `~/Documents` — and the protection
+    list cannot see it, because the path as written is not protected. An item whose
+    path no longer resolves to itself is refused with `itemChanged`, at the
+    pre-flight check and again immediately before the move.
+21. **The offline window is measured against the clock, not the process.** A
+    refresh only happens when the channel answers, and an unreachable service is
+    exactly the case where that does not, so the expiry is re-evaluated at every
+    gate: a Mac left open past the end of the 14 days stops being unlocked without
+    a relaunch. A stored timestamp in the future is not a verification and is not
+    restored; a small forward skew is tolerated so a corrected clock cannot lock a
+    paying user out.
+22. **The merge order is the same in both engines: replace, then filter.** A rule
+    file that switches a shipped rule off replaces it and is then dropped, so the
+    rule really is off; filtering first would discard the override and leave the
+    shipped rule running. Marking a shipped rule `protected` therefore leaves no
+    hole where the shipped rule was.
 
 ## Layout notes
 

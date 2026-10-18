@@ -195,6 +195,85 @@ final class ProtectionTests: XCTestCase, @unchecked Sendable {
         )
     }
 
+    func test_aUserRuleFileCannotPointOutsideItsAnchor() {
+        // `relativePath` is joined under an anchor, and both an absolute path and
+        // a `..` component would leave it: `/Users/example/Library/../../Shared`
+        // is spelled as though it sits under the home directory and resolves to
+        // `/Users/Shared`. The file is refused whole, so the built-ins stay.
+        for escaping in ["../../Shared", "../Shared", "/etc", "Logs/../../Shared"] {
+            let fixture = TemporaryDirectory(tag: "rule-escape")
+            let ruleFile = fixture.url.appendingPathComponent("CleaningRules.json")
+            let overlay = """
+            {"schemaVersion":1,"rules":[
+              {"id":"escape","category":"logs","risk":"safe","root":"homeLibrary",
+               "relativePath":"\(escaping)","matchSpec":"childDirectories",
+               "explanationKey":"cleanup.explanation.logs"}
+            ]}
+            """
+            try? overlay.data(using: .utf8)?.write(to: ruleFile)
+
+            let engine = RuleEngine(homeDirectory: home, userRuleURL: ruleFile)
+            XCTAssertFalse(
+                engine.rules.contains { $0.id == "escape" },
+                "\(escaping) must not load"
+            )
+            XCTAssertNil(engine.userRulesJSON, "\(escaping) must not reach the Rust core either")
+            XCTAssertFalse(engine.rules.isEmpty, "the shipped rules must survive a bad file")
+        }
+    }
+
+    func test_anOrdinaryRelativePathStillResolves() {
+        let engine = RuleEngine(rules: RuleEngine.builtInRules, homeDirectory: home)
+        let rule = engine.rules.first { $0.id == "user-logs" }!
+        XCTAssertEqual(
+            engine.resolvedRoots(for: rule).map(\.path),
+            ["/Users/example/Library/Logs"]
+        )
+        // `.` components collapse rather than being refused.
+        let nested = RuleEngine.Rule(
+            id: "nested",
+            category: .logs,
+            risk: .review,
+            root: .homeLibrary,
+            relativePath: "Logs/./DiagnosticReports",
+            matchSpec: .anyFile,
+            excludes: [],
+            minAgeDays: nil,
+            requiresFullDiskAccess: false,
+            explanationKey: "cleanup.explanation.logs",
+            isEnabled: true
+        )
+        XCTAssertEqual(
+            engine.resolvedRoots(for: nested).map(\.path),
+            ["/Users/example/Library/Logs/DiagnosticReports"]
+        )
+    }
+
+    func test_aRootThatWouldLeaveItsAnchorResolvesToNothing() {
+        // The second line: a table assembled in code, or one that reached the
+        // engine another way, still cannot climb out of its anchor.
+        let engine = RuleEngine(rules: RuleEngine.builtInRules, homeDirectory: home)
+        for escaping in ["../..", "../../Shared", "/etc"] {
+            let rule = RuleEngine.Rule(
+                id: "climbing",
+                category: .logs,
+                risk: .review,
+                root: .homeLibrary,
+                relativePath: escaping,
+                matchSpec: .childDirectories,
+                excludes: [],
+                minAgeDays: nil,
+                requiresFullDiskAccess: false,
+                explanationKey: "cleanup.explanation.logs",
+                isEnabled: true
+            )
+            XCTAssertTrue(
+                engine.resolvedRoots(for: rule).isEmpty,
+                "\(escaping) must resolve to no root"
+            )
+        }
+    }
+
     func test_malformedRuleFileLeavesTheBuiltInsInPlace() {
         let fixture = TemporaryDirectory(tag: "rules-broken")
         let ruleFile = fixture.url.appendingPathComponent("CleaningRules.json")

@@ -46,6 +46,79 @@ final class FileOperationTests: XCTestCase, @unchecked Sendable {
         XCTAssertTrue(verdict.protected.isEmpty)
     }
 
+    /// A path re-pointed before the move is refused, at both checks.
+    ///
+    /// `trashItem` follows a symlink in any component, so an ancestor replaced
+    /// by a link turns a cache path into a request to move something else
+    /// entirely — and the protection list cannot see it, because the path as
+    /// written sits under `Caches`.
+    func test_preflightRefusesAPathThatNowResolvesElsewhere() async {
+        let elsewhere = fixture.directory("Documents")
+        try? Data(repeating: 0x78, count: 4096)
+            .write(to: elsewhere.appendingPathComponent("thing.bin"))
+        let cacheDirectory = fixture.directory("Library/Caches/com.example.app")
+        try? FileManager.default.removeItem(at: cacheDirectory)
+        try? FileManager.default.createSymbolicLink(at: cacheDirectory, withDestinationURL: elsewhere)
+
+        let item = item(cacheDirectory.appendingPathComponent("thing.bin"))
+        let verdict = await makeService().preflight([FileOperationService.Candidate(item: item)])
+        XCTAssertTrue(verdict.ready.isEmpty, "the item must not be offered")
+        XCTAssertEqual(verdict.skipped.count, 1)
+        XCTAssertEqual(verdict.skipped.first?.code, .itemChanged)
+    }
+
+    func test_theMoveRefusesAPathThatNowResolvesElsewhere() async {
+        // The same substitution, but discovered only at the move: the pre-flight
+        // check cannot be the last word, because the path can be re-pointed
+        // between the confirmation panel and this call.
+        let elsewhere = fixture.directory("Documents")
+        let victim = elsewhere.appendingPathComponent("thing.bin")
+        try? Data(repeating: 0x78, count: 4096).write(to: victim)
+        let cacheDirectory = fixture.directory("Library/Caches/com.example.app")
+        try? FileManager.default.removeItem(at: cacheDirectory)
+        try? FileManager.default.createSymbolicLink(at: cacheDirectory, withDestinationURL: elsewhere)
+
+        let outcome = await makeService().moveToTrash([
+            item(cacheDirectory.appendingPathComponent("thing.bin"))
+        ])
+        XCTAssertEqual(outcome.movedCount, 0)
+        XCTAssertEqual(outcome.results.first?.errorCode, ErrorCode.itemChanged.rawValue)
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: victim.path),
+            "the item the link points at must be untouched"
+        )
+    }
+
+    /// And an ordinary item is not refused, whichever spelling its path is in.
+    ///
+    /// The refusal compares the path as written with the path as resolved, and
+    /// `resolvingSymlinksInPath` answers `/var` for a path under `/private/var`.
+    /// Without the alias mapping in that comparison every item on a `/var`
+    /// spelling would be refused as relocated.
+    func test_anOrdinaryItemIsNotRefusedAsRelocated() async {
+        let file = fixture.write("Library/Caches/com.example.app/blob.bin", bytes: 4096)
+        let verdict = await makeService().preflight([FileOperationService.Candidate(item: item(file))])
+        XCTAssertEqual(verdict.ready.count, 1)
+
+        XCTAssertEqual(
+            RuleEngine.normalize(file.path),
+            RuleEngine.normalize(file.resolvingSymlinksInPath().path),
+            "the two spellings of one path must compare equal"
+        )
+        // And the same file written the other way round is still one item.
+        let symlink = fixture.url.appendingPathComponent("Library/Caches/link-to-app")
+        try? FileManager.default.createSymbolicLink(
+            at: symlink,
+            withDestinationURL: fixture.url.appendingPathComponent("Library/Caches/com.example.app")
+        )
+        let throughLink = await makeService()
+            .preflight([FileOperationService.Candidate(item: item(symlink))])
+        XCTAssertTrue(
+            throughLink.ready.isEmpty,
+            "a symlink the user selected is still refused, as it always was"
+        )
+    }
+
     func test_preflightRefusesProtectedContent() async {
         let file = fixture.write("Documents/taxes.pdf", bytes: 4096)
         let verdict = await makeService().preflight([FileOperationService.Candidate(item: item(file))])
@@ -125,5 +198,54 @@ final class FileOperationTests: XCTestCase, @unchecked Sendable {
 
         let missing = NSError(domain: NSCocoaErrorDomain, code: NSFileNoSuchFileError)
         XCTAssertEqual(FileOperationService.classify(missing), .fileNotFound)
+    }
+}
+
+
+/// The one test that performs a real move.
+///
+/// Every other test in this file runs dry, and that is deliberate: a test must
+/// never move a user's files. But a dry run never calls
+/// `FileManager.trashItem`, so nothing else proves that the production call
+/// works, that the resulting location is reported, or that the item really is
+/// gone from where it was. This test moves a file out of its own temporary
+/// directory and takes it back out of the Trash afterwards.
+final class TrashIntegrationTests: XCTestCase, @unchecked Sendable {
+    func test_aRealMoveTrashesTheItemAndReportsWhereItWent() async throws {
+        let fixture = TemporaryDirectory(tag: "trash-integration")
+        let file = fixture.write("Library/Caches/com.example.app/blob.bin", bytes: 4096)
+        let rules = RuleEngine(rules: RuleEngine.builtInRules, homeDirectory: fixture.url)
+        // Not a dry run: this is the production path.
+        let service = FileOperationService(rules: rules)
+        let item = CleanupItem(
+            url: file,
+            displayName: file.lastPathComponent,
+            category: .applicationCache,
+            risk: .safe,
+            sizeInBytes: 4096,
+            fileCount: 1,
+            explanationKey: "cleanup.explanation.cache",
+            sourceRuleID: "tests"
+        )
+
+        let outcome = await service.moveToTrash([item])
+
+        XCTAssertEqual(outcome.movedCount, 1)
+        XCTAssertEqual(outcome.failedCount, 0, "\(outcome.failedResults.map(\.message))")
+        XCTAssertFalse(
+            FileManager.default.fileExists(atPath: file.path),
+            "the item must be gone from where it was"
+        )
+        let trashed = try XCTUnwrap(
+            outcome.results.first?.destinationURL,
+            "a move has to report where the item went"
+        )
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: trashed.path),
+            "and the item must be there"
+        )
+
+        // Only the fixture this test moved, and only its own copy.
+        try? FileManager.default.removeItem(at: trashed)
     }
 }

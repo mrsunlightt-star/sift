@@ -58,6 +58,57 @@ final class RuleEngineTests: XCTestCase, @unchecked Sendable {
         }
     }
 
+    /// A rule file that switches a shipped rule off must switch it off.
+    ///
+    /// The overlay has to *replace* the shipped rule before anything is filtered:
+    /// filtering first would discard the override instead and leave the shipped
+    /// rule running, which is the opposite of what the file asked for. The Rust
+    /// core merges before it filters, and
+    /// `the_overlay_replaces_before_it_filters` in `sift-rules` asserts the same
+    /// document against the same semantics.
+    func test_aDisabledOverrideSwitchesTheShippedRuleOff() {
+        let fixture = TemporaryDirectory(tag: "rule-disable")
+        let ruleFile = fixture.url.appendingPathComponent("CleaningRules.json")
+        let overlay = """
+        {"schemaVersion":1,"rules":[
+          {"id":"user-logs","category":"logs","risk":"safe","root":"homeLibrary",
+           "relativePath":"Logs","matchSpec":"childDirectories","enabled":false,
+           "explanationKey":"cleanup.explanation.logs"}
+        ]}
+        """
+        try? overlay.data(using: .utf8)?.write(to: ruleFile)
+
+        let engine = RuleEngine(homeDirectory: home, userRuleURL: ruleFile)
+        XCTAssertFalse(
+            engine.rules.contains { $0.id == "user-logs" },
+            "a disabled override replaces the shipped rule and is then dropped"
+        )
+        XCTAssertTrue(engine.rules.contains { $0.id == "user-cache" })
+    }
+
+    /// And one that marks a shipped rule `protected` leaves no hole behind.
+    func test_aProtectedOverrideReplacesTheShippedRuleRatherThanLeavingIt() {
+        let fixture = TemporaryDirectory(tag: "rule-protect")
+        let ruleFile = fixture.url.appendingPathComponent("CleaningRules.json")
+        let overlay = """
+        {"schemaVersion":1,"rules":[
+          {"id":"user-logs","category":"logs","risk":"protected","root":"homeLibrary",
+           "relativePath":"Logs","matchSpec":"childDirectories",
+           "explanationKey":"cleanup.explanation.logs"}
+        ]}
+        """
+        try? overlay.data(using: .utf8)?.write(to: ruleFile)
+
+        let engine = RuleEngine(homeDirectory: home, userRuleURL: ruleFile)
+        XCTAssertFalse(
+            engine.rules.contains { $0.id == "user-logs" },
+            "the shipped rule is replaced by the protected one and filtered out"
+        )
+        // A path the removed rule used to claim is simply unrecognised now, which
+        // is never `safe` and still cannot be removed by any rule.
+        XCTAssertEqual(engine.risk(for: "/Users/example/Library/Logs/com.example.app"), .review)
+    }
+
     func test_aRejectedUserRuleFileIsNotHandedToTheOtherEngine() {
         let fixture = TemporaryDirectory(tag: "user-rules-rejected")
         let ruleFile = fixture.url.appendingPathComponent("CleaningRules.json")

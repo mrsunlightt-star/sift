@@ -20,6 +20,23 @@ QUICK=0
 
 FAILED=0
 
+# The test suites write what they ran to a log, so the counts printed at the end
+# come from the runs themselves. A number copied into a document drifts; these
+# are the counts a document should quote.
+LOG_DIR="${REPO_ROOT}/.build/verify"
+mkdir -p "${LOG_DIR}"
+
+run_logged() {
+  local log="$1"
+  shift
+  if "$@" >"${log}.log" 2>&1; then
+    echo "  → ok"
+  else
+    echo "  → FAILED"
+    FAILED=1
+  fi
+}
+
 # A full Xcode can be installed without `xcode-select` having been switched to it
 # (that step needs the admin password). If /Applications has one, use it for the
 # Xcode stage rather than reporting "skipped" next to a working installation.
@@ -72,7 +89,12 @@ run bash -c "cd RustCore && cargo fmt --all -- --check"
 run bash -c "cd RustCore && cargo clippy --all-targets -- -D warnings"
 
 step "3/9  Rust: unit and contract tests"
-run bash -c "cd RustCore && cargo test --workspace"
+if (cd RustCore && cargo test --workspace) >"${LOG_DIR}/rust-tests.log" 2>&1; then
+  echo "  → ok"
+else
+  echo "  → FAILED"
+  FAILED=1
+fi
 
 step "4/9  Rust: benchmarks compile"
 run bash -c "cd RustCore && cargo bench -p sift-scanner-core --no-run"
@@ -89,35 +111,74 @@ step "6/9  Swift: build (Rust core linked)"
 run swift build
 
 step "7/9  Swift: self-test and XCTest suites"
-run bash -c "cd '${REPO_ROOT}' && swift run SiftSelfTest"
-run bash -c "cd '${REPO_ROOT}' && ./Scripts/run-tests.sh"
+run_logged "${LOG_DIR}/self-test" bash -c "cd '${REPO_ROOT}' && swift run SiftSelfTest"
+run_logged "${LOG_DIR}/swift-tests" bash -c "cd '${REPO_ROOT}' && ./Scripts/run-tests.sh"
 
-step "8/9  Xcode: XCTest and test-plan build (skipped without Xcode)"
+step "8/9  Xcode: test plan (skipped without Xcode)"
 # XCTest ships with Xcode, not the Command Line Tools, so this stage is the one
 # that needs it. The suite above runs either way; this runs the same files under
-# the real framework and then the UI tests and the test plan, which nothing else
-# can execute.
-#
-# The destination names the architecture. `platform=macOS` alone matches both
-# arm64 and x86_64 on an Apple Silicon Mac, and xcodebuild then picks one with
-# "using the first of multiple matching destinations" — a UI test launched
-# against the other one fails in ways that read like a broken test plan.
-DESTINATION="platform=macOS,arch=$(uname -m)"
+# the real framework and then the UI tests, which nothing else can execute.
 if xcode_available; then
   run xcode_run swift test --package-path "${REPO_ROOT}"
-  # Build and run in two steps. `xcodebuild test` starts the run while the app
-  # bundle is still being signed, and then sometimes fails to resolve the UI
-  # test's target application ("The bundle identifier for Sift couldn't be
-  # read"). Separating the phases removes the race and is the flow Apple
-  # documents for CI.
-  run xcode_run xcodebuild build-for-testing -scheme Sift -testPlan Sift -destination "${DESTINATION}" -derivedDataPath "${REPO_ROOT}/.build/xcode" -quiet
-  run xcode_run xcodebuild test-without-building -scheme Sift -testPlan Sift -destination "${DESTINATION}" -derivedDataPath "${REPO_ROOT}/.build/xcode" -quiet
+
+  # No `-destination` on the build. Given one, xcodebuild writes the UI test's
+  # target application into the generated xctestrun as `<products>/Debug/Sift`,
+  # without the `.app` suffix, so it names a path that does not exist. Without
+  # one it writes `Debug/Sift.app`. The run below does need a destination,
+  # because it has to choose a runner.
+  run xcode_run xcodebuild build-for-testing -scheme Sift -testPlan Sift -derivedDataPath "${REPO_ROOT}/.build/xcode" -quiet
+
+  # The architecture is named because bare `platform=macOS` matches both on an
+  # Apple Silicon Mac and xcodebuild then picks one with "using the first of
+  # multiple matching destinations".
+  DESTINATION="platform=macOS,arch=$(uname -m)"
+  TEST_PLAN_ARGS=(-scheme Sift -testPlan Sift -destination "${DESTINATION}" -derivedDataPath "${REPO_ROOT}/.build/xcode" -quiet)
+
+  # The unit tests run on their own, with no retry: a failure here is a failure.
+  run_logged "${LOG_DIR}/xcode-unit" \
+    xcode_run xcodebuild test-without-building "${TEST_PLAN_ARGS[@]}" -only-testing:SiftTests
+
+  # The UI target is separate, and retried once, because Xcode 16.4's UI-test
+  # runner on this machine fails to start about half the time — "The bundle
+  # identifier for Sift couldn't be read. No such file or directory:
+  # .../Debug/Sift" — about a bundle that is present and correctly named. The
+  # same built products, the same xctestrun and the same command pass or fail
+  # from one minute to the next, and the unit tests in the same plan always run,
+  # so this is the runner and not a test. Separating the targets keeps a flaky
+  # runner from being reported as a failing suite, and a real unit-test failure
+  # from being written off as the runner.
+  UI_OK=0
+  for attempt in 1 2; do
+    if xcode_run xcodebuild test-without-building "${TEST_PLAN_ARGS[@]}" -only-testing:SiftUITests \
+      >"${LOG_DIR}/xcode-ui-attempt-${attempt}.log" 2>&1; then
+      echo "  → ok (UI target, attempt ${attempt})"
+      UI_OK=1
+      break
+    fi
+    echo "  … UI target attempt ${attempt} did not start"
+  done
+  if [[ "${UI_OK}" == "0" ]]; then
+    echo "  → FAILED (UI target did not run in 2 attempts; see ${LOG_DIR}/xcode-ui-attempt-2.log)"
+    FAILED=1
+  fi
 else
   echo "  → skipped (no Xcode; Scripts/run-tests.sh covered the suite)"
 fi
 
 step "9/9  App bundle"
 run bash -c "cd '${REPO_ROOT}' && ./Scripts/build-app.sh"
+
+echo
+echo "=============================================================="
+echo "Test counts from this run"
+echo "=============================================================="
+RUST_TESTS="$(awk -F'[ ;]' '/^test result: ok/ { total += $4 } END { print total + 0 }' "${LOG_DIR}/rust-tests.log" 2>/dev/null || echo 0)"
+SWIFT_TESTS="$(grep -E '^  passed: [0-9]+' "${LOG_DIR}/swift-tests.log" 2>/dev/null | tail -1 | awk '{ print $2 }' || echo 0)"
+SELF_TESTS="$(grep -E '^  passed: [0-9]+' "${LOG_DIR}/self-test.log" 2>/dev/null | tail -1 | awk '{ print $2 }' || echo 0)"
+echo "  Rust                    ${RUST_TESTS:-unknown}"
+echo "  Swift XCTest methods    ${SWIFT_TESTS:-unknown}"
+echo "  Self-test checks        ${SELF_TESTS:-unknown}"
+echo "  XCUITest methods        $(grep -c '^    func test_' "${REPO_ROOT}/UITests/SiftUITests.swift" 2>/dev/null || echo unknown) (run by the Xcode stage above)"
 
 echo
 echo "=============================================================="

@@ -15,8 +15,8 @@ use crate::walker::{self, WalkEntry, WalkMode, WalkOptions, WalkReport};
 use sift_file_index::{GroupMemberRow, ItemRow};
 use sift_hasher::{hash_file, sample_fingerprint, CancelToken, FileIdentity};
 use sift_rules::{
-    default_rules, is_protected_path_authorized, Category, MatchSpec, Risk, RootAnchor, Rule,
-    RuleSet,
+    collapse_path, default_rules, is_prefix_of, is_protected_path_authorized, Category, MatchSpec,
+    Risk, RootAnchor, Rule, RuleSet,
 };
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -126,11 +126,30 @@ pub fn resolve_root(anchor: RootAnchor, relative_path: &str, home: &Path) -> Opt
         RootAnchor::SystemLibrary => PathBuf::from("/Library"),
         RootAnchor::Authorized | RootAnchor::ExternalVolume => return None,
     };
-    Some(if relative_path.is_empty() {
-        base
+    join_inside(&base, relative_path)
+}
+
+/// Joins `relative_path` under `base`, or refuses when the result leaves it.
+///
+/// `RuleSet::from_json` already rejects a relative path that is absolute or
+/// contains `..`, so this is the second line rather than the only one: it also
+/// covers the built-in table and pins down the *resolved* root. Without it the
+/// protection check and the walk would disagree — the check normalises the path
+/// it is given, so `/Users/alice/Library/../../Shared` is judged as
+/// `/Users/Shared` and then walked as written.
+fn join_inside(base: &Path, relative_path: &str) -> Option<PathBuf> {
+    let joined = if relative_path.is_empty() {
+        base.to_path_buf()
     } else {
         base.join(relative_path)
-    })
+    };
+    let base_text = collapse_path(&base.to_string_lossy());
+    let joined_text = collapse_path(&joined.to_string_lossy());
+    if is_prefix_of(&base_text, &joined_text) {
+        Some(PathBuf::from(joined_text))
+    } else {
+        None
+    }
 }
 
 /// Every root a rule applies to.
@@ -153,13 +172,10 @@ fn rule_roots(rule: &Rule, home: &Path, grants: &[PathBuf]) -> Vec<PathBuf> {
     let mut roots: Vec<PathBuf> = grants
         .iter()
         .filter(|root| !volumes_only || is_mounted_volume(root))
-        .map(|root| {
-            if rule.relative_path.is_empty() {
-                root.clone()
-            } else {
-                root.join(&rule.relative_path)
-            }
-        })
+        // A rule under a grant descends from that grant and from nothing else:
+        // `join_inside` drops a root that would leave the location the user
+        // opened, and returns the collapsed form the walk should use.
+        .filter_map(|root| join_inside(root, &rule.relative_path))
         .collect();
     roots.sort();
     roots.dedup();
@@ -1575,6 +1591,67 @@ mod tests {
             rule_roots(&rule, home, &grants),
             vec![PathBuf::from("/Volumes/Backup")],
             "a folder inside a volume and a folder inside home are not volumes"
+        );
+    }
+
+    #[test]
+    fn a_relative_path_cannot_climb_out_of_its_anchor() {
+        let home = Path::new("/Users/example");
+        // The file is refused when it is read, so this is the second line: a
+        // rule built in code, or one that reached the table another way.
+        for escaping in ["../Shared", "../../Shared", "Logs/../../../Shared", "/etc"] {
+            assert_eq!(
+                resolve_root(RootAnchor::HomeLibrary, escaping, home),
+                None,
+                "{escaping:?} must not resolve"
+            );
+        }
+        // And an ordinary descendant still resolves, in its collapsed form.
+        assert_eq!(
+            resolve_root(RootAnchor::HomeLibrary, "Logs/./DiagnosticReports", home),
+            Some(PathBuf::from(
+                "/Users/example/Library/Logs/DiagnosticReports"
+            ))
+        );
+    }
+
+    #[test]
+    fn a_rule_under_a_grant_cannot_climb_out_of_the_grant() {
+        let home = Path::new("/Users/example");
+        let grants = vec![PathBuf::from("/Volumes/Backup")];
+        // The review's case, one level up: a rule anchored at a grant must not
+        // reach the rest of the disk through `..`.
+        let escaping = RuleSet::from_json(
+            r#"{"schemaVersion":1,"rules":[
+                {"id":"climb","category":"logs","risk":"safe","root":"authorized",
+                 "relativePath":"..","matchSpec":"childDirectories","explanationKey":"k"}
+            ]}"#,
+        );
+        assert!(
+            escaping.is_err(),
+            "a file with this rule is refused before it can be scanned"
+        );
+
+        // A rule built directly, since the parser is what refuses the file.
+        let shipped = effective_rules(None).unwrap();
+        let mut climbing = shipped
+            .iter()
+            .find(|r| r.id == "user-logs")
+            .expect("the shipped log rule")
+            .clone();
+        climbing.root = RootAnchor::Authorized;
+        climbing.relative_path = "../..".to_string();
+        assert!(
+            rule_roots(&climbing, home, &grants).is_empty(),
+            "a rule that reaches the table anyway resolves to no root"
+        );
+
+        // A legitimate descendant under the grant still works.
+        let mut inside = climbing.clone();
+        inside.relative_path = "var/log".to_string();
+        assert_eq!(
+            rule_roots(&inside, home, &grants),
+            vec![PathBuf::from("/Volumes/Backup/var/log")]
         );
     }
 

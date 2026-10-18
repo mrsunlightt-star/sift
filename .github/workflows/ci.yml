@@ -96,25 +96,45 @@ jobs:
       - name: Assemble the app bundle (SwiftPM)
         run: ./Scripts/build-app.sh
 
-      # The same two-step flow as Scripts/verify.sh, with the same flags, so a
-      # green CI run means what a green local run means. A single
-      # `xcodebuild build test` starts the run while the app bundle is still
-      # being signed, and then fails to resolve the UI test's target application.
-      # The architecture is named because `platform=macOS` alone matches both on
-      # an Apple Silicon runner and xcodebuild picks one arbitrarily.
+      # The same steps as Scripts/verify.sh, with the same flags, so a green CI
+      # run means what a green local run means.
+      #
+      # No `-destination` on the build: given one, xcodebuild writes the UI
+      # test's target application into the generated xctestrun as
+      # `<products>/Debug/Sift`, without the `.app` suffix. The run needs one,
+      # because it has to choose a runner.
       - name: "Xcode: build the test plan"
         run: |
           xcodebuild -project Sift.xcodeproj -scheme Sift -testPlan Sift \
-            -destination "platform=macOS,arch=$(uname -m)" \
             -derivedDataPath .build/xcode \
             build-for-testing -quiet
 
-      - name: "Xcode: run the test plan"
+      - name: "Xcode: run the unit tests"
         run: |
           xcodebuild -project Sift.xcodeproj -scheme Sift -testPlan Sift \
             -destination "platform=macOS,arch=$(uname -m)" \
             -derivedDataPath .build/xcode \
-            test-without-building -quiet
+            test-without-building -only-testing:SiftTests -quiet
+
+      # Retried once: Xcode's UI-test runner can fail to start at all, with a
+      # message about an app bundle that is present and correctly named. The
+      # failure is the runner rather than a test, and it is worth distinguishing
+      # the two in a green/red signal. Both attempts are printed.
+      - name: "Xcode: run the UI tests"
+        run: |
+          set -euo pipefail
+          for attempt in 1 2; do
+            if xcodebuild -project Sift.xcodeproj -scheme Sift -testPlan Sift \
+              -destination "platform=macOS,arch=$(uname -m)" \
+              -derivedDataPath .build/xcode \
+              test-without-building -only-testing:SiftUITests -quiet; then
+              echo "the UI target passed on attempt ${attempt}"
+              exit 0
+            fi
+            echo "the UI target did not start on attempt ${attempt}"
+          done
+          echo "::error::the UI target did not run in 2 attempts; see the log above"
+          exit 1
 
       - name: Upload the app
         uses: actions/upload-artifact@v4

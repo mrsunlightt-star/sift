@@ -150,6 +150,86 @@ final class EntitlementTests: XCTestCase, @unchecked Sendable {
         XCTAssertEqual(state.channel, .appStore)
     }
 
+    /// A window that closes while the process is running stops unlocking.
+    ///
+    /// The refresh only runs when the channel answers, and an unreachable service
+    /// is exactly the case where it does not, so the expiry has to be evaluated
+    /// at the gate rather than when the state was last computed.
+    func test_aWindowThatClosesWhileTheProcessRunsStopsUnlocking() async {
+        let defaults = UserDefaults(suiteName: suiteName) ?? .standard
+        defaults.set("direct", forKey: "purchase.channel")
+        defaults.set(Date(), forKey: "purchase.verifiedAt")
+
+        let clock = ClockBox(Date())
+        let store = InMemoryLicenseStore()
+        await store.save("SIFT-TEST-KEY")
+        let service = EntitlementService(
+            channel: DirectLicenseService(keychain: store) { _ in
+                throw PurchaseError.licenseServiceUnavailable
+            },
+            defaults: defaults,
+            now: { clock.now }
+        )
+
+        let open = await service.allows(.cleanJunk)
+        XCTAssertTrue(open, "the window is open at launch")
+
+        // Sixteen days later, with the app still running and the service still
+        // unreachable. Nothing has been refreshed in between.
+        clock.advance(by: Double(EntitlementService.offlineGraceDays + 2) * 86_400)
+
+        let closed = await service.allows(.cleanJunk)
+        XCTAssertFalse(closed, "the window must close without a relaunch")
+        let state = await service.current()
+        XCTAssertFalse(state.isUnlocked)
+        // And the free tier is untouched by any of it (§12.2).
+        let scanning = await service.allows(.scan)
+        XCTAssertTrue(scanning)
+    }
+
+    /// A timestamp in the future is not a verification.
+    func test_aVerificationTimestampInTheFutureIsNotRestored() async {
+        let defaults = UserDefaults(suiteName: suiteName) ?? .standard
+        defaults.set("direct", forKey: "purchase.channel")
+        // Far enough ahead that no clock correction explains it.
+        defaults.set(
+            Date().addingTimeInterval(Double(EntitlementService.offlineGraceDays) * 86_400),
+            forKey: "purchase.verifiedAt"
+        )
+
+        let service = EntitlementService(
+            channel: DirectLicenseService(keychain: InMemoryLicenseStore()) { _ in
+                throw PurchaseError.licenseServiceUnavailable
+            },
+            defaults: defaults
+        )
+        let state = await service.current()
+        XCTAssertFalse(
+            state.isUnlocked,
+            "a pushed-forward clock must not extend the window"
+        )
+    }
+
+    /// A small forward skew is tolerated, so a corrected clock does not lock a
+    /// paying user out.
+    func test_aSlightlyFutureTimestampIsStillAccepted() async {
+        let defaults = UserDefaults(suiteName: suiteName) ?? .standard
+        defaults.set("direct", forKey: "purchase.channel")
+        defaults.set(
+            Date().addingTimeInterval(EntitlementService.clockSkewTolerance / 2),
+            forKey: "purchase.verifiedAt"
+        )
+
+        let service = EntitlementService(
+            channel: DirectLicenseService(keychain: InMemoryLicenseStore()) { _ in
+                throw PurchaseError.licenseServiceUnavailable
+            },
+            defaults: defaults
+        )
+        let state = await service.current()
+        XCTAssertTrue(state.isUnlocked, "a corrected clock must not lock the user out")
+    }
+
     func test_removingAStoredLicenseReturnsToTheFreeTier() async {
         // The way out of a keychain item the app can no longer read, which is
         // what an ad-hoc build leaves behind after a rebuild.
@@ -180,5 +260,28 @@ final class EntitlementTests: XCTestCase, @unchecked Sendable {
             state.formattedPrice.contains("4") || state.formattedPrice.contains("4.99"),
             "the reference price is $4.99"
         )
+    }
+}
+
+/// A clock a test can move forward.
+///
+/// The service takes its time from `now`, so a window can be closed by moving the
+/// clock rather than by waiting out the fourteen days it describes.
+private final class ClockBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var date: Date
+
+    init(_ date: Date) { self.date = date }
+
+    var now: Date {
+        lock.lock()
+        defer { lock.unlock() }
+        return date
+    }
+
+    func advance(by interval: TimeInterval) {
+        lock.lock()
+        defer { lock.unlock() }
+        date = date.addingTimeInterval(interval)
     }
 }

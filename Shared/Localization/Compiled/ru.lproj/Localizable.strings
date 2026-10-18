@@ -38,6 +38,7 @@
 "cleanup.explanation.temporary" = "Временные файлы, оставленные приложениями.";
 "cleanup.failure.fileInUse" = "Файл используется";
 "cleanup.failure.fileNotFound" = "Уже удалено";
+"cleanup.failure.itemChanged" = "Перемещено или заменено";
 "cleanup.failure.partialFailure" = "Выполнено частично";
 "cleanup.failure.permissionDenied" = "Нет доступа";
 "cleanup.failure.protectedLocation" = "Защищённое место";
@@ -62,6 +63,7 @@
 "common.itemCount" = "Элементов: %d";
 "common.keep" = "Оставить";
 "common.learnMore" = "Подробнее";
+"common.loadMore" = "Показать ещё";
 "common.loading" = "Загрузка…";
 "common.modified" = "Изменён";
 "common.notAvailable" = "Недоступно";
@@ -164,6 +166,7 @@
 "files.addFolder" = "Добавить папку";
 "files.chooseFolders" = "Выбрать папки для проверки";
 "files.duplicateGroups" = "Групп дубликатов: %d, можно освободить %@";
+"files.duplicateGroupsShown" = "Показано %d из %d групп";
 "files.emptyFolder" = "В этой папке ничего не найдено.";
 "files.groupMembers" = "Копий: %d";
 "files.ignore" = "Игнорировать";
@@ -268,6 +271,7 @@
 "scan.results" = "Результаты";
 "scan.reviewDetails" = "Подробнее";
 "scan.selectAll" = "Выбрать всё";
+"scan.selectAllShown" = "Выбрать все показанные (%d)";
 "scan.skippedReason.fileNotFound" = "Элемент исчез во время сканирования и был пропущен.";
 "scan.skippedReason.partialFailure" = "Часть этого места не удалось прочитать.";
 "scan.skippedReason.permissionDenied" = "Для этого места нужны дополнительные разрешения.";

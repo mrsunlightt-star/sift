@@ -38,6 +38,7 @@
 "cleanup.explanation.temporary" = "Von Apps hinterlassene Temporärdateien.";
 "cleanup.failure.fileInUse" = "Datei wird verwendet";
 "cleanup.failure.fileNotFound" = "Bereits entfernt";
+"cleanup.failure.itemChanged" = "Verschoben oder ersetzt";
 "cleanup.failure.partialFailure" = "Teilweise abgeschlossen";
 "cleanup.failure.permissionDenied" = "Keine Berechtigung";
 "cleanup.failure.protectedLocation" = "Geschützter Ort";
@@ -62,6 +63,7 @@
 "common.itemCount" = "%d Einträge";
 "common.keep" = "Behalten";
 "common.learnMore" = "Mehr erfahren";
+"common.loadMore" = "Mehr laden";
 "common.loading" = "Wird geladen…";
 "common.modified" = "Geändert";
 "common.notAvailable" = "Nicht verfügbar";
@@ -164,6 +166,7 @@
 "files.addFolder" = "Ordner hinzufügen";
 "files.chooseFolders" = "Ordner zum Prüfen wählen";
 "files.duplicateGroups" = "%d Duplikatgruppen, %@ freigebbar";
+"files.duplicateGroupsShown" = "%d von %d Gruppen angezeigt";
 "files.emptyFolder" = "In diesem Ordner wurden keine Dateien gefunden.";
 "files.groupMembers" = "%d Kopien";
 "files.ignore" = "Diesen Eintrag ignorieren";
@@ -268,6 +271,7 @@
 "scan.results" = "Ergebnisse";
 "scan.reviewDetails" = "Details anzeigen";
 "scan.selectAll" = "Alle auswählen";
+"scan.selectAllShown" = "Alle %d angezeigten auswählen";
 "scan.skippedReason.fileNotFound" = "Der Eintrag verschwand während des Scans und wurde übersprungen.";
 "scan.skippedReason.partialFailure" = "Ein Teil dieses Ortes konnte nicht gelesen werden.";
 "scan.skippedReason.permissionDenied" = "Für diesen Ort ist eine zusätzliche Berechtigung nötig.";

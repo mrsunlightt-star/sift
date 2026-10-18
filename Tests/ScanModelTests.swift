@@ -68,6 +68,47 @@ final class ScanModelTests: XCTestCase, @unchecked Sendable {
         )
     }
 
+    /// A scan that finds more duplicate groups than one page can show.
+    ///
+    /// The list is paged, so the model has to know the total the scan reported
+    /// and be able to reach the rest: a list that stopped at the first page and
+    /// looked complete would hide reclaimable space the scan had already found.
+    func test_duplicateGroupsArePagedRatherThanCapped() async throws {
+        let fixture = TemporaryDirectory(tag: "scan-model-duplicates")
+        // Three groups of two identical files each, all above the duplicate
+        // minimum size so the pipeline looks at them.
+        for index in 0..<3 {
+            let payload = Data(repeating: UInt8(0x40 + index), count: 64 * 1024)
+            fixture.writeBytes("Downloads/pair-\(index)-a.bin", payload)
+            fixture.writeBytes("Downloads/pair-\(index)-b.bin", payload)
+        }
+
+        let model = await makeModel(home: fixture.url)
+        var request = makeRequest(home: fixture.url)
+        request.includeDuplicates = true
+        request.duplicateRoots = [fixture.url.appendingPathComponent("Downloads").path]
+        await model.start(request)
+
+        let phase = await waitForFinalPhase(model)
+        XCTAssertEqual(phase, .ready)
+
+        // A page smaller than the result, so the paging path is what runs.
+        await model.loadDuplicateGroups(limit: 2)
+        let firstPage = await model.duplicateGroups
+        XCTAssertEqual(firstPage.count, 2)
+        let total = await model.duplicateGroupsTotal
+        XCTAssertEqual(total, 3, "the report knows about all three")
+        let hasMore = await model.hasMoreDuplicateGroups
+        XCTAssertTrue(hasMore)
+
+        await model.loadMoreDuplicateGroups(limit: 2)
+        let all = await model.duplicateGroups
+        XCTAssertEqual(all.count, 3, "the rest is reachable")
+        XCTAssertEqual(Set(all.map(\.id)).count, 3, "and nothing is repeated")
+        let stillMore = await model.hasMoreDuplicateGroups
+        XCTAssertFalse(stillMore)
+    }
+
     func test_aScanStartedAfterACancelShowsOnlyItsOwnResults() async throws {
         let first = TemporaryDirectory(tag: "scan-model-first")
         for index in 0..<20 {
