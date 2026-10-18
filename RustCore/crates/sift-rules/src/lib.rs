@@ -683,6 +683,10 @@ pub fn relative_path_stays_inside_anchor(path: &str) -> bool {
         .all(|c| matches!(c, Component::Normal(_)))
 }
 
+/// True when `path` is `prefix` or sits below it.
+///
+/// A whole-segment comparison, so `/Systematic` is not below `/System`. Both
+/// sides are expected to be collapsed already.
 pub fn is_prefix_of(prefix: &str, path: &str) -> bool {
     let prefix = prefix.trim_end_matches('/');
     if prefix.is_empty() {
