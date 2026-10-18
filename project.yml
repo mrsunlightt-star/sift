@@ -96,19 +96,20 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.siftmac.cleaner.tests
+        # Code signing needs an Info.plist; Xcode can generate one for a bundle
+        # that has no settings of its own.
+        GENERATE_INFOPLIST_FILE: YES
         HEADER_SEARCH_PATHS:
           - $(SRCROOT)/Bridge/include
           - $(SRCROOT)/Bridge
         SWIFT_INCLUDE_PATHS: $(SRCROOT)/Bridge
-        OTHER_LDFLAGS:
-          - -force_load
-          - $(SRCROOT)/Bridge/macos-universal/libsift_ffi.a
+        # The bundle loads the app's symbols through TEST_HOST/BUNDLE_LOADER
+        # (XcodeGen sets both for a unit-test target that depends on the app), so
+        # it must not link the package products or the Rust archive a second
+        # time: Xcode refuses a static product linked by both the app and its
+        # test bundle, and a second copy would be wasted space at best.
     dependencies:
       - target: Sift
-      - package: SiftModules
-        product: Core
-      - package: SiftModules
-        product: Shared
 
   SiftUITests:
     type: bundle.ui-testing
@@ -118,6 +119,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.siftmac.cleaner.uitests
+        GENERATE_INFOPLIST_FILE: YES
         TEST_TARGET_NAME: Sift
     dependencies:
       - target: Sift

@@ -77,6 +77,7 @@ struct SidebarView: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(router.destination == .settings ? .primary : .secondary)
+                .accessibilityIdentifier("sidebar.settings")
 
                 if !environment.entitlement.isUnlocked {
                     Button {

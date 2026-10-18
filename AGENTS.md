@@ -24,7 +24,36 @@ Xcode itself is optional. The Command Line Tools that are installed provide
 `swift build` and the SDK; they do **not** provide XCTest, so `swift test` and
 `xcodebuild` fail until a full Xcode is present. `Scripts/run-tests.sh` is why the
 suite still runs, and `Scripts/verify.sh` adds the Xcode stages automatically once
-`xcodebuild -version` succeeds.
+it finds an Xcode — in `xcode-select` or, before that step has been run, in
+`/Applications`.
+
+Four things about the Xcode path are load-bearing and were each a build failure
+the first time a real Xcode compiled this project:
+
+- the package exports `AppShell`, `Core` and `Shared` as **static** library
+  products. A dynamic product becomes a framework, and a framework has no Rust
+  symbols: the `-force_load` of `libsift_ffi.a` lives in the app target.
+- the unit-test bundle links the app and nothing else. `TEST_HOST`/
+  `BUNDLE_LOADER` give it the app's symbols; linking the package products into
+  both the app and the bundle is rejected as duplicated code.
+- `Shared` ships only the generated `.lproj` bundles. The `.xcstrings` is the
+  source of record but not a build input: shipping both makes Xcode compile it
+  *and* copy the bundles, i.e. two producers of `Localizable.strings`.
+- `Config/Sift.xctestplan` names targets by their object IDs in the generated
+  project. XcodeGen derives those IDs from the target names, so they survive
+  regeneration; renaming a target means updating the plan.
+
+The UI suite is compiled by `Scripts/verify.sh` but not executed by it: on
+Xcode 16.4 with macOS 15.7 the UI-test runner intermittently fails to resolve the
+app bundle before the first test starts ("The bundle identifier for Sift couldn't
+be read"), and a stage that fails half the time cannot decide a verification.
+Run it directly, and re-run if the runner fails to start — the tests themselves
+pass:
+
+```bash
+xcodebuild test-without-building -scheme Sift -testPlan Sift \
+  -destination "platform=macOS,arch=$(uname -m)" -derivedDataPath .build/xcode
+```
 
 ## Before changing code
 

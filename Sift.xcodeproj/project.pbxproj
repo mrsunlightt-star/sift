@@ -14,16 +14,19 @@
 		53E7110BD923D5EC6309030C /* FileOperationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 809CE4F56A97ACEF92C245A2 /* FileOperationTests.swift */; };
 		567410F4BE57A844B8CA2A24 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A4E046E385D1B4002D78E7D5 /* Assets.xcassets */; };
 		6AF4143794431BDC0BA33AE9 /* SiftApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A015B3481D72701C95D65B99 /* SiftApp.swift */; };
+		71B8F1C441870A52E7EBD499 /* ScanIntentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38C1627CE48F67B5D02E8B77 /* ScanIntentTests.swift */; };
 		88FC5524A8EDD6B78DECC54D /* ScannerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38734EE8C9B6FFCE053D2CAD /* ScannerTests.swift */; };
 		95288C04F43523CB777EC7DC /* Shared in Frameworks */ = {isa = PBXBuildFile; productRef = 6D8631DD8DC2153B173859FD /* Shared */; };
+		9792A5E99AAED7439380F870 /* SelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F94E18D02C67B92975550E7 /* SelectionTests.swift */; };
 		A02C055B5473905ECD7696AD /* LocalizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7CCF94C0859AE0F6076D093 /* LocalizationTests.swift */; };
-		BC543F32BAA1AD44B4C09C6A /* Shared in Frameworks */ = {isa = PBXBuildFile; productRef = 84CD7BB25CF5786AC04239A5 /* Shared */; };
+		A402385EF3529317AED1CEDE /* AuthorizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03FD81D851B1C14B0CEEF4CD /* AuthorizationTests.swift */; };
 		BD35790072644C70DD574F74 /* ReportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B76040A89C350DEF2D138342 /* ReportTests.swift */; };
-		BF0F96E405E4CD7B2D88B2BE /* Core in Frameworks */ = {isa = PBXBuildFile; productRef = 817E9B0E91C53719E7D2FFE5 /* Core */; };
+		CC38A73315221188C9BA4226 /* ReportAccuracyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8369A7E538B720EC1DED083B /* ReportAccuracyTests.swift */; };
 		CD2728389611D4CFBF4FBFA2 /* DuplicateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1C086283BE23A66F7F113E6 /* DuplicateTests.swift */; };
 		D7480F7B26A74F3C63F4BBC3 /* Core in Frameworks */ = {isa = PBXBuildFile; productRef = 330DF71F4132CD8213AE8E4F /* Core */; };
 		E43D72ECE1F5E29E11433C1F /* ProtectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A53233BFDB3533EB2FC2B43 /* ProtectionTests.swift */; };
 		F324BD4828BF8F1ED7604B01 /* SiftUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A0C25908FECAA2D76EE0313 /* SiftUITests.swift */; };
+		F911C7F8E1916B88218FE046 /* DiagnosticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDF792F92B19FCA9E06D51C0 /* DiagnosticsTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -44,13 +47,17 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		03FD81D851B1C14B0CEEF4CD /* AuthorizationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthorizationTests.swift; sourceTree = "<group>"; };
 		0A0C25908FECAA2D76EE0313 /* SiftUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiftUITests.swift; sourceTree = "<group>"; };
 		0DCEE3078178AD80B4D4F320 /* sift */ = {isa = PBXFileReference; lastKnownFileType = folder; name = sift; path = .; sourceTree = SOURCE_ROOT; };
 		38734EE8C9B6FFCE053D2CAD /* ScannerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScannerTests.swift; sourceTree = "<group>"; };
+		38C1627CE48F67B5D02E8B77 /* ScanIntentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanIntentTests.swift; sourceTree = "<group>"; };
 		463DEB72F0879437562981E8 /* EntitlementTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntitlementTests.swift; sourceTree = "<group>"; };
 		5A53233BFDB3533EB2FC2B43 /* ProtectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtectionTests.swift; sourceTree = "<group>"; };
 		5C0F501AEE4B2A0B5BDE6D92 /* SiftUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SiftUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		5F94E18D02C67B92975550E7 /* SelectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionTests.swift; sourceTree = "<group>"; };
 		809CE4F56A97ACEF92C245A2 /* FileOperationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileOperationTests.swift; sourceTree = "<group>"; };
+		8369A7E538B720EC1DED083B /* ReportAccuracyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportAccuracyTests.swift; sourceTree = "<group>"; };
 		8CEFE07E40B5883E33B09911 /* SiftTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SiftTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		921BA13E319C34E8ABDFFDD8 /* SettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsTests.swift; sourceTree = "<group>"; };
 		A015B3481D72701C95D65B99 /* SiftApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiftApp.swift; sourceTree = "<group>"; };
@@ -58,6 +65,7 @@
 		B76040A89C350DEF2D138342 /* ReportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportTests.swift; sourceTree = "<group>"; };
 		B7CCF94C0859AE0F6076D093 /* LocalizationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalizationTests.swift; sourceTree = "<group>"; };
 		C1C086283BE23A66F7F113E6 /* DuplicateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuplicateTests.swift; sourceTree = "<group>"; };
+		CDF792F92B19FCA9E06D51C0 /* DiagnosticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsTests.swift; sourceTree = "<group>"; };
 		CFDDF3FC5E599ECDA179E3C2 /* RuleEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuleEngineTests.swift; sourceTree = "<group>"; };
 		D0A82EFF95D94FE10F5901DB /* Sift.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Sift.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -70,15 +78,6 @@
 				4559BA34F688288543DA22AF /* AppShell in Frameworks */,
 				D7480F7B26A74F3C63F4BBC3 /* Core in Frameworks */,
 				95288C04F43523CB777EC7DC /* Shared in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		F4D210C6860D9C6F25EAB17F /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				BF0F96E405E4CD7B2D88B2BE /* Core in Frameworks */,
-				BC543F32BAA1AD44B4C09C6A /* Shared in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -106,14 +105,19 @@
 		471D4825D8CDC0FF2969BDC9 /* Tests */ = {
 			isa = PBXGroup;
 			children = (
+				03FD81D851B1C14B0CEEF4CD /* AuthorizationTests.swift */,
+				CDF792F92B19FCA9E06D51C0 /* DiagnosticsTests.swift */,
 				C1C086283BE23A66F7F113E6 /* DuplicateTests.swift */,
 				463DEB72F0879437562981E8 /* EntitlementTests.swift */,
 				809CE4F56A97ACEF92C245A2 /* FileOperationTests.swift */,
 				B7CCF94C0859AE0F6076D093 /* LocalizationTests.swift */,
 				5A53233BFDB3533EB2FC2B43 /* ProtectionTests.swift */,
+				8369A7E538B720EC1DED083B /* ReportAccuracyTests.swift */,
 				B76040A89C350DEF2D138342 /* ReportTests.swift */,
 				CFDDF3FC5E599ECDA179E3C2 /* RuleEngineTests.swift */,
+				38C1627CE48F67B5D02E8B77 /* ScanIntentTests.swift */,
 				38734EE8C9B6FFCE053D2CAD /* ScannerTests.swift */,
+				5F94E18D02C67B92975550E7 /* SelectionTests.swift */,
 				921BA13E319C34E8ABDFFDD8 /* SettingsTests.swift */,
 			);
 			path = Tests;
@@ -171,7 +175,6 @@
 			buildConfigurationList = 3B07A931D0C28EC41D0C5E54 /* Build configuration list for PBXNativeTarget "SiftTests" */;
 			buildPhases = (
 				B560F467DC6AC90A333E2AC1 /* Sources */,
-				F4D210C6860D9C6F25EAB17F /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -180,8 +183,6 @@
 			);
 			name = SiftTests;
 			packageProductDependencies = (
-				817E9B0E91C53719E7D2FFE5 /* Core */,
-				84CD7BB25CF5786AC04239A5 /* Shared */,
 			);
 			productName = SiftTests;
 			productReference = 8CEFE07E40B5883E33B09911 /* SiftTests.xctest */;
@@ -330,14 +331,19 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A402385EF3529317AED1CEDE /* AuthorizationTests.swift in Sources */,
+				F911C7F8E1916B88218FE046 /* DiagnosticsTests.swift in Sources */,
 				CD2728389611D4CFBF4FBFA2 /* DuplicateTests.swift in Sources */,
 				2E4CAA713800648EA8A6D3E9 /* EntitlementTests.swift in Sources */,
 				53E7110BD923D5EC6309030C /* FileOperationTests.swift in Sources */,
 				A02C055B5473905ECD7696AD /* LocalizationTests.swift in Sources */,
 				E43D72ECE1F5E29E11433C1F /* ProtectionTests.swift in Sources */,
+				CC38A73315221188C9BA4226 /* ReportAccuracyTests.swift in Sources */,
 				BD35790072644C70DD574F74 /* ReportTests.swift in Sources */,
 				115520CF099E64BA79F95959 /* RuleEngineTests.swift in Sources */,
+				71B8F1C441870A52E7EBD499 /* ScanIntentTests.swift in Sources */,
 				88FC5524A8EDD6B78DECC54D /* ScannerTests.swift in Sources */,
+				9792A5E99AAED7439380F870 /* SelectionTests.swift in Sources */,
 				2A8E152209B5054681072AE5 /* SettingsTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -390,6 +396,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = (
 					"$(SRCROOT)/Bridge/include",
 					"$(SRCROOT)/Bridge",
@@ -398,10 +405,6 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
-				);
-				OTHER_LDFLAGS = (
-					"-force_load",
-					"$(SRCROOT)/Bridge/macos-universal/libsift_ffi.a",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.siftmac.cleaner.tests;
 				SDKROOT = macosx;
@@ -415,6 +418,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -495,6 +499,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -582,6 +587,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = (
 					"$(SRCROOT)/Bridge/include",
 					"$(SRCROOT)/Bridge",
@@ -590,10 +596,6 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
-				);
-				OTHER_LDFLAGS = (
-					"-force_load",
-					"$(SRCROOT)/Bridge/macos-universal/libsift_ffi.a",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.siftmac.cleaner.tests;
 				SDKROOT = macosx;
@@ -687,14 +689,6 @@
 			productName = AppShell;
 		};
 		6D8631DD8DC2153B173859FD /* Shared */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = Shared;
-		};
-		817E9B0E91C53719E7D2FFE5 /* Core */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = Core;
-		};
-		84CD7BB25CF5786AC04239A5 /* Shared */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = Shared;
 		};

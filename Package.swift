@@ -48,18 +48,27 @@ let package = Package(
         // A runnable verification suite that needs only SwiftPM, so the
         // safety-critical behaviour can be checked on a machine without Xcode.
         .executable(name: "SiftSelfTest", targets: ["SiftSelfTest"]),
+        // The modules the Xcode app target links. A package dependency can only
+        // name a *product*, so the libraries are exported for the project in
+        // `project.yml`; without these the Xcode build fails with "Missing
+        // package product", which no SwiftPM-only check can notice.
+        .library(name: "AppShell", type: .static, targets: ["AppShell"]),
+        .library(name: "Core", type: .static, targets: ["Core"]),
+        .library(name: "Shared", type: .static, targets: ["Shared"]),
     ],
     targets: [
         // Design system, shared components and the string catalog.
         .target(
             name: "Shared",
             path: "Shared",
+            // The catalog is the source of record — the generator reads it and
+            // writes the `.lproj` bundles — but it is not a build input. Shipping
+            // it as a processed resource as well made Xcode compile it *and* copy
+            // the pre-compiled bundles, i.e. two producers of `Localizable.strings`
+            // and a "duplicate output file" failure. One producer, both build
+            // systems, the same strings.
+            exclude: ["Localization/Localizable.xcstrings"],
             resources: [
-                // The catalog is the source of record and what Xcode compiles.
-                .process("Localization/Localizable.xcstrings"),
-                // The same table rendered as `.lproj` bundles, so a build without
-                // Xcode (no `xcstringstool`) still ships localised text instead of
-                // raw keys. Both outputs come from `Scripts/generate-strings.py`.
                 .process("Localization/Compiled"),
             ],
             swiftSettings: [.swiftLanguageMode(.v6)] + runtimeSwiftSettings

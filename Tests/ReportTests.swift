@@ -91,8 +91,16 @@ final class ReportTests: XCTestCase, @unchecked Sendable {
             report.scannedFileCount
         )
         XCTAssertFalse(text.isEmpty, "the PDF carries extractable text")
+
+        // Text extraction reflows what the layout engine drew: a CJK line breaks
+        // after the punctuation and comes back with a space that is not in the
+        // string. Compare without whitespace — the assertion is that both numbers
+        // reached the page, not how the extractor spaced them.
+        func compact(_ value: String) -> String {
+            value.filter { !$0.isWhitespace }
+        }
         XCTAssertTrue(
-            text.contains(expected),
+            compact(text).contains(compact(expected)),
             "the PDF states \"\(expected)\" (count=\(text.count), extracted: \(text.prefix(600)))"
         )
     }

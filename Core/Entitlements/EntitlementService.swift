@@ -261,10 +261,10 @@ public actor DirectLicenseService: PurchaseChannel {
 
     private let verify: Verify
     private var licenseKey: String?
-    private let keychain: LicenseKeyStore
+    private let keychain: any LicenseKeyStoring
     private let logger = SiftLog.purchase
 
-    public init(keychain: LicenseKeyStore = LicenseKeyStore(), verify: @escaping Verify) {
+    public init(keychain: any LicenseKeyStoring = LicenseKeyStore(), verify: @escaping Verify) {
         self.keychain = keychain
         self.verify = verify
     }
@@ -319,7 +319,21 @@ public actor DirectLicenseService: PurchaseChannel {
 /// Stored in the Keychain rather than `UserDefaults` because a license key is a
 /// credential: putting it in a plist the user can edit would make the offline
 /// check trivially forgeable.
-public actor LicenseKeyStore {
+/// Where a licence key lives between launches.
+///
+/// A protocol so the tests can use an in-memory store. They used the real one
+/// first, which meant `test_activationUnlocks` wrote a key into the login
+/// keychain and the next test's read waited for a Keychain authorisation prompt
+/// under the Xcode test host — a hang, not a failure. Tests must not touch a
+/// user's keychain.
+public protocol LicenseKeyStoring: Sendable {
+    func hasStoredKey() async -> Bool
+    func save(_ key: String) async
+    func load() async -> String?
+    func clear() async
+}
+
+public actor LicenseKeyStore: LicenseKeyStoring {
     private let service = "com.siftmac.cleaner.license"
     private let account = "license-key"
     /// Marker kept outside the Keychain, so the app can tell whether a key exists

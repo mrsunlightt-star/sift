@@ -40,9 +40,18 @@ final class LocalizationTests: XCTestCase, @unchecked Sendable {
     }
 
     func test_placeholderKeysSubstituteEveryArgument() {
-        XCTAssertEqual(LocalizationKey.commonItemCount.localized(7), "7 items")
-        XCTAssertTrue(LocalizationKey.cleanupResultMoved.localized(3).contains("3"))
-        XCTAssertFalse(LocalizationKey.cleanupResultMoved.localized(3).contains("%d"))
+        // The catalog resolves for the machine's language, so what is asserted is
+        // that the argument arrived — never which language it arrived in. A
+        // literal English expectation made these fail on a Chinese machine as
+        // soon as the suite ran under real XCTest rather than the shim.
+        let items = LocalizationKey.commonItemCount.localized(7)
+        XCTAssertTrue(items.contains("7"), "the count is substituted")
+        XCTAssertFalse(items.contains("%d"), "no placeholder survives")
+
+        let moved = LocalizationKey.cleanupResultMoved.localized(3)
+        XCTAssertTrue(moved.contains("3"))
+        XCTAssertFalse(moved.contains("%d"))
+
         XCTAssertFalse(
             LocalizationKey.cleanupResultReleased.localized("1.2 GB").contains("%@"),
             "no placeholder may survive substitution"

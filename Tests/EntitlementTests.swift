@@ -3,6 +3,20 @@ import XCTest
 @testable import Core
 import Shared
 
+/// An in-memory licence store.
+///
+/// The tests must not reach the login keychain: a write from one test became a
+/// Keychain authorisation prompt in the next, which blocked the Xcode test host
+/// indefinitely.
+private actor InMemoryLicenseStore: LicenseKeyStoring {
+    private var key: String?
+
+    func hasStoredKey() -> Bool { key != nil }
+    func save(_ value: String) { key = value }
+    func load() -> String? { key }
+    func clear() { key = nil }
+}
+
 /// Purchase gates and the offline grace period (§12, §16.1).
 final class EntitlementTests: XCTestCase, @unchecked Sendable {
     private var suiteName: String!
@@ -21,7 +35,7 @@ final class EntitlementTests: XCTestCase, @unchecked Sendable {
     private func makeService(verify: @escaping DirectLicenseService.Verify) -> EntitlementService {
         let defaults = UserDefaults(suiteName: suiteName) ?? .standard
         return EntitlementService(
-            channel: DirectLicenseService(verify: verify),
+            channel: DirectLicenseService(keychain: InMemoryLicenseStore(), verify: verify),
             defaults: defaults
         )
     }
@@ -83,8 +97,16 @@ final class EntitlementTests: XCTestCase, @unchecked Sendable {
         let defaults = UserDefaults(suiteName: suiteName) ?? .standard
         defaults.set(Date(), forKey: "purchase.verifiedAt")
 
+        // A stored key is what makes the channel *try* to verify. Without one,
+        // `load()` reports the free tier without contacting anything, and a
+        // "failed verification" never happens. This test used to rely on a
+        // previous test having written a key to the login keychain.
+        let store = InMemoryLicenseStore()
+        await store.save("SIFT-TEST-KEY")
         let service = EntitlementService(
-            channel: DirectLicenseService { _ in throw PurchaseError.licenseServiceUnavailable },
+            channel: DirectLicenseService(keychain: store) { _ in
+                throw PurchaseError.licenseServiceUnavailable
+            },
             defaults: defaults
         )
         let state = await service.refresh()
@@ -98,7 +120,9 @@ final class EntitlementTests: XCTestCase, @unchecked Sendable {
         defaults.set(longAgo, forKey: "purchase.verifiedAt")
 
         let service = EntitlementService(
-            channel: DirectLicenseService { _ in throw PurchaseError.licenseServiceUnavailable },
+            channel: DirectLicenseService(keychain: InMemoryLicenseStore()) { _ in
+                throw PurchaseError.licenseServiceUnavailable
+            },
             defaults: defaults
         )
         let state = await service.current()

@@ -2,11 +2,11 @@
   "configurations" : [
     {
       "id" : "8D1C2B70-0000-4000-8000-000000000001",
-      "name" : "Unit tests",
+      "name" : "Default",
       "options" : {
         "targetForVariableExpansion" : {
           "containerPath" : "container:Sift.xcodeproj",
-          "identifier" : "Sift",
+          "identifier" : "E76B955C8BCD08241D6FF961",
           "name" : "Sift"
         }
       },
@@ -16,23 +16,16 @@
           "parallelizable" : true,
           "target" : {
             "containerPath" : "container:Sift.xcodeproj",
-            "identifier" : "SiftTests",
+            "identifier" : "5F3FF16262E59317491C2595",
             "name" : "SiftTests"
           }
-        }
-      ]
-    },
-    {
-      "id" : "8D1C2B70-0000-4000-8000-000000000002",
-      "name" : "UI tests",
-      "options" : {},
-      "targets" : [
+        },
         {
           "enabled" : true,
           "parallelizable" : false,
           "target" : {
             "containerPath" : "container:Sift.xcodeproj",
-            "identifier" : "SiftUITests",
+            "identifier" : "604F278E6411CE6488EE956C",
             "name" : "SiftUITests"
           }
         }
@@ -43,13 +36,29 @@
     "codeCoverage" : true,
     "targetForVariableExpansion" : {
       "containerPath" : "container:Sift.xcodeproj",
-      "identifier" : "Sift",
+      "identifier" : "E76B955C8BCD08241D6FF961",
       "name" : "Sift"
     }
   },
-  "testRunConfiguration" : {
-    "id" : "8D1C2B70-0000-4000-8000-000000000000",
-    "name" : "Sift"
-  },
+  "testTargets" : [
+    {
+      "enabled" : true,
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:Sift.xcodeproj",
+        "identifier" : "5F3FF16262E59317491C2595",
+        "name" : "SiftTests"
+      }
+    },
+    {
+      "enabled" : true,
+      "parallelizable" : false,
+      "target" : {
+        "containerPath" : "container:Sift.xcodeproj",
+        "identifier" : "604F278E6411CE6488EE956C",
+        "name" : "SiftUITests"
+      }
+    }
+  ],
   "version" : 1
 }
