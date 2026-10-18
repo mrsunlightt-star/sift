@@ -415,11 +415,19 @@ final class Harness: @unchecked Sendable {
                     }
                 }
                 if await session.isFinished() {
+                    // The drain has to fold the same state the loop does. It kept
+                    // the report but not the phase, so a completion arriving here
+                    // — which is exactly what `isFinished` racing the last poll
+                    // produces — left `phase` at `.scanning` and the terminal-phase
+                    // check failed about one run in twenty.
                     for event in await session.pollEvents(maxEvents: 256) {
                         switch event {
+                        case let .phaseChanged(next): phase = next
                         case let .itemsFound(items): foundItems.append(contentsOf: items)
-                        case let .completed(summary): report = summary
                         case let .locationSkipped(location): skipped.append(location)
+                        case let .completed(summary):
+                            report = summary
+                            phase = summary.phase
                         default: break
                         }
                     }
