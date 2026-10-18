@@ -255,13 +255,15 @@ Swift（234 项自检 + 162 个 XCTest）：
   决定哪张表是唯一来源（例如像保护清单那样由 Rust 生成 JSON）。
 - **`Scripts/verify.sh` 需要 Xcode 16 才能跑 UI 测试。** 只装 Command Line Tools 时，Xcode 阶段
   会跳过并明确打印「skipped」，其余阶段照常执行。
-- **本机的 XCUITest runner 不稳定。** Xcode 16.4 在这台机器上约有一半概率无法启动 UI 测试
-  runner，报 `The bundle identifier for Sift couldn't be read` 并指向一个并不存在的
-  `.../Debug/Sift`，而 app bundle 就在旁边且名字正确。同样的构建产物、同样的 `xctestrun`、
-  同样的命令，一分钟前通过、一分钟后失败，同一计划里的单元测试每次都正常执行——是 runner，
-  不是测试。`Scripts/verify.sh` 与 CI 因此把两个 target 分开跑：单元测试不重试，UI target 重试
-  一次并打印每次结果，两次都失败才算失败。已排除的原因：app 的 debug dylib 布局、result bundle
-  的位置、`-destination`。CI（macOS 15 + Xcode 16.4）上这一个 target 是正常通过的。
+- **XCUITest runner 经常起不来。** Xcode 16.4 的 UI 测试 runner 会在寻找目标应用时去找
+  `.../Debug/Sift`——没有 `.app` 后缀的路径——而 bundle 就在旁边的 `Sift.app`，于是在任何测试
+  用例执行之前就报 `The bundle identifier for Sift couldn't be read`。本机与 GitHub 的
+  `macos-15` runner 上都会出现，跟仓库代码无关：失败的那次运行里 `xctestrun` 里的路径是正确的
+  `Sift.app`，bundle 存在、名字正确、签名也通过校验。已逐项排除：app 的 debug dylib 布局、
+  result bundle 的位置、`-destination`、测试计划的 target 列表、以及本仓库其他 checkout 留下的
+  LaunchServices 注册（四条记录指向同一个 bundle id）。因此 `Scripts/verify.sh` 与 CI 把两件事
+  分开：「某个测试失败」会让流程失败；「runner 根本没启动」记为 `did not run` 并在汇总里写明，
+  不会伪装成通过——绿色的汇总永远不代表 UI 测试真的跑过。
 - **先运行一次 `Scripts/bootstrap.sh`。** 它编译 Rust 核心并放到固定路径；之后 `swift build`
   与 Xcode 都直接可用。
 

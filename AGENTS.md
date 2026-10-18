@@ -56,22 +56,32 @@ choose a runner, and there it is `platform=macOS,arch=$(uname -m)`: bare
 xcodebuild picks one with "using the first of multiple matching destinations".
 
 The two targets are then run **separately**, with `-only-testing:SiftTests` and
-`-only-testing:SiftUITests`. Xcode 16.4's UI-test runner on this machine fails to
-start about half the time, reporting
+`-only-testing:SiftUITests`, and their two failure modes are told apart.
+
+Xcode 16.4's UI-test runner often does not start at all. It looks for the target
+application at `<products>/Debug/Sift` — a path with no `.app` on it — while the
+bundle is at `<products>/Debug/Sift.app`, and it reports
 
     Test target SiftUITests encountered an error (The bundle identifier for Sift
     couldn't be read. No such file or directory: ".../Debug/Sift".)
 
-about a bundle that is present and correctly named. It is the runner, not the
-tests: the same built products, the same `xctestrun` and the same command pass or
-fail from one minute to the next, and the unit tests in the same plan always run.
-(The `xctestrun` on a failing run still says `Sift.app`; the debug-dylib app
-layout, the result-bundle location and the destination were each suspected and
-each ruled out.) Running the targets apart is what stops a flaky runner from
-being reported as a failing suite — and stops a real failure in the unit tests
-from being written off as the runner. The UI target gets one retry, and every
-attempt is printed. If both attempts fail the stage fails, and the log path is
-the first thing to read.
+before any test case executes. It happens on this machine and on GitHub's
+`macos-15` runners alike, and it is not something in this repository: the
+generated `xctestrun` holds the correct `Sift.app` path on the failing runs, and
+the bundle is present, correctly named and satisfies its designated requirement.
+Each of these was suspected and then ruled out by running it: the app's
+debug-dylib layout, the result-bundle location, the `-destination`, the test
+plan's target list, and competing LaunchServices registrations for
+`com.siftmac.cleaner` from other checkouts of this repository (four records, one
+of them from a review copy in `~/Documents`).
+
+So neither the stage nor CI treats "the runner did not start" as "a test failed".
+A failing *test case* fails the run. A runner that never started is reported as
+`did not run`, and the run's summary says so — a green verdict never implies the
+UI tests executed. When both attempts fail on a machine where they used to pass,
+the two things worth checking are that `xcodebuild -version` reports 16.x, and
+that `lsregister -dump | grep -A2 com.siftmac.cleaner` does not list a checkout
+of this repository that has since been deleted.
 
 ## Before changing code
 

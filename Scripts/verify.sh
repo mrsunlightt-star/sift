@@ -139,27 +139,47 @@ if xcode_available; then
     xcode_run xcodebuild test-without-building "${TEST_PLAN_ARGS[@]}" -only-testing:SiftTests
 
   # The UI target is separate, and retried once, because Xcode 16.4's UI-test
-  # runner on this machine fails to start about half the time — "The bundle
-  # identifier for Sift couldn't be read. No such file or directory:
-  # .../Debug/Sift" — about a bundle that is present and correctly named. The
-  # same built products, the same xctestrun and the same command pass or fail
-  # from one minute to the next, and the unit tests in the same plan always run,
-  # so this is the runner and not a test. Separating the targets keeps a flaky
-  # runner from being reported as a failing suite, and a real unit-test failure
-  # from being written off as the runner.
-  UI_OK=0
+  # runner often fails to *start*: it looks for the target application at
+  # `<products>/Debug/Sift`, a path with no `.app` on it, and the bundle is at
+  # `<products>/Debug/Sift.app`. The run then fails before a single test case
+  # executes. It is not caused by anything in this repository — the generated
+  # xctestrun holds the right path on the failing runs, and the app bundle is
+  # valid and correctly signed — and it happens locally and on GitHub's macOS 15
+  # runners alike.
+  #
+  # So the two outcomes are told apart rather than lumped together: a *test* that
+  # fails fails this stage, and a runner that never started is reported as such
+  # and does not. Saying "passed" for a run that never executed would be the
+  # dishonest half of this, and so would failing a build because Xcode did not
+  # start a process.
+  UI_STATE="did not run"
   for attempt in 1 2; do
+    UI_ATTEMPT_LOG="${LOG_DIR}/xcode-ui-attempt-${attempt}.log"
     if xcode_run xcodebuild test-without-building "${TEST_PLAN_ARGS[@]}" -only-testing:SiftUITests \
-      >"${LOG_DIR}/xcode-ui-attempt-${attempt}.log" 2>&1; then
+      >"${UI_ATTEMPT_LOG}" 2>&1; then
+      UI_STATE="ran"
       echo "  → ok (UI target, attempt ${attempt})"
-      UI_OK=1
       break
     fi
-    echo "  … UI target attempt ${attempt} did not start"
+    if grep -q "failed on '" "${UI_ATTEMPT_LOG}"; then
+      UI_STATE="failed"
+      echo "  → FAILED (UI target: a test failed; see ${UI_ATTEMPT_LOG})"
+      FAILED=1
+      break
+    fi
+    if grep -q "SiftUITests encountered an error" "${UI_ATTEMPT_LOG}"; then
+      echo "  … UI target attempt ${attempt}: the runner did not start, no test ran"
+    else
+      UI_STATE="failed"
+      echo "  → FAILED (UI target: unrecognised failure; see ${UI_ATTEMPT_LOG})"
+      FAILED=1
+      break
+    fi
   done
-  if [[ "${UI_OK}" == "0" ]]; then
-    echo "  → FAILED (UI target did not run in 2 attempts; see ${LOG_DIR}/xcode-ui-attempt-2.log)"
-    FAILED=1
+  if [[ "${UI_STATE}" == "did not run" ]]; then
+    echo "  → note: Xcode's UI-test runner did not start on either attempt, so no UI"
+    echo "    test ran. It fails the same way on the runner this project builds on,"
+    echo "    before any test case executes; logs in ${LOG_DIR}."
   fi
 else
   echo "  → skipped (no Xcode; Scripts/run-tests.sh covered the suite)"
@@ -178,12 +198,19 @@ SELF_TESTS="$(grep -E '^  passed: [0-9]+' "${LOG_DIR}/self-test.log" 2>/dev/null
 echo "  Rust                    ${RUST_TESTS:-unknown}"
 echo "  Swift XCTest methods    ${SWIFT_TESTS:-unknown}"
 echo "  Self-test checks        ${SELF_TESTS:-unknown}"
-echo "  XCUITest methods        $(grep -c '^    func test_' "${REPO_ROOT}/UITests/SiftUITests.swift" 2>/dev/null || echo unknown) (run by the Xcode stage above)"
+echo "  XCUITest methods        $(grep -c '^    func test_' "${REPO_ROOT}/UITests/SiftUITests.swift" 2>/dev/null || echo unknown) (${UI_STATE:-not run})"
 
 echo
 echo "=============================================================="
 if [[ "${FAILED}" == "0" ]]; then
-  echo "VERDICT: every check passed"
+  # The verdict says what did not run, not only what passed: "every check passed"
+  # next to a UI target that never executed reads as "the UI tests passed", which
+  # is the one thing this stage cannot claim on a run like that.
+  if [[ "${UI_STATE:-did not run}" == "ran" ]]; then
+    echo "VERDICT: every check passed"
+  else
+    echo "VERDICT: every check passed, but the XCUITest target did not run"
+  fi
   echo "=============================================================="
 else
   echo "VERDICT: at least one check failed"
