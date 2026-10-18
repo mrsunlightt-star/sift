@@ -49,10 +49,32 @@ jobs:
 
   swift:
     name: Swift app and tests
-    runs-on: macos-14
+    # Not macos-14: the image ships Xcode 15, whose Swift 5.10 cannot read this
+    # package's `swift-tools-version: 6.0`, and the job failed on its first
+    # `swift build` with "package 'sift' is using Swift tools version 6.0.0 but
+    # the installed version is 5.10.0". The project pins macOS 15 and the 16.x
+    # Xcode line, so CI runs on that macOS and selects that Xcode explicitly
+    # rather than taking whatever the image defaults to.
+    runs-on: macos-15
     needs: rust
     steps:
       - uses: actions/checkout@v4
+
+      - name: Select Xcode 16
+        run: |
+          set -euo pipefail
+          # The newest 16.x the image has; if it ships only `Xcode.app` and that
+          # is 16.x, the check below is what confirms it.
+          for candidate in $(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V -r); do
+            sudo xcode-select -s "${candidate}/Contents/Developer"
+            break
+          done
+          swift --version
+          if ! swift --version | grep -q 'Swift version 6\.'; then
+            echo "::error::this package needs Swift 6 (Xcode 16.x); the runner has:"
+            ls -d /Applications/Xcode*.app 2>/dev/null || true
+            exit 1
+          fi
 
       - name: Bootstrap (Rust archive, strings, Xcode project)
         run: ./Scripts/bootstrap.sh
@@ -80,14 +102,14 @@ jobs:
       # being signed, and then fails to resolve the UI test's target application.
       # The architecture is named because `platform=macOS` alone matches both on
       # an Apple Silicon runner and xcodebuild picks one arbitrarily.
-      - name: Xcode: build the test plan
+      - name: "Xcode: build the test plan"
         run: |
           xcodebuild -project Sift.xcodeproj -scheme Sift -testPlan Sift \
             -destination "platform=macOS,arch=$(uname -m)" \
             -derivedDataPath .build/xcode \
             build-for-testing -quiet
 
-      - name: Xcode: run the test plan
+      - name: "Xcode: run the test plan"
         run: |
           xcodebuild -project Sift.xcodeproj -scheme Sift -testPlan Sift \
             -destination "platform=macOS,arch=$(uname -m)" \
