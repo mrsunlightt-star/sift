@@ -151,7 +151,7 @@ struct LanguageSwitcher: View {
                         }
                     }
                 }
-                .accessibilityIdentifier("language.\\(language.rawValue)")
+                .accessibilityIdentifier("language.\(language.rawValue)")
             }
         } label: {
             Label(environment.preferences.language.shortName, systemImage: "globe")
