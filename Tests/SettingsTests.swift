@@ -102,6 +102,7 @@ final class SettingsTests: XCTestCase, @unchecked Sendable {
             settings.largeFileThresholdBytes = 512
             settings.skipConfirmation = true
             settings.appearance = .light
+            settings.language = .japanese
         }
         await store.resetToDefaults()
         let settings = await store.current()
