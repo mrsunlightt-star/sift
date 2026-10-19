@@ -33,6 +33,7 @@ public struct SmartScanView: View {
                     StartScanCard {
                         Task { await startScan() }
                     }
+                    .frame(minHeight: 320, alignment: .center)
                 } else {
                     ScanProgressPanel(model: environment.scan)
                 }
