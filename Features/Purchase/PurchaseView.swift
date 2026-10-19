@@ -37,6 +37,8 @@ public struct PurchaseView: View {
             }
             .padding(SiftMetrics.spacingXL)
             .frame(maxWidth: 720, alignment: .leading)
+            // Keep a readable column, centred in the available detail area.
+            .frame(maxWidth: .infinity, alignment: .top)
         }
         .task {
             await environment.refreshEntitlement()
