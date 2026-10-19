@@ -33,7 +33,6 @@ final class SettingsTests: XCTestCase, @unchecked Sendable {
         XCTAssertEqual(settings.keepScanHistory, 10)
         XCTAssertEqual(settings.appearance, .system)
         XCTAssertEqual(settings.language, SiftLanguage.preferred)
-        XCTAssertEqual(settings.language, SiftLanguage.preferred)
         XCTAssertTrue(settings.ignoredPaths.isEmpty)
     }
 
@@ -109,5 +108,6 @@ final class SettingsTests: XCTestCase, @unchecked Sendable {
         XCTAssertEqual(settings.largeFileThresholdBytes, AppSettings.default.largeFileThresholdBytes)
         XCTAssertFalse(settings.skipConfirmation)
         XCTAssertEqual(settings.appearance, .system)
+        XCTAssertEqual(settings.language, SiftLanguage.preferred)
     }
 }
