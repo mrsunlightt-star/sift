@@ -120,7 +120,8 @@ public enum SiftFormat {
     /// free-space change in the Finder.
     public static func bytes(_ count: Int64, locale: Locale = SiftLanguage.current.locale) -> String {
         let formatter = ByteCountFormatter()
-        formatter.locale = locale
+        // ByteCountFormatter follows the system's unit conventions; unlike
+        // NumberFormatter/DateFormatter, it has no locale setter on macOS.
         formatter.countStyle = .decimal
         formatter.allowedUnits = [.useKB, .useMB, .useGB, .useTB]
         formatter.isAdaptive = true
