@@ -389,7 +389,7 @@ extension LocalizationKey {
     /// Missing translations fall back to English, which the catalog records as
     /// the source language.
     public var localized: String {
-        Bundle.module.localizedString(forKey: rawValue, value: nil, table: "Localizable")
+        Bundle.localizedBundle(for: SiftLanguage.current).localizedString(forKey: rawValue, value: nil, table: "Localizable")
     }
 
     /// The localised string with positional arguments substituted.
