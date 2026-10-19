@@ -118,8 +118,9 @@ public enum SiftFormat {
     /// Decimal units are deliberate: macOS reports APFS capacities decimally, so
     /// matching that is what stops "12.4 GB removed" from disagreeing with the
     /// free-space change in the Finder.
-    public static func bytes(_ count: Int64, locale: Locale = .current) -> String {
+    public static func bytes(_ count: Int64, locale: Locale = SiftLanguage.current.locale) -> String {
         let formatter = ByteCountFormatter()
+        formatter.locale = locale
         formatter.countStyle = .decimal
         formatter.allowedUnits = [.useKB, .useMB, .useGB, .useTB]
         formatter.isAdaptive = true
@@ -128,7 +129,7 @@ public enum SiftFormat {
     }
 
     /// A file count with the current locale's grouping separator.
-    public static func count(_ value: Int, locale: Locale = .current) -> String {
+    public static func count(_ value: Int, locale: Locale = SiftLanguage.current.locale) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
         formatter.locale = locale
@@ -136,7 +137,7 @@ public enum SiftFormat {
     }
 
     /// A percentage such as `73%` or `73 %`, per locale conventions.
-    public static func percent(_ fraction: Double, locale: Locale = .current) -> String {
+    public static func percent(_ fraction: Double, locale: Locale = SiftLanguage.current.locale) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .percent
         formatter.locale = locale
@@ -146,7 +147,7 @@ public enum SiftFormat {
 
     /// An abbreviated relative date: `Today`, `Yesterday`, `3 days ago`, or an
     /// absolute date once it is older than a week.
-    public static func relativeDate(_ date: Date, now: Date = Date(), locale: Locale = .current) -> String {
+    public static func relativeDate(_ date: Date, now: Date = Date(), locale: Locale = SiftLanguage.current.locale) -> String {
         let calendar = Calendar.current
         if calendar.isDateInToday(date) {
             return LocalizationKey.commonToday.localized
@@ -166,7 +167,7 @@ public enum SiftFormat {
     }
 
     /// A full timestamp for report headers and file rows.
-    public static func timestamp(_ date: Date, locale: Locale = .current) -> String {
+    public static func timestamp(_ date: Date, locale: Locale = SiftLanguage.current.locale) -> String {
         let formatter = DateFormatter()
         formatter.locale = locale
         formatter.dateStyle = .medium
@@ -179,7 +180,7 @@ public enum SiftFormat {
     /// The literal `$4.99` in the specification is the reference price; the App
     /// Store and the license service return localised amounts, which is what
     /// this formats so the in-app string and the store page cannot disagree.
-    public static func price(_ amount: Decimal, currencyCode: String, locale: Locale = .current) -> String {
+    public static func price(_ amount: Decimal, currencyCode: String, locale: Locale = SiftLanguage.current.locale) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
         formatter.locale = locale
