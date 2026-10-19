@@ -117,22 +117,41 @@ jobs:
             test-without-building -only-testing:SiftTests -quiet
 
       # The UI target is retried once and its two outcomes are told apart, the
-      # same way Scripts/verify.sh does it. Xcode 16.4's UI-test runner often
+      # same way Scripts/verify.sh does it. Xcode 16.4's UI-test runner sometimes
       # fails to start at all — it looks for the target application at
-      # `<products>/Debug/Sift`, a path with no `.app` on it, and the bundle is
-      # at `<products>/Debug/Sift.app` — so no test case executes. A *test* that
-      # fails fails this job; a runner that never started is reported as such.
-      # Claiming "passed" for a run that never executed would be dishonest, and
-      # so would failing a build because Xcode did not start a process.
+      # `<products>/Debug/Sift`, a path with no `.app` on it, and the bundle is at
+      # `<products>/Debug/Sift.app`; or it reports `failed to initialize for UI
+      # testing (... Timed out while enabling automation mode.)`, which is the
+      # automation grant rather than the code — so no test case executes in
+      # either case. A *test* that fails fails this job; a runner that never
+      # started is reported as such. Claiming "passed" for a run that never
+      # executed would be dishonest, and so would failing a build because Xcode
+      # did not start a process.
+      #
+      # Each attempt is bounded: a wedged runner once sat for thirteen minutes
+      # without a verdict, and a gate nobody waits for is not a gate.
       - name: "Xcode: run the UI tests"
         run: |
           set -uo pipefail
           ui_state="did not run"
+          deadline=300
           for attempt in 1 2; do
-            if xcodebuild -project Sift.xcodeproj -scheme Sift -testPlan Sift \
+            xcodebuild -project Sift.xcodeproj -scheme Sift -testPlan Sift \
               -destination "platform=macOS,arch=$(uname -m)" \
               -derivedDataPath .build/xcode \
-              test-without-building -only-testing:SiftUITests > /tmp/ui-attempt.log 2>&1; then
+              test-without-building -only-testing:SiftUITests > /tmp/ui-attempt.log 2>&1 &
+            pid=$!
+            waited=0
+            while kill -0 "${pid}" 2>/dev/null; do
+              if [ "${waited}" -ge "${deadline}" ]; then
+                echo "the runner hung for ${deadline}s and was stopped; no test ran" >> /tmp/ui-attempt.log
+                kill "${pid}" 2>/dev/null || true
+                break
+              fi
+              sleep 5
+              waited=$(( waited + 5 ))
+            done
+            if wait "${pid}"; then
               ui_state="ran"
               echo "the UI target ran on attempt ${attempt}"
               break
@@ -142,8 +161,10 @@ jobs:
               tail -60 /tmp/ui-attempt.log
               exit 1
             fi
-            if grep -q "SiftUITests encountered an error" /tmp/ui-attempt.log; then
-              echo "attempt ${attempt}: the runner did not start, no test ran"
+            if grep -q "the runner hung for" /tmp/ui-attempt.log \
+              || grep -q "SiftUITests encountered an error" /tmp/ui-attempt.log \
+              || grep -q "failed to initialize for UI testing" /tmp/ui-attempt.log; then
+              echo "attempt ${attempt}: no test ran (the runner did not start, or it was stopped)"
             else
               echo "::error::the UI target failed in a way this step does not recognise"
               tail -60 /tmp/ui-attempt.log

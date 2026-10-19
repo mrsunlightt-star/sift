@@ -58,22 +58,64 @@ xcodebuild picks one with "using the first of multiple matching destinations".
 The two targets are then run **separately**, with `-only-testing:SiftTests` and
 `-only-testing:SiftUITests`, and their two failure modes are told apart.
 
-Xcode 16.4's UI-test runner often does not start at all. It looks for the target
-application at `<products>/Debug/Sift` — a path with no `.app` on it — while the
-bundle is at `<products>/Debug/Sift.app`, and it reports
+Xcode 16.4's UI-test runner sometimes does not start at all. It looks for the
+target application at `<products>/Debug/Sift` — a path with no `.app` on it —
+while the bundle is at `<products>/Debug/Sift.app`, and it reports
 
     Test target SiftUITests encountered an error (The bundle identifier for Sift
     couldn't be read. No such file or directory: ".../Debug/Sift".)
 
 before any test case executes. It happens on this machine and on GitHub's
-`macos-15` runners alike, and it is not something in this repository: the
-generated `xctestrun` holds the correct `Sift.app` path on the failing runs, and
-the bundle is present, correctly named and satisfies its designated requirement.
-Each of these was suspected and then ruled out by running it: the app's
-debug-dylib layout, the result-bundle location, the `-destination`, the test
-plan's target list, and competing LaunchServices registrations for
-`com.siftmac.cleaner` from other checkouts of this repository (four records, one
-of them from a review copy in `~/Documents`).
+`macos-15` runners alike, and nothing in this repository causes it: the generated
+`xctestrun` holds the correct `Sift.app` path on the failing runs, and the bundle
+is present, correctly named and satisfies its designated requirement. Each of
+these was suspected and then ruled out by running it: the app's debug-dylib
+layout, the result-bundle location, the `-destination`, the test plan's target
+list, and competing LaunchServices registrations for `com.siftmac.cleaner` from
+other checkouts of this repository (four records, one of them from a review copy
+in `~/Documents`).
+
+**It is intermittent, and that is the part that matters.** On 2026-10-19 the
+same commit failed both attempts in `Scripts/verify.sh` at 03:07 and then ran the
+five UI tests to green five times in a row, including one run from a derived-data
+directory built from scratch and one immediately after re-registering another
+checkout's bundle with `lsregister -f`. Eight hours later, after the machine had
+slept, it failed again — twice, reproducibly — but with a second shape:
+
+    SiftUITests-Runner (40297) encountered an error (The test runner failed to
+    initialize for UI testing. (Underlying Error: Timed out while enabling
+    automation mode.))
+
+That one is the automation grant rather than the path lookup, it also leaves zero
+test cases executed, and on that machine neither killing the stray runners nor
+waking the display nor restarting `testmanagerd` restored it — it wants a human
+at the GUI. A third attempt then sat for thirteen minutes with nothing written to
+its log at all, which is the worst outcome of the three: a gate that never prints
+a verdict stops being a gate. So each attempt now has a five-minute deadline and
+a runner that hangs is stopped and reported the same way the other two are, and
+the stage and CI classify **all three** as `did not run` (matching `SiftUITests
+encountered an error`, `failed to initialize for UI testing`, or the deadline's
+own line) while still failing the run for anything else, unrecognised failures
+included. A run that reports `did not run` should be re-run when the machine can
+run it; the tests do execute. What is not acceptable is treating a green run as
+evidence that the UI tests passed, which is why the verdict line stays explicit
+about it. A release must have a run whose UI target actually executed (see
+`RELEASE.md`).
+
+The wedged daemon is worth knowing about on its own, because it takes the *unit*
+stage down with it. That run failed the Xcode unit tests with
+
+    Failure collecting logarchive: ... "Timed out after 120.0s while initiating
+    control session with daemon."
+    Sift (43086) encountered an error (Test runner never began executing tests
+    after launching)
+
+after 704 seconds, having passed the same 174 tests under `swift test` minutes
+earlier. Killing the per-user `testmanagerd` (`kill -9`; `launchctl kickstart` is
+refused under SIP, and launchd respawns it either way) brought the app-hosted
+suite back green on the next run. Automation mode stayed unavailable, which is
+the part that needs a person: the same session then reported the UI target as
+`did not run` rather than as a failure, which is the classification doing its job.
 
 So neither the stage nor CI treats "the runner did not start" as "a test failed".
 A failing *test case* fails the run. A runner that never started is reported as
@@ -95,6 +137,15 @@ It builds the Rust scanner core into `Bridge/macos-universal/libsift_ffi.a`
 (SwiftPM and Xcode both link from that fixed path), regenerates the string
 catalog, regenerates the Swift protection list, and regenerates `Sift.xcodeproj`
 from `project.yml`.
+
+Neither build system tracks that archive as an input — it reaches the linker
+through `-force_load` in the manifest's unsafe flags — so a rebuilt archive used
+to leave every already-linked product in place and the suite ran the previous
+core without saying so. `Scripts/build-rust-core.sh` now compares the archive it
+wrote against the one it replaced and touches `Core/RustBridge/RustScannerEngine.swift`
+when it changed, which makes the modules that import the bridge recompile and
+everything that force-loads the archive relink. That is why the file's timestamp
+moves after a Rust change: it is the notification, not an edit.
 
 After changing `project.yml`, install XcodeGen if needed (`brew install
 xcodegen`) and run `xcodegen generate --spec project.yml`. Commit the regenerated
@@ -137,6 +188,10 @@ It runs, in order: the generated-source checks, Rust formatting and lints, the
 Rust test suites (including the FFI contract tests), the benchmark build, the
 Swift build, the self-test suite, the XCTest suite, and the app bundle. A commit
 should not land while any stage fails.
+
+A release has requirements this script cannot check — a signing identity, a
+notarised artefact, a UI target that actually executed, a live licence service —
+and they are written down with their verification commands in `RELEASE.md`.
 
 ## Invariants that must not regress
 
@@ -266,6 +321,17 @@ These are product promises, not implementation details. Each has tests behind it
     rule id breaking a tie — the index keeps one row per path and rewrites it, so
     otherwise the row the user saw was decided by the order an unstable sort left
     two equal keys in.
+26. **Both engines find the same items, down to the row.** `Tests/EngineAgreementTests.swift`
+    runs one fixture through the production engine (`ScannerEngineFactory`) and
+    through the Swift reference engine and compares the whole row — path,
+    category, risk, size, file count and explanation key — with hidden files in
+    scope and out of it, with a measure-only root, and with the duplicate
+    pipeline. One rule table says the two engines are *given* the same rules;
+    nothing said they *do* the same thing with them until this test. What it
+    found: the Rust walker recorded `metadata.len()` for files where the rest of
+    the crate, the Swift walker and the Finder all use allocated size, so a
+    residue directory of small files reported 3 KB instead of the 8 KB it
+    occupies — and read differently depending on which core a Mac ran.
 
 ## Layout notes
 

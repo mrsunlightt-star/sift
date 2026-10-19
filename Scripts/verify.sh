@@ -150,7 +150,7 @@ if xcode_available; then
     xcode_run xcodebuild test-without-building "${TEST_PLAN_ARGS[@]}" -only-testing:SiftTests
 
   # The UI target is separate, and retried once, because Xcode 16.4's UI-test
-  # runner often fails to *start*: it looks for the target application at
+  # runner sometimes fails to *start*: it looks for the target application at
   # `<products>/Debug/Sift`, a path with no `.app` on it, and the bundle is at
   # `<products>/Debug/Sift.app`. The run then fails before a single test case
   # executes. It is not caused by anything in this repository — the generated
@@ -158,16 +158,58 @@ if xcode_available; then
   # valid and correctly signed — and it happens locally and on GitHub's macOS 15
   # runners alike.
   #
+  # A second shape of the same thing appeared on 2026-10-19, an hour after the
+  # five UI cases had run green on this machine:
+  #
+  #     SiftUITests-Runner encountered an error (The test runner failed to
+  #     initialize for UI testing. (Underlying Error: Timed out while enabling
+  #     automation mode.))
+  #
+  # That is the automation grant rather than the code, it also leaves zero test
+  # cases executed, and it is classified the same way for the same reason.
+  #
   # So the two outcomes are told apart rather than lumped together: a *test* that
   # fails fails this stage, and a runner that never started is reported as such
   # and does not. Saying "passed" for a run that never executed would be the
   # dishonest half of this, and so would failing a build because Xcode did not
   # start a process.
+  runner_did_not_start() {
+    grep -q "SiftUITests encountered an error" "$1" \
+      || grep -q "failed to initialize for UI testing" "$1"
+  }
+
+  # One attempt, with a deadline.
+  #
+  # Xcode's automation-mode timeout is about a minute and the five cases take
+  # about forty seconds, so an attempt still running after five minutes is not
+  # going to finish. On 2026-10-19 one sat for thirteen minutes with no output at
+  # all, and a gate that never prints its verdict is worse than a red one: it
+  # stops being a gate. The attempt is stopped and reported as what it is — no
+  # test ran. Bash reaps its children, so `kill -0` is the liveness test.
+  UI_ATTEMPT_DEADLINE="${SIFT_UI_DEADLINE:-300}"
+  run_ui_attempt() {
+    local log="$1"
+    local deadline=$2
+    xcode_run xcodebuild test-without-building "${TEST_PLAN_ARGS[@]}" -only-testing:SiftUITests \
+      >"${log}" 2>&1 &
+    local pid=$!
+    local waited=0
+    while kill -0 "${pid}" 2>/dev/null; do
+      if (( waited >= deadline )); then
+        echo "the runner hung for ${deadline}s and was stopped; no test ran" >>"${log}"
+        kill "${pid}" 2>/dev/null || true
+        break
+      fi
+      sleep 5
+      waited=$(( waited + 5 ))
+    done
+    wait "${pid}"
+  }
+
   UI_STATE="did not run"
   for attempt in 1 2; do
     UI_ATTEMPT_LOG="${LOG_DIR}/xcode-ui-attempt-${attempt}.log"
-    if xcode_run xcodebuild test-without-building "${TEST_PLAN_ARGS[@]}" -only-testing:SiftUITests \
-      >"${UI_ATTEMPT_LOG}" 2>&1; then
+    if run_ui_attempt "${UI_ATTEMPT_LOG}" "${UI_ATTEMPT_DEADLINE}"; then
       UI_STATE="ran"
       echo "  → ok (UI target, attempt ${attempt})"
       break
@@ -178,8 +220,8 @@ if xcode_available; then
       FAILED=1
       break
     fi
-    if grep -q "SiftUITests encountered an error" "${UI_ATTEMPT_LOG}"; then
-      echo "  … UI target attempt ${attempt}: the runner did not start, no test ran"
+    if grep -q "the runner hung for" "${UI_ATTEMPT_LOG}" || runner_did_not_start "${UI_ATTEMPT_LOG}"; then
+      echo "  … UI target attempt ${attempt}: no test ran"
     else
       UI_STATE="failed"
       echo "  → FAILED (UI target: unrecognised failure; see ${UI_ATTEMPT_LOG})"
