@@ -26,6 +26,7 @@ public struct AppSettings: Sendable, Equatable {
     public var showHiddenFiles: Bool
     public var requireConfirmation: Bool
     public var skipConfirmation: Bool
+    public var language: SiftLanguage
     public var appearance: Appearance
     public var reduceMotion: Bool
     public var keepScanHistory: Int
@@ -58,6 +59,7 @@ public struct AppSettings: Sendable, Equatable {
         // an explicit warning (§5.6).
         requireConfirmation: true,
         skipConfirmation: false,
+        language: SiftLanguage.preferred,
         appearance: .system,
         reduceMotion: false,
         keepScanHistory: 10,
@@ -129,6 +131,7 @@ public actor SettingsStore {
         static let requireConfirmation = "settings.requireConfirmation"
         static let skipConfirmation = "settings.skipConfirmation"
         static let appearance = "settings.appearance"
+        static let language = "settings.language"
         static let reduceMotion = "settings.reduceMotion"
         static let keepScanHistory = "settings.keepScanHistory"
         static let launchAtLogin = "settings.launchAtLogin"
@@ -211,6 +214,7 @@ public actor SettingsStore {
         defaults.set(settings.requireConfirmation, forKey: Key.requireConfirmation)
         defaults.set(settings.skipConfirmation, forKey: Key.skipConfirmation)
         defaults.set(settings.appearance.rawValue, forKey: Key.appearance)
+        defaults.set(settings.language.rawValue, forKey: Key.language)
         defaults.set(settings.reduceMotion, forKey: Key.reduceMotion)
         defaults.set(settings.keepScanHistory, forKey: Key.keepScanHistory)
         defaults.set(settings.launchAtLogin, forKey: Key.launchAtLogin)
@@ -239,6 +243,10 @@ public actor SettingsStore {
         settings.reduceMotion = defaults.bool(forKey: Key.reduceMotion)
         settings.userRulesEnabled = defaults.bool(forKey: Key.userRulesEnabled)
         settings.launchAtLogin = defaults.bool(forKey: Key.launchAtLogin)
+        if let raw = defaults.string(forKey: Key.language),
+           let language = SiftLanguage(rawValue: raw) {
+            settings.language = language
+        }
         if let raw = defaults.string(forKey: Key.appearance),
            let appearance = AppSettings.Appearance(rawValue: raw) {
             settings.appearance = appearance
