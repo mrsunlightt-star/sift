@@ -34,6 +34,7 @@ public struct JunkCleanupView: View {
                         detailKey: .cleanupConfirmUndoNotice,
                         onStart: { Task { await startScan() } }
                     )
+                    .frame(minHeight: 320, alignment: .center)
                 } else {
                     CategoryFilterBar(
                         categories: CleanupCategory.junkCategories,
