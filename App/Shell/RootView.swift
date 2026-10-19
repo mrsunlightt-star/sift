@@ -42,7 +42,7 @@ public struct RootShellView: View {
     }
 }
 
-/// The sidebar: the product identity, the destinations, and the health footer.
+/// The sidebar: product identity and primary destinations.
 struct SidebarView: View {
     @EnvironmentObject private var environment: AppEnvironment
     @EnvironmentObject private var router: AppRouter
@@ -131,7 +131,6 @@ struct SidebarView: View {
         )
     }
 }
-
 
 /// Always-visible language control in the window toolbar. Language names are
 /// shown in their native writing systems so the control is understandable before
