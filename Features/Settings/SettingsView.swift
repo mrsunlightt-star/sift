@@ -33,6 +33,8 @@ public struct SettingsView: View {
             }
             .padding(SiftMetrics.spacingXL)
             .frame(maxWidth: 760, alignment: .leading)
+            // Keep a readable column, centred in the available detail area.
+            .frame(maxWidth: .infinity, alignment: .top)
         }
         .task {
             permissionReport = await environment.permissions.accessReport()
