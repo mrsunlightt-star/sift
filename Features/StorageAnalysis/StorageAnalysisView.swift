@@ -69,6 +69,7 @@ public struct StorageAnalysisView: View {
                     notes
                 } else if !isAnalyzing {
                     SiftEmptyState(symbolName: "chart.pie", titleKey: .storageNotAuthorized)
+                        .frame(maxWidth: .infinity, minHeight: 320, alignment: .center)
                 }
             }
             .padding(SiftMetrics.spacingXL)
