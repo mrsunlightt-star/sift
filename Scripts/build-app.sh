@@ -78,7 +78,17 @@ mkdir -p "${APP_DIR}/Contents/MacOS" "${APP_DIR}/Contents/Resources"
 
 cp "${EXECUTABLE}" "${APP_DIR}/Contents/MacOS/Sift"
 
-VERSION="$(git -C "${REPO_ROOT}" describe --tags --always 2>/dev/null || echo "0.1.0")"
+# The bundle's version comes from the nearest tag, not from `git describe`'s
+# full answer: `--abbrev=0` drops the `-<commits>-g<hash>` suffix, and the sed
+# drops a pre-release one (`v1.2.0-rc1`). CFBundleShortVersionString is a
+# sequence of up to three integers, so a commit hash — which `--always` answers
+# in a checkout with no tags — or a `-rc1` suffix is a version no store and no
+# updater would accept.
+VERSION="$(git -C "${REPO_ROOT}" describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null \
+  | sed 's/^v//; s/-.*$//' || true)"
+# A checkout that has no tag yet still has to produce a bundle, so the
+# development default is the marketing version project.yml declares.
+VERSION="${VERSION:-0.1.0}"
 BUILD_NUMBER="$(git -C "${REPO_ROOT}" rev-list --count HEAD 2>/dev/null || echo "1")"
 
 cat > "${APP_DIR}/Contents/Info.plist" <<PLIST
@@ -101,7 +111,7 @@ cat > "${APP_DIR}/Contents/Info.plist" <<PLIST
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.1.0</string>
+    <string>${VERSION}</string>
     <key>CFBundleVersion</key>
     <string>${BUILD_NUMBER}</string>
     <key>LSMinimumSystemVersion</key>
@@ -157,6 +167,7 @@ if [[ "${INSTALL}" == "1" ]]; then
 fi
 
 echo "==> Done"
+echo "    version: ${VERSION} (build ${BUILD_NUMBER})"
 echo "    app: ${APP_DIR}"
 if [[ "${RUN_AFTER}" == "1" ]]; then
   echo "==> Launching"

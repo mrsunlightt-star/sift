@@ -27,6 +27,10 @@ settings:
   base:
     SWIFT_VERSION: "6.0"
     MACOSX_DEPLOYMENT_TARGET: "13.0"
+    # The development version. A release build passes the tagged one instead
+    # (`MARKETING_VERSION="$(git describe --tags --abbrev=0 --match 'v[0-9]*' | sed 's/^v//')"`),
+    # which is what Scripts/build-app.sh does for the SwiftPM path. With this as
+    # the only source every bundle would ship as 0.1.0 whatever the tag says.
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
     SWIFT_STRICT_CONCURRENCY: complete
