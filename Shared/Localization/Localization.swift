@@ -1,5 +1,88 @@
 import Foundation
 
+/// Languages shipped with Sift. The display names are endonyms so a user can
+/// recognise their language even before the rest of the interface has switched.
+public enum SiftLanguage: String, CaseIterable, Codable, Sendable, Identifiable {
+    case english = "en"
+    case simplifiedChinese = "zh-hans"
+    case japanese = "ja"
+    case korean = "ko"
+    case german = "de"
+    case french = "fr"
+    case spanish = "es"
+    case russian = "ru"
+
+    public var id: String { rawValue }
+
+    /// A native-language name, independent of the currently selected UI language.
+    public var displayName: String {
+        switch self {
+        case .english: "English"
+        case .simplifiedChinese: "简体中文"
+        case .japanese: "日本語"
+        case .korean: "한국어"
+        case .german: "Deutsch"
+        case .french: "Français"
+        case .spanish: "Español"
+        case .russian: "Русский"
+        }
+    }
+
+    /// A compact name that fits in the always-visible toolbar control.
+    public var shortName: String {
+        switch self {
+        case .english: "EN"
+        case .simplifiedChinese: "中文"
+        case .japanese: "日本語"
+        case .korean: "한국어"
+        case .german: "DE"
+        case .french: "FR"
+        case .spanish: "ES"
+        case .russian: "RU"
+        }
+    }
+
+    public var localeIdentifier: String {
+        switch self {
+        case .english: "en"
+        case .simplifiedChinese: "zh-Hans"
+        case .japanese: "ja"
+        case .korean: "ko"
+        case .german: "de"
+        case .french: "fr"
+        case .spanish: "es"
+        case .russian: "ru"
+        }
+    }
+
+    public var locale: Locale { Locale(identifier: localeIdentifier) }
+
+    /// The system language is used only before the user makes an explicit choice.
+    public static var preferred: SiftLanguage {
+        let identifier = Locale.preferredLanguages.first?.lowercased() ?? "en"
+        if identifier.hasPrefix("zh") { return .simplifiedChinese }
+        if identifier.hasPrefix("ja") { return .japanese }
+        if identifier.hasPrefix("ko") { return .korean }
+        if identifier.hasPrefix("de") { return .german }
+        if identifier.hasPrefix("fr") { return .french }
+        if identifier.hasPrefix("es") { return .spanish }
+        if identifier.hasPrefix("ru") { return .russian }
+        return .english
+    }
+
+    /// A synchronous lookup keeps the current localisation API usable from
+    /// SwiftUI views and domain services alike. The same key is persisted by
+    /// SettingsStore, so a language change takes effect immediately.
+    public static var current: SiftLanguage {
+        guard let rawValue = UserDefaults.standard.string(forKey: "settings.language"),
+              let language = SiftLanguage(rawValue: rawValue) else {
+            return preferred
+        }
+        return language
+    }
+}
+
+
 extension Bundle {
     /// The resource bundle that owns the string catalog.
     ///
@@ -12,6 +95,16 @@ extension Bundle {
     ///
     /// Used by tests and diagnostics that need to enumerate what shipped.
     public static var siftResources: Bundle { .module }
+
+    /// Resolves strings from the explicitly selected language, rather than
+    /// relying on the operating system's preferred-languages order.
+    public static func localizedBundle(for language: SiftLanguage) -> Bundle {
+        guard let path = siftResources.path(forResource: language.rawValue, ofType: "lproj"),
+              let bundle = Bundle(path: path) else {
+            return siftResources
+        }
+        return bundle
+    }
 }
 
 /// Text formatting helpers.
