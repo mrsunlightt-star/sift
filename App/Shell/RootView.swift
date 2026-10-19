@@ -138,8 +138,6 @@ struct SidebarView: View {
 /// the user can read the rest of the interface.
 struct LanguageSwitcher: View {
     @EnvironmentObject private var environment: AppEnvironment
-    @State private var selectedLanguage = SiftLanguage.current
-
     var body: some View {
         Menu {
             ForEach(SiftLanguage.allCases) { language in
@@ -148,7 +146,7 @@ struct LanguageSwitcher: View {
                 } label: {
                     HStack {
                         Text(language.displayName)
-                        if selectedLanguage == language {
+                        if environment.preferences.language == language {
                             Image(systemName: "checkmark")
                         }
                     }
@@ -156,7 +154,7 @@ struct LanguageSwitcher: View {
                 .accessibilityIdentifier("language.\\(language.rawValue)")
             }
         } label: {
-            Label(selectedLanguage.shortName, systemImage: "globe")
+            Label(environment.preferences.language.shortName, systemImage: "globe")
                 .labelStyle(.titleAndIcon)
         }
         .menuStyle(.borderlessButton)
@@ -166,7 +164,6 @@ struct LanguageSwitcher: View {
     }
 
     private func select(_ language: SiftLanguage) {
-        selectedLanguage = language
         // Publish the choice synchronously for string lookup; SettingsStore then
         // persists it through the normal preferences pipeline.
         UserDefaults.standard.set(language.rawValue, forKey: "settings.language")
