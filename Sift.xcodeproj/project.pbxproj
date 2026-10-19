@@ -24,6 +24,7 @@
 		CC38A73315221188C9BA4226 /* ReportAccuracyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8369A7E538B720EC1DED083B /* ReportAccuracyTests.swift */; };
 		CD2728389611D4CFBF4FBFA2 /* DuplicateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1C086283BE23A66F7F113E6 /* DuplicateTests.swift */; };
 		D7480F7B26A74F3C63F4BBC3 /* Core in Frameworks */ = {isa = PBXBuildFile; productRef = 330DF71F4132CD8213AE8E4F /* Core */; };
+		D9F37FAB3955E68A4BB43ECA /* EngineAgreementTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D814713B9DB23C3EB74B8680 /* EngineAgreementTests.swift */; };
 		DCAE4E6BDCA780F643C78D2E /* ScanModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC33CEC8D838AAEFC66045CC /* ScanModelTests.swift */; };
 		E43D72ECE1F5E29E11433C1F /* ProtectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A53233BFDB3533EB2FC2B43 /* ProtectionTests.swift */; };
 		F324BD4828BF8F1ED7604B01 /* SiftUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A0C25908FECAA2D76EE0313 /* SiftUITests.swift */; };
@@ -69,6 +70,7 @@
 		CDF792F92B19FCA9E06D51C0 /* DiagnosticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsTests.swift; sourceTree = "<group>"; };
 		CFDDF3FC5E599ECDA179E3C2 /* RuleEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuleEngineTests.swift; sourceTree = "<group>"; };
 		D0A82EFF95D94FE10F5901DB /* Sift.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Sift.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D814713B9DB23C3EB74B8680 /* EngineAgreementTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineAgreementTests.swift; sourceTree = "<group>"; };
 		FC33CEC8D838AAEFC66045CC /* ScanModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanModelTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -110,6 +112,7 @@
 				03FD81D851B1C14B0CEEF4CD /* AuthorizationTests.swift */,
 				CDF792F92B19FCA9E06D51C0 /* DiagnosticsTests.swift */,
 				C1C086283BE23A66F7F113E6 /* DuplicateTests.swift */,
+				D814713B9DB23C3EB74B8680 /* EngineAgreementTests.swift */,
 				463DEB72F0879437562981E8 /* EntitlementTests.swift */,
 				809CE4F56A97ACEF92C245A2 /* FileOperationTests.swift */,
 				B7CCF94C0859AE0F6076D093 /* LocalizationTests.swift */,
@@ -337,6 +340,7 @@
 				A402385EF3529317AED1CEDE /* AuthorizationTests.swift in Sources */,
 				F911C7F8E1916B88218FE046 /* DiagnosticsTests.swift in Sources */,
 				CD2728389611D4CFBF4FBFA2 /* DuplicateTests.swift in Sources */,
+				D9F37FAB3955E68A4BB43ECA /* EngineAgreementTests.swift in Sources */,
 				2E4CAA713800648EA8A6D3E9 /* EntitlementTests.swift in Sources */,
 				53E7110BD923D5EC6309030C /* FileOperationTests.swift in Sources */,
 				A02C055B5473905ECD7696AD /* LocalizationTests.swift in Sources */,

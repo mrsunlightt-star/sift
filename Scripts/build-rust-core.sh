@@ -43,6 +43,10 @@ esac
 
 HOST_LIB="$(build_for "${HOST_TARGET}")"
 
+# What the archive was before this run, so a change can be announced to SwiftPM.
+BEFORE=""
+[[ -f "${OUTPUT}" ]] && BEFORE="$(shasum -a 256 "${OUTPUT}" | awk '{ print $1 }')"
+
 if [[ "${UNIVERSAL}" == "1" ]]; then
   OTHER_TARGET="x86_64-apple-darwin"
   [[ "${HOST_TARGET}" == "x86_64-apple-darwin" ]] && OTHER_TARGET="aarch64-apple-darwin"
@@ -54,6 +58,20 @@ if [[ "${UNIVERSAL}" == "1" ]]; then
   lipo -create "${HOST_LIB}" "${OTHER_LIB}" -output "${OUTPUT}"
 else
   cp "${HOST_LIB}" "${OUTPUT}"
+fi
+
+# SwiftPM cannot see this archive as a build input: it reaches the linker through
+# `-force_load` in the manifest's unsafe flags, which the build graph does not
+# track. A rebuilt archive therefore left every already-linked product alone and
+# the suite kept running the previous core without saying so — which is a silent
+# wrong answer in exactly the place it matters most, because `Scripts/verify.sh`
+# builds this archive and then runs the tests. Touching the bridge source makes
+# the modules that import it recompile and everything that force-loads the
+# archive relink. Xcode's build system has the same blind spot and is cured by
+# the same touch.
+AFTER="$(shasum -a 256 "${OUTPUT}" | awk '{ print $1 }')"
+if [[ "${BEFORE}" != "${AFTER}" ]]; then
+  touch "${REPO_ROOT}/Core/RustBridge/RustScannerEngine.swift"
 fi
 
 echo "==> ${OUTPUT}" >&2

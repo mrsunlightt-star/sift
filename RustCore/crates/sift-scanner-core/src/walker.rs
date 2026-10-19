@@ -312,14 +312,25 @@ pub fn walk(root: &Path, options: &WalkOptions, cancel: &CancelToken) -> WalkRep
                     return report;
                 }
                 if options.mode != WalkMode::ImmediateChildren {
-                    if let Some(entry) = build_entry(&path, false, &metadata, metadata.len()) {
+                    // Allocated, not logical: this is the figure the Finder shows
+                    // and the bytes a cleanup reclaims, and it is the one every
+                    // other measurement in this crate reports — `measure_within`
+                    // above, `measure_directory_matching` and the Swift walker.
+                    // Reporting `metadata.len()` here made a residue directory
+                    // whose files are small report less than the space it holds
+                    // (two 2 KB logs as 3 KB rather than the 8 KB they occupy), so
+                    // the same directory read differently depending on which core
+                    // scanned it.
+                    if let Some(entry) =
+                        build_entry(&path, false, &metadata, allocated_size(&metadata))
+                    {
                         report.total_files += 1;
                         report.total_bytes += entry.size_bytes.unwrap_or(0);
                         report.entries.push(entry);
                     }
                 } else {
                     report.total_files += 1;
-                    report.total_bytes += metadata.len();
+                    report.total_bytes += allocated_size(&metadata);
                 }
             }
         }
@@ -899,5 +910,37 @@ mod tests {
         drop(file);
         let metadata = std::fs::symlink_metadata(&path).unwrap();
         assert_eq!(allocated_size(&metadata), 1024 * 1024);
+    }
+
+    /// The walk totals what the files occupy, not what they hold.
+    ///
+    /// A file smaller than a block occupies a whole block, and that is the figure
+    /// the Finder shows and a cleanup reclaims. Counting `metadata.len()` here
+    /// made a directory of small files report less space than it occupies — two
+    /// 2 KB logs as 3 KB instead of 8 KB — and, because the Swift walker already
+    /// counted allocated bytes, the same directory read differently depending on
+    /// which core scanned it.
+    #[test]
+    fn the_walk_totals_allocated_bytes_rather_than_logical_size() {
+        let tree = TempTree::new("walk-allocated");
+        let path = tree.file("small.log", 100);
+        let report = walk(&tree.root, &options(&tree.root), &CancelToken::new());
+
+        assert_eq!(report.total_files, 1);
+        assert_eq!(
+            report.total_bytes,
+            allocated_size(&std::fs::symlink_metadata(&path).unwrap()),
+            "the walk must report what allocated_size answers"
+        );
+        assert!(
+            report.total_bytes >= 4096,
+            "a 100-byte file still occupies a block, but the walk reported {} bytes",
+            report.total_bytes
+        );
+        assert_eq!(
+            report.entries[0].size_bytes,
+            Some(report.total_bytes),
+            "the entry and the total are the same figure"
+        );
     }
 }
