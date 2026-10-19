@@ -51,6 +51,7 @@ public struct StorageAnalysisView: View {
                             .font(SiftFont.body)
                             .foregroundStyle(.secondary)
                     }
+                    .frame(maxWidth: .infinity, minHeight: 240, alignment: .center)
                 }
 
                 if hasResult {
