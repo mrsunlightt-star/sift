@@ -27,7 +27,7 @@ final class LocalizationTests: XCTestCase, @unchecked Sendable {
             XCTAssertNotEqual(
                 translated,
                 LocalizationKey.navDashboard.rawValue,
-                "\\(language.rawValue) did not resolve the dashboard title"
+                "\(language.rawValue) did not resolve the dashboard title"
             )
         }
     }
