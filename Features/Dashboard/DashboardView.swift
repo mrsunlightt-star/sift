@@ -34,6 +34,8 @@ public struct DashboardView: View {
             }
             .padding(SiftMetrics.spacingXL)
             .frame(maxWidth: 1000, alignment: .leading)
+            // Keep a readable column, centred in the available detail area.
+            .frame(maxWidth: .infinity, alignment: .top)
         }
         .task { lastOutcome = RecentHistory.lastOutcome() }
     }
