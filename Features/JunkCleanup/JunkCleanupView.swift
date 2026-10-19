@@ -55,6 +55,8 @@ public struct JunkCleanupView: View {
             }
             .padding(SiftMetrics.spacingXL)
             .frame(maxWidth: 900, alignment: .leading)
+            // Keep a readable column, centred in the available detail area.
+            .frame(maxWidth: .infinity, alignment: .top)
         }
     }
 
