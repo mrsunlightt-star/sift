@@ -37,6 +37,18 @@ final class SiftUITests: XCTestCase {
         XCTAssertTrue(sidebarRow(app, "dashboard").waitForExistence(timeout: 5))
     }
 
+    /// Language selection must be reachable without first navigating into Settings.
+    func test_languageSwitcherIsAvailableFromTheMainWindow() throws {
+        let app = launchApp()
+        let switcher = app.descendants(matching: .any)
+            .matching(identifier: "toolbar.language")
+            .firstMatch
+        XCTAssertTrue(
+            switcher.waitForExistence(timeout: 5),
+            "the toolbar language switcher should be available immediately"
+        )
+    }
+
     /// Every primary destination is reachable from the sidebar.
     func test_everyDestinationIsReachable() throws {
         let app = launchApp()
