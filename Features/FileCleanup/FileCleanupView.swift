@@ -64,6 +64,7 @@ public struct FileCleanupView: View {
                             : .cleanupExplanationLargeFilesItem,
                         onStart: { Task { await environment.runScan(.files(mode)) } }
                     )
+                    .frame(minHeight: 320, alignment: .center)
                 }
             }
             .padding(SiftMetrics.spacingXL)
