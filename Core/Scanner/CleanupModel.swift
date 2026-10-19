@@ -210,7 +210,8 @@ public final class CleanupModel: ObservableObject {
         let outcome = await operations.moveToTrash(
             preflight.ready,
             categoryTotals: selectedByCategory,
-            operation: operation
+            operation: operation,
+            refusedByPreflight: preflight.refusedResults
         )
         self.outcome = outcome
 

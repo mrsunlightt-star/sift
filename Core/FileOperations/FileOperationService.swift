@@ -245,10 +245,19 @@ public actor FileOperationService {
     ///
     /// Returns one result per item. Items are processed sequentially on this
     /// actor so two operations can never race on the same path.
+    ///
+    /// `refusedByPreflight` is what the caller's pre-flight pass dropped —
+    /// `PreflightReport.refusedResults`. Those items never reach this loop, so
+    /// they are carried into the outcome here instead: the result page and the
+    /// report describe the batch the user approved, and a batch that reported on
+    /// nothing but the items that happened to arrive would hide the refusals.
+    /// The moved and failed items come first, so the page still leads with what
+    /// it did.
     public func moveToTrash(
         _ items: [CleanupItem],
         categoryTotals: [CategoryTotal] = [],
-        operation: CleanupOperationName = .junkCleanup
+        operation: CleanupOperationName = .junkCleanup,
+        refusedByPreflight: [FileOperationResult] = []
     ) async -> CleanupOutcome {
         let startedAt = Date()
         var results: [FileOperationResult] = []
@@ -351,6 +360,7 @@ public actor FileOperationService {
         }
 
         let finishedAt = Date()
+        results.append(contentsOf: refusedByPreflight)
         let outcome = CleanupOutcome(
             results: results,
             categoryTotals: categoryTotals,

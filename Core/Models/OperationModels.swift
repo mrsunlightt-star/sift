@@ -243,6 +243,42 @@ public struct PreflightReport: Sendable {
     public var formattedReadyBytes: String { SiftFormat.bytes(readyBytes) }
 
     public var hasBlockingIssues: Bool { !skipped.isEmpty || !protected.isEmpty }
+
+    /// The items pre-flight refused, shaped as results the outcome can carry.
+    ///
+    /// `moveToTrash` never sees these, so without them the result page would
+    /// describe a batch it only half performed: an item dropped because its
+    /// application is running, because it was removed while the confirmation
+    /// panel was open, or because its path no longer resolves to itself would
+    /// simply be missing, and the user could not tell that from an item that was
+    /// never selected. Everything refused is reported with the reason pre-flight
+    /// found, which is the sentence the row shows.
+    ///
+    /// `subsumed` items are deliberately not here. They are not refused: the
+    /// selected directory that contains them moved, their bytes are already part
+    /// of that item's total, and listing them again would report one file twice
+    /// under a status that reads like a failure.
+    public var refusedResults: [FileOperationResult] {
+        skipped.map {
+            FileOperationResult(
+                sourceURL: $0.item.url,
+                status: .skipped,
+                errorCode: $0.code.rawValue,
+                message: $0.message,
+                sizeInBytes: $0.item.sizeInBytes,
+                category: $0.item.category
+            )
+        } + protected.map {
+            FileOperationResult(
+                sourceURL: $0.url,
+                status: .skipped,
+                errorCode: ErrorCode.protectedLocation.rawValue,
+                message: ErrorCode.protectedLocation.localizedTitle.localized,
+                sizeInBytes: $0.sizeInBytes,
+                category: $0.category
+            )
+        }
+    }
 }
 
 /// Storage analysis result for the storage page (§5.4).

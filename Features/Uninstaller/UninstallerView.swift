@@ -335,7 +335,11 @@ public struct UninstallerView: View {
                     totalBytes: preflight.ready.reduce(0) { $0 + $1.sizeInBytes }
                 )
             ],
-            operation: .uninstall
+            operation: .uninstall,
+            // Whatever the pre-flight refused — the running application, a
+            // related file that is already gone — is reported on the result page
+            // with its reason instead of disappearing from the batch.
+            refusedByPreflight: preflight.refusedResults
         )
         outcome = result
         RecentHistory.recordCleanup(result)

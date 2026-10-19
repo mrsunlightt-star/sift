@@ -104,38 +104,57 @@ public struct CleanupResultView: View {
                     .font(SiftFont.sectionTitle)
                 Divider()
                 ForEach(outcome.failedResults) { result in
-                    HStack(alignment: .top, spacing: SiftMetrics.spacingM) {
-                        IconTile(symbolName: "exclamationmark.triangle.fill", tint: SiftColor.review)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(result.displayPath)
-                                .font(SiftFont.body)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                            Text(result.failureTitle)
-                                .font(SiftFont.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer(minLength: SiftMetrics.spacingS)
-                        Text(SiftFormat.bytes(result.sizeInBytes))
-                            .font(SiftFont.monospacedNumber)
-                        if result.errorCode == ErrorCode.permissionDenied.rawValue {
-                            Button {
-                                Task { await WorkspaceActions.openFullDiskAccessSettings() }
-                            } label: {
-                                Text(LocalizationKey.scanOpenSystemSettings.localized)
-                                    .font(SiftFont.caption)
-                            }
-                            .buttonStyle(.link)
-                        }
-                    }
+                    resultRow(result, symbolName: "exclamationmark.triangle.fill", tint: SiftColor.review)
                 }
             }
         }
     }
 
+    /// One item that was not moved, and why.
+    ///
+    /// Shared by both lists so a skipped item and a failed one are described the
+    /// same way: the path, the reason from the product error table, its size, and
+    /// the shortcut to Full Disk Access when that is what stood in the way.
+    private func resultRow(
+        _ result: FileOperationResult,
+        symbolName: String,
+        tint: Color
+    ) -> some View {
+        HStack(alignment: .top, spacing: SiftMetrics.spacingM) {
+            IconTile(symbolName: symbolName, tint: tint)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(result.displayPath)
+                    .font(SiftFont.body)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Text(result.failureTitle)
+                    .font(SiftFont.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: SiftMetrics.spacingS)
+            Text(SiftFormat.bytes(result.sizeInBytes))
+                .font(SiftFont.monospacedNumber)
+            if result.errorCode == ErrorCode.permissionDenied.rawValue {
+                Button {
+                    Task { await WorkspaceActions.openFullDiskAccessSettings() }
+                } label: {
+                    Text(LocalizationKey.scanOpenSystemSettings.localized)
+                        .font(SiftFont.caption)
+                }
+                .buttonStyle(.link)
+            }
+        }
+    }
+
+    /// What was left alone, listed rather than only counted.
+    ///
+    /// The count alone cannot distinguish "the application is still running" from
+    /// "the file is already gone", and the row's reason is what tells the user
+    /// whether there is anything left for them to do. The detail sentence has
+    /// always promised the first 20, so that is how many are shown.
     private var skippedList: some View {
         SiftPanel {
-            VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
+            VStack(alignment: .leading, spacing: SiftMetrics.spacingM) {
                 Text(LocalizationKey.reportSkipped.localized)
                     .font(SiftFont.sectionTitle)
                 Text(
@@ -145,6 +164,12 @@ public struct CleanupResultView: View {
                 )
                 .font(SiftFont.caption)
                 .foregroundStyle(.secondary)
+                if !outcome.skippedResults.isEmpty {
+                    Divider()
+                    ForEach(Array(outcome.skippedResults.prefix(20))) { result in
+                        resultRow(result, symbolName: "minus.circle.fill", tint: SiftColor.review)
+                    }
+                }
             }
         }
     }

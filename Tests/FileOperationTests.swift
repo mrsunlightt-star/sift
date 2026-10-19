@@ -199,6 +199,71 @@ final class FileOperationTests: XCTestCase, @unchecked Sendable {
         let missing = NSError(domain: NSCocoaErrorDomain, code: NSFileNoSuchFileError)
         XCTAssertEqual(FileOperationService.classify(missing), .fileNotFound)
     }
+
+    /// An item pre-flight refused is in the outcome, with its reason.
+    ///
+    /// `moveToTrash` never sees it, so without this the batch would report only
+    /// what it moved and the item the user selected would vanish from the result
+    /// without a word.
+    func test_aRefusedItemIsReportedInTheOutcomeNotDropped() async {
+        let missing = fixture.url.appendingPathComponent("Library/Caches/gone.bin")
+        let present = fixture.write("Library/Caches/com.example.app/blob.bin", bytes: 4096)
+        let service = makeService()
+
+        let verdict = await service.preflight([
+            FileOperationService.Candidate(item: item(missing)),
+            FileOperationService.Candidate(item: item(present)),
+        ])
+        XCTAssertEqual(verdict.ready.count, 1)
+        XCTAssertEqual(verdict.refusedResults.count, 1, "the pre-flight refusal becomes a result")
+        XCTAssertEqual(verdict.refusedResults.first?.errorCode, ErrorCode.fileNotFound.rawValue)
+
+        let outcome = await service.moveToTrash(
+            verdict.ready,
+            operation: .junkCleanup,
+            refusedByPreflight: verdict.refusedResults
+        )
+        XCTAssertEqual(outcome.results.count, 2, "one moved and one refused, both reported")
+        XCTAssertEqual(outcome.movedCount, 1)
+        XCTAssertEqual(outcome.skippedCount, 1)
+        XCTAssertEqual(
+            outcome.skippedResults.first?.sourceURL,
+            missing,
+            "the row names the path, so the user can tell which item was left alone"
+        )
+        XCTAssertEqual(outcome.releasedBytes, 4096, "only what moved counts as released")
+    }
+
+    /// A protected item pre-flight refused carries the reason the row shows.
+    func test_aProtectedRefusalIsReportedWithItsReason() async {
+        let document = fixture.write("Documents/taxes.pdf", bytes: 8192)
+        let verdict = await makeService().preflight([FileOperationService.Candidate(item: item(document))])
+
+        XCTAssertTrue(verdict.ready.isEmpty)
+        XCTAssertEqual(verdict.refusedResults.count, 1)
+        XCTAssertEqual(verdict.refusedResults.first?.errorCode, ErrorCode.protectedLocation.rawValue)
+        XCTAssertFalse(
+            verdict.refusedResults.first?.message?.isEmpty ?? true,
+            "a refusal the user is shown needs a sentence to show"
+        )
+    }
+
+    /// A child absorbed by a selected directory is not a refusal.
+    ///
+    /// Its bytes are already part of the directory's total, so reporting it as
+    /// one would count the same file twice under a status that reads like a
+    /// failure.
+    func test_aSubsumedChildIsNotReportedAsRefused() async {
+        let directory = fixture.directory("Library/Caches/com.example.app")
+        let file = fixture.write("Library/Caches/com.example.app/blob.bin", bytes: 4096)
+        let verdict = await makeService().preflight([
+            FileOperationService.Candidate(item: item(directory)),
+            FileOperationService.Candidate(item: item(file)),
+        ])
+
+        XCTAssertEqual(verdict.subsumed.count, 1)
+        XCTAssertTrue(verdict.refusedResults.isEmpty)
+    }
 }
 
 
