@@ -16,6 +16,22 @@ final class LocalizationTests: XCTestCase, @unchecked Sendable {
         XCTAssertTrue(unresolved.isEmpty, "unresolved keys: \(unresolved.map(\.rawValue))")
     }
 
+    func test_selectedLanguageLoadsTheMatchingResourceBundle() {
+        for language in SiftLanguage.allCases {
+            let bundle = Bundle.localizedBundle(for: language)
+            let translated = bundle.localizedString(
+                forKey: LocalizationKey.navDashboard.rawValue,
+                value: nil,
+                table: "Localizable"
+            )
+            XCTAssertNotEqual(
+                translated,
+                LocalizationKey.navDashboard.rawValue,
+                "\\(language.rawValue) did not resolve the dashboard title"
+            )
+        }
+    }
+
     func test_everyLanguageShipsAFullTranslation() throws {
         for language in languages {
             let path = try XCTUnwrap(
