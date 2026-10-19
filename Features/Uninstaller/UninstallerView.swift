@@ -173,12 +173,14 @@ public struct UninstallerView: View {
                 }
                 .padding(SiftMetrics.spacingXL)
                 .frame(maxWidth: 640, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .top)
             }
         } else {
             SiftEmptyState(
                 symbolName: "questionmark.folder",
                 titleKey: .uninstallSelectApp
             )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
