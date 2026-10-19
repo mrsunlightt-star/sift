@@ -219,7 +219,16 @@ public final class ScanModel: ObservableObject {
                 self.apply(events)
                 if await session.isFinished() {
                     guard self.isCurrent(run) else { return }
-                    self.apply(await session.pollEvents(maxEvents: 256))
+                    // The worker can finish while more than one page of item
+                    // batches is queued. Drain until empty so the terminal phase
+                    // and completion report cannot remain behind an arbitrary
+                    // 256-event tail, leaving waitUntilSettled() blocked forever.
+                    while true {
+                        let pending = await session.pollEvents(maxEvents: 256)
+                        guard self.isCurrent(run) else { return }
+                        guard !pending.isEmpty else { break }
+                        self.apply(pending)
+                    }
                     break
                 }
                 // A short sleep keeps the pump from spinning while the scanner
