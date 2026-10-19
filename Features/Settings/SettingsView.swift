@@ -338,17 +338,21 @@ public struct SettingsView: View {
                 }
                 .pickerStyle(.segmented)
 
-                HStack {
-                    Text(LocalizationKey.settingsGroupLanguage.localized)
-                        .font(SiftFont.body)
-                    Spacer()
-                    Text(Locale.current.localizedString(forIdentifier: Locale.current.identifier) ?? "—")
-                        .font(SiftFont.body)
-                        .foregroundStyle(.secondary)
+                Picker(
+                    LocalizationKey.settingsGroupLanguage.localized,
+                    selection: Binding(
+                        get: { environment.preferences.language },
+                        set: { language in
+                            UserDefaults.standard.set(language.rawValue, forKey: "settings.language")
+                            Task { await environment.updateSettings { $0.language = language } }
+                        }
+                    )
+                ) {
+                    ForEach(SiftLanguage.allCases) { language in
+                        Text(language.displayName).tag(language)
+                    }
                 }
-                Text(LocalizationKey.settingsLanguageRestart.localized)
-                    .font(SiftFont.caption)
-                    .foregroundStyle(.tertiary)
+                .pickerStyle(.menu)
             }
         }
     }
