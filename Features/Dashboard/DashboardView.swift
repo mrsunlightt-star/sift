@@ -48,7 +48,7 @@ public struct DashboardView: View {
         case ..<18: key = .dashboardGreetingAfternoon
         default: key = .dashboardGreetingEvening
         }
-        return Date().formatted(.dateTime.weekday(.wide).month(.wide).day())
+        return Date().formatted(.dateTime.weekday(.wide).month(.wide).day().locale(SiftLanguage.current.locale))
             + " · " + key.localized
     }
 
