@@ -381,10 +381,10 @@ public enum LocalizationKey: String, Sendable, CaseIterable {
 extension LocalizationKey {
     /// The localised string, resolved against the bundled catalog.
     ///
-    /// Resolution goes through `Bundle.module` rather than `LocalizedStringKey`:
-    /// SwiftUI looks a key up in the main bundle, and the catalog ships inside the
-    /// `Shared` resource bundle. Returning the resolved string is what keeps a
-    /// translation from being replaced by a raw key at runtime.
+    /// Resolution uses the explicitly selected language bundle rather than
+    /// `LocalizedStringKey`, which would consult the main bundle and ignore this
+    /// preference. Returning the resolved string allows the UI language to change
+    /// immediately without requiring an application restart.
     ///
     /// Missing translations fall back to English, which the catalog records as
     /// the source language.
