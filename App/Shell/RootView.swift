@@ -33,7 +33,12 @@ public struct RootShellView: View {
         }
         .navigationSplitViewStyle(.balanced)
         .background(SiftColor.windowBackground)
-        .environment(\.locale, Locale.current)
+        .environment(\.locale, environment.preferences.language.locale)
+        .toolbar {
+            ToolbarItem(placement: .automatic) {
+                LanguageSwitcher()
+            }
+        }
     }
 }
 
@@ -90,8 +95,6 @@ struct SidebarView: View {
                     .foregroundStyle(router.destination == .purchase ? .primary : .secondary)
                 }
 
-                HealthFooter()
-                    .padding(.top, SiftMetrics.spacingS)
             }
             .padding(.horizontal, SiftMetrics.spacingL)
             .padding(.vertical, SiftMetrics.spacingM)
@@ -129,49 +132,46 @@ struct SidebarView: View {
     }
 }
 
-/// The health footer.
-///
-/// It shows the disk figure and the words that explain it: §4.1 forbids an
-/// unexplained numeric score, so the number is always paired with what it means.
-struct HealthFooter: View {
+
+/// Always-visible language control in the window toolbar. Language names are
+/// shown in their native writing systems so the control is understandable before
+/// the user can read the rest of the interface.
+struct LanguageSwitcher: View {
     @EnvironmentObject private var environment: AppEnvironment
+    @State private var selectedLanguage = SiftLanguage.current
 
     var body: some View {
-        let volume = environment.availableVolumes.first { $0.mountPoint.path == "/" }
-        SiftPanel(padding: SiftMetrics.spacingM) {
-            VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
-                HStack {
-                    Text(LocalizationKey.dashboardHealth.localized)
-                        .font(SiftFont.caption)
-                    Spacer()
-                    Text(healthLabel(volume).localized)
-                        .font(SiftFont.caption)
-                        .foregroundStyle(healthTint(volume))
+        Menu {
+            ForEach(SiftLanguage.allCases) { language in
+                Button {
+                    select(language)
+                } label: {
+                    HStack {
+                        Text(language.displayName)
+                        if selectedLanguage == language {
+                            Image(systemName: "checkmark")
+                        }
+                    }
                 }
-                UsageBar(fraction: volume?.usedFraction ?? 0, tint: healthTint(volume), height: 6)
-                if let volume {
-                    Text(LocalizationKey.dashboardHealthExplain.localized(volume.formattedUsage))
-                        .font(SiftFont.caption)
-                        .foregroundStyle(.secondary)
-                        .accessibilityLabel(
-                            Text(LocalizationKey.dashboardHealthExplain.localized(volume.formattedUsage))
-                        )
-                }
+                .accessibilityIdentifier("language.\\(language.rawValue)")
             }
+        } label: {
+            Label(selectedLanguage.shortName, systemImage: "globe")
+                .labelStyle(.titleAndIcon)
         }
+        .menuStyle(.borderlessButton)
+        .help(LocalizationKey.settingsGroupLanguage.localized)
+        .accessibilityLabel(LocalizationKey.settingsGroupLanguage.localized)
+        .accessibilityIdentifier("toolbar.language")
     }
 
-    private func healthLabel(_ volume: VolumeInfo?) -> LocalizationKey {
-        guard let volume else { return .dashboardHealthGood }
-        return volume.usedFraction > 0.9 ? .dashboardHealthReview : .dashboardHealthGood
-    }
-
-    private func healthTint(_ volume: VolumeInfo?) -> Color {
-        guard let volume else { return SiftColor.neutral }
-        switch volume.usedFraction {
-        case ..<0.8: return SiftColor.safe
-        case ..<0.92: return SiftColor.review
-        default: return SiftColor.danger
+    private func select(_ language: SiftLanguage) {
+        selectedLanguage = language
+        // Publish the choice synchronously for string lookup; SettingsStore then
+        // persists it through the normal preferences pipeline.
+        UserDefaults.standard.set(language.rawValue, forKey: "settings.language")
+        Task {
+            await environment.updateSettings { $0.language = language }
         }
     }
 }
