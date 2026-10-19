@@ -17,7 +17,26 @@ struct SiftApp: App {
     init() {
         // The app is a normal foreground app; it never installs a status item and
         // never runs in the background (§3.2 defers the menu-bar helper).
-        NSApplication.shared.setActivationPolicy(.regular)
+        //
+        // The one exception is not a mode a user can reach. When this process is
+        // hosting the XCTest bundle it is the unit-test host, not the app the user
+        // launched, and Xcode starts one host per test worker — seven of them at
+        // once before the test plan was made serial. A `.regular` policy put an
+        // icon for each in the Dock; `.accessory` keeps the process and its
+        // windows, which is what the tests use, and leaves the Dock to the
+        // applications the user opened.
+        //
+        // The environment is what tells the two apart, not `NSClassFromString`:
+        // the bundle is injected into this process, but not yet loaded when
+        // SwiftUI calls `init` (a class lookup here answered nil on a host that
+        // was running the suite). The unit-test host is launched with
+        // `XCTestBundlePath` and a session identifier; the application under test
+        // in a UI test is a plain launch whose only injected library is the main
+        // thread checker.
+        let environment = ProcessInfo.processInfo.environment
+        let hostingXCTest = environment["XCTestBundlePath"] != nil
+            || environment["XCTestSessionIdentifier"] != nil
+        NSApplication.shared.setActivationPolicy(hostingXCTest ? .accessory : .regular)
     }
 
     var body: some Scene {

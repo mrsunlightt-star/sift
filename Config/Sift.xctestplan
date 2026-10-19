@@ -13,7 +13,7 @@
       "targets" : [
         {
           "enabled" : true,
-          "parallelizable" : true,
+          "parallelizable" : false,
           "target" : {
             "containerPath" : "container:Sift.xcodeproj",
             "identifier" : "5F3FF16262E59317491C2595",
@@ -43,7 +43,7 @@
   "testTargets" : [
     {
       "enabled" : true,
-      "parallelizable" : true,
+      "parallelizable" : false,
       "target" : {
         "containerPath" : "container:Sift.xcodeproj",
         "identifier" : "5F3FF16262E59317491C2595",

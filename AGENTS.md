@@ -43,6 +43,21 @@ the first time a real Xcode compiled this project:
   project. XcodeGen derives those IDs from the target names, so they survive
   regeneration; renaming a target means updating the plan.
 
+`SiftTests` is deliberately **not** `parallelizable` in that plan. The unit
+bundle is hosted by `Sift.app` itself, so parallel execution starts one copy of
+the app per worker — seven at once on this machine, each running
+`AppEnvironment.bootstrap()` and each registering as a foreground app, which is
+one icon in the Dock per worker. Serial makes the Xcode run match `swift test`
+and `Scripts/run-tests.sh`, which execute the same files in one process, and it
+costs nothing measurable for a suite that finishes in seconds. `SiftUITests` was
+already serial for the same reason. On top of that, `SiftApp.init` sets an
+`.accessory` activation policy when the process is hosting XCTest — detected from
+`XCTestBundlePath` / `XCTestSessionIdentifier`, because the test bundle is not
+loaded yet when SwiftUI calls `init` and a class lookup answers nil there — so a
+hosted suite never appears in the Dock at all. A UI-test launch is a plain app
+launch (its only injected library is the main thread checker), keeps the normal
+`.regular` policy, and is what XCUITest drives.
+
 The Xcode stage builds the test plan and then runs the two test targets with
 `test-without-building`. Two things about that are load-bearing, and each was
 found by a failure rather than by reading documentation.
