@@ -43,6 +43,22 @@ final class ScanModelTests: XCTestCase, @unchecked Sendable {
         return phase
     }
 
+    func test_finishedSessionDrainsPastOneTailPageToReachItsFinalPhase() async throws {
+        let fixture = TemporaryDirectory(tag: "scan-model-event-tail")
+        let rules = RuleEngine(rules: RuleEngine.builtInRules, homeDirectory: fixture.url)
+        let engine = BurstScannerEngine(queuedPhaseEvents: 400)
+        let model = await ScanModel(engine: engine, rules: rules)
+
+        await model.start(makeRequest(home: fixture.url))
+        let phase = await waitForFinalPhase(model, timeout: 2)
+
+        XCTAssertEqual(
+            phase,
+            .ready,
+            "the final event must be applied even when more than 320 events are queued"
+        )
+    }
+
     func test_cancellingAScanSettlesThePhase() async throws {
         let fixture = TemporaryDirectory(tag: "scan-model-cancel")
         for index in 0..<20 {
@@ -161,4 +177,59 @@ final class ScanModelTests: XCTestCase, @unchecked Sendable {
             "the cancelled run's results must not appear under the new scan: \(stray)"
         )
     }
+}
+
+
+/// A deterministic session whose terminal phase sits beyond the scan model's
+/// ordinary poll batch and one 256-event tail batch.
+private struct BurstScannerEngine: ScannerEngine {
+    let queuedPhaseEvents: Int
+    var kind: ScannerEngineKind { .swift }
+
+    func startScan(_ request: ScanRequest) async throws -> any ScanSession {
+        BurstScanSession(queuedPhaseEvents: queuedPhaseEvents)
+    }
+
+    func analyzeStorage(
+        roots: [ScanRoot],
+        ignoredPaths: [String]
+    ) async throws -> StorageAnalysis {
+        throw ScannerError(code: .internalError)
+    }
+}
+
+private actor BurstScanSession: ScanSession {
+    nonisolated let id = "burst-session"
+    private var events: [ScanEvent]
+
+    init(queuedPhaseEvents: Int) {
+        events = Array(repeating: .phaseChanged(.preparing), count: queuedPhaseEvents)
+        events.append(.phaseChanged(.ready))
+    }
+
+    func pollEvents(maxEvents: Int) async -> [ScanEvent] {
+        let count = min(max(maxEvents, 1), events.count)
+        let result = Array(events.prefix(count))
+        events.removeFirst(count)
+        return result
+    }
+
+    func isFinished() async -> Bool { true }
+
+    func page(
+        offset: Int,
+        limit: Int,
+        sort: ScanSort,
+        category: CleanupCategory?
+    ) async throws -> ScanPage {
+        ScanPage(items: [], remaining: 0)
+    }
+
+    func duplicateGroups(offset: Int, limit: Int) async throws -> [DuplicateGroup] { [] }
+
+    func duplicateMembers(groupID: Int64) async throws -> [DuplicateMember] { [] }
+
+    func skippedLocations() async -> [SkippedLocation] { [] }
+
+    func cancel() async {}
 }
