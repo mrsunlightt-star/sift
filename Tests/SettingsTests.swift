@@ -32,6 +32,8 @@ final class SettingsTests: XCTestCase, @unchecked Sendable {
         XCTAssertEqual(settings.staleThresholdDays, 30)
         XCTAssertEqual(settings.keepScanHistory, 10)
         XCTAssertEqual(settings.appearance, .system)
+        XCTAssertEqual(settings.language, SiftLanguage.preferred)
+        XCTAssertEqual(settings.language, SiftLanguage.preferred)
         XCTAssertTrue(settings.ignoredPaths.isEmpty)
     }
 
@@ -42,6 +44,7 @@ final class SettingsTests: XCTestCase, @unchecked Sendable {
             settings.largeFileThresholdBytes = 2 * 1024 * 1024 * 1024
             settings.oldFileThresholdDays = 365
             settings.appearance = .dark
+            settings.language = .japanese
             settings.ignoredPaths = ["/Users/example/keep"]
             settings.skipConfirmation = true
         }
@@ -51,6 +54,7 @@ final class SettingsTests: XCTestCase, @unchecked Sendable {
         XCTAssertEqual(reloaded.largeFileThresholdBytes, 2 * 1024 * 1024 * 1024)
         XCTAssertEqual(reloaded.oldFileThresholdDays, 365)
         XCTAssertEqual(reloaded.appearance, .dark)
+        XCTAssertEqual(reloaded.language, .japanese)
         XCTAssertEqual(reloaded.ignoredPaths, ["/Users/example/keep"])
         XCTAssertTrue(reloaded.skipConfirmation)
     }
