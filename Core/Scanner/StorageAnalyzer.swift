@@ -18,8 +18,14 @@ public struct StorageAnalyzer {
     }
 
     /// Runs the analysis over `roots`.
+    ///
+    /// `ignoredPaths` is the user's "never visit" list. It is applied here rather
+    /// than only in the UI: a directory the user excluded must not be traversed,
+    /// counted or listed, or the storage page would still read what the setting
+    /// says Sift never touches.
     public func analyze(
         roots: [ScanRoot],
+        ignoredPaths: [String] = [],
         largeFileThresholdBytes: Int64 = ScanDefaults.largeFileThresholdBytes,
         cancelled: @escaping @Sendable () -> Bool = { false }
     ) async throws -> StorageAnalysis {
@@ -34,7 +40,10 @@ public struct StorageAnalyzer {
         // compares equal and the folder roll-up escapes the root.
         let searchable = roots
             .map { $0.url.resolvingSymlinksInPath() }
-            .filter { $0.isFileURL }
+            .filter { root in
+                root.isFileURL
+                    && !ignoredPaths.contains(where: { RuleEngine.isPrefix($0, root.path) })
+            }
         guard let first = searchable.first else {
             return Self.volumeOnlyAnalysis(for: home)
         }
@@ -70,6 +79,10 @@ public struct StorageAnalyzer {
                 for child in contents {
                     let values = try? child.resourceValues(forKeys: Set(keys))
                     if values?.isSymbolicLink == true { continue }
+                    if ignoredPaths.contains(where: { RuleEngine.isPrefix($0, child.path) }) {
+                        continue
+                    }
+                    if rules.isInExcludedLocation(child.path) { continue }
                     if rules.protectionReason(for: child.path) != nil {
                         skipped += 1
                         continue
@@ -230,14 +243,14 @@ public struct StorageAnalyzer {
         case "applicationCache": CleanupCategory.applicationCache.titleKey.localized
         case "logs": CleanupCategory.logs.titleKey.localized
         case "installers": CleanupCategory.installers.titleKey.localized
-        case "images": LocalizationKey.storageByType.localized
-        case "video": LocalizationKey.storageByType.localized
-        case "audio": LocalizationKey.storageByType.localized
-        case "documents": LocalizationKey.storageByType.localized
-        case "archives": LocalizationKey.storageByType.localized
-        case "code": LocalizationKey.storageByType.localized
-        case "data": LocalizationKey.storageByType.localized
-        default: LocalizationKey.storageByType.localized
+        case "images": LocalizationKey.storageTypeImages.localized
+        case "video": LocalizationKey.storageTypeVideo.localized
+        case "audio": LocalizationKey.storageTypeAudio.localized
+        case "documents": LocalizationKey.storageTypeDocuments.localized
+        case "archives": LocalizationKey.storageTypeArchives.localized
+        case "code": LocalizationKey.storageTypeCode.localized
+        case "data": LocalizationKey.storageTypeData.localized
+        default: LocalizationKey.storageTypeOther.localized
         }
     }
 

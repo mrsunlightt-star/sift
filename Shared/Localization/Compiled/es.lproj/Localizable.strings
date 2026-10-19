@@ -334,6 +334,14 @@
 "storage.title" = "Almacenamiento";
 "storage.topDirectories" = "Carpetas más grandes";
 "storage.topFiles" = "Archivos más grandes";
+"storage.type.archives" = "Archivos comprimidos";
+"storage.type.audio" = "Audio";
+"storage.type.code" = "Código";
+"storage.type.data" = "Datos";
+"storage.type.documents" = "Documentos";
+"storage.type.images" = "Imágenes";
+"storage.type.other" = "Otros";
+"storage.type.video" = "Vídeo";
 "storage.used" = "%@ usados de %@";
 "storage.volume" = "Volumen";
 "uninstall.appRunning" = "%@ se está ejecutando. Ciérrala antes, o Sift omitirá los archivos en uso.";
@@ -343,6 +351,7 @@
 "uninstall.needsReview" = "Necesitan tu confirmación";
 "uninstall.noRelatedFiles" = "No se encontraron archivos relacionados.";
 "uninstall.noneInstalled" = "No se encontraron apps de terceros";
+"uninstall.quitFailed" = "Sift no pudo pedir a %@ que se cerrara. Ciérrala manualmente e inténtalo de nuevo.";
 "uninstall.reason.applicationName" = "El nombre coincide exactamente y la carpeta es la que macOS usa por app.";
 "uninstall.reason.bundleIdentifier" = "El nombre es el identificador de esta app.";
 "uninstall.reason.identifierPrefix" = "El nombre empieza por el identificador de esta app.";

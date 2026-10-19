@@ -103,6 +103,60 @@ final class ScannerTests: XCTestCase, @unchecked Sendable {
         XCTAssertFalse(result.items.contains { $0.displayName == "CloudKit" })
     }
 
+    func test_aLargeFileInsideExcludedApplicationDataIsNotOffered() async throws {
+        // The exclusion belongs to the directory, not to the file. A threshold
+        // scan looks at files, so it has to check the ancestors.
+        fixture.write("Library/Caches/CloudKit/large.bin", bytes: 2 * 1024 * 1024)
+        fixture.write("Downloads/large.bin", bytes: 2 * 1024 * 1024)
+        let result = try await runScan(makeRequest())
+        XCTAssertFalse(
+            result.items.contains { $0.url.path.contains("/CloudKit/") },
+            "a file inside CloudKit's data must never be a candidate"
+        )
+        XCTAssertTrue(
+            result.items.contains { $0.displayName == "large.bin" && $0.category == .largeFiles },
+            "the ordinary large file is still offered"
+        )
+    }
+
+    func test_aRuleExcludeCoversFilesBelowTheNamedDirectory() async throws {
+        fixture.write("Downloads/private/secret.txt", bytes: 4096)
+        fixture.write("Downloads/open.txt", bytes: 4096)
+        let rule = RuleEngine.Rule(
+            id: "excluded-files",
+            category: .installers,
+            risk: .review,
+            root: .home,
+            relativePath: "Downloads",
+            matchSpec: .filesByExtension(["txt"]),
+            excludes: ["private"],
+            minAgeDays: nil,
+            requiresFullDiskAccess: false,
+            explanationKey: "cleanup.explanation.installers",
+            isEnabled: true
+        )
+        let rules = RuleEngine(
+            rules: RuleEngine.builtInRules + [rule],
+            homeDirectory: fixture.url
+        )
+        let engine = SwiftScannerEngine(rules: rules)
+        let session = try await engine.startScan(makeRequest())
+        var items: [CleanupItemSummary] = []
+        let deadline = Date().addingTimeInterval(20)
+        while Date() < deadline {
+            for event in await session.pollEvents(maxEvents: 256) {
+                if case let .itemsFound(batch) = event { items.append(contentsOf: batch) }
+            }
+            if await session.isFinished() { break }
+            try? await Task.sleep(nanoseconds: 30_000_000)
+        }
+        for event in await session.pollEvents(maxEvents: 256) {
+            if case let .itemsFound(batch) = event { items.append(contentsOf: batch) }
+        }
+        XCTAssertFalse(items.contains { $0.displayName == "secret.txt" })
+        XCTAssertTrue(items.contains { $0.displayName == "open.txt" })
+    }
+
     func test_userDocumentsNeverAppear() async throws {
         fixture.write("Documents/taxes.pdf", bytes: 8192)
         fixture.write("Library/Caches/com.example.app/blob.bin", bytes: 4096)

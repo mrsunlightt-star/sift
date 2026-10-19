@@ -20,13 +20,13 @@ final class DuplicateTests: XCTestCase, @unchecked Sendable {
         super.tearDown()
     }
 
-    private func runDuplicateScan() async throws -> [DuplicateGroup] {
+    private func runDuplicateScan(roots: [String]? = nil) async throws -> [DuplicateGroup] {
         let rules = RuleEngine(rules: RuleEngine.builtInRules, homeDirectory: fixture.url)
         let engine = SwiftScannerEngine(rules: rules)
         let request = ScanRequest(
             roots: [ScanRoot(url: fixture.url, anchor: .home)],
             includeDuplicates: true,
-            duplicateRoots: [fixture.url.appendingPathComponent("Downloads").path]
+            duplicateRoots: roots ?? [fixture.url.appendingPathComponent("Downloads").path]
         )
         let session = try await engine.startScan(request)
         let deadline = Date().addingTimeInterval(30)
@@ -36,6 +36,28 @@ final class DuplicateTests: XCTestCase, @unchecked Sendable {
         }
         _ = await session.pollEvents(maxEvents: 256)
         return try await session.duplicateGroups(offset: 0, limit: 50)
+    }
+
+    /// A granted folder inside a default duplicate root must not be walked twice.
+    ///
+    /// Both roots used to stay in the request, so the same path entered the size
+    /// index twice, hashed twice, and formed a group of the file with itself —
+    /// with one file's bytes reported as reclaimable.
+    func test_nestedDuplicateRootsDoNotDuplicateAMember() async throws {
+        let payload = Data(repeating: 0x41, count: 64 * 1024)
+        let downloads = fixture.url.appendingPathComponent("Downloads")
+        let project = downloads.appendingPathComponent("Project")
+        fixture.writeBytes("Downloads/Project/one.bin", payload)
+        fixture.writeBytes("Downloads/Project/two.bin", payload)
+
+        let groups = try await runDuplicateScan(
+            roots: [downloads.path, project.path]
+        )
+        let group = try XCTUnwrap(groups.first)
+        XCTAssertEqual(groups.count, 1)
+        XCTAssertEqual(group.members.count, 2, "one entry per file, not per traversal")
+        XCTAssertEqual(Set(group.members.map(\.url.path)).count, 2)
+        XCTAssertEqual(group.reclaimableSizeInBytes, Int64(payload.count))
     }
 
     func test_identicalFilesFormOneGroup() async throws {

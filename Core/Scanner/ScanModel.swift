@@ -53,6 +53,28 @@ public final class ScanModel: ObservableObject {
 
     public var hasResults: Bool { phase.hasResults }
 
+    /// True once the run has reached a phase no further event will leave.
+    private var isSettled: Bool {
+        switch phase {
+        case .ready, .partial, .cancelled, .failed: true
+        default: false
+        }
+    }
+
+    /// Waits until the current run has finished, failed or been cancelled.
+    ///
+    /// `start` returns when the engine has a session, not when the session has
+    /// results. A caller that pages immediately can read an empty index or the
+    /// first few items of a scan still in progress, and then preselect a set that
+    /// describes an unfinished run. This is the completion gate that makes the
+    /// result pages read one settled scan.
+    public func waitUntilSettled() async {
+        while session != nil, !isSettled {
+            if Task.isCancelled { return }
+            try? await Task.sleep(nanoseconds: 20_000_000)
+        }
+    }
+
     /// Total bytes the scan believes can be released.
     public var reclaimableBytes: Int64 {
         report?.estimatedReclaimableBytes ?? categoryTotals.reduce(0) { $0 + $1.totalBytes }

@@ -91,11 +91,11 @@ actor RustScannerEngine: ScannerEngine {
         )
     }
 
-    func analyzeStorage(roots: [ScanRoot]) async throws -> StorageAnalysis {
+    func analyzeStorage(roots: [ScanRoot], ignoredPaths: [String]) async throws -> StorageAnalysis {
         let payload: [String: Any] = [
             "homeDir": FileManager.default.homeDirectoryForCurrentUser.path,
             "roots": roots.map(\.url.path),
-            "ignorePaths": [String](),
+            "ignorePaths": ignoredPaths,
             "topFileLimit": ScanDefaults.topFileLimit,
             "topDirectoryLimit": ScanDefaults.topDirectoryLimit,
             "largeFileThresholdBytes": ScanDefaults.largeFileThresholdBytes,

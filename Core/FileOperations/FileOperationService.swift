@@ -94,9 +94,9 @@ public actor FileOperationService {
                 continue
             }
 
-            if rules.isExcludedBundleName(candidate.url.lastPathComponent) {
+            if rules.isInExcludedLocation(path) {
                 protected.append(candidate)
-                logger.notice("Refused an excluded bundle name")
+                logger.notice("Refused a path inside an excluded application's data")
                 continue
             }
 
@@ -288,6 +288,24 @@ public actor FileOperationService {
                         status: .skipped,
                         errorCode: ErrorCode.fileNotFound.rawValue,
                         message: LocalizationKey.cleanupFailureFileNotFound.localized,
+                        sizeInBytes: item.sizeInBytes,
+                        category: item.category
+                    )
+                )
+                continue
+            }
+
+            // The same ancestor check as pre-flight. A candidate constructed by
+            // another caller, or a path re-pointed after pre-flight, must not be
+            // able to reach an excluded application's data through the move.
+            if rules.isInExcludedLocation(item.url.path) {
+                logger.error("Blocked a path inside an excluded application's data at execution time")
+                results.append(
+                    FileOperationResult(
+                        sourceURL: item.url,
+                        status: .failed,
+                        errorCode: ErrorCode.protectedLocation.rawValue,
+                        message: LocalizationKey.cleanupFailureProtectedLocation.localized,
                         sizeInBytes: item.sizeInBytes,
                         category: item.category
                     )

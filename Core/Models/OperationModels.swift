@@ -563,15 +563,39 @@ public struct UninstallPlan: Identifiable, Sendable {
     }
 
     public var totalBytes: Int64 {
-        application.sizeInBytes + confirmedFiles.reduce(0) { $0 + $1.sizeInBytes }
+        totalBytes(includeReviewFiles: false)
+    }
+
+    /// The size of what `selectedItems(includeReviewFiles:)` will move.
+    ///
+    /// The confirmed-only total is what the plan reports by default; the
+    /// confirmation panel asks with the user's current choice, because a review
+    /// file the user opted into is part of the batch even though the plan's
+    /// baseline does not include it.
+    public func totalBytes(includeReviewFiles: Bool) -> Int64 {
+        application.sizeInBytes + relatedBytes(includeReviewFiles: includeReviewFiles)
+    }
+
+    public func relatedBytes(includeReviewFiles: Bool) -> Int64 {
+        let confirmed = confirmedFiles.reduce(0) { $0 + $1.sizeInBytes }
+        guard includeReviewFiles else { return confirmed }
+        return reviewFiles.reduce(confirmed) { $0 + $1.sizeInBytes }
     }
 
     public var formattedTotal: String { SiftFormat.bytes(totalBytes) }
 
+    public func formattedTotal(includeReviewFiles: Bool) -> String {
+        SiftFormat.bytes(totalBytes(includeReviewFiles: includeReviewFiles))
+    }
+
     public var formattedApplicationSize: String { application.formattedSize }
 
     public var formattedRelatedSize: String {
-        SiftFormat.bytes(confirmedFiles.reduce(0) { $0 + $1.sizeInBytes })
+        SiftFormat.bytes(relatedBytes(includeReviewFiles: false))
+    }
+
+    public func formattedRelatedSize(includeReviewFiles: Bool) -> String {
+        SiftFormat.bytes(relatedBytes(includeReviewFiles: includeReviewFiles))
     }
 
     /// The application bundle plus every related file, as cleanup items.

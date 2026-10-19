@@ -76,11 +76,18 @@ public struct RestoredLocation: Sendable {
     /// A replacement bookmark when the stored one had gone stale, so the caller
     /// can persist it instead of repeating the repair on every launch.
     public let refreshedBookmark: Data?
+    /// Whether the resolved location is a mounted volume rather than a folder.
+    ///
+    /// Recomputed from the path instead of trusting the stored record: an older
+    /// build called every location below `/Volumes` a volume, including a folder
+    /// inside an external disk.
+    public let isVolume: Bool
 
-    public init(id: UUID, url: URL, refreshedBookmark: Data?) {
+    public init(id: UUID, url: URL, refreshedBookmark: Data?, isVolume: Bool) {
         self.id = id
         self.url = url
         self.refreshedBookmark = refreshedBookmark
+        self.isVolume = isVolume
     }
 }
 
@@ -258,7 +265,7 @@ public actor AuthorizationService {
 
         do {
             let bookmark = try coder.makeBookmark(for: resolved)
-            let isVolume = resolved.path == "/" || resolved.path.hasPrefix("/Volumes/")
+            let isVolume = Self.describesVolume(resolved)
             let location = AuthorizedLocation(
                 bookmark: bookmark,
                 displayName: resolved.lastPathComponent,
@@ -336,7 +343,12 @@ public actor AuthorizationService {
             }
 
             restored.append(
-                RestoredLocation(id: location.id, url: url, refreshedBookmark: refreshed)
+                RestoredLocation(
+                    id: location.id,
+                    url: url,
+                    refreshedBookmark: refreshed,
+                    isVolume: Self.describesVolume(url)
+                )
             )
         }
         scope.replace(with: restored.map(\.url))
@@ -351,6 +363,16 @@ public actor AuthorizationService {
         }
         active.removeAll()
         scope.replace(with: [])
+    }
+
+    /// Whether `url` is the root of a mounted volume.
+    ///
+    /// A prefix test is not enough: `/Volumes/Backup/Photos` is a folder inside
+    /// the disk, not the disk. The only children of `/Volumes` that are volumes
+    /// are its direct children (and `/` itself).
+    public static func describesVolume(_ url: URL) -> Bool {
+        let path = url.path
+        return path == "/" || RuleEngine.isMountedVolume(path)
     }
 
     /// Opens the security scope for `url` and holds it for the app's lifetime,

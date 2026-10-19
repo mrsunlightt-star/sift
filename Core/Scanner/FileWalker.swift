@@ -146,6 +146,11 @@ enum FileWalker {
                     )
                     continue
                 }
+                // An excluded application's data is skipped with its whole
+                // subtree. Checking only a candidate's own name would let a large
+                // or old file inside `~/Library/Caches/CloudKit` through, because
+                // the file is called something else.
+                if rules.isInExcludedLocation(url.path) { continue }
 
                 let values = try? url.resourceValues(forKeys: Set(Self.resourceKeys))
                 // A symlink is skipped silently: they are common and a warning
@@ -256,6 +261,10 @@ enum FileWalker {
                 let values = try? child.resourceValues(forKeys: Set(resourceKeys))
                 if values?.isSymbolicLink == true { continue }
                 if skipHidden, child.lastPathComponent.hasPrefix(".") { continue }
+                // The walk never descends into an excluded location, so neither
+                // may a measurement: otherwise a directory's reported size would
+                // count bytes the scan refuses to offer.
+                if rules.isInExcludedLocation(child.path) { continue }
                 if values?.isDirectory == true {
                     if rules.protectionReason(for: child.path) != nil { continue }
                     stack.append(child)

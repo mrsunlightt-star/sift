@@ -34,6 +34,10 @@ public final class CleanupModel: ObservableObject {
     private let operations: FileOperationService
     private let reports: ReportService
     private let logger = SiftLog.cleanup
+    /// Whether rows appended after the first page follow the scan's default
+    /// selection. Set by `setItems`, so a page that presents items for review
+    /// (file cleanup) never preselects a later page either.
+    private var preselectsAppendedItems = true
 
     public init(rules: RuleEngine, operations: FileOperationService, reports: ReportService) {
         self.rules = rules
@@ -47,6 +51,7 @@ public final class CleanupModel: ObservableObject {
     /// still cleanable.
     public func setItems(_ newItems: [CleanupItem], preselect: Bool = true) {
         items = newItems
+        preselectsAppendedItems = preselect
         var next: Set<String> = []
         for item in newItems where preselect && item.isSelectedByDefault && item.risk.isCleanable {
             next.insert(item.id)
@@ -57,10 +62,18 @@ public final class CleanupModel: ObservableObject {
     /// Adds items to the list without disturbing the current selection.
     ///
     /// Items are keyed by their stable identity, so a page that overlaps a
-    /// previous one cannot duplicate a row.
+    /// previous one cannot duplicate a row. New items follow the same default
+    /// selection as the first screenful: the result list pages its rows, and a
+    /// safe item that happened to sort onto page two must start selected for the
+    /// same reason a safe item on page one does.
     public func appendItems(_ newItems: [CleanupItem]) {
         let known = Set(items.map(\.id))
-        items.append(contentsOf: newItems.filter { !known.contains($0.id) })
+        let added = newItems.filter { !known.contains($0.id) }
+        items.append(contentsOf: added)
+        guard preselectsAppendedItems else { return }
+        for item in added where item.isSelectedByDefault && item.risk.isCleanable {
+            selection.insert(item.id)
+        }
     }
 
     public func isSelected(_ item: CleanupItem) -> Bool {

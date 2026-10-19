@@ -22,6 +22,25 @@ final class NSWorkspaceWorker {
         }
     }
 
+    /// Asks the running application at `bundleURL` to quit.
+    ///
+    /// `terminate()` is a request: the application may prompt the user to save
+    /// work. It reports `false` when no running instance matches or the request
+    /// could not be sent, which is the case the caller has to tell the user about
+    /// instead of leaving a button that did nothing.
+    func terminateApplication(bundleURL: URL) -> Bool {
+        let target = bundleURL.standardizedFileURL.resolvingSymlinksInPath().path
+        guard let application = NSWorkspace.shared.runningApplications.first(where: { candidate in
+            candidate.bundleURL?
+                .standardizedFileURL
+                .resolvingSymlinksInPath()
+                .path == target
+        }) else {
+            return false
+        }
+        return application.terminate()
+    }
+
     /// Opens a URL with the default handler, e.g. the Trash in the Finder.
     func open(_ url: URL) -> Bool {
         NSWorkspace.shared.open(url)
@@ -78,5 +97,13 @@ public enum WorkspaceActions {
         let paths = await MainActor.run { NSWorkspaceWorker.shared.runningApplicationBundlePaths() }
         let target = bundlePath.standardizedFileURL.resolvingSymlinksInPath().path
         return paths.contains(target)
+    }
+
+    /// Asks the application at `bundlePath` to quit, reporting whether the request
+    /// was sent.
+    public static func quitApplication(bundlePath: URL) async -> Bool {
+        await MainActor.run {
+            NSWorkspaceWorker.shared.terminateApplication(bundleURL: bundlePath)
+        }
     }
 }

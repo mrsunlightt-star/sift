@@ -116,6 +116,7 @@ public struct RuleEngine: Sendable {
     /// Bundle identifiers whose data must never be offered for deletion.
     public static let excludedBundleNames: Set<String> = [
         "CloudKit", "com.apple.bird", "com.apple.iCloud", "com.apple.cloudd", "FamilyCircle",
+        "com.apple.security.cloudkeychainproxy",
     ]
 
     public let rules: [Rule]
@@ -234,8 +235,7 @@ public struct RuleEngine: Sendable {
             case .secrets: return .secrets(entry.path)
             }
         }
-        if resolved.hasSuffix(ProtectedPaths.photosLibrarySuffix)
-            || resolved.contains("\(ProtectedPaths.photosLibrarySuffix)/") {
+        if Self.isPhotoLibrary(resolved) {
             return .photosLibrary
         }
         // A grant may lift the blanket `/Volumes` guard for exactly the subtree
@@ -288,8 +288,7 @@ public struct RuleEngine: Sendable {
         where Self.isPrefix("\(homeDirectory)/\(entry.path)", path) {
             return false
         }
-        if path.hasSuffix(ProtectedPaths.photosLibrarySuffix)
-            || path.contains("\(ProtectedPaths.photosLibrarySuffix)/") {
+        if Self.isPhotoLibrary(path) {
             return false
         }
         return true
@@ -331,6 +330,50 @@ public struct RuleEngine: Sendable {
     /// True for a bundle identifier whose data must never be offered for removal.
     public func isExcludedBundleName(_ name: String) -> Bool {
         Self.excludedBundleNames.contains { $0.caseInsensitiveCompare(name) == .orderedSame }
+    }
+
+    /// True when any component of `path` is an excluded application's data.
+    ///
+    /// Excluding a directory is not excluding what is inside it: a large or old
+    /// file found by a threshold scan has its own name, so the check has to walk
+    /// the ancestors rather than look at the last component. The same predicate
+    /// guards the walk, the pre-flight check and the move, so a path cannot enter
+    /// the queue through one entry point and be refused by another.
+    public func isInExcludedLocation(_ path: String) -> Bool {
+        let resolved = Self.normalize(path)
+        return resolved
+            .split(separator: "/")
+            .contains { isExcludedBundleName(String($0)) }
+    }
+
+    /// True when a rule's `excludes` covers any component below its root.
+    ///
+    /// A rule that excludes a directory means the subtree, not only an entry
+    /// whose own name happens to match: `~/Library/Caches/CloudKit` excluded from
+    /// a `Caches` rule must also drop `CloudKit/db.bin` when the rule scans files.
+    /// Both engines apply this from the same shape.
+    public func isExcludedByRule(_ rule: Rule, path: String, under root: String) -> Bool {
+        guard !rule.excludes.isEmpty else { return false }
+        let pathComponents = Self.normalize(path).split(separator: "/")
+        let rootComponents = Self.normalize(root).split(separator: "/")
+        guard pathComponents.starts(with: rootComponents) else { return false }
+        let relative = pathComponents.dropFirst(rootComponents.count)
+        return relative.contains { component in
+            let name = String(component)
+            return rule.excludes.contains { name == $0 || name.hasPrefix($0 + ".") }
+        }
+    }
+
+    /// True when the path names a photo library package.
+    ///
+    /// Case-insensitive on purpose. A protection rule that only matched
+    /// `.photoslibrary` exactly could be sidestepped by renaming the package to
+    /// `.PhotosLibrary` on a case-insensitive volume; the suffix is a safety net,
+    /// so it errs on the side of refusing. The Rust core applies the same rule.
+    public static func isPhotoLibrary(_ path: String) -> Bool {
+        let lowered = path.lowercased()
+        let suffix = ProtectedPaths.photosLibrarySuffix.lowercased()
+        return lowered.hasSuffix(suffix) || lowered.contains("\(suffix)/")
     }
 
     /// True when a name can only be a reverse-DNS bundle identifier.
@@ -424,8 +467,7 @@ public struct RuleEngine: Sendable {
         let rootPaths = resolvedRoots(for: rule).map { Self.normalize($0.path) }
         guard let rootPath = rootPaths.first(where: { Self.isPrefix($0, path) }) else { return false }
 
-        let name = (path as NSString).lastPathComponent
-        if rule.excludes.contains(where: { name == $0 || name.hasPrefix($0 + ".") }) { return false }
+        if isExcludedByRule(rule, path: path, under: rootPath) { return false }
 
         switch rule.matchSpec {
         case .directory:
@@ -549,6 +591,13 @@ public struct RuleEngine: Sendable {
         case escapingRelativePath(String)
         case emptyRuleID
         case duplicateRuleID(String)
+        /// A `matchSpec` string this build does not understand.
+        ///
+        /// It is refused rather than treated as absent: deriving the default from
+        /// the rule's shape would turn a misspelled `filesByExtension` into a
+        /// rule over every file below the root, changing what the rule means
+        /// instead of reporting that it could not be read.
+        case unknownMatchSpec(String)
     }
 
     // MARK: - Path helpers
@@ -656,20 +705,25 @@ extension RuleEngine.Rule: Decodable {
         explanationKey = try container.decode(String.self, forKey: .explanationKey)
         isEnabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
 
-        // The match specification is written in one of two shapes: a string for
-        // the simple cases, or an object carrying extensions.
-        let spec = try container.decodeIfPresent(String.self, forKey: .matchSpec)
+        // The match specification is a string with the extension list beside it.
+        // An unknown value is a decoding error, not "no specification": the
+        // fallback derived from `relativePath` would quietly widen a misspelled
+        // `filesByExtension` rule to every file under its root.
         let extensions = try container.decodeIfPresent([String].self, forKey: .extensions) ?? []
-        switch spec {
-        case "directory":
-            matchSpec = .directory
-        case "childDirectories":
-            matchSpec = .childDirectories
-        case "filesByExtension":
-            matchSpec = .filesByExtension(extensions.map { $0.lowercased() })
-        case "anyFile":
-            matchSpec = .anyFile
-        default:
+        if let spec = try container.decodeIfPresent(String.self, forKey: .matchSpec) {
+            switch spec {
+            case "directory":
+                matchSpec = .directory
+            case "childDirectories":
+                matchSpec = .childDirectories
+            case "filesByExtension":
+                matchSpec = .filesByExtension(extensions.map { $0.lowercased() })
+            case "anyFile":
+                matchSpec = .anyFile
+            default:
+                throw RuleEngine.RuleError.unknownMatchSpec(spec)
+            }
+        } else {
             matchSpec = nil
         }
     }

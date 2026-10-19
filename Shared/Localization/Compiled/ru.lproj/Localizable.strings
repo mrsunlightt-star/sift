@@ -334,6 +334,14 @@
 "storage.title" = "Хранилище";
 "storage.topDirectories" = "Самые большие папки";
 "storage.topFiles" = "Самые большие файлы";
+"storage.type.archives" = "Архивы";
+"storage.type.audio" = "Аудио";
+"storage.type.code" = "Код";
+"storage.type.data" = "Данные";
+"storage.type.documents" = "Документы";
+"storage.type.images" = "Изображения";
+"storage.type.other" = "Другое";
+"storage.type.video" = "Видео";
 "storage.used" = "Занято %@ из %@";
 "storage.volume" = "Том";
 "uninstall.appRunning" = "%@ запущено. Закройте его, иначе Sift пропустит занятые файлы.";
@@ -343,6 +351,7 @@
 "uninstall.needsReview" = "Требуют подтверждения";
 "uninstall.noRelatedFiles" = "Связанные файлы не найдены.";
 "uninstall.noneInstalled" = "Сторонние приложения не найдены";
+"uninstall.quitFailed" = "Sift не удалось попросить %@ завершить работу. Закройте его вручную и повторите.";
 "uninstall.reason.applicationName" = "Имя точно совпадает с приложением, и папка предназначена для данных приложений.";
 "uninstall.reason.bundleIdentifier" = "Имя совпадает с идентификатором этого приложения.";
 "uninstall.reason.identifierPrefix" = "Имя начинается с идентификатора этого приложения.";

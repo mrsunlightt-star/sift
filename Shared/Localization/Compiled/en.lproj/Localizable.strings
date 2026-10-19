@@ -334,6 +334,14 @@
 "storage.title" = "Storage";
 "storage.topDirectories" = "Largest folders";
 "storage.topFiles" = "Largest files";
+"storage.type.archives" = "Archives";
+"storage.type.audio" = "Audio";
+"storage.type.code" = "Code";
+"storage.type.data" = "Data";
+"storage.type.documents" = "Documents";
+"storage.type.images" = "Images";
+"storage.type.other" = "Other";
+"storage.type.video" = "Video";
 "storage.used" = "%@ used of %@";
 "storage.volume" = "Volume";
 "uninstall.appRunning" = "%@ is running. Quit it before removing, or Sift will skip the files it holds open.";
@@ -343,6 +351,7 @@
 "uninstall.needsReview" = "Needs your confirmation";
 "uninstall.noRelatedFiles" = "No related files were found.";
 "uninstall.noneInstalled" = "No third-party apps found";
+"uninstall.quitFailed" = "Sift could not ask %@ to quit. Quit it manually and try again.";
 "uninstall.reason.applicationName" = "The name is exactly the application name, in a folder macOS keeps per app.";
 "uninstall.reason.bundleIdentifier" = "The name is this app's bundle identifier.";
 "uninstall.reason.identifierPrefix" = "The name starts with this app's bundle identifier.";

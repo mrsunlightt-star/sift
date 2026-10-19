@@ -197,14 +197,42 @@ final class AuthorizationTests: XCTestCase, @unchecked Sendable {
     func test_theRegistrySurvivesCorruptSettingsWithoutCrashing() {
         let duplicated = [stored("/Volumes/Backup")]
         let locations = [
-            RestoredLocation(id: duplicated[0].id, url: URL(fileURLWithPath: "/Volumes/Backup"), refreshedBookmark: nil),
-            RestoredLocation(id: duplicated[0].id, url: URL(fileURLWithPath: "/Volumes/Other"), refreshedBookmark: nil),
+            RestoredLocation(
+                id: duplicated[0].id,
+                url: URL(fileURLWithPath: "/Volumes/Backup"),
+                refreshedBookmark: nil,
+                isVolume: true
+            ),
+            RestoredLocation(
+                id: duplicated[0].id,
+                url: URL(fileURLWithPath: "/Volumes/Other"),
+                refreshedBookmark: nil,
+                isVolume: true
+            ),
         ]
 
         let registry = GrantRegistry(locations)
 
         XCTAssertEqual(registry.urls.count, 1, "a duplicated identifier is one grant")
         XCTAssertTrue(registry.isAvailable(duplicated[0].id))
+    }
+
+    func test_aFolderInsideAVolumeIsNotTheVolumeItself() {
+        // `/Volumes/Backup/Photos` is a folder on an external disk. Treating any
+        // path below `/Volumes` as a volume made the diagnostics pair the disk's
+        // capacity with a folder's measured bytes.
+        XCTAssertTrue(
+            AuthorizationService.describesVolume(URL(fileURLWithPath: "/Volumes/Backup"))
+        )
+        XCTAssertFalse(
+            AuthorizationService.describesVolume(
+                URL(fileURLWithPath: "/Volumes/Backup/Photos")
+            )
+        )
+        XCTAssertTrue(AuthorizationService.describesVolume(URL(fileURLWithPath: "/")))
+        XCTAssertFalse(
+            AuthorizationService.describesVolume(URL(fileURLWithPath: "/Users/example/Backup"))
+        )
     }
 
     // MARK: - The authorised rule anchors

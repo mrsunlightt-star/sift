@@ -170,6 +170,10 @@ public final class AppEnvironment: ObservableObject {
             ScanRoot(url: home, anchor: .home),
         ]
         for url in restoredAuthorizedURLs {
+            // A grant inside the home folder is already covered by the home
+            // root. Adding it again would walk the same tree twice — and, for
+            // the threshold scans, offer every file in it twice.
+            if RuleEngine.isPrefix(home.path, url.path) { continue }
             roots.append(
                 ScanRoot(
                     url: url,
@@ -194,9 +198,10 @@ public final class AppEnvironment: ObservableObject {
             // rather than filtered out of the list afterwards.
             includeHiddenFiles: current.showHiddenFiles,
             includeDuplicates: includeDuplicates,
-            // Sorted and deduplicated: a granted folder that is also a default
-            // root would otherwise appear twice.
-            duplicateRoots: Array(Set(defaultDuplicateRoots())).sorted(),
+            // Sorted and deduplicated, including nested roots: a granted folder
+            // inside `~/Downloads` is already covered by `~/Downloads`, and
+            // walking both would report one file twice.
+            duplicateRoots: Self.nonOverlappingDuplicateRoots(defaultDuplicateRoots()),
             // The Rust core only reads rule JSON; it has no access to this
             // engine's rule list. Without this the two engines ran different
             // rule sets and a user's own rule was honoured by the Swift
@@ -214,6 +219,12 @@ public final class AppEnvironment: ObservableObject {
         cleanup.resetForNewScan()
         let request = await makeScanRequest(includeDuplicates: intent.includesDuplicates)
         await scan.start(request)
+        // `start` only means the engine accepted the request. Paging and the
+        // duplicate index are ready when the run reaches a terminal phase; asked
+        // earlier they answer with an empty or partial result, and the first
+        // screenful — including which items are pre-selected — would describe a
+        // scan that had not finished.
+        await scan.waitUntilSettled()
         if intent.includesDuplicates {
             await scan.loadDuplicateGroups()
         }
@@ -294,7 +305,28 @@ public final class AppEnvironment: ObservableObject {
             .filter { FileManager.default.fileExists(atPath: $0.path) }
             .map(\.path)
         roots.append(contentsOf: restoredAuthorizedURLs.map(\.path))
-        return roots
+        return Self.nonOverlappingDuplicateRoots(roots)
+    }
+
+    /// Drops duplicate and nested roots, keeping the outermost one.
+    ///
+    /// The duplicate scan walks every root it is given, so a granted folder
+    /// inside `~/Downloads` must not be searched a second time: the same file
+    /// would enter the size index twice and could be reported as a duplicate of
+    /// itself, with reclaimable space counted twice.
+    static func nonOverlappingDuplicateRoots(_ roots: [String]) -> [String] {
+        let normalised = Set(roots.map(RuleEngine.normalize))
+        let ordered = normalised.sorted { first, second in
+            let firstDepth = first.split(separator: "/").count
+            let secondDepth = second.split(separator: "/").count
+            return firstDepth == secondDepth ? first < second : firstDepth < secondDepth
+        }
+        var kept: [String] = []
+        for path in ordered {
+            if kept.contains(where: { RuleEngine.isPrefix($0, path) }) { continue }
+            kept.append(path)
+        }
+        return kept.sorted()
     }
 
     /// Where the diagnostics look.
@@ -345,17 +377,24 @@ public final class AppEnvironment: ObservableObject {
         var locations = await settings.current().authorizedLocations
         var changed = false
         for entry in restored.locations {
-            guard let refreshed = entry.refreshedBookmark,
-                  let index = locations.firstIndex(where: { $0.id == entry.id }) else { continue }
+            guard let index = locations.firstIndex(where: { $0.id == entry.id }) else { continue }
             let existing = locations[index]
-            locations[index] = AuthorizedLocation(
-                id: existing.id,
-                bookmark: refreshed,
-                displayName: existing.displayName,
-                isVolume: existing.isVolume,
-                addedAt: existing.addedAt
-            )
-            changed = true
+            // A bookmark written by an older build carries that build's idea of
+            // whether the location was a whole volume. The resolved path decides
+            // now, so a folder inside an external disk stops being reported as
+            // the disk itself.
+            let isVolume = AuthorizationService.describesVolume(entry.url)
+            let bookmark = entry.refreshedBookmark ?? existing.bookmark
+            if entry.refreshedBookmark != nil || existing.isVolume != isVolume {
+                locations[index] = AuthorizedLocation(
+                    id: existing.id,
+                    bookmark: bookmark,
+                    displayName: existing.displayName,
+                    isVolume: isVolume,
+                    addedAt: existing.addedAt
+                )
+                changed = true
+            }
         }
         if !restored.refused.isEmpty {
             // A stored grant the allowlist no longer accepts is removed rather
@@ -413,6 +452,16 @@ public final class AppEnvironment: ObservableObject {
     /// Reveals a file or folder in the Finder.
     public func reveal(_ url: URL) async {
         await WorkspaceActions.reveal(url)
+    }
+
+    /// Asks the running application at `url` to quit.
+    ///
+    /// Returns `false` when it is not running or the request could not be sent.
+    /// The caller shows that, because a button labelled "Quit" must not silently
+    /// do something else.
+    @discardableResult
+    public func quitApplication(_ url: URL) async -> Bool {
+        await WorkspaceActions.quitApplication(bundlePath: url)
     }
 
     /// Opens the Trash.

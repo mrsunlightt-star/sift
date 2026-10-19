@@ -28,11 +28,19 @@ public struct ApplicationDiscovery: @unchecked Sendable {
         var directories = [
             URL(fileURLWithPath: "/Applications", isDirectory: true),
             URL(fileURLWithPath: "/Applications/Utilities", isDirectory: true),
+            // System applications are listed and marked uninstallable-protected,
+            // not hidden (§5.3). A directory only reachable through here would
+            // otherwise be absent from the list entirely.
+            URL(fileURLWithPath: "/System/Applications", isDirectory: true),
+            URL(fileURLWithPath: "/System/Applications/Utilities", isDirectory: true),
             fileManager.homeDirectoryForCurrentUser.appendingPathComponent("Applications", isDirectory: true),
         ]
         directories.append(contentsOf: additionalDirectories)
         self.applicationDirectories = directories
     }
+
+    /// The directories this discovery searches, in order. Test-visible.
+    var searchDirectories: [URL] { applicationDirectories }
 
     /// Every application found, system apps included.
     ///
@@ -102,7 +110,34 @@ public struct ApplicationDiscovery: @unchecked Sendable {
     }
 
     private func measureApplication(url: URL) -> Int64 {
-        FileWalker.measure(url: url, rules: rules, isCancelled: { false }).bytes
+        // An application bundle is one object, and its size is what removing it
+        // would free. It must not be measured through the cleanup walker: that
+        // walker refuses `/System`, so every system application — now that
+        // `/System/Applications` is searched — reported zero bytes.
+        let keys: [URLResourceKey] = [
+            .isRegularFileKey,
+            .isSymbolicLinkKey,
+            .totalFileAllocatedSizeKey,
+            .fileAllocatedSizeKey,
+            .fileSizeKey,
+        ]
+        guard let enumerator = fileManager.enumerator(
+            at: url,
+            includingPropertiesForKeys: keys,
+            options: [],
+            errorHandler: { _, _ in true }
+        ) else {
+            return 0
+        }
+
+        var bytes: Int64 = 0
+        for case let child as URL in enumerator {
+            guard let values = try? child.resourceValues(forKeys: Set(keys)) else { continue }
+            if values.isSymbolicLink == true { continue }
+            guard values.isRegularFile == true else { continue }
+            bytes += FileWalker.allocatedSize(values: values, url: child)
+        }
+        return bytes
     }
 
     private func lastUsed(url: URL) -> Date? {
@@ -155,17 +190,19 @@ public struct ApplicationDiscovery: @unchecked Sendable {
                     continue
                 }
                 if rules.protectionReason(for: candidate.path) != nil { continue }
-                if rules.isExcludedBundleName(candidate.lastPathComponent) { continue }
+                if rules.isInExcludedLocation(candidate.path) { continue }
                 let size = measureEntry(candidate)
                 let file = RelatedFile(
                     url: candidate,
                     sizeInBytes: size,
-                    confidence: confidence,
-                    reason: match
+                    confidence: Self.combine(confidence, match.confidence),
+                    reason: match.reason
                 )
-                // A group container is only ever a candidate when the rule is
-                // unambiguous, which the review bucket expresses.
-                if confidence == .confirmed {
+                // Only a precise match in a location macOS itself names after an
+                // application enters the removal batch on Sift's judgement. A
+                // name or identifier-suffix match is a plausible association, and
+                // two applications can share either, so it is shown for review.
+                if file.confidence == .confirmed {
                     confirmed.append(file)
                 } else {
                     review.append(file)
@@ -185,35 +222,52 @@ public struct ApplicationDiscovery: @unchecked Sendable {
     /// application name. A prefix or substring match is never enough. The reason
     /// travels with the file so the uninstaller can show what the match was, which
     /// is what lets the user judge the ones it is unsure about (§5.3).
+    ///
+    /// The confidence is part of the answer. An identifier match names the
+    /// application unambiguously; an exact name and the last identifier component
+    /// do not — `com.vendor.notes` and an unrelated `notes` folder can coexist —
+    /// so those are only ever suggestions.
     private func match(
         candidate: URL,
         identifier: String,
         appName: String
-    ) -> RelatedFile.MatchReason? {
+    ) -> (reason: RelatedFile.MatchReason, confidence: RelatedFile.Confidence)? {
         let name = candidate.lastPathComponent
         let stem = name.contains(".") ? String(name.split(separator: ".").first ?? "") : name
 
         if !identifier.isEmpty {
             // Exact identifier, or `<identifier>.<something>` (caches, plists).
             if name.caseInsensitiveCompare(identifier) == .orderedSame {
-                return .bundleIdentifier
+                return (.bundleIdentifier, .confirmed)
             }
             if name.lowercased().hasPrefix(identifier.lowercased() + ".") {
-                return .identifierPrefix
+                return (.identifierPrefix, .confirmed)
             }
         }
 
         // An exact application-name match is only accepted where macOS itself
         // names per-app data, which the caller's location list already encodes.
         if name.caseInsensitiveCompare(appName) == .orderedSame {
-            return .applicationName
+            return (.applicationName, .needsReview)
         }
         if !identifier.isEmpty,
            stem.caseInsensitiveCompare(identifier.split(separator: ".").last.map(String.init) ?? identifier)
             == .orderedSame {
-            return .identifierSuffix
+            return (.identifierSuffix, .needsReview)
         }
         return nil
+    }
+
+    /// The weaker of two confidences.
+    ///
+    /// A location that is itself ambiguous (`Group Containers`) cannot become
+    /// confirmed because the name happened to match exactly, and a precise match
+    /// is the only thing that can confirm a candidate at all.
+    private static func combine(
+        _ location: RelatedFile.Confidence,
+        _ match: RelatedFile.Confidence
+    ) -> RelatedFile.Confidence {
+        location == .confirmed && match == .confirmed ? .confirmed : .needsReview
     }
 
     private func measureEntry(_ url: URL) -> Int64 {

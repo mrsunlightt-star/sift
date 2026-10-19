@@ -211,6 +211,15 @@ final class EngineAgreementTests: XCTestCase, @unchecked Sendable {
         // A path the protection list refuses, which neither engine may report.
         fixture.write("Documents/taxes.pdf", bytes: 4096)
 
+        // The photo-library suffix is a protection net, not a spelling. A rename
+        // that only changes case must be refused by both engines.
+        fixture.write("Archive.PHOTOSLIBRARY/db", bytes: 4096)
+
+        // Excluded application data holds a file large enough for the threshold
+        // scan. The exclusion belongs to the ancestor, so both engines must skip
+        // the subtree rather than only the directory entry.
+        fixture.write("Library/Caches/CloudKit/large.bin", bytes: 2 * 1024 * 1024)
+
         // A symlink pointing out of the tree, which neither engine may follow.
         try? FileManager.default.createSymbolicLink(
             at: fixture.url.appendingPathComponent("Library/Caches/link-out"),

@@ -350,7 +350,9 @@ public struct StorageAnalysisView: View {
         let diagnostics = environment.diagnostics
         let rules = environment.rules
         let home = URL(fileURLWithPath: rules.homeDirectory)
-        let scanRoots = await environment.makeScanRequest(includeDuplicates: false).roots
+        let scanRequest = await environment.makeScanRequest(includeDuplicates: false)
+        let scanRoots = scanRequest.roots
+        let ignoredPaths = scanRequest.ignoredPaths
         let diagnosticRoots = environment.diagnosticRoots(includeVolumeRoot: includeVolumeRoot)
         cancellation.isCancelled = false
         let flag = cancellation
@@ -358,6 +360,7 @@ public struct StorageAnalysisView: View {
         let task = Task(priority: .userInitiated) { () -> Void in
             let measured = (try? await analyzer.analyze(
                 roots: scanRoots,
+                ignoredPaths: ignoredPaths,
                 cancelled: { flag.isCancelled }
             )) ?? .empty
             guard !flag.isCancelled else { return }

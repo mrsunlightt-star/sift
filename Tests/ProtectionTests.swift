@@ -43,6 +43,102 @@ final class ProtectionTests: XCTestCase, @unchecked Sendable {
         )
     }
 
+    func test_thePhotoLibrarySuffixIsCaseInsensitive() {
+        // A rename that only changes case is still the same package on a
+        // case-insensitive volume. Protection must not depend on the spelling.
+        for path in [
+            "/Users/example/Archive/Photos Library.PHOTOSLIBRARY/db",
+            "/Users/example/Archive/Archive.PhotosLibrary/db",
+            "/Users/example/Library/Photos.PHOTOSLIBRARY",
+        ] {
+            XCTAssertNotNil(engine.protectionReason(for: path), "\(path) must be protected")
+            XCTAssertFalse(engine.canAuthorize(url: URL(fileURLWithPath: path)))
+        }
+    }
+
+    func test_anExcludedApplicationDirectoryIsRefusedThroughItsAncestors() {
+        // The candidate's own name is a log file; the exclusion belongs to an
+        // ancestor. Checking only the last component let the file through.
+        for path in [
+            "/Users/example/Library/Caches/CloudKit/db.bin",
+            "/Users/example/Library/Caches/com.apple.bird/data",
+            "/Users/example/Downloads/com.apple.iCloud/file",
+        ] {
+            XCTAssertTrue(engine.isInExcludedLocation(path), "\(path) is inside excluded data")
+        }
+        XCTAssertFalse(
+            engine.isInExcludedLocation("/Users/example/Library/Caches/com.example.app/db.bin")
+        )
+    }
+
+    func test_ruleExcludesCoverEverythingBelowTheNamedDirectory() {
+        let rule = RuleEngine.Rule(
+            id: "excluded",
+            category: .installers,
+            risk: .review,
+            root: .home,
+            relativePath: "Downloads",
+            matchSpec: .filesByExtension(["txt"]),
+            excludes: ["private"],
+            minAgeDays: nil,
+            requiresFullDiskAccess: false,
+            explanationKey: "cleanup.explanation.installers",
+            isEnabled: true
+        )
+        XCTAssertTrue(
+            engine.isExcludedByRule(
+                rule,
+                path: "/Users/example/Downloads/private/secret.txt",
+                under: "/Users/example/Downloads"
+            )
+        )
+        XCTAssertTrue(
+            engine.isExcludedByRule(
+                rule,
+                path: "/Users/example/Downloads/private.plist",
+                under: "/Users/example/Downloads"
+            ),
+            "an exclude also covers names that extend it with a suffix"
+        )
+        XCTAssertFalse(
+            engine.isExcludedByRule(
+                rule,
+                path: "/Users/example/Downloads/open.txt",
+                under: "/Users/example/Downloads"
+            )
+        )
+    }
+
+    func test_anUnknownMatchSpecRejectsTheRuleFile() {
+        // Treating an unknown value as "absent" would derive a default from the
+        // relative path and quietly turn a misspelled `filesByExtension` into a
+        // rule over the whole directory.
+        let overlay = """
+        {"schemaVersion":1,"rules":[
+          {"id":"typo","category":"installers","risk":"review","root":"home",
+           "relativePath":"Downloads","matchSpec":"filesByExtensionn",
+           "explanationKey":"cleanup.explanation.installers"}
+        ]}
+        """
+        do {
+            _ = try RuleEngine.decode(Data(overlay.utf8))
+            XCTFail("an unknown matchSpec must refuse the file")
+        } catch let error as RuleEngine.RuleError {
+            XCTAssertEqual(error, .unknownMatchSpec("filesByExtensionn"))
+        } catch {
+            XCTFail("unexpected error: \(error)")
+        }
+
+        // A rule without a matchSpec still defaults from its shape.
+        let defaulted = """
+        {"schemaVersion":1,"rules":[
+          {"id":"defaulted","category":"installers","risk":"review","root":"home",
+           "relativePath":"Downloads","explanationKey":"cleanup.explanation.installers"}
+        ]}
+        """
+        XCTAssertNotNil(try? RuleEngine.decode(Data(defaulted.utf8)))
+    }
+
     func test_everyEntryOnTheSharedProtectionListIsProtected() {
         // The list comes from `ProtectedPaths`, which is generated from the Rust
         // constants the scanner core reads. Asserting on the generated list is

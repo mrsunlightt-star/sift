@@ -453,7 +453,13 @@ pub fn analyse(options: &AnalysisOptions, cancel: &CancelToken) -> StorageAnalys
     let mut stack: Vec<PathBuf> = options
         .roots
         .iter()
-        .filter(|root| root.is_dir())
+        .filter(|root| {
+            root.is_dir()
+                && !options
+                    .ignore_paths
+                    .iter()
+                    .any(|skip| root.starts_with(skip))
+        })
         .cloned()
         .collect();
     let mut siblings: Vec<PathBuf> = Vec::new();
@@ -478,6 +484,9 @@ pub fn analyse(options: &AnalysisOptions, cancel: &CancelToken) -> StorageAnalys
                 .iter()
                 .any(|skip| path.starts_with(skip))
             {
+                continue;
+            }
+            if crate::scanners::is_in_excluded_location(&path) {
                 continue;
             }
             if is_protected_path_authorized(
@@ -641,6 +650,33 @@ mod tests {
         options.ignore_paths = vec![tree.root.join("skip")];
         let analysis = analyse(&options, &CancelToken::new());
         assert_eq!(analysis.scanned_file_count, 1);
+    }
+
+    #[test]
+    fn an_ignored_root_is_not_analysed() {
+        // The ignored location can also be a scan root itself, for example a
+        // granted folder the user later excluded. Filtering only children would
+        // still enter it.
+        let tree = TempTree::new("storage-ignore-root");
+        tree.file("skip/b.bin", 4096);
+        let ignored = tree.root.join("skip");
+
+        let mut options = AnalysisOptions::new(tree.root.clone(), vec![ignored.clone()]);
+        options.ignore_paths = vec![ignored];
+        let analysis = analyse(&options, &CancelToken::new());
+        assert_eq!(analysis.scanned_file_count, 0);
+    }
+
+    #[test]
+    fn excluded_application_data_is_not_analysed() {
+        let tree = TempTree::new("storage-excluded");
+        tree.file("Library/Caches/CloudKit/db.bin", 8192);
+        tree.file("Library/Caches/com.example.app/blob.bin", 4096);
+
+        let options = AnalysisOptions::new(tree.root.clone(), vec![tree.root.clone()]);
+        let analysis = analyse(&options, &CancelToken::new());
+        assert_eq!(analysis.scanned_file_count, 1);
+        assert_eq!(analysis.scanned_byte_count, 4096);
     }
 
     #[test]

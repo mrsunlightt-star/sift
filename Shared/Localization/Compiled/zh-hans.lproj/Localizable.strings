@@ -334,6 +334,14 @@
 "storage.title" = "存储分析";
 "storage.topDirectories" = "最大目录";
 "storage.topFiles" = "最大文件";
+"storage.type.archives" = "压缩包";
+"storage.type.audio" = "音频";
+"storage.type.code" = "代码";
+"storage.type.data" = "数据";
+"storage.type.documents" = "文档";
+"storage.type.images" = "图像";
+"storage.type.other" = "其他";
+"storage.type.video" = "视频";
 "storage.used" = "已使用 %@ / %@";
 "storage.volume" = "卷";
 "uninstall.appRunning" = "%@ 正在运行。请先退出，否则 Sift 会跳过被占用的文件。";
@@ -343,6 +351,7 @@
 "uninstall.needsReview" = "需要手动确认";
 "uninstall.noRelatedFiles" = "没有找到关联文件。";
 "uninstall.noneInstalled" = "没有找到第三方应用";
+"uninstall.quitFailed" = "Sift 无法请求 %@ 退出。请手动退出后重试。";
 "uninstall.reason.applicationName" = "名称与应用名完全一致，且位于 macOS 按应用存放数据的目录。";
 "uninstall.reason.bundleIdentifier" = "名称就是该应用的 bundle identifier。";
 "uninstall.reason.identifierPrefix" = "名称以该应用的 bundle identifier 开头。";

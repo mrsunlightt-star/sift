@@ -334,6 +334,14 @@
 "storage.title" = "ストレージ";
 "storage.topDirectories" = "大きいフォルダ順";
 "storage.topFiles" = "大きいファイル順";
+"storage.type.archives" = "アーカイブ";
+"storage.type.audio" = "オーディオ";
+"storage.type.code" = "コード";
+"storage.type.data" = "データ";
+"storage.type.documents" = "書類";
+"storage.type.images" = "画像";
+"storage.type.other" = "その他";
+"storage.type.video" = "動画";
 "storage.used" = "%@ / %@ 使用中";
 "storage.volume" = "ボリューム";
 "uninstall.appRunning" = "%@ が実行中です。先に終了しないと、使用中のファイルはスキップされます。";
@@ -343,6 +351,7 @@
 "uninstall.needsReview" = "確認が必要";
 "uninstall.noRelatedFiles" = "関連ファイルは見つかりませんでした。";
 "uninstall.noneInstalled" = "サードパーティ製アプリが見つかりません";
+"uninstall.quitFailed" = "Sift は %@ に終了を要求できませんでした。手動で終了してから再試行してください。";
 "uninstall.reason.applicationName" = "名前がアプリ名と完全に一致し、macOS がアプリごとに使うフォルダーです。";
 "uninstall.reason.bundleIdentifier" = "名前がこのアプリの Bundle ID です。";
 "uninstall.reason.identifierPrefix" = "名前がこのアプリの Bundle ID で始まります。";

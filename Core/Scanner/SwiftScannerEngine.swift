@@ -57,10 +57,11 @@ public actor SwiftScannerEngine: ScannerEngine {
         return session
     }
 
-    public func analyzeStorage(roots: [ScanRoot]) async throws -> StorageAnalysis {
+    public func analyzeStorage(roots: [ScanRoot], ignoredPaths: [String]) async throws -> StorageAnalysis {
         let flag = CancellationFlag()
         return try await StorageAnalyzer(rules: rules).analyze(
             roots: roots,
+            ignoredPaths: ignoredPaths,
             cancelled: { flag.isCancelled }
         )
     }
@@ -308,7 +309,7 @@ actor SwiftScanSession: ScanSession {
             recordSkips(report.skips)
             var found: [CleanupItemSummary] = []
             for entry in report.entries where entry.isDirectory {
-                if rule.excludes.contains(where: { entry.displayName == $0 || entry.displayName.hasPrefix($0 + ".") }) {
+                if rules.isExcludedByRule(rule, path: entry.url.path, under: root.path) {
                     continue
                 }
                 if rules.isExcludedBundleName(entry.displayName) { continue }
@@ -330,6 +331,9 @@ actor SwiftScanSession: ScanSession {
             recordSkips(report.skips)
             let found = report.entries.compactMap { entry -> CleanupItemSummary? in
                 guard !entry.isDirectory else { return nil }
+                if rules.isExcludedByRule(rule, path: entry.url.path, under: root.path) {
+                    return nil
+                }
                 let ext = entry.url.pathExtension.lowercased()
                 guard extensions.contains(ext) else { return nil }
                 if let minimumAgeDays,
@@ -351,6 +355,9 @@ actor SwiftScanSession: ScanSession {
             recordSkips(report.skips)
             let found = report.entries.compactMap { entry -> CleanupItemSummary? in
                 guard !entry.isDirectory else { return nil }
+                if rules.isExcludedByRule(rule, path: entry.url.path, under: root.path) {
+                    return nil
+                }
                 if let minimumAgeDays,
                    !olderThanDays(entry.modifiedAt, days: minimumAgeDays) {
                     return nil
@@ -440,6 +447,7 @@ actor SwiftScanSession: ScanSession {
                 ])
                 if values?.isSymbolicLink == true { continue }
                 if rules.protectionReason(for: child.path) != nil { continue }
+                if rules.isInExcludedLocation(child.path) { continue }
                 if isOutOfScope(child.lastPathComponent) { continue }
                 if values?.isDirectory == true {
                     stack.append(child)
@@ -640,6 +648,10 @@ actor SwiftScanSession: ScanSession {
     /// Large and old files, only inside the roots the caller supplied.
     private func scanThresholdFiles() {
         let home = URL(fileURLWithPath: rules.homeDirectory)
+        // A granted folder inside the home directory is covered by the home root
+        // as well. Without this, the same file arrives twice and the list shows
+        // one row per traversal rather than one row per file.
+        var seenPaths = Set<String>()
         for root in request.roots where root.isCleanable {
             if cancelled { return }
             let report = FileWalker.walk(
@@ -652,6 +664,9 @@ actor SwiftScanSession: ScanSession {
             recordSkips(report.skips)
             var found: [CleanupItemSummary] = []
             for entry in report.entries where !entry.isDirectory {
+                guard seenPaths.insert(RuleEngine.normalize(entry.url.path)).inserted else {
+                    continue
+                }
                 let size = entry.sizeBytes ?? 0
                 if size >= request.largeFileThresholdBytes {
                     found.append(
@@ -712,14 +727,20 @@ actor SwiftScanSession: ScanSession {
         // Duplicate candidates are cleanup candidates: a measure-only root is
         // measured for storage, never offered for removal.
         let allowed = request.roots.filter(\.isCleanable).map(\.url)
-        let searchable = roots.filter { root in
-            rules.protectionReason(for: root.path) == nil
-                && (allowed.isEmpty || allowed.contains { RuleEngine.isPrefix($0.path, root.path) })
-        }
+        let searchable = Self.nonOverlappingRoots(
+            roots.filter { root in
+                rules.protectionReason(for: root.path) == nil
+                    && (allowed.isEmpty || allowed.contains { RuleEngine.isPrefix($0.path, root.path) })
+            }
+        )
         guard !searchable.isEmpty else { return }
 
         // Stage 1: exact size groups.
         var bySize: [Int64: [URL]] = [:]
+        // One entry per file. Overlapping roots — the home folder plus a granted
+        // folder inside it — used to put the same URL in the list twice, which
+        // could then form a "duplicate group" of a file with itself.
+        var seenPaths = Set<String>()
         for root in searchable {
             let report = FileWalker.walk(
                 root: root,
@@ -737,6 +758,9 @@ actor SwiftScanSession: ScanSession {
                 // Cloud placeholders are never deletion candidates.
                 if entry.url.lastPathComponent.hasSuffix(".icloud")
                     || entry.url.lastPathComponent.contains("com~apple~") {
+                    continue
+                }
+                guard seenPaths.insert(RuleEngine.normalize(entry.url.path)).inserted else {
                     continue
                 }
                 bySize[size, default: []].append(entry.url)
@@ -802,6 +826,34 @@ actor SwiftScanSession: ScanSession {
                 )
             )
         }
+    }
+
+    /// The roots with duplicates and nested descendants removed.
+    ///
+    /// `Set` on the original strings only removed paths spelled identically. A
+    /// granted folder inside `~/Downloads` survived next to `~/Downloads` and the
+    /// tree was walked twice. The sort puts shorter paths first, so a root is
+    /// kept only when no already-kept root contains it.
+    static func nonOverlappingRoots(_ roots: [URL]) -> [URL] {
+        var unique: [String: URL] = [:]
+        for root in roots {
+            let resolved = root.resolvingSymlinksInPath()
+            let path = RuleEngine.normalize(resolved.path)
+            if unique[path] == nil {
+                unique[path] = URL(fileURLWithPath: path, isDirectory: true)
+            }
+        }
+        let ordered = unique.keys.sorted { first, second in
+            let firstDepth = first.split(separator: "/").count
+            let secondDepth = second.split(separator: "/").count
+            return firstDepth == secondDepth ? first < second : firstDepth < secondDepth
+        }
+        var kept: [URL] = []
+        for path in ordered {
+            if kept.contains(where: { RuleEngine.isPrefix($0.path, path) }) { continue }
+            kept.append(URL(fileURLWithPath: path, isDirectory: true))
+        }
+        return kept
     }
 
     /// Head/tail/middle fingerprint: cheap rejection of same-sized non-duplicates.

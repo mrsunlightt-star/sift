@@ -774,9 +774,13 @@ fn protected_library_reason(home: &str, path: &str) -> Option<ProtectedReason> {
             });
         }
     }
-    if path.ends_with(PROTECTED_PHOTOS_LIBRARY_SUFFIX)
-        || path.contains(&format!("{PROTECTED_PHOTOS_LIBRARY_SUFFIX}/"))
-    {
+    // Case-insensitive on purpose: a package renamed to `.PhotosLibrary`
+    // remains a photo library on a case-insensitive volume, and a protection
+    // rule that only matched the canonical spelling could be sidestepped by a
+    // rename. The Swift engine applies the same comparison.
+    let lowered = path.to_ascii_lowercase();
+    let suffix = PROTECTED_PHOTOS_LIBRARY_SUFFIX.to_ascii_lowercase();
+    if lowered.ends_with(&suffix) || lowered.contains(&format!("{suffix}/")) {
         return Some(ProtectedReason::UserContent {
             child: "Photos Library".to_string(),
         });
@@ -999,6 +1003,14 @@ mod tests {
             HOME,
             &format!("{HOME}/Pictures/Photos Library.photoslibrary/db")
         ));
+        // The suffix is a safety net, so a rename that only changes case must
+        // not turn the library into an ordinary package.
+        for spelling in ["Photos Library.PHOTOSLIBRARY", "Archive.PhotosLibrary"] {
+            assert!(is_protected_path(
+                HOME,
+                &format!("{HOME}/Archive/{spelling}/db")
+            ));
+        }
         assert!(is_protected_path(
             HOME,
             &format!("{HOME}/Library/Mobile Documents/com~apple~x/f")

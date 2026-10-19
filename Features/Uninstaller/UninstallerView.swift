@@ -18,6 +18,7 @@ public struct UninstallerView: View {
     @State private var isConfirming = false
     @State private var outcome: CleanupOutcome?
     @State private var includeReviewFiles = false
+    @State private var quitFailure: String?
 
     /// How the application list is ordered (§5.3).
     enum SortOrder: String, CaseIterable {
@@ -157,8 +158,11 @@ public struct UninstallerView: View {
                             message: LocalizationKey.uninstallAppRunning.localized(application.name),
                             actionTitle: .commonQuitApp
                         ) {
-                            Task { await environment.reveal(application.url) }
+                            Task { await quit(application) }
                         }
+                    }
+                    if let quitFailure {
+                        NoticeBanner(level: .error, message: quitFailure)
                     }
                     if isLoadingPlan {
                         ProgressView().controlSize(.small)
@@ -251,8 +255,8 @@ public struct UninstallerView: View {
 
             HStack(spacing: SiftMetrics.spacingL) {
                 labeledValue(.uninstallAppSize, plan.formattedApplicationSize)
-                labeledValue(.uninstallRelatedSize, plan.formattedRelatedSize)
-                labeledValue(.uninstallTotalSize, plan.formattedTotal)
+                labeledValue(.uninstallRelatedSize, plan.formattedRelatedSize(includeReviewFiles: includeReviewFiles))
+                labeledValue(.uninstallTotalSize, plan.formattedTotal(includeReviewFiles: includeReviewFiles))
             }
         }
     }
@@ -281,7 +285,7 @@ public struct UninstallerView: View {
             if let plan {
                 Text(
                     LocalizationKey.uninstallUninstallButton.localized(plan.application.name)
-                        + " · " + plan.formattedTotal
+                        + " · " + plan.formattedTotal(includeReviewFiles: includeReviewFiles)
                 )
                 .font(SiftFont.bodyEmphasis)
                 NoticeBanner(level: .information, titleKey: .cleanupConfirmUndoNotice)
@@ -311,6 +315,17 @@ public struct UninstallerView: View {
         plan = environment.applications.relatedFiles(for: application)
         isLoadingPlan = false
         includeReviewFiles = false
+        quitFailure = nil
+    }
+
+    /// Asks the running application to quit, reporting a request that could not
+    /// be sent instead of pretending the button did something.
+    private func quit(_ application: InstalledApplication) async {
+        quitFailure = nil
+        guard await environment.quitApplication(application.url) else {
+            quitFailure = LocalizationKey.uninstallQuitFailed.localized(application.name)
+            return
+        }
     }
 
     private func requestUninstall(_ plan: UninstallPlan) async {

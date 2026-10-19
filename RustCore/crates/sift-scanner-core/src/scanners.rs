@@ -18,7 +18,7 @@ use sift_rules::{
     collapse_path, default_rules, is_prefix_of, is_protected_path_authorized, Category, MatchSpec,
     Risk, RootAnchor, Rule, RuleSet,
 };
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 /// A cleanup candidate found by a strategy.
@@ -404,6 +404,7 @@ fn child_directory_candidates(
         .iter()
         .map(|s| (*s).to_string())
         .collect();
+    skip_excluded_directories(&mut options);
     options.skip_paths = context
         .request
         .ignore_paths
@@ -423,7 +424,7 @@ fn child_directory_candidates(
         if !entry.is_directory {
             continue;
         }
-        if cancelled_or_excluded(entry, rule, context) {
+        if cancelled_or_excluded(entry, rule, root, context) {
             continue;
         }
 
@@ -535,6 +536,7 @@ fn file_candidates(
         .iter()
         .map(|s| (*s).to_string())
         .collect();
+    skip_excluded_directories(&mut options);
     options.skip_paths = context
         .request
         .ignore_paths
@@ -554,7 +556,7 @@ fn file_candidates(
         if entry.is_directory {
             continue;
         }
-        if cancelled_or_excluded(entry, rule, context) {
+        if cancelled_or_excluded(entry, rule, root, context) {
             continue;
         }
         if filter_by_extension && !has_extension(entry, extensions) {
@@ -698,7 +700,12 @@ fn oldest_matching_modified_secs(
     oldest
 }
 
-fn cancelled_or_excluded(entry: &WalkEntry, rule: &Rule, context: &ScanContext<'_>) -> bool {
+fn cancelled_or_excluded(
+    entry: &WalkEntry,
+    rule: &Rule,
+    root: &Path,
+    context: &ScanContext<'_>,
+) -> bool {
     let authorized: Vec<PathBuf> = context
         .request
         .authorized_roots
@@ -712,13 +719,45 @@ fn cancelled_or_excluded(entry: &WalkEntry, rule: &Rule, context: &ScanContext<'
     ) {
         return true;
     }
-    let name = entry.display_name();
-    if is_excluded_bundle_name(&name) {
+    // Excluding a directory excludes its subtree. Checking only the entry's own
+    // name let a file inside `~/Library/Caches/CloudKit` through whenever the
+    // rule matched files rather than directories.
+    if is_in_excluded_location(&entry.path) {
         return true;
     }
-    rule.excludes
-        .iter()
-        .any(|exclude| name == *exclude || name.starts_with(&format!("{exclude}.")))
+    is_excluded_by_rule(rule, &entry.path, root)
+}
+
+/// True when any component of `path` is an excluded application's data.
+pub fn is_in_excluded_location(path: &Path) -> bool {
+    path.components()
+        .any(|component| is_excluded_bundle_name(&component.as_os_str().to_string_lossy()))
+}
+
+/// True when a rule's `excludes` covers any component below its root.
+fn is_excluded_by_rule(rule: &Rule, path: &Path, root: &Path) -> bool {
+    let Ok(relative) = path.strip_prefix(root) else {
+        return false;
+    };
+    relative.components().any(|component| {
+        let name = component.as_os_str().to_string_lossy();
+        rule.excludes
+            .iter()
+            .any(|exclude| name == exclude.as_str() || name.starts_with(&format!("{exclude}.")))
+    })
+}
+
+/// Adds the never-clean bundle directories to a walk's skip list.
+///
+/// The entries would otherwise be visited and filtered later, which still spends
+/// the walk on a tree no candidate may come from. The same names are skipped by
+/// the Swift walker.
+fn skip_excluded_directories(options: &mut WalkOptions) {
+    options.skip_directory_names.extend(
+        EXCLUDED_BUNDLE_IDENTIFIERS
+            .iter()
+            .map(|name| (*name).to_string()),
+    );
 }
 
 fn has_extension(entry: &WalkEntry, extensions: &[String]) -> bool {
@@ -813,6 +852,10 @@ fn file_threshold_scan(
         .filter(|root| root.is_cleanable)
         .map(|root| PathBuf::from(&root.path))
         .collect();
+    // A granted folder inside the home directory is covered by the home root.
+    // Walking both would offer the same file twice.
+    let roots = collapse_nested_roots(roots);
+    let mut seen_paths: HashSet<PathBuf> = HashSet::new();
 
     for root in roots {
         let mut options = WalkOptions::new(context.home_dir.clone(), WalkMode::Files);
@@ -838,6 +881,12 @@ fn file_threshold_scan(
 
         for entry in &report.entries {
             if entry.is_directory {
+                continue;
+            }
+            if is_in_excluded_location(&entry.path) {
+                continue;
+            }
+            if !seen_paths.insert(entry.path.clone()) {
                 continue;
             }
             let size = entry.size_bytes.unwrap_or(0);
@@ -1323,9 +1372,11 @@ impl<'a> DuplicateFinder<'a> {
     ) -> DuplicateReport {
         let mut report = DuplicateReport::default();
         let mut by_size: HashMap<u64, Vec<PathBuf>> = HashMap::new();
+        let roots = collapse_nested_roots(roots.to_vec());
+        let mut seen_paths: HashSet<PathBuf> = HashSet::new();
 
         // Stage 1: group by exact byte size.
-        for root in roots {
+        for root in &roots {
             let mut options = WalkOptions::new(self.home_dir.clone(), WalkMode::Files);
             options.authorized_roots = self.authorized_roots.clone();
             options.skip_hidden = self.skip_hidden;
@@ -1333,6 +1384,7 @@ impl<'a> DuplicateFinder<'a> {
                 .iter()
                 .map(|s| (*s).to_string())
                 .collect();
+            skip_excluded_directories(&mut options);
             let walk = walker::walk(root, &options, self.cancel);
             if walk.cancelled {
                 report.cancelled = true;
@@ -1340,6 +1392,12 @@ impl<'a> DuplicateFinder<'a> {
             }
             for entry in walk.entries {
                 if entry.is_directory {
+                    continue;
+                }
+                if is_in_excluded_location(&entry.path) {
+                    continue;
+                }
+                if !seen_paths.insert(entry.path.clone()) {
                     continue;
                 }
                 let size = entry.size_bytes.unwrap_or(0);
@@ -1576,8 +1634,8 @@ fn merge_same_path(candidates: Vec<Candidate>) -> Vec<Candidate> {
 /// selection and never widening to system directories on its own.
 pub fn duplicate_roots(request: &ScanRequest, home_dir: &Path) -> Vec<PathBuf> {
     let authorized: Vec<PathBuf> = request.authorized_roots.iter().map(PathBuf::from).collect();
-    if !request.duplicates.roots.is_empty() {
-        return request
+    let roots: Vec<PathBuf> = if !request.duplicates.roots.is_empty() {
+        request
             .duplicates
             .roots
             .iter()
@@ -1589,16 +1647,53 @@ pub fn duplicate_roots(request: &ScanRequest, home_dir: &Path) -> Vec<PathBuf> {
                     &authorized,
                 )
             })
-            .collect();
-    }
-    let mut roots: Vec<PathBuf> = Vec::new();
-    for candidate in ["Downloads", "Desktop", "Documents"] {
-        let path = home_dir.join(candidate);
-        if path.is_dir() {
-            roots.push(path);
+            .collect()
+    } else {
+        ["Downloads", "Desktop", "Documents"]
+            .iter()
+            .map(|candidate| home_dir.join(candidate))
+            .filter(|path| path.is_dir())
+            .collect()
+    };
+    collapse_nested_roots(roots)
+}
+
+/// Drops duplicate roots and roots contained in another one.
+///
+/// The duplicate pipeline walks every root it is given. A granted folder inside
+/// `~/Downloads` therefore used to be searched twice, putting the same path into
+/// the size index twice — which could form a group of a file with itself and
+/// count its bytes as reclaimable twice.
+fn collapse_nested_roots(roots: Vec<PathBuf>) -> Vec<PathBuf> {
+    // Normalise and drop exact duplicates while keeping the caller's order, so
+    // the default search order (Downloads, Desktop, Documents) is unchanged.
+    let mut seen: HashSet<PathBuf> = HashSet::new();
+    let unique: Vec<PathBuf> = roots
+        .into_iter()
+        .map(|root| PathBuf::from(collapse_path(&root.to_string_lossy())))
+        .filter(|root| seen.insert(root.clone()))
+        .collect();
+
+    // Decide containment shortest-first, then report in the original order.
+    let mut by_depth = unique.clone();
+    by_depth.sort_by(|first, second| {
+        first
+            .components()
+            .count()
+            .cmp(&second.components().count())
+            .then_with(|| first.cmp(second))
+    });
+    let mut kept: Vec<PathBuf> = Vec::with_capacity(by_depth.len());
+    for root in by_depth {
+        if kept.iter().any(|parent| root.starts_with(parent)) {
+            continue;
         }
+        kept.push(root);
     }
-    roots
+    unique
+        .into_iter()
+        .filter(|root| kept.contains(root))
+        .collect()
 }
 
 #[cfg(test)]
@@ -2041,6 +2136,80 @@ mod tests {
     }
 
     #[test]
+    fn a_rule_exclude_covers_the_subtree_for_file_specs() {
+        // `excludes` is a subtree rule, not a last-component test. The Swift
+        // engine applies the same shape; a file rule that only checked its own
+        // name would walk straight into the excluded directory.
+        let harness = Harness::new("rules-excludes-files");
+        harness.tree.file("Downloads/private/secret.txt", 4096);
+        harness.tree.file("Downloads/open.txt", 4096);
+
+        let overlay = RuleSet::from_json(
+            r#"{"schemaVersion":1,"rules":[
+                {"id":"excluded-files","category":"installers","risk":"review",
+                 "root":"home","relativePath":"Downloads","matchSpec":"filesByExtension",
+                 "extensions":["txt"],"excludes":["private"],
+                 "explanationKey":"cleanup.explanation.installers"}
+            ]}"#,
+        )
+        .expect("the overlay parses")
+        .rules;
+        let mut rules = effective_rules(None).unwrap();
+        rules.extend(overlay);
+
+        let cancel = CancelToken::new();
+        let mut files = |_: u64, _: u64| {};
+        let mut path = |_: &Path| {};
+        let mut context = ScanContext {
+            request: &harness.request,
+            home_dir: harness.tree.root.clone(),
+            rules,
+            progress: ProgressSink {
+                on_files: &mut files,
+                on_current_path: &mut path,
+            },
+        };
+        let (candidates, _) = scan_rules(&mut context, &cancel);
+        let names: Vec<String> = candidates
+            .iter()
+            .filter(|c| c.category == Category::Installers)
+            .map(|c| c.display_name.clone())
+            .collect();
+
+        assert!(names.contains(&"open.txt".to_string()));
+        assert!(
+            !names.contains(&"secret.txt".to_string()),
+            "the excluded directory's files must not be candidates: {names:?}"
+        );
+    }
+
+    #[test]
+    fn excluded_bundle_directories_are_invisible_to_the_large_file_scan() {
+        let harness = Harness::new("large-excluded");
+        harness
+            .tree
+            .file("Library/Caches/CloudKit/large.bin", 2 * 1024 * 1024);
+        harness.tree.file("Downloads/large.bin", 2 * 1024 * 1024);
+
+        let cancel = CancelToken::new();
+        let mut files = |_: u64, _: u64| {};
+        let mut path = |_: &Path| {};
+        let mut context = harness.context(&mut files, &mut path);
+        let (candidates, _) = scan_large_files(&mut context, &cancel, 1024 * 1024);
+
+        assert!(
+            candidates
+                .iter()
+                .all(|c| !c.path.to_string_lossy().contains("CloudKit")),
+            "a large file inside excluded application data is not a cleanup item"
+        );
+        assert!(
+            candidates.iter().any(|c| c.display_name == "large.bin"),
+            "the ordinary large file is still reported"
+        );
+    }
+
+    #[test]
     fn the_hidden_file_setting_decides_what_a_rule_scan_produces() {
         // The setting is a scope: with it off, a dotfile is not a candidate and
         // the bytes it holds are not reported as reclaimable either.
@@ -2460,6 +2629,56 @@ mod tests {
         assert_eq!(group.members.len(), 2);
         assert_eq!(group.reclaimable_bytes, group.size_bytes);
         assert_eq!(group.members.iter().filter(|m| m.keep).count(), 1);
+    }
+
+    #[test]
+    fn nested_duplicate_roots_do_not_make_a_file_its_own_duplicate() {
+        let harness = Harness::new("dup-nested-roots");
+        let payload = b"a duplicate payload inside one project";
+        harness.tree.file_with("Downloads/Project/one.bin", payload);
+        harness.tree.file_with("Downloads/Project/two.bin", payload);
+
+        let downloads = harness.tree.root.join("Downloads");
+        let project = downloads.join("Project");
+        let cancel = CancelToken::new();
+        let options = DuplicateOptions {
+            min_size_bytes: 1,
+            ..Default::default()
+        };
+        let mut finder =
+            DuplicateFinder::new(options, harness.tree.root.clone(), Vec::new(), &cancel);
+        let report = finder.run(&[downloads.clone(), project.clone()], &mut |_| {});
+
+        assert_eq!(report.groups.len(), 1);
+        assert_eq!(
+            report.groups[0].members.len(),
+            2,
+            "walking the inner root twice must not duplicate a member"
+        );
+        assert_eq!(
+            report.groups[0].reclaimable_bytes, report.groups[0].size_bytes,
+            "one copy is reclaimed, not two"
+        );
+    }
+
+    #[test]
+    fn duplicate_roots_collapse_a_nested_grant() {
+        let harness = Harness::new("dup-root-collapse");
+        let downloads = harness.tree.root.join("Downloads");
+        let project = downloads.join("Project");
+        std::fs::create_dir_all(&project).expect("the fixture directory");
+
+        let mut request = harness.request.clone();
+        request.duplicates.roots = vec![
+            downloads.to_string_lossy().to_string(),
+            project.to_string_lossy().to_string(),
+        ];
+        let roots = duplicate_roots(&request, &harness.tree.root);
+        assert_eq!(
+            roots,
+            vec![downloads],
+            "the outer root already covers the inner one"
+        );
     }
 
     #[test]

@@ -116,6 +116,38 @@ final class SelectionTests: XCTestCase, @unchecked Sendable {
         }
     }
 
+    func test_aLaterPageFollowsTheScansDefaultSelection() async {
+        // The result list pages its rows. A safe item that sorts onto page two
+        // starts selected for the same reason one on page one does; reselecting
+        // nothing would make the first screenful and the full set disagree.
+        let first = summary(url: fixture.url.appendingPathComponent("Library/Caches/com.first"))
+            .asCleanupItem()
+        let second = summary(url: fixture.url.appendingPathComponent("Library/Caches/com.second"))
+            .asCleanupItem()
+        await MainActor.run {
+            let model = makeModel()
+            model.setItems([first], preselect: true)
+            model.appendItems([second])
+            XCTAssertTrue(model.isSelected(first))
+            XCTAssertTrue(model.isSelected(second))
+        }
+    }
+
+    func test_aReviewPageDoesNotPreselectALaterPage() async {
+        // File cleanup loads its items for review. That choice belongs to the
+        // scan intent, not to which page happens to be loaded first.
+        let first = summary(url: fixture.url.appendingPathComponent("Library/Caches/com.first"))
+            .asCleanupItem()
+        let second = summary(url: fixture.url.appendingPathComponent("Library/Caches/com.second"))
+            .asCleanupItem()
+        await MainActor.run {
+            let model = makeModel()
+            model.setItems([first], preselect: false)
+            model.appendItems([second])
+            XCTAssertEqual(model.selectedCount, 0)
+        }
+    }
+
     func test_aMeasureOnlyRootProducesNoCandidates() async throws {
         fixture.write("Library/Caches/com.example.app/blob.bin", bytes: 8192)
         fixture.write("Downloads/huge.bin", bytes: 2 * 1024 * 1024)

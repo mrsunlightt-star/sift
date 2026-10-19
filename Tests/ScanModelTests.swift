@@ -68,6 +68,29 @@ final class ScanModelTests: XCTestCase, @unchecked Sendable {
         )
     }
 
+    /// `start` returns before the scan has results; the completion gate is what
+    /// makes a page read one settled run.
+    ///
+    /// The first page used to be requested immediately after `start`, when the
+    /// engine had not written anything yet, so a fresh scan could initialise the
+    /// cleanup list — and its pre-selection — from an empty index.
+    func test_waitUntilSettledMakesTheResultsReadable() async throws {
+        let fixture = TemporaryDirectory(tag: "scan-model-settled")
+        fixture.write("Library/Caches/com.example.app/blob.bin", bytes: 8192)
+        let model = await makeModel(home: fixture.url)
+        await model.start(makeRequest(home: fixture.url))
+
+        await model.waitUntilSettled()
+
+        let phase = await model.phase
+        XCTAssertEqual(phase, .ready)
+        let page = await model.page(offset: 0, limit: 50, sort: .size, category: nil)
+        XCTAssertFalse(
+            page.items.isEmpty,
+            "the settled index must already hold the items the scan found"
+        )
+    }
+
     /// A scan that finds more duplicate groups than one page can show.
     ///
     /// The list is paged, so the model has to know the total the scan reported

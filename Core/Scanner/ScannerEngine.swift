@@ -197,7 +197,17 @@ public protocol ScannerEngine: Sendable {
     func startScan(_ request: ScanRequest) async throws -> any ScanSession
 
     /// Analyses storage without producing cleanup items.
-    func analyzeStorage(roots: [ScanRoot]) async throws -> StorageAnalysis
+    ///
+    /// `ignoredPaths` carries the user's "never visit" list into the analysis, so
+    /// a location excluded from scans is excluded from the storage page too.
+    func analyzeStorage(roots: [ScanRoot], ignoredPaths: [String]) async throws -> StorageAnalysis
+}
+
+public extension ScannerEngine {
+    /// Analysis with no ignore list, for callers that have no settings scope.
+    func analyzeStorage(roots: [ScanRoot]) async throws -> StorageAnalysis {
+        try await analyzeStorage(roots: roots, ignoredPaths: [])
+    }
 }
 
 /// Errors a scanner can raise, always carrying a code the UI can act on.
