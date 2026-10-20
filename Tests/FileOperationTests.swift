@@ -46,6 +46,97 @@ final class FileOperationTests: XCTestCase, @unchecked Sendable {
         XCTAssertTrue(verdict.protected.isEmpty)
     }
 
+    /// The approved item is the item the user selected, not a five-field copy.
+    ///
+    /// Rebuilding it during pre-flight used to replace the scanner's explanation
+    /// and rule id with placeholders, so the confirmation and the result spoke
+    /// about the item in a vocabulary the scan had not used.
+    func test_preflightPreservesTheItemsProvenance() async throws {
+        let file = fixture.write("Library/Caches/com.example.app/blob.bin", bytes: 4096)
+        let modified = Date(timeIntervalSince1970: 1_700_000_000)
+        let original = CleanupItem(
+            url: file,
+            displayName: file.lastPathComponent,
+            category: .applicationCache,
+            risk: .safe,
+            sizeInBytes: 4096,
+            fileCount: 3,
+            explanationKey: "cleanup.explanation.cache",
+            relatedBundleID: "com.example.app",
+            sourceRuleID: "user-cache",
+            modifiedAt: modified,
+            isDirectory: true
+        )
+
+        let verdict = await makeService().preflight([FileOperationService.Candidate(item: original)])
+        let ready = try XCTUnwrap(verdict.ready.first)
+
+        XCTAssertEqual(ready.rawExplanationKey, "cleanup.explanation.cache")
+        XCTAssertEqual(ready.sourceRuleID, "user-cache")
+        XCTAssertEqual(ready.fileCount, 3)
+        XCTAssertEqual(ready.relatedBundleID, "com.example.app")
+        XCTAssertEqual(ready.modifiedAt, modified)
+        XCTAssertTrue(ready.isDirectory)
+    }
+
+    /// Pre-flight records the object behind each approved path.
+    func test_preflightRecordsTheObjectItApproved() async throws {
+        let file = fixture.write("Library/Caches/com.example.app/blob.bin", bytes: 4096)
+        let approved = item(file)
+        let verdict = await makeService().preflight([FileOperationService.Candidate(item: approved)])
+
+        let recorded = try XCTUnwrap(verdict.identities[approved.id])
+        XCTAssertEqual(recorded, FileIdentitySnapshot.of(path: file.path))
+    }
+
+    /// The same path can name a different object by the time the move runs.
+    ///
+    /// `trashItem` acts on the path, and the protection list compares paths, so
+    /// neither can see a file replaced by something else at the same spelling.
+    /// The identity pre-flight approved is the last word.
+    func test_theMoveRefusesAnObjectReplacedAtTheSamePath() async {
+        let file = fixture.write("Library/Caches/com.example.app/blob.bin", bytes: 4096)
+        let service = makeService()
+        let approved = item(file)
+        let verdict = await service.preflight([FileOperationService.Candidate(item: approved)])
+        XCTAssertEqual(verdict.ready.count, 1)
+
+        // Replace a regular file with a directory at the same path. The path is
+        // unchanged and only the object behind it differs.
+        try? FileManager.default.removeItem(at: file)
+        try? FileManager.default.createDirectory(at: file, withIntermediateDirectories: true)
+
+        let outcome = await service.moveToTrash(
+            verdict.ready,
+            operation: .junkCleanup,
+            identities: verdict.identities
+        )
+
+        XCTAssertEqual(outcome.movedCount, 0)
+        XCTAssertEqual(outcome.results.first?.errorCode, ErrorCode.itemChanged.rawValue)
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: file.path),
+            "the replacement must be left alone"
+        )
+    }
+
+    /// An unchanged object still moves; the identity check refuses only a change.
+    func test_theMoveAcceptsTheObjectPreflightApproved() async {
+        let file = fixture.write("Library/Caches/com.example.app/blob.bin", bytes: 4096)
+        let service = makeService()
+        let approved = item(file)
+        let verdict = await service.preflight([FileOperationService.Candidate(item: approved)])
+
+        let outcome = await service.moveToTrash(
+            verdict.ready,
+            operation: .junkCleanup,
+            identities: verdict.identities
+        )
+
+        XCTAssertEqual(outcome.movedCount, 1)
+        XCTAssertEqual(outcome.failedCount, 0)
+    }
+
     /// A path re-pointed before the move is refused, at both checks.
     ///
     /// `trashItem` follows a symlink in any component, so an ancestor replaced

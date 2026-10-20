@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import Shared
 
@@ -216,6 +217,40 @@ public enum PreflightVerdict: Sendable, Equatable {
     public var isReady: Bool { self == .ready }
 }
 
+/// The object a path named when pre-flight approved it.
+///
+/// A path is not an identity. Between pre-flight and the move the object at that
+/// path can be replaced, and the protection list cannot see the substitution
+/// because the path itself is unchanged. Device, inode and file type are read
+/// with `lstat`, so a selected symlink is identified as the link rather than as
+/// whatever it points at.
+public struct FileIdentitySnapshot: Sendable, Hashable {
+    public let device: UInt64
+    public let inode: UInt64
+    public let fileType: UInt16
+
+    public init(device: UInt64, inode: UInt64, fileType: UInt16) {
+        self.device = device
+        self.inode = inode
+        self.fileType = fileType
+    }
+
+    /// Reads the identity without following a symlink in the final component.
+    ///
+    /// A symlink in an ancestor is followed: that is the object `trashItem`
+    /// would reach, so an ancestor re-pointed to another directory changes this
+    /// identity too.
+    public static func of(path: String) -> FileIdentitySnapshot? {
+        var info = stat()
+        guard lstat(path, &info) == 0 else { return nil }
+        return FileIdentitySnapshot(
+            device: UInt64(info.st_dev),
+            inode: UInt64(info.st_ino),
+            fileType: info.st_mode & S_IFMT
+        )
+    }
+}
+
 /// The result of pre-flight checking a whole selection.
 public struct PreflightReport: Sendable {
     public let ready: [CleanupItem]
@@ -224,17 +259,25 @@ public struct PreflightReport: Sendable {
     public let subsumed: [CleanupItem]
     /// Items the protection list rejects, which must never be acted on.
     public let protected: [CleanupItem]
+    /// The object each ready item named at pre-flight, keyed by item id.
+    ///
+    /// Execution compares this snapshot with the object at the path immediately
+    /// before the move. An item with no entry keeps the older checks only; the
+    /// pre-flight path fills one for every item it approves.
+    public let identities: [String: FileIdentitySnapshot]
 
     public init(
         ready: [CleanupItem],
         skipped: [(item: CleanupItem, code: ErrorCode, message: String)],
         subsumed: [CleanupItem],
-        protected: [CleanupItem]
+        protected: [CleanupItem],
+        identities: [String: FileIdentitySnapshot] = [:]
     ) {
         self.ready = ready
         self.skipped = skipped
         self.subsumed = subsumed
         self.protected = protected
+        self.identities = identities
     }
 
     /// Total bytes of the items that will actually be moved.

@@ -357,6 +357,33 @@ These are product promises, not implementation details. Each has tests behind it
     the crate, the Swift walker and the Finder all use allocated size, so a
     residue directory of small files reported 3 KB instead of the 8 KB it
     occupies — and read differently depending on which core a Mac ran.
+27. **A move acts on the object, not merely the path pre-flight checked.**
+    Pre-flight records the device, inode and file type of every item it readies
+    (`FileIdentitySnapshot`, read with `lstat`), and execution re-reads them
+    immediately before `trashItem`; a path whose object was replaced is refused
+    with `itemChanged`. The identity is captured from the same spelling the move
+    will use, so an ancestor re-pointed to another directory changes it too. An
+    item whose identity cannot be read is not approved at all.
+
+    The approved plan is a snapshot, not the live selection: the confirmation
+    panel's label, its category breakdown and the outcome's totals all come from
+    `PreflightReport.ready`, so a selection change after pre-flight cannot make
+    the summary and the move describe two batches. Pre-flight also preserves the
+    scanner's explanation key, rule id and file count instead of stamping the
+    placeholder row it used to build. Tests:
+    `test_theMoveRefusesAnObjectReplacedAtTheSamePath`,
+    `test_preflightPreservesTheItemsProvenance`,
+    `test_theApprovedPlanDoesNotFollowTheLiveSelection`.
+28. **A run with no verdict is reported as one.** A storage measurement that
+    throws is a failure, not an empty disk: `StorageAnalysisModel` keeps the last
+    good analysis and its timestamp, records `failed` with the reason, and the
+    page offers a retry. Cancellation is its own outcome, and a completed run is
+    `partial` when it skipped folders or hit its budget. A scan whose session
+    finishes without ever publishing a terminal event is marked failed instead
+    of leaving `waitUntilSettled()` waiting forever. Tests:
+    `test_aFailedRunKeepsTheLastGoodResultAndItsTimestamp`,
+    `test_cancellationIsItsOwnOutcome`,
+    `test_aSessionThatEndsWithoutATerminalEventFails`.
 
 ## Layout notes
 

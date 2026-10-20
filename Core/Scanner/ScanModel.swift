@@ -364,6 +364,15 @@ public final class ScanModel: ObservableObject {
                         guard !pending.isEmpty else { break }
                         self.apply(pending)
                     }
+                    // A session that finished without ever publishing a terminal
+                    // event has no verdict to give. Saying so is what keeps
+                    // `waitUntilSettled` from waiting forever on a run that can
+                    // never settle; a decoded summary that failed is the case
+                    // this exists for.
+                    if !self.isSettled {
+                        self.failure = (.internalError, LocalizationKey.commonUnknownError.localized)
+                        self.phase = .failed
+                    }
                     break
                 }
                 // A short sleep keeps the pump from spinning while the scanner

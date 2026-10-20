@@ -44,6 +44,19 @@ public struct StorageAnalysisView: View {
                 VStack(alignment: .leading, spacing: SiftMetrics.pageSpacing) {
                     scopeRow
 
+                    if case let .failed(failure) = model.runOutcome {
+                        // The previous result, if any, stays below: this says the
+                        // new run did not produce one, rather than replacing it
+                        // with a zeroed analysis.
+                        NoticeBanner(
+                            level: .error,
+                            message: failure.message,
+                            actionTitle: .commonRetry
+                        ) {
+                            Task { await environment.analyzeStorage() }
+                        }
+                    }
+
                     if isAnalyzing {
                         analyzingCard
                     }

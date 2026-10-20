@@ -177,6 +177,25 @@ final class ScanModelTests: XCTestCase, @unchecked Sendable {
             "the cancelled run's results must not appear under the new scan: \(stray)"
         )
     }
+
+    /// A session that stops without a terminal event has no verdict to give.
+    ///
+    /// `waitUntilSettled` is the gate a page reads through, and it waits for a
+    /// terminal phase. An engine that finished but never published one used to
+    /// leave that gate waiting forever; the model must say the run failed.
+    func test_aSessionThatEndsWithoutATerminalEventFails() async throws {
+        let fixture = TemporaryDirectory(tag: "scan-model-silent")
+        let rules = RuleEngine(rules: RuleEngine.builtInRules, homeDirectory: fixture.url)
+        let model = await ScanModel(engine: SilentScannerEngine(), rules: rules)
+
+        await model.start(makeRequest(home: fixture.url))
+        let phase = await waitForFinalPhase(model, timeout: 2)
+
+        XCTAssertEqual(phase, .failed, "a run with no verdict must not read as still running")
+        await model.waitUntilSettled()
+        let failure = await model.failure
+        XCTAssertEqual(failure?.code, .internalError)
+    }
 }
 
 
@@ -213,6 +232,47 @@ private actor BurstScanSession: ScanSession {
         events.removeFirst(count)
         return result
     }
+
+    func isFinished() async -> Bool { true }
+
+    func page(
+        offset: Int,
+        limit: Int,
+        sort: ScanSort,
+        category: CleanupCategory?
+    ) async throws -> ScanPage {
+        ScanPage(items: [], remaining: 0)
+    }
+
+    func duplicateGroups(offset: Int, limit: Int) async throws -> [DuplicateGroup] { [] }
+
+    func duplicateMembers(groupID: Int64) async throws -> [DuplicateMember] { [] }
+
+    func skippedLocations() async -> [SkippedLocation] { [] }
+
+    func cancel() async {}
+}
+
+/// An engine that reports its work as finished without ever publishing a phase.
+private struct SilentScannerEngine: ScannerEngine {
+    var kind: ScannerEngineKind { .swift }
+
+    func startScan(_ request: ScanRequest) async throws -> any ScanSession {
+        SilentScanSession()
+    }
+
+    func analyzeStorage(
+        roots: [ScanRoot],
+        ignoredPaths: [String]
+    ) async throws -> StorageAnalysis {
+        throw ScannerError(code: .internalError)
+    }
+}
+
+private actor SilentScanSession: ScanSession {
+    nonisolated let id = "silent-session"
+
+    func pollEvents(maxEvents: Int) async -> [ScanEvent] { [] }
 
     func isFinished() async -> Bool { true }
 

@@ -1,6 +1,31 @@
 import Foundation
 import Shared
 
+/// Why a storage run ended without a result.
+///
+/// A failed measurement is not an empty disk. Keeping the reason lets the page
+/// say what happened and offer a retry instead of presenting a zeroed result as
+/// a finished analysis.
+public struct StorageAnalysisFailure: Sendable, Equatable {
+    public let code: ErrorCode
+    public let message: String
+
+    public init(code: ErrorCode, message: String) {
+        self.code = code
+        self.message = message
+    }
+}
+
+/// How the last storage run ended.
+public enum StorageAnalysisRunOutcome: Sendable, Equatable {
+    /// The measurement finished. `partial` says it skipped unreadable folders
+    /// or hit its budget, so the totals are a lower bound.
+    case completed(partial: Bool)
+    case failed(StorageAnalysisFailure)
+    /// The user stopped the run. Not a failure and not a result.
+    case cancelled
+}
+
 /// The storage page's session state.
 ///
 /// It lives in `AppEnvironment` rather than in the view so that leaving the page
@@ -12,6 +37,10 @@ public final class StorageAnalysisModel: ObservableObject {
     @Published public private(set) var report: StorageDiagnosticReport = .empty
     @Published public private(set) var isAnalyzing = false
     @Published public private(set) var lastAnalyzedAt: Date?
+    /// How the last run ended. A failure leaves the previous analysis and its
+    /// timestamp in place: the page shows the last good result and says the new
+    /// run did not produce one.
+    @Published public private(set) var runOutcome: StorageAnalysisRunOutcome?
     /// Whether the next run also asks the diagnostic providers about the whole
     /// volume. File categories always cover the home folder's volume; this is
     /// the slower, read-only half of the page.
@@ -33,6 +62,7 @@ public final class StorageAnalysisModel: ObservableObject {
         guard !isAnalyzing else { return nil }
         cancellation.isCancelled = false
         isAnalyzing = true
+        runOutcome = nil
         return cancellation
     }
 
@@ -40,6 +70,23 @@ public final class StorageAnalysisModel: ObservableObject {
         self.analysis = analysis
         self.report = report
         lastAnalyzedAt = Date()
+        runOutcome = .completed(partial: analysis.skippedCount > 0 || analysis.isAggregated)
+        isAnalyzing = false
+    }
+
+    /// Records a run that could not measure anything.
+    ///
+    /// The last successful analysis stays on screen and keeps its timestamp;
+    /// only `runOutcome` changes. Replacing it with `.empty` would be
+    /// indistinguishable from a disk that genuinely held nothing.
+    func recordFailure(_ failure: StorageAnalysisFailure) {
+        runOutcome = .failed(failure)
+        isAnalyzing = false
+    }
+
+    /// Records a run the user stopped. Keeps the previous result as it was.
+    func recordCancellation() {
+        runOutcome = .cancelled
         isAnalyzing = false
     }
 

@@ -225,24 +225,63 @@ public final class AppEnvironment: ObservableObject {
         let diagnosticRoots = diagnosticRoots(includeVolumeRoot: storageAnalysis.includeVolumeRoot)
 
         let task = Task(priority: .userInitiated) { () -> Void in
-            let measured = (try? await analyzer.analyze(
-                roots: roots,
-                ignoredPaths: ignoredPaths,
-                cancelled: { flag.isCancelled }
-            )) ?? .empty
-            guard !flag.isCancelled else { return }
+            let measured: StorageAnalysis
+            do {
+                measured = try await analyzer.analyze(
+                    roots: roots,
+                    ignoredPaths: ignoredPaths,
+                    cancelled: { flag.isCancelled }
+                )
+            } catch {
+                guard !flag.isCancelled else {
+                    await MainActor.run { self.storageAnalysis.recordCancellation() }
+                    return
+                }
+                // A failed measurement is not an empty disk. The page keeps the
+                // last good result and reports this run's failure instead of
+                // presenting `.empty` as a finished analysis.
+                let failure = Self.storageFailure(for: error)
+                await MainActor.run { self.storageAnalysis.recordFailure(failure) }
+                return
+            }
+            guard !flag.isCancelled else {
+                await MainActor.run { self.storageAnalysis.recordCancellation() }
+                return
+            }
             let diagnosed = await diagnostics.analyze(
                 roots: diagnosticRoots,
                 homeDirectory: home,
                 rules: rules,
                 isCancelled: { flag.isCancelled }
             )
-            guard !flag.isCancelled else { return }
+            guard !flag.isCancelled else {
+                await MainActor.run { self.storageAnalysis.recordCancellation() }
+                return
+            }
             await MainActor.run {
                 self.storageAnalysis.finish(analysis: measured, report: diagnosed)
             }
         }
         await task.value
+    }
+
+    /// Maps a measurement error onto the sentence the page shows.
+    ///
+    /// The storage walk only throws when it cannot read the volume's metadata,
+    /// so the useful distinctions are access, a missing volume and everything
+    /// else. The previous code discarded the error entirely.
+    private static func storageFailure(for error: Error) -> StorageAnalysisFailure {
+        let code = FileOperationService.classify(error)
+        let message: LocalizationKey
+        switch code {
+        case .permissionDenied:
+            message = .storageNoAccess
+        case .volumeUnavailable, .fileNotFound:
+            message = .storageDiskDisconnected
+        default:
+            message = .commonUnknownError
+        }
+        return StorageAnalysisFailure(code: code, message: message.localized)
     }
 
     /// Stops a storage analysis that is in flight. The last completed result, if

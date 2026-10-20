@@ -621,6 +621,7 @@ public struct UninstallerView: View {
                 )
             ],
             operation: .uninstall,
+            identities: preflight.identities,
             // Whatever the pre-flight refused — the running application, a
             // related file that is already gone — is reported on the result page
             // with its reason instead of disappearing from the batch.

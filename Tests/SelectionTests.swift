@@ -148,6 +148,50 @@ final class SelectionTests: XCTestCase, @unchecked Sendable {
         }
     }
 
+    func test_theApprovedPlanDoesNotFollowTheLiveSelection() async {
+        let firstURL = fixture.write("Library/Caches/com.first/blob.bin", bytes: 4096)
+        let secondURL = fixture.write("Library/Caches/com.second/blob.bin", bytes: 8192)
+        let first = summary(url: firstURL).asCleanupItem()
+        let second = summary(url: secondURL).asCleanupItem()
+
+        let model = await MainActor.run { makeModel() }
+        await model.setItems([first, second], preselect: true)
+        let selected = await model.selectedCount
+        XCTAssertEqual(selected, 2)
+
+        await model.prepareCleanup(requiresConfirmation: true)
+        let confirming = await model.isConfirming
+        let approvedCount = await model.approvedCount
+        let approvedItems = await model.approvedByCategory.reduce(0) { $0 + $1.itemCount }
+        XCTAssertTrue(confirming)
+        XCTAssertEqual(approvedCount, 2)
+        XCTAssertEqual(approvedItems, 2)
+
+        // The panel describes what pre-flight approved. Changing the selection
+        // underneath it must not change the batch being approved.
+        await model.setSelected(false, for: second)
+        let selectedAfter = await model.selectedCount
+        let approvedAfter = await model.approvedCount
+        let totalsAfter = await model.approvedByCategory.reduce(0) { $0 + $1.itemCount }
+        XCTAssertEqual(selectedAfter, 1)
+        XCTAssertEqual(approvedAfter, 2)
+        XCTAssertEqual(totalsAfter, 2, "the approved summary still describes both items")
+
+        await model.confirmCleanup(operation: .junkCleanup)
+
+        let outcome = await model.outcome
+        XCTAssertEqual(
+            outcome?.movedCount,
+            2,
+            "confirm moves the approved plan, not the live selection"
+        )
+        XCTAssertEqual(
+            outcome?.categoryTotals.reduce(0) { $0 + $1.itemCount },
+            2,
+            "the report describes the same batch the move performed"
+        )
+    }
+
     func test_aMeasureOnlyRootProducesNoCandidates() async throws {
         fixture.write("Library/Caches/com.example.app/blob.bin", bytes: 8192)
         fixture.write("Downloads/huge.bin", bytes: 2 * 1024 * 1024)

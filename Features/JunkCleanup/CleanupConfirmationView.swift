@@ -43,7 +43,7 @@ public struct CleanupConfirmationView: View {
                 preflightSummary(preflight)
             }
             categoryBreakdown
-            if cleanup.includesItemsNeedingReview {
+            if cleanup.approvedIncludesItemsNeedingReview {
                 NoticeBanner(level: .warning, titleKey: .cleanupConfirmRiskWarning)
             }
             Divider()
@@ -57,7 +57,7 @@ public struct CleanupConfirmationView: View {
         VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
             Text(LocalizationKey.cleanupConfirmTitle.localized)
                 .font(SiftFont.title)
-            Text(cleanup.confirmActionTitle)
+            Text(cleanup.approvedConfirmActionTitle)
                 .font(SiftFont.bodyEmphasis)
                 .foregroundStyle(SiftColor.accent)
             Text(LocalizationKey.cleanupConfirmUndoNotice.localized)
@@ -108,7 +108,7 @@ public struct CleanupConfirmationView: View {
         VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
             Text(LocalizationKey.cleanupConfirmByCategory.localized)
                 .font(SiftFont.sectionTitle)
-            ForEach(cleanup.selectedByCategory) { total in
+            ForEach(cleanup.approvedByCategory) { total in
                 HStack(spacing: SiftMetrics.spacingM) {
                     Circle()
                         .fill(SiftColor.categoryPalette[total.category.paletteIndex])
@@ -158,7 +158,7 @@ public struct CleanupConfirmationView: View {
                 Button {
                     onConfirm()
                 } label: {
-                    Text(cleanup.confirmActionTitle)
+                    Text(cleanup.approvedConfirmActionTitle)
                         .font(SiftFont.bodyEmphasis)
                 }
                 .buttonStyle(.borderedProminent)

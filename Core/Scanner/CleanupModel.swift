@@ -151,15 +151,14 @@ public final class CleanupModel: ObservableObject {
             : LocalizationKey.cleanupConfirmMoveCount.localized(count, size)
     }
 
-    /// True when the selection includes anything the user should double-check.
-    public var includesItemsNeedingReview: Bool {
-        selectedItems.contains { $0.risk == .review }
-    }
-
     /// Selection broken down by category for the confirmation panel.
     public var selectedByCategory: [CategoryTotal] {
+        Self.categoryTotals(for: selectedItems)
+    }
+
+    private static func categoryTotals(for items: [CleanupItem]) -> [CategoryTotal] {
         var totals: [CleanupCategory: (count: Int, bytes: Int64)] = [:]
-        for item in selectedItems {
+        for item in items {
             var entry = totals[item.category] ?? (0, 0)
             entry.count += 1
             entry.bytes += item.sizeInBytes
@@ -168,6 +167,41 @@ public final class CleanupModel: ObservableObject {
         return totals
             .map { CategoryTotal(category: $0.key, itemCount: $0.value.count, totalBytes: $0.value.bytes) }
             .sorted { $0.category.displayOrder < $1.category.displayOrder }
+    }
+
+    // MARK: - The approved plan
+
+    /// The set the confirmation panel is describing.
+    ///
+    /// Once pre-flight has run, the panel and the execution read this set and
+    /// not the live selection: the user approves what pre-flight approved, and a
+    /// selection change after that point must not make the summary and the move
+    /// describe two different batches.
+    public var approvedItems: [CleanupItem] {
+        preflight?.ready ?? selectedItems
+    }
+
+    public var approvedCount: Int { approvedItems.count }
+
+    public var approvedBytes: Int64 {
+        approvedItems.reduce(0) { $0 + $1.sizeInBytes }
+    }
+
+    public var approvedByCategory: [CategoryTotal] {
+        Self.categoryTotals(for: approvedItems)
+    }
+
+    public var approvedIncludesItemsNeedingReview: Bool {
+        approvedItems.contains { $0.risk == .review }
+    }
+
+    /// The confirmation button's label, over the approved set.
+    public var approvedConfirmActionTitle: String {
+        let count = approvedCount
+        let size = SiftFormat.bytes(approvedBytes)
+        return count == 1
+            ? LocalizationKey.cleanupConfirmMoveCountOne.localized(size)
+            : LocalizationKey.cleanupConfirmMoveCount.localized(count, size)
     }
 
     // MARK: - Flow
@@ -225,8 +259,9 @@ public final class CleanupModel: ObservableObject {
 
         let outcome = await operations.moveToTrash(
             preflight.ready,
-            categoryTotals: selectedByCategory,
+            categoryTotals: approvedByCategory,
             operation: operation,
+            identities: preflight.identities,
             refusedByPreflight: preflight.refusedResults
         )
         self.outcome = outcome
@@ -261,5 +296,8 @@ public final class CleanupModel: ObservableObject {
     public func acknowledgeOutcome() {
         outcome = nil
         report = nil
+        // The plan described the batch just finished. Keeping it would let the
+        // confirmation panel describe that batch under a new selection.
+        preflight = nil
     }
 }

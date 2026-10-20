@@ -24,6 +24,13 @@ public actor FileOperationService {
         public let risk: CleanupRisk
         public let sizeInBytes: Int64
         public let displayName: String
+        /// The item this candidate came from.
+        ///
+        /// Pre-flight used to rebuild every item from a five-field snapshot,
+        /// which stamped the placeholder explanation and rule id back onto the
+        /// row the user approved. Keeping the original preserves the sentence
+        /// the scanner attached and the rule that produced it.
+        private let original: CleanupItem?
 
         public init(url: URL, category: CleanupCategory, risk: CleanupRisk, sizeInBytes: Int64, displayName: String) {
             self.url = url
@@ -31,15 +38,30 @@ public actor FileOperationService {
             self.risk = risk
             self.sizeInBytes = sizeInBytes
             self.displayName = displayName
+            self.original = nil
         }
 
         public init(item: CleanupItem) {
-            self.init(
-                url: item.url,
-                category: item.category,
-                risk: item.risk,
-                sizeInBytes: item.sizeInBytes,
-                displayName: item.displayName
+            self.url = item.url
+            self.category = item.category
+            self.risk = item.risk
+            self.sizeInBytes = item.sizeInBytes
+            self.displayName = item.displayName
+            self.original = item
+        }
+
+        /// The candidate as the domain item execution carries.
+        func asCleanupItem() -> CleanupItem {
+            if let original { return original }
+            return CleanupItem(
+                url: url,
+                displayName: displayName,
+                category: category,
+                risk: risk,
+                sizeInBytes: sizeInBytes,
+                fileCount: 1,
+                explanationKey: "cleanup.explanation.temporary",
+                sourceRuleID: "preflight"
             )
         }
     }
@@ -143,14 +165,35 @@ public actor FileOperationService {
             subsumed.append(contentsOf: absorbed)
         }
 
+        // The object each approved item names now. Execution compares this with
+        // the object at the path immediately before the move; a path that was
+        // re-pointed or whose object was replaced must not be moved. An item
+        // whose identity cannot be read is not approved: falling back to the
+        // path-only checks is the gap this snapshot exists to close.
+        var approved: [Candidate] = []
+        var identities: [String: FileIdentitySnapshot] = [:]
+        for candidate in resolved {
+            guard let identity = FileIdentitySnapshot.of(path: candidate.url.path) else {
+                skipped.append((
+                    candidate,
+                    .fileNotFound,
+                    LocalizationKey.cleanupFailureFileNotFound.localized
+                ))
+                continue
+            }
+            approved.append(candidate)
+            identities[CleanupItem.stableID(category: candidate.category, url: candidate.url)] = identity
+        }
+
         logger.info(
-            "Pre-flight: ready=\(resolved.count) skipped=\(skipped.count) subsumed=\(subsumed.count) protected=\(protected.count)"
+            "Pre-flight: ready=\(approved.count) skipped=\(skipped.count) subsumed=\(subsumed.count) protected=\(protected.count)"
         )
         return PreflightReport(
-            ready: resolved.map { $0.asCleanupItem() },
+            ready: approved.map { $0.asCleanupItem() },
             skipped: skipped.map { (item: $0.item.asCleanupItem(), code: $0.code, message: $0.message) },
             subsumed: subsumed.map { $0.asCleanupItem() },
-            protected: protected.map { $0.asCleanupItem() }
+            protected: protected.map { $0.asCleanupItem() },
+            identities: identities
         )
     }
 
@@ -257,6 +300,7 @@ public actor FileOperationService {
         _ items: [CleanupItem],
         categoryTotals: [CategoryTotal] = [],
         operation: CleanupOperationName = .junkCleanup,
+        identities: [String: FileIdentitySnapshot] = [:],
         refusedByPreflight: [FileOperationResult] = []
     ) async -> CleanupOutcome {
         let startedAt = Date()
@@ -328,6 +372,28 @@ public actor FileOperationService {
                     )
                 )
                 continue
+            }
+
+            // The path can also stay exactly as it was while the object behind
+            // it is replaced. `trashItem` would then move the new object, which
+            // the user never selected and the protection list never judged.
+            // Pre-flight recorded the object it approved; anything else at this
+            // path now is refused.
+            if let expected = identities[item.id] {
+                guard let current = FileIdentitySnapshot.of(path: item.url.path), current == expected else {
+                    logger.error("Refused an item whose object changed before the move (code=itemChanged)")
+                    results.append(
+                        FileOperationResult(
+                            sourceURL: item.url,
+                            status: .skipped,
+                            errorCode: ErrorCode.itemChanged.rawValue,
+                            message: LocalizationKey.cleanupFailureItemChanged.localized,
+                            sizeInBytes: item.sizeInBytes,
+                            category: item.category
+                        )
+                    )
+                    continue
+                }
             }
 
             if isDryRun {
@@ -442,21 +508,5 @@ public actor FileOperationService {
     static func message(for error: Error, code: ErrorCode) -> String {
         _ = error
         return code.localizedTitle.localized
-    }
-}
-
-extension FileOperationService.Candidate {
-    /// Promotes a pre-flight candidate to a domain item.
-    func asCleanupItem() -> CleanupItem {
-        CleanupItem(
-            url: url,
-            displayName: displayName,
-            category: category,
-            risk: risk,
-            sizeInBytes: sizeInBytes,
-            fileCount: 1,
-            explanationKey: "cleanup.explanation.temporary",
-            sourceRuleID: "preflight"
-        )
     }
 }
