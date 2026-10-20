@@ -20,49 +20,47 @@ public struct PurchaseView: View {
     }
 
     public var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: SiftMetrics.spacingXL) {
-                header
-                comparison
-                if !environment.entitlement.isUnlocked {
-                    licenseSection
-                }
-                if let message {
-                    NoticeBanner(
-                        level: message.isError ? .warning : .success,
-                        message: message.text
+        SiftPage(maxWidth: SiftMetrics.contentWidthForm) {
+            PageHeader(titleKey: .purchaseTitle) {
+                if environment.entitlement.isUnlocked {
+                    SiftMetricPill(
+                        symbolName: "checkmark.seal.fill",
+                        value: LocalizationKey.purchaseStatusPurchased.localized,
+                        tint: SiftColor.safe
                     )
                 }
-                footer
             }
-            .padding(SiftMetrics.spacingXL)
-            .frame(maxWidth: 720, alignment: .leading)
-            // Keep a readable column, centred in the available detail area.
-            .frame(maxWidth: .infinity, alignment: .top)
+
+            SiftHeroCard(
+                symbolName: "lock.open",
+                title: LocalizationKey.purchasePriceLine.localized,
+                detail: LocalizationKey.purchaseUpdatesPromise.localized,
+                tint: SiftColor.accent
+            ) {
+                EmptyView()
+            }
+
+            if let reason {
+                NoticeBanner(
+                    level: .information,
+                    message: "\(reason.titleKey.localized) · \(LocalizationKey.purchaseLicenseRequiredDetail.localized)"
+                )
+            }
+
+            comparison
+            if !environment.entitlement.isUnlocked {
+                licenseSection
+            }
+            if let message {
+                NoticeBanner(
+                    level: message.isError ? .warning : .success,
+                    message: message.text
+                )
+            }
+            footer
         }
         .task {
             await environment.refreshEntitlement()
-        }
-    }
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
-            Text(LocalizationKey.purchaseTitle.localized)
-                .font(SiftFont.display)
-            Text(LocalizationKey.purchasePriceLine.localized)
-                .font(SiftFont.title)
-                .foregroundStyle(SiftColor.accent)
-            Text(LocalizationKey.purchaseUpdatesPromise.localized)
-                .font(SiftFont.body)
-                .foregroundStyle(.secondary)
-            if let reason {
-                Text(
-                    "\(reason.titleKey.localized) · \(LocalizationKey.purchaseLicenseRequiredDetail.localized)"
-                )
-                .font(SiftFont.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            }
         }
     }
 

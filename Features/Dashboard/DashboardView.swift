@@ -14,28 +14,55 @@ public struct DashboardView: View {
     public init() {}
 
     public var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: SiftMetrics.spacingXL) {
-                PageHeader(titleKey: .dashboardTitle, subtitle: greeting) {
-                    EmptyView()
-                }
-
-                HStack(alignment: .top, spacing: SiftMetrics.spacingL) {
-                    scanCard
-                    diskCard
-                }
-
-                statRow
-                suggestionRow
-
-                if let outcome = lastOutcome {
-                    RecentActivityCard(outcome: outcome)
+        SiftPage {
+            PageHeader(titleKey: .dashboardTitle, eyebrowKey: .navWorkbench, subtitle: greeting) {
+                if environment.scan.hasResults {
+                    SiftMetricPill(
+                        symbolName: "leaf.fill",
+                        value: environment.scan.formattedReclaimable
+                    )
+                } else {
+                    SiftMetricPill(
+                        symbolName: "clock",
+                        value: lastScanCaption,
+                        tint: SiftColor.neutral
+                    )
                 }
             }
-            .padding(SiftMetrics.spacingXL)
-            .frame(maxWidth: 1000, alignment: .leading)
-            // Keep a readable column, centred in the available detail area.
-            .frame(maxWidth: .infinity, alignment: .top)
+
+            HStack(alignment: .top, spacing: SiftMetrics.spacingL) {
+                SiftHeroCard(
+                    symbolName: "wand.and.sparkles",
+                    title: LocalizationKey.dashboardScanCardTitle.localized,
+                    detail: LocalizationKey.dashboardScanCardSubtitle.localized,
+                    tint: SiftColor.accent
+                ) {
+                    VStack(alignment: .trailing, spacing: SiftMetrics.spacingS) {
+                        PrimaryActionButton(titleKey: .dashboardStartScan, symbolName: "viewfinder") {
+                            Task { await environment.runScan(.everything) }
+                        }
+                        .disabled(environment.scan.isRunning)
+                        if environment.scan.isRunning {
+                            HStack(spacing: SiftMetrics.spacingS) {
+                                ProgressView().controlSize(.small)
+                                Text(LocalizationKey.scanPhaseScanning.localized)
+                                    .font(SiftFont.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+
+                diskCard
+                    .frame(width: 300)
+            }
+
+            statRow
+            suggestionRow
+
+            if let outcome = lastOutcome {
+                RecentActivityCard(outcome: outcome)
+            }
         }
         .task { lastOutcome = RecentHistory.lastOutcome() }
     }
@@ -50,39 +77,6 @@ public struct DashboardView: View {
         }
         return Date().formatted(.dateTime.weekday(.wide).month(.wide).day().locale(SiftLanguage.current.locale))
             + " · " + key.localized
-    }
-
-    private var scanCard: some View {
-        SiftPanel {
-            VStack(alignment: .leading, spacing: SiftMetrics.spacingM) {
-                Label {
-                    Text(LocalizationKey.navSmartScan.localized)
-                        .font(SiftFont.bodyEmphasis)
-                        .foregroundStyle(SiftColor.accent)
-                } icon: {
-                    Image(systemName: "wand.and.sparkles")
-                        .foregroundStyle(SiftColor.accent)
-                }
-                Text(LocalizationKey.dashboardScanCardTitle.localized)
-                    .font(SiftFont.title)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(LocalizationKey.dashboardScanCardSubtitle.localized)
-                    .font(SiftFont.body)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                HStack(spacing: SiftMetrics.spacingM) {
-                    PrimaryActionButton(titleKey: .dashboardStartScan, symbolName: "viewfinder") {
-                        Task { await environment.runScan(.everything) }
-                    }
-                    .disabled(environment.scan.isRunning)
-                    if environment.scan.isRunning {
-                        ProgressView().controlSize(.small)
-                    }
-                }
-                .padding(.top, SiftMetrics.spacingXS)
-            }
-        }
-        .frame(maxWidth: .infinity)
     }
 
     private var diskCard: some View {

@@ -22,7 +22,6 @@ public struct RootShellView: View {
 
     @EnvironmentObject private var environment: AppEnvironment
     @EnvironmentObject private var router: AppRouter
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     public var body: some View {
         NavigationSplitView {
@@ -34,18 +33,25 @@ public struct RootShellView: View {
         .navigationSplitViewStyle(.balanced)
         .background(SiftColor.windowBackground)
         .environment(\.locale, environment.preferences.language.locale)
-        .toolbar {
-            ToolbarItem(placement: .automatic) {
-                LanguageSwitcher()
-            }
-        }
     }
 }
 
-/// The sidebar: product identity and primary destinations.
+/// The sidebar: product identity, the three destination groups, and the
+/// utility rows at the bottom.
+///
+/// Language sits next to Settings and Unlock because it is a preference, not a
+/// page action: a control that changes the whole window belongs with the other
+/// window-level controls.
 struct SidebarView: View {
     @EnvironmentObject private var environment: AppEnvironment
     @EnvironmentObject private var router: AppRouter
+    /// Mirrors `router.destination` for the list.
+    ///
+    /// `List` keeps its own selection state; binding it straight to a computed
+    /// value let a programmatic navigation (a menu shortcut) move the page while
+    /// the highlighted row stayed behind. The list writes here, the router
+    /// publishes here, and both directions meet in this one value.
+    @State private var selection: AppDestination? = .dashboard
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -54,68 +60,114 @@ struct SidebarView: View {
                 .padding(.top, SiftMetrics.spacingL)
                 .padding(.bottom, SiftMetrics.spacingM)
 
-            Text(LocalizationKey.navWorkbench.localized)
-                .font(SiftFont.caption)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, SiftMetrics.spacingL)
-                .padding(.bottom, SiftMetrics.spacingXS)
-
             List(selection: selectionBinding) {
-                ForEach(AppDestination.primary) { destination in
-                    Label(destination.titleKey.localized, systemImage: destination.symbolName)
-                        .tag(destination)
-                        .accessibilityLabel(Text(destination.titleKey.localized))
-                        .accessibilityIdentifier("sidebar.\(destination.rawValue)")
+                ForEach(SidebarGroup.allCases) { group in
+                    Section {
+                        ForEach(group.destinations) { destination in
+                            Label(destination.titleKey.localized, systemImage: destination.symbolName)
+                                .tag(destination)
+                                .accessibilityLabel(Text(destination.titleKey.localized))
+                                .accessibilityIdentifier("sidebar.\(destination.rawValue)")
+                        }
+                    } header: {
+                        Text(group.titleKey.localized)
+                            .font(SiftFont.eyebrow)
+                            .textCase(.uppercase)
+                            .tracking(0.5)
+                    }
                 }
             }
             .listStyle(.sidebar)
             .scrollContentBackground(.hidden)
+            // The list rows are AppKit-backed and keep their rendered text when
+            // only the environment object changes. Rebuilding the list on a
+            // language change is what makes the sidebar switch with the page.
+            .id(environment.preferences.language)
+            .onReceive(router.$destination) { destination in
+                if selection != destination {
+                    selection = destination
+                }
+            }
 
             Divider()
 
-            VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
-                Button {
-                    router.go(to: .settings)
-                } label: {
-                    Label(LocalizationKey.navSettings.localized, systemImage: AppDestination.settings.symbolName)
-                        .font(SiftFont.body)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(router.destination == .settings ? .primary : .secondary)
-                .accessibilityIdentifier("sidebar.settings")
-
-                if !environment.entitlement.isUnlocked {
-                    Button {
-                        router.requestPurchase(reason: .cleanJunk)
-                    } label: {
-                        Label(LocalizationKey.purchaseTitle.localized, systemImage: AppDestination.purchase.symbolName)
-                            .font(SiftFont.body)
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(router.destination == .purchase ? .primary : .secondary)
-                }
-
-            }
-            .padding(.horizontal, SiftMetrics.spacingL)
-            .padding(.vertical, SiftMetrics.spacingM)
+            footer
         }
-        .background(SiftColor.panel.opacity(0.5))
+        .background(.thinMaterial)
+    }
+
+    private var footer: some View {
+        VStack(spacing: 2) {
+            LanguageMenu(
+                selection: environment.preferences.language,
+                style: .sidebar,
+                identifier: "sidebar.language"
+            ) { language in
+                environment.selectLanguage(language)
+            }
+            .help(LocalizationKey.settingsGroupLanguage.localized)
+
+            footerRow(.settings)
+
+            if !environment.entitlement.isUnlocked {
+                footerRow(.purchase)
+            }
+        }
+        .padding(.horizontal, SiftMetrics.spacingM)
+        .padding(.vertical, SiftMetrics.spacingM)
+    }
+
+    private func footerRow(_ destination: AppDestination) -> some View {
+        let isSelected = router.destination == destination
+        return Button {
+            if destination == .purchase {
+                router.requestPurchase(reason: .cleanJunk)
+            } else {
+                router.go(to: destination)
+            }
+        } label: {
+            HStack(spacing: SiftMetrics.spacingS) {
+                Image(systemName: destination.symbolName)
+                    .font(.system(size: 12, weight: .medium))
+                    .frame(width: 18)
+                Text(destination.titleKey.localized)
+                    .font(SiftFont.body)
+                Spacer(minLength: SiftMetrics.spacingS)
+            }
+            .foregroundStyle(isSelected ? SiftColor.accent : .secondary)
+            .padding(.horizontal, SiftMetrics.spacingS)
+            .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
+            .background(
+                isSelected ? SiftColor.accent.opacity(0.10) : Color.clear,
+                in: RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text(destination.titleKey.localized))
+        .accessibilityIdentifier("sidebar.\(destination.rawValue)")
     }
 
     private var identity: some View {
         HStack(spacing: SiftMetrics.spacingM) {
             RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
-                .fill(SiftColor.accent)
-                .frame(width: 36, height: 36)
+                .fill(
+                    LinearGradient(
+                        colors: [SiftColor.accent, SiftColor.accent.opacity(0.72)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 40, height: 40)
                 .overlay {
                     Image(systemName: "wand.and.sparkles")
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(.white)
                 }
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
                 Text(LocalizationKey.appName.localized)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.system(size: 16, weight: .semibold))
                 Text(LocalizationKey.appTagline.localized)
                     .font(SiftFont.caption)
                     .foregroundStyle(.secondary)
@@ -123,52 +175,20 @@ struct SidebarView: View {
         }
     }
 
-    /// Bridges the router's single destination to `List`'s optional selection.
+    /// Bridges the list's selection to the router.
+    ///
+    /// A programmatic navigation is written back through `onReceive` instead of
+    /// by reading the router inside the binding, which is what kept the old
+    /// highlighted row when a shortcut changed the destination.
     private var selectionBinding: Binding<AppDestination?> {
         Binding(
-            get: { router.destination },
-            set: { if let value = $0 { router.go(to: value) } }
-        )
-    }
-}
-
-/// Always-visible language control in the window toolbar. Language names are
-/// shown in their native writing systems so the control is understandable before
-/// the user can read the rest of the interface.
-struct LanguageSwitcher: View {
-    @EnvironmentObject private var environment: AppEnvironment
-    var body: some View {
-        Menu {
-            ForEach(SiftLanguage.allCases) { language in
-                Button {
-                    select(language)
-                } label: {
-                    HStack {
-                        Text(language.displayName)
-                        if environment.preferences.language == language {
-                            Image(systemName: "checkmark")
-                        }
-                    }
-                }
-                .accessibilityIdentifier("language.\(language.rawValue)")
+            get: { selection },
+            set: { value in
+                guard let value else { return }
+                selection = value
+                router.go(to: value)
             }
-        } label: {
-            Label(environment.preferences.language.shortName, systemImage: "globe")
-                .labelStyle(.titleAndIcon)
-        }
-        .menuStyle(.borderlessButton)
-        .help(LocalizationKey.settingsGroupLanguage.localized)
-        .accessibilityLabel(LocalizationKey.settingsGroupLanguage.localized)
-        .accessibilityIdentifier("toolbar.language")
-    }
-
-    private func select(_ language: SiftLanguage) {
-        // Publish the choice synchronously for string lookup; SettingsStore then
-        // persists it through the normal preferences pipeline.
-        UserDefaults.standard.set(language.rawValue, forKey: "settings.language")
-        Task {
-            await environment.updateSettings { $0.language = language }
-        }
+        )
     }
 }
 
@@ -199,7 +219,7 @@ struct DetailView: View {
                     onManageScope: { router.go(to: .settings) }
                 )
             case .storageAnalysis:
-                StorageAnalysisView()
+                StorageAnalysisView(model: environment.storageAnalysis)
             case .settings:
                 SettingsView()
             case .purchase:

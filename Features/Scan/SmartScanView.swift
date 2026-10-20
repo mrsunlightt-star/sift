@@ -14,59 +14,62 @@ public struct SmartScanView: View {
     }
 
     public var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: SiftMetrics.spacingXL) {
-                PageHeader(titleKey: .scanTitle) {
-                    if environment.scan.hasResults {
-                        Text(environment.scan.formattedReclaimable)
-                            .font(SiftFont.metric)
-                            .foregroundStyle(SiftColor.accent)
-                    }
-                }
-
-                // Offered whenever a scan is not running and left no results to
-                // act on — cancelled and failed included, not just a first run.
-                // The other pages already show their gate card on `!hasResults`;
-                // gating on `.idle` alone left "cancelled" as a dead end with no
-                // way to start again.
-                if !environment.scan.hasResults, !environment.scan.isRunning {
-                    StartScanCard {
-                        Task { await startScan() }
-                    }
-                    .frame(minHeight: 320, alignment: .center)
-                } else {
-                    ScanProgressPanel(model: environment.scan)
-                }
-
-                if let failure = environment.scan.failure {
-                    NoticeBanner(
-                        level: .error,
-                        message: failure.message,
-                        actionTitle: failure.code.suggestedAction?.titleKey,
-                        action: failure.code.suggestedAction == .openSystemSettings
-                            ? { Task { await environment.openPermissionSettings() } }
-                            : nil
-                    )
-                }
-
+        SiftPage(maxWidth: SiftMetrics.contentWidthStandard) {
+            PageHeader(titleKey: .scanTitle, eyebrowKey: .navWorkbench) {
                 if environment.scan.hasResults {
-                    SelectionBar(
-                        cleanup: environment.cleanup,
-                        environment: environment,
-                        operation: .smartScan,
-                        onRequestPurchase: onRequestPurchase
+                    SiftMetricPill(
+                        symbolName: "leaf.fill",
+                        value: environment.scan.formattedReclaimable
                     )
-                    ScanResultsView(scan: environment.scan, cleanup: environment.cleanup)
-                }
-
-                if !environment.scan.skippedLocations.isEmpty {
-                    SkippedLocationsCard(locations: environment.scan.skippedLocations)
                 }
             }
-            .padding(SiftMetrics.spacingXL)
-            .frame(maxWidth: 900, alignment: .leading)
-            // Keep a readable column, centred in the available detail area.
-            .frame(maxWidth: .infinity, alignment: .top)
+
+            // Offered whenever a scan is not running and left no results to
+            // act on — cancelled and failed included, not just a first run.
+            // The other pages already show their gate card on `!hasResults`;
+            // gating on `.idle` alone left "cancelled" as a dead end with no
+            // way to start again.
+            if !environment.scan.hasResults, !environment.scan.isRunning {
+                SiftHeroCard(
+                    symbolName: "wand.and.sparkles",
+                    title: LocalizationKey.dashboardScanCardTitle.localized,
+                    detail: LocalizationKey.dashboardScanCardSubtitle.localized,
+                    tint: SiftColor.accent
+                ) {
+                    PrimaryActionButton(titleKey: .dashboardStartScan, symbolName: "viewfinder") {
+                        Task { await startScan() }
+                    }
+                }
+
+                ScanCategoryPreview(Self.scanCategories)
+            } else if environment.scan.isRunning || !environment.scan.hasResults {
+                ScanProgressPanel(model: environment.scan)
+            }
+
+            if let failure = environment.scan.failure {
+                NoticeBanner(
+                    level: .error,
+                    message: failure.message,
+                    actionTitle: failure.code.suggestedAction?.titleKey,
+                    action: failure.code.suggestedAction == .openSystemSettings
+                        ? { Task { await environment.openPermissionSettings() } }
+                        : nil
+                )
+            }
+
+            if environment.scan.hasResults {
+                SelectionBar(
+                    cleanup: environment.cleanup,
+                    environment: environment,
+                    operation: .smartScan,
+                    onRequestPurchase: onRequestPurchase
+                )
+                ScanResultsView(scan: environment.scan, cleanup: environment.cleanup)
+            }
+
+            if !environment.scan.skippedLocations.isEmpty {
+                SkippedLocationsCard(locations: environment.scan.skippedLocations)
+            }
         }
         .task {
             if environment.scan.hasResults {
@@ -75,39 +78,15 @@ public struct SmartScanView: View {
         }
     }
 
+    /// What a smart scan can find. Naming the categories before the first run
+    /// sets the expectation, and the same names are the result groups.
+    private static let scanCategories: [CleanupCategory] = [
+        .applicationCache, .logs, .installers, .temporaryFiles,
+        .largeFiles, .oldFiles, .duplicateFiles,
+    ]
+
     private func startScan() async {
         await environment.runScan(.everything)
-    }
-}
-
-/// The idle state: the primary action with the explanation of what it does.
-struct StartScanCard: View {
-    let onStart: () -> Void
-
-    var body: some View {
-        SiftPanel {
-            VStack(alignment: .leading, spacing: SiftMetrics.spacingM) {
-                Label {
-                    Text(LocalizationKey.navSmartScan.localized)
-                        .font(SiftFont.bodyEmphasis)
-                        .foregroundStyle(SiftColor.accent)
-                } icon: {
-                    Image(systemName: "wand.and.sparkles")
-                        .foregroundStyle(SiftColor.accent)
-                }
-                Text(LocalizationKey.dashboardScanCardTitle.localized)
-                    .font(SiftFont.title)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(LocalizationKey.dashboardScanCardSubtitle.localized)
-                    .font(SiftFont.body)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                PrimaryActionButton(titleKey: .dashboardStartScan, symbolName: "viewfinder") {
-                    onStart()
-                }
-                .padding(.top, SiftMetrics.spacingXS)
-            }
-        }
     }
 }
 

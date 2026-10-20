@@ -123,7 +123,7 @@ struct CategoryGroupCard: View {
                         )
                         VStack(alignment: .leading, spacing: 2) {
                             Text(total.category.titleKey.localized)
-                                .font(SiftFont.bodyEmphasis)
+                                .font(SiftFont.sectionTitle)
                             Text(
                                 "\(LocalizationKey.scanGroupCount.localized(SiftFormat.count(total.itemCount))) · \(total.formattedSize)"
                             )

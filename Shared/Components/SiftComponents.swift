@@ -1,12 +1,11 @@
 import SwiftUI
 
-/// A white panel with a hairline border, matching the content surfaces in the
-/// design mockups.
+/// A panel with a hairline border, the surface every section sits on.
 public struct SiftPanel<Content: View>: View {
     private let padding: CGFloat
     private let content: Content
 
-    public init(padding: CGFloat = SiftMetrics.spacingL, @ViewBuilder content: () -> Content) {
+    public init(padding: CGFloat = SiftMetrics.spacingXL, @ViewBuilder content: () -> Content) {
         self.padding = padding
         self.content = content()
     }
@@ -19,7 +18,7 @@ public struct SiftPanel<Content: View>: View {
             .clipShape(RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusL, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusL, style: .continuous)
-                    .stroke(SiftColor.border, lineWidth: SiftMetrics.panelBorderWidth)
+                    .stroke(SiftColor.border.opacity(0.7), lineWidth: SiftMetrics.panelBorderWidth)
             }
     }
 }
@@ -409,37 +408,59 @@ public struct NoticeBanner: View {
     }
 }
 
-/// A page header: the date line, a display title and optional trailing actions.
+/// A page header: an eyebrow naming the sidebar group, a display title, an
+/// optional subtitle and trailing actions aligned with the title.
+///
+/// The eyebrow is what ties a page to the group it was opened from, so the
+/// window has a readable hierarchy instead of a title floating over a card.
 public struct PageHeader<Trailing: View>: View {
+    private let eyebrowKey: LocalizationKey?
     private let titleKey: LocalizationKey
     private let subtitle: String?
     private let trailing: Trailing
 
-    public init(titleKey: LocalizationKey, subtitle: String? = nil, @ViewBuilder trailing: () -> Trailing) {
+    public init(
+        titleKey: LocalizationKey,
+        eyebrowKey: LocalizationKey? = nil,
+        subtitle: String? = nil,
+        @ViewBuilder trailing: () -> Trailing
+    ) {
         self.titleKey = titleKey
+        self.eyebrowKey = eyebrowKey
         self.subtitle = subtitle
         self.trailing = trailing()
     }
 
     public var body: some View {
-        HStack(alignment: .top) {
+        HStack(alignment: .bottom, spacing: SiftMetrics.spacingXL) {
             VStack(alignment: .leading, spacing: SiftMetrics.spacingXS) {
-                Text(subtitle ?? SiftFormat.timestamp(Date()))
-                    .font(SiftFont.body)
-                    .foregroundStyle(.secondary)
+                if let eyebrowKey {
+                    Text(eyebrowKey.localized)
+                        .font(SiftFont.eyebrow)
+                        .textCase(.uppercase)
+                        .tracking(0.6)
+                        .foregroundStyle(SiftColor.accent)
+                }
                 Text(titleKey.localized)
                     .font(SiftFont.display)
                     .fixedSize(horizontal: false, vertical: true)
+                if let subtitle, !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(SiftFont.body)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             Spacer(minLength: SiftMetrics.spacingL)
             trailing
+                .padding(.bottom, 2)
         }
     }
 }
 
 extension PageHeader where Trailing == EmptyView {
-    public init(titleKey: LocalizationKey, subtitle: String? = nil) {
-        self.init(titleKey: titleKey, subtitle: subtitle) { EmptyView() }
+    public init(titleKey: LocalizationKey, eyebrowKey: LocalizationKey? = nil, subtitle: String? = nil) {
+        self.init(titleKey: titleKey, eyebrowKey: eyebrowKey, subtitle: subtitle) { EmptyView() }
     }
 }
 
@@ -477,5 +498,236 @@ public struct BreakdownBar: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Text(label))
         .accessibilityValue(Text(value))
+    }
+}
+
+/// The scrolling page column.
+///
+/// Every page uses the same outer margins and vertical rhythm; only the column
+/// width changes with the kind of content. That consistency is what makes the
+/// pages look like one app when the window is wide, instead of a set of columns
+/// that each chose their own alignment.
+public struct SiftPage<Content: View>: View {
+    private let maxWidth: CGFloat
+    private let content: Content
+
+    public init(maxWidth: CGFloat = SiftMetrics.contentWidthWide, @ViewBuilder content: () -> Content) {
+        self.maxWidth = maxWidth
+        self.content = content()
+    }
+
+    public var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: SiftMetrics.spacingXL) {
+                content
+            }
+            .padding(.horizontal, SiftMetrics.spacingXXL)
+            .padding(.top, SiftMetrics.spacingXL)
+            .padding(.bottom, SiftMetrics.spacingXXL)
+            .frame(maxWidth: maxWidth, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .top)
+        }
+        .background(SiftColor.windowBackground)
+    }
+}
+
+/// A primary block: an icon, a short headline, an explanation and the action
+/// that belongs to them, on one tinted surface.
+///
+/// The empty and first-run states use this instead of centring a small card in a
+/// large blank area: the block fills the page column deliberately, and the
+/// action sits where the eye already is.
+public struct SiftHeroCard<Actions: View>: View {
+    private let symbolName: String
+    private let title: String
+    private let detail: String?
+    private let tint: Color
+    private let actions: Actions
+
+    public init(
+        symbolName: String,
+        title: String,
+        detail: String? = nil,
+        tint: Color = SiftColor.accent,
+        @ViewBuilder actions: () -> Actions
+    ) {
+        self.symbolName = symbolName
+        self.title = title
+        self.detail = detail
+        self.tint = tint
+        self.actions = actions()
+    }
+
+    public var body: some View {
+        HStack(alignment: .top, spacing: SiftMetrics.spacingXL) {
+            RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusL, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [tint.opacity(0.24), tint.opacity(0.08)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 64, height: 64)
+                .overlay {
+                    Image(systemName: symbolName)
+                        .font(.system(size: 27, weight: .medium))
+                        .foregroundStyle(tint)
+                }
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: SiftMetrics.spacingXS) {
+                Text(title)
+                    .font(SiftFont.title)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let detail, !detail.isEmpty {
+                    Text(detail)
+                        .font(SiftFont.body)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                actions
+                    .padding(.top, SiftMetrics.spacingXS)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(SiftMetrics.spacingXL)
+        .background {
+            RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusXL, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [tint.opacity(0.10), SiftColor.panel],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusXL, style: .continuous)
+                .stroke(tint.opacity(0.20), lineWidth: SiftMetrics.panelBorderWidth)
+        }
+    }
+}
+
+/// A small labelled value used in the page summary strips.
+public struct SiftMetricPill: View {
+    private let symbolName: String
+    private let value: String
+    private let tint: Color
+
+    public init(symbolName: String, value: String, tint: Color = SiftColor.accent) {
+        self.symbolName = symbolName
+        self.value = value
+        self.tint = tint
+    }
+
+    public var body: some View {
+        HStack(spacing: SiftMetrics.spacingS) {
+            Image(systemName: symbolName)
+                .font(.system(size: 11, weight: .semibold))
+            Text(value)
+                .font(SiftFont.bodyEmphasis)
+                .monospacedDigit()
+        }
+        .foregroundStyle(tint)
+        .padding(.horizontal, SiftMetrics.spacingM)
+        .padding(.vertical, 6)
+        .background(Capsule().fill(tint.opacity(0.12)))
+    }
+}
+
+/// The language control.
+///
+/// The sidebar footer and the settings page both render this view and both call
+/// the same selection closure, so the choice is written by one function and the
+/// two locations cannot disagree about how it is stored.
+public struct LanguageMenu: View {
+    public enum Style: Sendable {
+        /// A sidebar footer row: globe, current language and a disclosure glyph.
+        case sidebar
+        /// A settings row: the label on the left, the current language on the right.
+        case settings(title: LocalizationKey)
+    }
+
+    private let selection: SiftLanguage
+    private let style: Style
+    private let identifier: String
+    private let onSelect: (SiftLanguage) -> Void
+
+    public init(
+        selection: SiftLanguage,
+        style: Style,
+        identifier: String = "language.menu",
+        onSelect: @escaping (SiftLanguage) -> Void
+    ) {
+        self.selection = selection
+        self.style = style
+        self.identifier = identifier
+        self.onSelect = onSelect
+    }
+
+    public var body: some View {
+        Menu {
+            ForEach(SiftLanguage.allCases) { language in
+                Button {
+                    onSelect(language)
+                } label: {
+                    HStack {
+                        Text(language.displayName)
+                        if language == selection {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+                .accessibilityIdentifier("language.\(language.rawValue)")
+            }
+        } label: {
+            label
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .accessibilityIdentifier(identifier)
+        .accessibilityLabel(Text(LocalizationKey.settingsGroupLanguage.localized))
+        .accessibilityValue(Text(selection.displayName))
+    }
+
+    @ViewBuilder
+    private var label: some View {
+        switch style {
+        case .sidebar:
+            HStack(spacing: SiftMetrics.spacingS) {
+                Image(systemName: "globe")
+                    .font(.system(size: 12, weight: .medium))
+                    .frame(width: 18)
+                Text(selection.displayName)
+                    .font(SiftFont.body)
+                    .lineLimit(1)
+                Spacer(minLength: SiftMetrics.spacingS)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.system(size: 8, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, SiftMetrics.spacingS)
+            .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
+            .contentShape(Rectangle())
+
+        case let .settings(title):
+            HStack {
+                Text(title.localized)
+                    .font(SiftFont.body)
+                Spacer()
+                HStack(spacing: SiftMetrics.spacingXS) {
+                    Text(selection.displayName)
+                        .font(SiftFont.body)
+                        .foregroundStyle(.secondary)
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .contentShape(Rectangle())
+        }
     }
 }

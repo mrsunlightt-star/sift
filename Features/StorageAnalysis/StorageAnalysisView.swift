@@ -14,99 +14,144 @@ import SwiftUI
 /// using my disk" from two engines is how the numbers end up disagreeing.
 public struct StorageAnalysisView: View {
     @EnvironmentObject private var environment: AppEnvironment
-    @State private var analysis: StorageAnalysis = .empty
-    @State private var report: StorageDiagnosticReport = .empty
-    @State private var isAnalyzing = false
-    /// Off by default: the volume-level pass reads the whole disk and takes about
-    /// a minute, which is not what opening the page should cost.
-    @State private var includeVolumeRoot = false
+    /// The session state lives in `AppEnvironment`, so returning to this page
+    /// shows the last result and never starts a new analysis by itself.
+    @ObservedObject private var model: StorageAnalysisModel
     @State private var showAllFiles = false
     @State private var showAllDirectories = false
-    @State private var cancellation = CancellationFlag()
-    @State private var analysisTask: Task<Void, Never>?
 
-    public init() {}
+    public init(model: StorageAnalysisModel) {
+        _model = ObservedObject(wrappedValue: model)
+    }
+
+    private var analysis: StorageAnalysis { model.analysis }
+    private var report: StorageDiagnosticReport { model.report }
+    private var isAnalyzing: Bool { model.isAnalyzing }
+    private var hasResult: Bool { model.hasResult }
 
     public var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: SiftMetrics.spacingXL) {
-                PageHeader(titleKey: .storageTitle) {
+        SiftPage {
+            PageHeader(
+                titleKey: .storageTitle,
+                eyebrowKey: .navGroupApps,
+                subtitle: lastAnalyzedSubtitle
+            ) {
+                if model.hasResult {
                     Button {
-                        Task { await analyze() }
+                        Task { await environment.analyzeStorage() }
                     } label: {
                         Label(
-                            LocalizationKey.storageAnalyze.localized,
+                            LocalizationKey.storageReanalyze.localized,
                             systemImage: "arrow.clockwise"
                         )
                     }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
                     .disabled(isAnalyzing)
-                }
-
-                scopeRow
-
-                if isAnalyzing {
-                    HStack(spacing: SiftMetrics.spacingM) {
-                        ProgressView().controlSize(.small)
-                        Text(LocalizationKey.storageAnalysing.localized)
-                            .font(SiftFont.body)
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 240, alignment: .center)
-                }
-
-                if hasResult {
-                    coverageNotice
-                    volumeCard
-                    categoriesCard
-                    HStack(alignment: .top, spacing: SiftMetrics.spacingL) {
-                        directoriesCard
-                        filesCard
-                    }
-                    findingsCard(titleKey: .diagnosticsSectionRebuildable, findings: report.rebuildableFindings)
-                    findingsCard(titleKey: .diagnosticsSectionProtected, findings: report.protectedFindings)
-                    findingsCard(titleKey: .diagnosticsSectionSnapshots, findings: report.snapshotFindings)
-                    skippedCard
-                    notes
-                } else if !isAnalyzing {
-                    SiftEmptyState(symbolName: "chart.pie", titleKey: .storageNotAuthorized)
-                        .frame(maxWidth: .infinity, minHeight: 320, alignment: .center)
+                    .accessibilityIdentifier("storage.reanalyze")
                 }
             }
-            .padding(SiftMetrics.spacingXL)
-            .frame(maxWidth: 1000, alignment: .leading)
-            // Keep a readable column, centred in the available detail area.
-            .frame(maxWidth: .infinity, alignment: .top)
-        }
-        .task { await analyze() }
-        .onDisappear {
-            cancellation.isCancelled = true
-            analysisTask?.cancel()
-            analysisTask = nil
+
+            scopeRow
+
+            if isAnalyzing {
+                analyzingCard
+            }
+
+            if hasResult {
+                coverageNotice
+                HStack(alignment: .top, spacing: SiftMetrics.spacingL) {
+                    volumeCard
+                    reclaimableCard
+                        .frame(width: 260)
+                }
+                categoriesCard
+                HStack(alignment: .top, spacing: SiftMetrics.spacingL) {
+                    directoriesCard
+                    filesCard
+                }
+                findingsCard(titleKey: .diagnosticsSectionRebuildable, findings: report.rebuildableFindings)
+                findingsCard(titleKey: .diagnosticsSectionProtected, findings: report.protectedFindings)
+                findingsCard(titleKey: .diagnosticsSectionSnapshots, findings: report.snapshotFindings)
+                skippedCard
+                notes
+            } else if !isAnalyzing {
+                // Opening the page only shows the scope. The analysis begins
+                // when the user presses this button, not when the destination
+                // is selected.
+                SiftHeroCard(
+                    symbolName: "chart.pie",
+                    title: LocalizationKey.storageTitle.localized,
+                    detail: LocalizationKey.storageScopeNote.localized,
+                    tint: SiftColor.categoryPalette[3]
+                ) {
+                    PrimaryActionButton(
+                        titleKey: .storageStart,
+                        symbolName: "arrow.clockwise"
+                    ) {
+                        Task { await environment.analyzeStorage() }
+                    }
+                    .accessibilityIdentifier("storage.analyze")
+                }
+            }
         }
     }
 
-    private var hasResult: Bool {
-        report.providerCount > 0
+    private var lastAnalyzedSubtitle: String? {
+        guard let last = model.lastAnalyzedAt else { return nil }
+        return LocalizationKey.storageLastAnalyzed.localized(SiftFormat.relativeDate(last))
     }
 
     /// One scope control for the whole page.
+    ///
+    /// The toggle and the sentence that explains it share a surface, so the two
+    /// halves of the same decision do not sit at opposite edges of the window.
     private var scopeRow: some View {
-        HStack(spacing: SiftMetrics.spacingM) {
-            Toggle(
-                LocalizationKey.storageIncludeVolume.localized,
-                isOn: $includeVolumeRoot
-            )
-            .toggleStyle(.checkbox)
-            .disabled(isAnalyzing)
+        SiftPanel(padding: SiftMetrics.spacingL) {
+            HStack(alignment: .center, spacing: SiftMetrics.spacingL) {
+                Toggle(
+                    LocalizationKey.storageIncludeVolume.localized,
+                    isOn: $model.includeVolumeRoot
+                )
+                .toggleStyle(.checkbox)
+                .disabled(isAnalyzing)
 
-            Spacer(minLength: SiftMetrics.spacingS)
+                Divider()
+                    .frame(height: 20)
 
-            Text(LocalizationKey.storageScopeNote.localized)
-                .font(SiftFont.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .truncationMode(.tail)
+                Text(LocalizationKey.storageScopeNote.localized)
+                    .font(SiftFont.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Spacer(minLength: 0)
+            }
         }
+    }
+
+    private var analyzingCard: some View {
+        SiftPanel {
+            HStack(spacing: SiftMetrics.spacingL) {
+                ProgressView()
+                    .controlSize(.regular)
+                VStack(alignment: .leading, spacing: SiftMetrics.spacingXS) {
+                    Text(LocalizationKey.storageAnalysing.localized)
+                        .font(SiftFont.sectionTitle)
+                    Text(LocalizationKey.storageScopeNote.localized)
+                        .font(SiftFont.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button {
+                    environment.cancelStorageAnalysis()
+                } label: {
+                    Text(LocalizationKey.storageCancelAnalysis.localized)
+                }
+                .buttonStyle(.bordered)
+                .keyboardShortcut(.cancelAction)
+            }
+        }
+        .accessibilityIdentifier("storage.analyzing")
     }
 
     // MARK: - Completeness
@@ -147,41 +192,49 @@ public struct StorageAnalysisView: View {
 
     private var volumeCard: some View {
         SiftPanel {
-            HStack(alignment: .center, spacing: SiftMetrics.spacingXL) {
+            VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
                 if let volume = report.primaryVolume {
-                    VStack(alignment: .leading, spacing: SiftMetrics.spacingXS) {
-                        HStack(alignment: .firstTextBaseline) {
-                            Text(volume.formattedUsage)
-                                .font(SiftFont.metricLarge)
-                            Text(volume.name)
-                                .font(SiftFont.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        UsageBar(
-                            fraction: volume.usedFraction,
-                            tint: volume.usedFraction > 0.9 ? SiftColor.review : SiftColor.safe,
-                            height: 10
-                        )
-                        Text(LocalizationKey.dashboardDiskFree.localized(volume.formattedFree))
-                            .font(SiftFont.bodyEmphasis)
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(volume.formattedUsage)
+                            .font(SiftFont.metricLarge)
+                        Text(volume.name)
+                            .font(SiftFont.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer(minLength: SiftMetrics.spacingS)
                     }
-                }
-                VStack(alignment: .leading, spacing: SiftMetrics.spacingXS) {
-                    Text(LocalizationKey.storageReclaimable.localized)
-                        .font(SiftFont.caption)
-                        .foregroundStyle(.secondary)
-                    Text(SiftFormat.bytes(analysis.reclaimableBytes))
-                        .font(SiftFont.metric)
-                        .foregroundStyle(SiftColor.safe)
-                    Text(
-                        LocalizationKey.scanCheckedFiles.localized(
-                            SiftFormat.count(Int(report.measuredFiles))
-                        )
+                    UsageBar(
+                        fraction: volume.usedFraction,
+                        tint: volume.usedFraction > 0.9 ? SiftColor.review : SiftColor.safe,
+                        height: 10
                     )
-                    .font(SiftFont.caption)
-                    .foregroundStyle(.tertiary)
+                    Text(LocalizationKey.dashboardDiskFree.localized(volume.formattedFree))
+                        .font(SiftFont.bodyEmphasis)
+                } else {
+                    Text(LocalizationKey.storageNotAuthorized.localized)
+                        .font(SiftFont.body)
+                        .foregroundStyle(.secondary)
                 }
-                Spacer()
+            }
+        }
+    }
+
+    private var reclaimableCard: some View {
+        SiftPanel {
+            VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
+                Text(LocalizationKey.storageReclaimable.localized)
+                    .font(SiftFont.caption)
+                    .foregroundStyle(.secondary)
+                Text(SiftFormat.bytes(analysis.reclaimableBytes))
+                    .font(SiftFont.metric)
+                    .foregroundStyle(SiftColor.safe)
+                    .contentTransition(.numericText())
+                Text(
+                    LocalizationKey.scanCheckedFiles.localized(
+                        SiftFormat.count(Int(report.measuredFiles))
+                    )
+                )
+                .font(SiftFont.caption)
+                .foregroundStyle(.tertiary)
             }
         }
     }
@@ -338,52 +391,6 @@ public struct StorageAnalysisView: View {
         }
     }
 
-    // MARK: - Analysis
-
-    /// Runs both halves of the page under one button and one cancellation flag.
-    ///
-    /// The byte-level view comes from the storage analyzer, the meaning of what it
-    /// found from the diagnostics engine. They share a scope: the home folder and
-    /// the locations the user granted, plus the volume root when it was asked for.
-    private func analyze() async {
-        guard !isAnalyzing else { return }
-        isAnalyzing = true
-        defer { isAnalyzing = false }
-
-        let analyzer = environment.storageAnalyzer
-        let diagnostics = environment.diagnostics
-        let rules = environment.rules
-        let home = URL(fileURLWithPath: rules.homeDirectory)
-        let scanRequest = await environment.makeScanRequest(includeDuplicates: false)
-        let scanRoots = scanRequest.roots
-        let ignoredPaths = scanRequest.ignoredPaths
-        let diagnosticRoots = environment.diagnosticRoots(includeVolumeRoot: includeVolumeRoot)
-        cancellation.isCancelled = false
-        let flag = cancellation
-
-        let task = Task(priority: .userInitiated) { () -> Void in
-            let measured = (try? await analyzer.analyze(
-                roots: scanRoots,
-                ignoredPaths: ignoredPaths,
-                cancelled: { flag.isCancelled }
-            )) ?? .empty
-            guard !flag.isCancelled else { return }
-            let diagnosed = await diagnostics.analyze(
-                roots: diagnosticRoots,
-                homeDirectory: home,
-                rules: rules,
-                isCancelled: { flag.isCancelled }
-            )
-            guard !flag.isCancelled else { return }
-            await MainActor.run {
-                analysis = measured
-                report = diagnosed
-            }
-        }
-        analysisTask = task
-        await task.value
-        analysisTask = nil
-    }
 }
 
 /// One finding: what it is, how much it holds, and what can be done about it.

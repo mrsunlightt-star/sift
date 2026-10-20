@@ -25,80 +25,91 @@ public struct FileCleanupView: View {
     }
 
     public var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: SiftMetrics.spacingXL) {
-                PageHeader(titleKey: .filesTitle) {
-                    Picker(String(), selection: $mode) {
-                        ForEach(FileCleanupMode.allCases, id: \.self) { mode in
-                            Text(mode.titleKey.localized).tag(mode)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .frame(width: 320)
-                }
-
-                thresholdNote
-
-                if mode == .duplicates {
-                    duplicateScopeCard
-                }
-
+        SiftPage(maxWidth: SiftMetrics.contentWidthStandard) {
+            PageHeader(titleKey: .filesTitle, eyebrowKey: .navGroupCleanup) {
                 if environment.scan.hasResults {
-                    SelectionBar(
-                        cleanup: environment.cleanup,
-                        environment: environment,
-                        operation: mode.operationName,
-                        onRequestPurchase: onRequestPurchase
+                    SiftMetricPill(
+                        symbolName: "leaf.fill",
+                        value: environment.scan.formattedReclaimable
                     )
-                    ScanResultsView(
-                        scan: environment.scan,
-                        cleanup: environment.cleanup,
-                        categories: mode.categories
-                    )
-                } else {
-                    ScanGateCard(
-                        titleKey: mode.titleKey,
-                        detailKey: mode == .duplicates
-                            ? .filesRequiresAuthorization
-                            : .cleanupExplanationLargeFilesItem,
-                        onStart: { Task { await environment.runScan(.files(mode)) } }
-                    )
-                    .frame(minHeight: 320, alignment: .center)
                 }
             }
-            .padding(SiftMetrics.spacingXL)
-            .frame(maxWidth: 900, alignment: .leading)
-            // Keep a readable column, centred in the available detail area.
-            .frame(maxWidth: .infinity, alignment: .top)
+
+            modeBar
+
+            if mode == .duplicates {
+                duplicateScopeCard
+            }
+
+            if environment.scan.hasResults {
+                SelectionBar(
+                    cleanup: environment.cleanup,
+                    environment: environment,
+                    operation: mode.operationName,
+                    onRequestPurchase: onRequestPurchase
+                )
+                ScanResultsView(
+                    scan: environment.scan,
+                    cleanup: environment.cleanup,
+                    categories: mode.categories
+                )
+            } else {
+                SiftHeroCard(
+                    symbolName: mode.symbolName,
+                    title: mode.titleKey.localized,
+                    detail: modeExplanation,
+                    tint: mode.tint
+                ) {
+                    PrimaryActionButton(titleKey: .dashboardStartScan, symbolName: "viewfinder") {
+                        Task { await environment.runScan(.files(mode)) }
+                    }
+                }
+            }
         }
     }
 
-    private var thresholdNote: some View {
-        SiftPanel(padding: SiftMetrics.spacingM) {
-            HStack(spacing: SiftMetrics.spacingM) {
+    /// The mode picker and the sentence that explains the selected mode live in
+    /// one bar. The picker used to sit in the page header, far from the card it
+    /// changed, which made the page read as unrelated fragments.
+    private var modeBar: some View {
+        SiftPanel(padding: SiftMetrics.spacingL) {
+            HStack(spacing: SiftMetrics.spacingL) {
+                Picker(String(), selection: $mode) {
+                    ForEach(FileCleanupMode.allCases, id: \.self) { mode in
+                        Text(mode.titleKey.localized).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(width: 320)
+
+                Divider()
+                    .frame(height: 22)
+
                 Image(systemName: "info.circle")
                     .foregroundStyle(SiftColor.accent)
                     .accessibilityHidden(true)
-                switch mode {
-                case .large:
-                    Text(
-                        LocalizationKey.filesThresholdLarge.localized(
-                            SiftFormat.bytes(environment.preferences.largeFileThresholdBytes)
-                        )
-                    )
-                    .font(SiftFont.body)
-                case .old:
-                    Text(
-                        LocalizationKey.filesThresholdOld.localized(environment.preferences.oldFileThresholdDays)
-                    )
-                    .font(SiftFont.body)
-                case .duplicates:
-                    Text(LocalizationKey.cleanupExplanationDuplicates.localized)
-                        .font(SiftFont.body)
-                }
-                Spacer()
+
+                Text(modeExplanation)
+                    .font(SiftFont.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Spacer(minLength: 0)
             }
+        }
+    }
+
+    private var modeExplanation: String {
+        switch mode {
+        case .large:
+            LocalizationKey.filesThresholdLarge.localized(
+                SiftFormat.bytes(environment.preferences.largeFileThresholdBytes)
+            )
+        case .old:
+            LocalizationKey.filesThresholdOld.localized(environment.preferences.oldFileThresholdDays)
+        case .duplicates:
+            LocalizationKey.cleanupExplanationDuplicates.localized
         }
     }
 
@@ -141,6 +152,26 @@ public struct FileCleanupView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+        }
+    }
+}
+
+private extension FileCleanupMode {
+    /// The glyph and tint of the mode, shared by the first-run block and the
+    /// result groups so a mode keeps one identity on the page.
+    var symbolName: String {
+        switch self {
+        case .large: "doc.zipper"
+        case .old: "calendar.badge.clock"
+        case .duplicates: "doc.on.doc"
+        }
+    }
+
+    var tint: Color {
+        switch self {
+        case .large: SiftColor.categoryPalette[5]
+        case .old: SiftColor.categoryPalette[6]
+        case .duplicates: SiftColor.categoryPalette[7]
         }
     }
 }

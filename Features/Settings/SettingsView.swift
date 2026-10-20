@@ -18,23 +18,17 @@ public struct SettingsView: View {
     public init() {}
 
     public var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: SiftMetrics.spacingXL) {
-                PageHeader(titleKey: .settingsTitle)
+        SiftPage(maxWidth: SiftMetrics.contentWidthForm) {
+            PageHeader(titleKey: .settingsTitle)
 
-                scanScopeSection
-                authorizedSection
-                thresholdsSection
-                confirmationSection
-                appearanceSection
-                privacySection
-                purchaseSection
-                diagnosticsSection
-            }
-            .padding(SiftMetrics.spacingXL)
-            .frame(maxWidth: 760, alignment: .leading)
-            // Keep a readable column, centred in the available detail area.
-            .frame(maxWidth: .infinity, alignment: .top)
+            scanScopeSection
+            authorizedSection
+            thresholdsSection
+            confirmationSection
+            appearanceSection
+            privacySection
+            purchaseSection
+            diagnosticsSection
         }
         .task {
             permissionReport = await environment.permissions.accessReport()
@@ -340,21 +334,13 @@ public struct SettingsView: View {
                 }
                 .pickerStyle(.segmented)
 
-                Picker(
-                    LocalizationKey.settingsGroupLanguage.localized,
-                    selection: Binding(
-                        get: { environment.preferences.language },
-                        set: { language in
-                            UserDefaults.standard.set(language.rawValue, forKey: "settings.language")
-                            Task { await environment.updateSettings { $0.language = language } }
-                        }
-                    )
-                ) {
-                    ForEach(SiftLanguage.allCases) { language in
-                        Text(language.displayName).tag(language)
-                    }
+                LanguageMenu(
+                    selection: environment.preferences.language,
+                    style: .settings(title: .settingsGroupLanguage),
+                    identifier: "settings.language"
+                ) { language in
+                    environment.selectLanguage(language)
                 }
-                .pickerStyle(.menu)
             }
         }
     }

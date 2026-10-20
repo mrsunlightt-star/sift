@@ -131,7 +131,7 @@ public actor SettingsStore {
         static let requireConfirmation = "settings.requireConfirmation"
         static let skipConfirmation = "settings.skipConfirmation"
         static let appearance = "settings.appearance"
-        static let language = "settings.language"
+        static let language = SiftLanguage.preferenceKey
         static let reduceMotion = "settings.reduceMotion"
         static let keepScanHistory = "settings.keepScanHistory"
         static let launchAtLogin = "settings.launchAtLogin"

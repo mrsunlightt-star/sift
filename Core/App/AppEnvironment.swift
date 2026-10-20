@@ -36,6 +36,9 @@ public final class AppEnvironment: ObservableObject {
     // Observable state shared by the features.
     public let scan: ScanModel
     public let cleanup: CleanupModel
+    /// The storage page's last result and its running state. Owned here so
+    /// leaving the page neither loses the result nor starts another analysis.
+    public let storageAnalysis: StorageAnalysisModel
 
     /// The diagnostics shown in settings.
     @Published public private(set) var engineKind: ScannerEngineKind
@@ -99,6 +102,7 @@ public final class AppEnvironment: ObservableObject {
         self.diagnostics = StorageDiagnosticEngine()
         self.scan = ScanModel(engine: scanner, rules: rules)
         self.cleanup = CleanupModel(rules: rules, operations: operations, reports: reports)
+        self.storageAnalysis = StorageAnalysisModel()
         self.engineKind = scanner.kind
 
         logger.info("Environment ready (engine=\(scanner.kind.rawValue, privacy: .public))")
@@ -130,6 +134,64 @@ public final class AppEnvironment: ObservableObject {
     public func updateSettings(_ mutate: @Sendable (inout AppSettings) -> Void) async {
         await settings.update(mutate)
         preferences = await settings.current()
+    }
+
+    /// The one way the interface changes language.
+    ///
+    /// The synchronous write is what lets `LocalizationKey.localized` return the
+    /// new language in the same render pass; the settings update is what makes
+    /// the choice survive a relaunch. Every control calls this, so there is no
+    /// second place that could store the preference differently.
+    public func selectLanguage(_ language: SiftLanguage) {
+        SiftLanguage.persistSelection(language)
+        Task {
+            await updateSettings { $0.language = language }
+        }
+    }
+
+    /// Runs the storage page's analysis on request.
+    ///
+    /// Nothing calls this when the page appears: the page shows the scope and
+    /// waits for the user's button. The result stays on `storageAnalysis`, so
+    /// returning to the page shows it again instead of starting another run.
+    public func analyzeStorage() async {
+        guard let flag = storageAnalysis.begin() else { return }
+        defer { storageAnalysis.abortIfStillRunning() }
+
+        let analyzer = storageAnalyzer
+        let diagnostics = diagnostics
+        let rules = rules
+        let home = URL(fileURLWithPath: rules.homeDirectory)
+        let request = await makeScanRequest(includeDuplicates: false)
+        let roots = request.roots
+        let ignoredPaths = request.ignoredPaths
+        let diagnosticRoots = diagnosticRoots(includeVolumeRoot: storageAnalysis.includeVolumeRoot)
+
+        let task = Task(priority: .userInitiated) { () -> Void in
+            let measured = (try? await analyzer.analyze(
+                roots: roots,
+                ignoredPaths: ignoredPaths,
+                cancelled: { flag.isCancelled }
+            )) ?? .empty
+            guard !flag.isCancelled else { return }
+            let diagnosed = await diagnostics.analyze(
+                roots: diagnosticRoots,
+                homeDirectory: home,
+                rules: rules,
+                isCancelled: { flag.isCancelled }
+            )
+            guard !flag.isCancelled else { return }
+            await MainActor.run {
+                self.storageAnalysis.finish(analysis: measured, report: diagnosed)
+            }
+        }
+        await task.value
+    }
+
+    /// Stops a storage analysis that is in flight. The last completed result, if
+    /// any, stays on screen.
+    public func cancelStorageAnalysis() {
+        storageAnalysis.cancel()
     }
 
     /// Refreshes the volume list.

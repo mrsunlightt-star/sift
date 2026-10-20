@@ -59,6 +59,12 @@ struct SiftCommands: Commands {
     @ObservedObject var router: AppRouter
 
     var body: some Commands {
+        CommandGroup(replacing: .appSettings) {
+            Button(LocalizationKey.navSettings.localized) {
+                router.go(to: .settings)
+            }
+            .keyboardShortcut(",", modifiers: .command)
+        }
         CommandGroup(after: .newItem) {
             ForEach(AppDestination.primary) { destination in
                 Button(destination.titleKey.localized) {

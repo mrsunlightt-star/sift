@@ -18,46 +18,47 @@ public struct JunkCleanupView: View {
     }
 
     public var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: SiftMetrics.spacingXL) {
-                PageHeader(titleKey: .navJunkCleanup) {
-                    if environment.scan.hasResults {
-                        Text(environment.scan.formattedReclaimable)
-                            .font(SiftFont.metric)
-                            .foregroundStyle(SiftColor.accent)
-                    }
-                }
-
-                if !environment.scan.hasResults {
-                    ScanGateCard(
-                        titleKey: .navJunkCleanup,
-                        detailKey: .cleanupConfirmUndoNotice,
-                        onStart: { Task { await startScan() } }
-                    )
-                    .frame(minHeight: 320, alignment: .center)
-                } else {
-                    CategoryFilterBar(
-                        categories: CleanupCategory.junkCategories,
-                        totals: environment.scan.categoryTotals.limited(to: CleanupCategory.junkCategories),
-                        selection: $categoryFilter
-                    )
-                    SelectionBar(
-                        cleanup: environment.cleanup,
-                        environment: environment,
-                        operation: .junkCleanup,
-                        onRequestPurchase: onRequestPurchase
-                    )
-                    ScanResultsView(
-                        scan: environment.scan,
-                        cleanup: environment.cleanup,
-                        categories: CleanupCategory.junkCategories
+        SiftPage(maxWidth: SiftMetrics.contentWidthStandard) {
+            PageHeader(titleKey: .navJunkCleanup, eyebrowKey: .navGroupCleanup) {
+                if environment.scan.hasResults {
+                    SiftMetricPill(
+                        symbolName: "leaf.fill",
+                        value: environment.scan.formattedReclaimable
                     )
                 }
             }
-            .padding(SiftMetrics.spacingXL)
-            .frame(maxWidth: 900, alignment: .leading)
-            // Keep a readable column, centred in the available detail area.
-            .frame(maxWidth: .infinity, alignment: .top)
+
+            if !environment.scan.hasResults {
+                SiftHeroCard(
+                    symbolName: "trash",
+                    title: LocalizationKey.navJunkCleanup.localized,
+                    detail: LocalizationKey.dashboardScanCardSubtitle.localized,
+                    tint: SiftColor.accent
+                ) {
+                    PrimaryActionButton(titleKey: .dashboardStartScan, symbolName: "viewfinder") {
+                        Task { await startScan() }
+                    }
+                }
+
+                ScanCategoryPreview(CleanupCategory.junkCategories)
+            } else {
+                CategoryFilterBar(
+                    categories: CleanupCategory.junkCategories,
+                    totals: environment.scan.categoryTotals.limited(to: CleanupCategory.junkCategories),
+                    selection: $categoryFilter
+                )
+                SelectionBar(
+                    cleanup: environment.cleanup,
+                    environment: environment,
+                    operation: .junkCleanup,
+                    onRequestPurchase: onRequestPurchase
+                )
+                ScanResultsView(
+                    scan: environment.scan,
+                    cleanup: environment.cleanup,
+                    categories: CleanupCategory.junkCategories
+                )
+            }
         }
     }
 

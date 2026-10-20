@@ -18,12 +18,9 @@ public enum AppDestination: String, CaseIterable, Identifiable, Hashable, Sendab
 
     public var id: String { rawValue }
 
-    /// The entries the main navigation keeps (§4).
+    /// The entries the main navigation keeps (§4), in sidebar order.
     public static var primary: [AppDestination] {
-        [
-            .dashboard, .smartScan, .junkCleanup, .uninstaller, .fileCleanup,
-            .storageAnalysis,
-        ]
+        SidebarGroup.allCases.flatMap(\.destinations)
     }
 
     public var titleKey: LocalizationKey {
@@ -59,8 +56,8 @@ public enum AppDestination: String, CaseIterable, Identifiable, Hashable, Sendab
         case .dashboard: "1"
         case .smartScan: "2"
         case .junkCleanup: "3"
-        case .uninstaller: "4"
-        case .fileCleanup: "5"
+        case .fileCleanup: "4"
+        case .uninstaller: "5"
         case .storageAnalysis: "6"
         case .settings, .purchase: nil
         }
@@ -69,6 +66,35 @@ public enum AppDestination: String, CaseIterable, Identifiable, Hashable, Sendab
     /// The full shortcut, including the conventional settings binding.
     public var shortcut: KeyEquivalent? {
         self == .settings ? "," : digitShortcut
+    }
+}
+
+/// The three parts of the main navigation.
+///
+/// Grouping is a navigation decision, not a view decision: the sidebar renders
+/// the groups, the keyboard shortcuts number the same order, and the page header
+/// names the group a page belongs to.
+public enum SidebarGroup: String, CaseIterable, Identifiable, Sendable {
+    case workbench
+    case cleanup
+    case apps
+
+    public var id: String { rawValue }
+
+    public var titleKey: LocalizationKey {
+        switch self {
+        case .workbench: .navWorkbench
+        case .cleanup: .navGroupCleanup
+        case .apps: .navGroupApps
+        }
+    }
+
+    public var destinations: [AppDestination] {
+        switch self {
+        case .workbench: [.dashboard, .smartScan]
+        case .cleanup: [.junkCleanup, .fileCleanup]
+        case .apps: [.uninstaller, .storageAnalysis]
+        }
     }
 }
 

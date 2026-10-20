@@ -28,20 +28,6 @@ public enum SiftLanguage: String, CaseIterable, Codable, Sendable, Identifiable 
         }
     }
 
-    /// A compact name that fits in the always-visible toolbar control.
-    public var shortName: String {
-        switch self {
-        case .english: "EN"
-        case .simplifiedChinese: "中文"
-        case .japanese: "日本語"
-        case .korean: "한국어"
-        case .german: "DE"
-        case .french: "FR"
-        case .spanish: "ES"
-        case .russian: "RU"
-        }
-    }
-
     public var localeIdentifier: String {
         switch self {
         case .english: "en"
@@ -70,11 +56,27 @@ public enum SiftLanguage: String, CaseIterable, Codable, Sendable, Identifiable 
         return .english
     }
 
+    /// The preference key the selected language is stored under.
+    ///
+    /// One constant is shared by the sidebar control, the settings row and the
+    /// settings store, so no view can invent a second storage key.
+    public static let preferenceKey = "settings.language"
+
+    /// Stores a selection synchronously.
+    ///
+    /// `localized` reads the preference directly, and a view can re-render before
+    /// the settings actor has finished its round trip; writing the value first
+    /// keeps the strings and the control in step in the same frame. The settings
+    /// store persists the same value through its own pipeline.
+    public static func persistSelection(_ language: SiftLanguage) {
+        UserDefaults.standard.set(language.rawValue, forKey: preferenceKey)
+    }
+
     /// A synchronous lookup keeps the current localisation API usable from
     /// SwiftUI views and domain services alike. The same key is persisted by
     /// SettingsStore, so a language change takes effect immediately.
     public static var current: SiftLanguage {
-        guard let rawValue = UserDefaults.standard.string(forKey: "settings.language"),
+        guard let rawValue = UserDefaults.standard.string(forKey: preferenceKey),
               let language = SiftLanguage(rawValue: rawValue) else {
             return preferred
         }

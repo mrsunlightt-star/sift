@@ -38,14 +38,37 @@ final class SiftUITests: XCTestCase {
     }
 
     /// Language selection must be reachable without first navigating into Settings.
-    func test_languageSwitcherIsAvailableFromTheMainWindow() throws {
+    /// It lives in the sidebar footer with the other window-level controls.
+    func test_languageSwitcherIsAvailableFromTheSidebar() throws {
         let app = launchApp()
         let switcher = app.descendants(matching: .any)
-            .matching(identifier: "toolbar.language")
+            .matching(identifier: "sidebar.language")
             .firstMatch
         XCTAssertTrue(
             switcher.waitForExistence(timeout: 5),
-            "the toolbar language switcher should be available immediately"
+            "the sidebar language switcher should be available immediately"
+        )
+    }
+
+    /// Opening the storage page must not start an analysis by itself: the page
+    /// shows its scope and waits for the user's confirmation.
+    func test_storageAnalysisWaitsForTheUser() throws {
+        let app = launchApp()
+        sidebarRow(app, "storageAnalysis").click()
+
+        let start = app.descendants(matching: .any)
+            .matching(identifier: "storage.analyze")
+            .firstMatch
+        XCTAssertTrue(
+            start.waitForExistence(timeout: 5),
+            "the page should offer a start button instead of scanning by itself"
+        )
+        XCTAssertFalse(
+            app.descendants(matching: .any)
+                .matching(identifier: "storage.analyzing")
+                .firstMatch
+                .exists,
+            "opening the page must not put it into the analysing state"
         )
     }
 

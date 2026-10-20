@@ -69,11 +69,11 @@ public struct SelectionBar: View {
             .controlSize(.large)
             .disabled(cleanup.selectedCount == 0 || cleanup.isWorking)
         }
-        .padding(SiftMetrics.spacingM)
+        .padding(SiftMetrics.spacingL)
         .background(SiftColor.panel)
-        .clipShape(RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusL, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
+            RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusL, style: .continuous)
                 .stroke(SiftColor.border, lineWidth: 1)
         }
     }

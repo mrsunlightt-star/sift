@@ -1,3 +1,4 @@
+import AppKit
 import Core
 import Shared
 import SwiftUI
@@ -71,26 +72,33 @@ public struct UninstallerView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 2) {
+        HStack(alignment: .bottom, spacing: SiftMetrics.spacingXL) {
+            VStack(alignment: .leading, spacing: SiftMetrics.spacingXS) {
+                Text(LocalizationKey.navGroupApps.localized)
+                    .font(SiftFont.eyebrow)
+                    .textCase(.uppercase)
+                    .tracking(0.6)
+                    .foregroundStyle(SiftColor.accent)
                 Text(LocalizationKey.uninstallTitle.localized)
                     .font(SiftFont.display)
                 Text(
                     LocalizationKey.commonItemCount.localized(environment.installedApplications.count)
                 )
-                .font(SiftFont.caption)
+                .font(SiftFont.body)
                 .foregroundStyle(.secondary)
             }
-            Spacer()
+            Spacer(minLength: SiftMetrics.spacingL)
             Picker(String(), selection: $sort) {
                 ForEach(SortOrder.allCases, id: \.self) { order in
                     Text(order.titleKey.localized).tag(order)
                 }
             }
             .labelsHidden()
-            .frame(width: 150)
+            .frame(width: 160)
         }
-        .padding(SiftMetrics.spacingXL)
+        .padding(.horizontal, SiftMetrics.spacingXXL)
+        .padding(.top, SiftMetrics.spacingXL)
+        .padding(.bottom, SiftMetrics.spacingL)
     }
 
     private var filteredApplications: [InstalledApplication] {
@@ -110,11 +118,21 @@ public struct UninstallerView: View {
 
     private var applicationList: some View {
         VStack(spacing: 0) {
-            HStack {
+            HStack(spacing: SiftMetrics.spacingS) {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.secondary)
                 TextField(LocalizationKey.uninstallSearch.localized, text: $search)
                     .textFieldStyle(.plain)
+            }
+            .padding(.horizontal, SiftMetrics.spacingM)
+            .padding(.vertical, SiftMetrics.spacingS)
+            .background(
+                SiftColor.raised,
+                in: RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
+                    .stroke(SiftColor.border.opacity(0.7), lineWidth: 1)
             }
             .padding(SiftMetrics.spacingM)
 
@@ -171,8 +189,8 @@ public struct UninstallerView: View {
                         uninstallButton(plan)
                     }
                 }
-                .padding(SiftMetrics.spacingXL)
-                .frame(maxWidth: 640, alignment: .leading)
+                .padding(SiftMetrics.spacingXXL)
+                .frame(maxWidth: 680, alignment: .leading)
                 .frame(maxWidth: .infinity, alignment: .top)
             }
         } else {
@@ -185,22 +203,25 @@ public struct UninstallerView: View {
     }
 
     private func applicationHeader(_ application: InstalledApplication) -> some View {
-        VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
-            HStack(spacing: SiftMetrics.spacingM) {
-                IconTile(symbolName: "app", tint: SiftColor.accent)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(application.name)
-                        .font(SiftFont.title)
-                    Text(LocalizationKey.uninstallBundleId.localized(application.bundleIdentifier))
-                        .font(SiftFont.caption)
-                        .foregroundStyle(.secondary)
-                        .textSelection(.enabled)
+        SiftPanel {
+            VStack(alignment: .leading, spacing: SiftMetrics.spacingL) {
+                HStack(spacing: SiftMetrics.spacingM) {
+                    ApplicationIcon(application: application, size: 52)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(application.name)
+                            .font(SiftFont.title)
+                        Text(LocalizationKey.uninstallBundleId.localized(application.bundleIdentifier))
+                            .font(SiftFont.caption)
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                    }
                 }
-            }
-            HStack(spacing: SiftMetrics.spacingL) {
-                labeledValue(.uninstallVersion, application.version ?? LocalizationKey.commonNotAvailable.localized)
-                labeledValue(.commonSize, application.formattedSize)
-                labeledValue(.uninstallSortLastUsed, application.formattedLastUsed)
+                Divider()
+                HStack(spacing: SiftMetrics.spacingXXL) {
+                    labeledValue(.uninstallVersion, application.version ?? LocalizationKey.commonNotAvailable.localized)
+                    labeledValue(.commonSize, application.formattedSize)
+                    labeledValue(.uninstallSortLastUsed, application.formattedLastUsed)
+                }
             }
         }
     }
@@ -228,11 +249,17 @@ public struct UninstallerView: View {
             }
 
             if !plan.confirmedFiles.isEmpty {
-                GroupBox {
+                SiftPanel(padding: SiftMetrics.spacingL) {
                     VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
-                        Text(LocalizationKey.uninstallConfirmedRelated.localized)
-                            .font(SiftFont.caption)
-                            .foregroundStyle(SiftColor.safe)
+                        HStack(spacing: SiftMetrics.spacingS) {
+                            Image(systemName: "checkmark.seal.fill")
+                                .font(.system(size: 11))
+                                .foregroundStyle(SiftColor.safe)
+                                .accessibilityHidden(true)
+                            Text(LocalizationKey.uninstallConfirmedRelated.localized)
+                                .font(SiftFont.caption)
+                                .foregroundStyle(SiftColor.safe)
+                        }
                         ForEach(plan.confirmedFiles) { file in
                             RelatedFileRow(file: file)
                         }
@@ -242,23 +269,28 @@ public struct UninstallerView: View {
             }
 
             if !plan.reviewFiles.isEmpty {
-                VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
-                    Toggle(isOn: $includeReviewFiles) {
-                        Text(LocalizationKey.uninstallNeedsReview.localized)
-                            .font(SiftFont.caption)
-                            .foregroundStyle(SiftColor.review)
+                SiftPanel(padding: SiftMetrics.spacingL) {
+                    VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
+                        Toggle(isOn: $includeReviewFiles) {
+                            Text(LocalizationKey.uninstallNeedsReview.localized)
+                                .font(SiftFont.caption)
+                                .foregroundStyle(SiftColor.review)
+                        }
+                        .toggleStyle(.checkbox)
+                        ForEach(plan.reviewFiles) { file in
+                            RelatedFileRow(file: file, showSelection: includeReviewFiles)
+                        }
                     }
-                    .toggleStyle(.checkbox)
-                    ForEach(plan.reviewFiles) { file in
-                        RelatedFileRow(file: file, showSelection: includeReviewFiles)
-                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
 
-            HStack(spacing: SiftMetrics.spacingL) {
-                labeledValue(.uninstallAppSize, plan.formattedApplicationSize)
-                labeledValue(.uninstallRelatedSize, plan.formattedRelatedSize(includeReviewFiles: includeReviewFiles))
-                labeledValue(.uninstallTotalSize, plan.formattedTotal(includeReviewFiles: includeReviewFiles))
+            SiftPanel(padding: SiftMetrics.spacingL) {
+                HStack(spacing: SiftMetrics.spacingXXL) {
+                    labeledValue(.uninstallAppSize, plan.formattedApplicationSize)
+                    labeledValue(.uninstallRelatedSize, plan.formattedRelatedSize(includeReviewFiles: includeReviewFiles))
+                    labeledValue(.uninstallTotalSize, plan.formattedTotal(includeReviewFiles: includeReviewFiles))
+                }
             }
         }
     }
@@ -367,16 +399,30 @@ public struct UninstallerView: View {
     }
 }
 
+/// The application's own icon.
+///
+/// The generic SF Symbol made every row look the same; the Finder icon is the
+/// one thing a user recognises before reading the name.
+struct ApplicationIcon: View {
+    let application: InstalledApplication
+    var size: CGFloat = SiftMetrics.iconTileSize
+
+    var body: some View {
+        Image(nsImage: NSWorkspace.shared.icon(forFile: application.url.path))
+            .resizable()
+            .interpolation(.high)
+            .frame(width: size, height: size)
+            .accessibilityHidden(true)
+    }
+}
+
 /// One row in the application list.
 struct ApplicationRow: View {
     let application: InstalledApplication
 
     var body: some View {
         HStack(spacing: SiftMetrics.spacingM) {
-            IconTile(
-                symbolName: application.isSystemApplication ? "lock.fill" : "app",
-                tint: application.isSystemApplication ? SiftColor.neutral : SiftColor.accent
-            )
+            ApplicationIcon(application: application)
             VStack(alignment: .leading, spacing: 1) {
                 Text(application.name)
                     .font(SiftFont.body)

@@ -176,15 +176,23 @@ public enum SiftMetrics {
 
     public static let cornerRadiusS: CGFloat = 6
     public static let cornerRadiusM: CGFloat = 10
-    public static let cornerRadiusL: CGFloat = 14
+    public static let cornerRadiusL: CGFloat = 16
+    public static let cornerRadiusXL: CGFloat = 20
 
     /// Minimum click target (§11.4).
     public static let minimumHitTarget: CGFloat = 44
 
-    public static let sidebarWidth: CGFloat = 232
+    public static let sidebarWidth: CGFloat = 236
     public static let rowHeight: CGFloat = 44
     public static let iconTileSize: CGFloat = 32
     public static let panelBorderWidth: CGFloat = 1
+
+    /// The page column widths. A page picks the one that suits its content and
+    /// keeps the same margins everywhere, so switching destinations does not
+    /// make the layout jump left or right.
+    public static let contentWidthWide: CGFloat = 1000
+    public static let contentWidthStandard: CGFloat = 880
+    public static let contentWidthForm: CGFloat = 740
 
     /// Height a result list may grow to before it scrolls.
     public static let resultListMaxHeight: CGFloat = 320
@@ -192,12 +200,13 @@ public enum SiftMetrics {
 
 /// Typography built on the system font, with no external typefaces (§11.1).
 public enum SiftFont {
-    public static let display = Font.system(size: 30, weight: .bold, design: .default)
-    public static let title = Font.system(size: 20, weight: .semibold)
-    public static let sectionTitle = Font.system(size: 15, weight: .semibold)
+    public static let display = Font.system(size: 28, weight: .semibold, design: .default)
+    public static let title = Font.system(size: 18, weight: .semibold)
+    public static let sectionTitle = Font.system(size: 14, weight: .semibold)
     public static let body = Font.system(size: 13, weight: .regular)
     public static let bodyEmphasis = Font.system(size: 13, weight: .medium)
     public static let caption = Font.system(size: 11, weight: .regular)
+    public static let eyebrow = Font.system(size: 11, weight: .semibold)
     public static let metric = Font.system(size: 22, weight: .semibold)
     public static let metricLarge = Font.system(size: 34, weight: .bold)
     public static let badge = Font.system(size: 10, weight: .semibold)
