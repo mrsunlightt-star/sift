@@ -282,8 +282,26 @@ public struct ApplicationDiscovery: @unchecked Sendable {
 
     /// Bundle identifiers of every installed application, for residue detection.
     public func installedBundleIdentifiers() async -> [String] {
-        await installedApplications()
-            .map(\.bundleIdentifier)
-            .filter { !$0.isEmpty }
+        // Identifiers only: `installedApplications` measures every bundle, which
+        // is the right work for the Apps page and the wrong work before a scan.
+        // Measuring 100 applications delayed the scan's first event by tens of
+        // seconds while the page still looked idle. The residue check needs the
+        // identifier, not the size.
+        var identifiers: [String] = []
+        var seen = Set<String>()
+        for directory in applicationDirectories {
+            guard let contents = try? fileManager.contentsOfDirectory(
+                at: directory,
+                includingPropertiesForKeys: nil,
+                options: [.skipsHiddenFiles]
+            ) else { continue }
+            for url in contents where url.pathExtension == "app" {
+                guard let identifier = Bundle(url: url)?.bundleIdentifier,
+                      !identifier.isEmpty,
+                      seen.insert(identifier).inserted else { continue }
+                identifiers.append(identifier)
+            }
+        }
+        return identifiers
     }
 }

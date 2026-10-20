@@ -4,6 +4,8 @@ Sift 是一款不依赖账号、不上传用户文件、以「扫描 — 解释 
 
 **$4.99 一次性买断，永久使用，包含未来大版本更新，无订阅。**
 
+界面按 `sift-redesign/` 的方案重做：左侧图标导航（总览 / 扫描 / 应用 / 存储）、玻璃材质卡片、浅色与深色主题。原「智能扫描 / 垃圾清理 / 文件清理」三个入口合并为一个「扫描」页，结果用类别筛选切换，导航只保留用户真正要去的地方。
+
 产品与体验的完整基线见 [sift-macos-cleaner-development-spec.md](sift-macos-cleaner-development-spec.md)。
 
 ---
@@ -34,16 +36,16 @@ SwiftPM 与 Xcode 工程都从这里链接。固定路径是刻意的：SwiftPM 
 
 | 路径 | 内容 |
 |---|---|
-| `App/` | 应用入口、路由、侧边栏与窗口外壳 |
+| `App/` | 应用入口、路由、图标导航栏与窗口外壳 |
 | `Core/` | 领域模型、规则引擎、文件操作、报告、权限、购买、扫描引擎 |
 | `Core/RustBridge/` | Rust C ABI 的 Swift 封装（`#if canImport(SiftScanner)` 保护） |
 | `Core/UI/` | 多个功能共用的视图（结果列表、选择栏、确认与结果页） |
-| `Features/` | 八个功能模块：总览、智能扫描、垃圾清理、卸载、文件清理、存储分析、设置、购买 |
+| `Features/` | 功能模块：总览、扫描（原智能扫描/垃圾清理/文件清理已合并）、应用、存储、设置、购买 |
 | `Shared/` | 设计系统、通用组件、八种语言的字符串目录 |
 | `RustCore/` | Rust workspace：规则、哈希、SQLite 索引、扫描协调器、FFI |
 | `Bridge/` | C 头文件、SwiftPM 的 module map、XCFramework 输出目录 |
 | `Scripts/` | 构建、环境、字符串生成、测试运行脚本 |
-| `Tests/` | XCTest 测试套件（174 个测试方法） |
+| `Tests/` | XCTest 测试套件（194 个测试方法） |
 | `SelfTest/` | 无需 Xcode 即可运行的自检套件（244 项检查） |
 
 ---
@@ -238,7 +240,7 @@ Swift（244 项自检 + 174 个 XCTest）：
 
 - **支付与授权服务供应商**：规格 §19 把这个决定留到正式开发前。`DirectLicenseService` 已定义完整合同（校验闭包、Keychain 存储、离线宽限、恢复），接入时只需提供一个 `verify` 闭包。
 - **Sparkle 自动更新**：需要在签名与发布流程确定后接入；`build-rust-xcframework.sh` 已保证更新包内 Rust 二进制的双架构与部署目标一致。
-- **UI 测试录制**：`UITests/` 已提交并在 `Scripts/verify.sh` 与 CI 中执行（5 个用例）；录制新的交互仍需要 Xcode GUI。
+- **UI 测试录制**：`UITests/` 已提交并在 `Scripts/verify.sh` 与 CI 中执行（7 个用例）；录制新的交互仍需要 Xcode GUI。
 - **Mac App Store 版本**：`StoreKitChannel` 已按 §12.4 预留接口，尚未启用。
 - **应用图标**：未提供资源，打包脚本保留 `AppIcon` 位置。
 - **发布流水线**：Developer ID 签名、Hardened Runtime、公证、产物校验与 Sparkle 更新。这些需要一个

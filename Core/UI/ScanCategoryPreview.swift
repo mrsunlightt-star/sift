@@ -31,13 +31,15 @@ public struct ScanCategoryPreview: View {
                     Spacer(minLength: 0)
                 }
                 .padding(SiftMetrics.spacingM)
-                .background(
-                    SiftColor.panel,
-                    in: RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
-                )
+                .background {
+                    RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
+                        .fill(.ultraThinMaterial)
+                    RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
+                        .fill(SiftColor.cardGlass)
+                }
                 .overlay {
                     RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
-                        .stroke(SiftColor.border.opacity(0.7), lineWidth: SiftMetrics.panelBorderWidth)
+                        .strokeBorder(SiftColor.glassBorder, lineWidth: SiftMetrics.panelBorderWidth)
                 }
             }
         }

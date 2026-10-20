@@ -101,6 +101,16 @@ public enum CleanupRisk: String, Codable, Sendable, CaseIterable {
 
     /// `safe` items are pre-selected; everything else starts unselected.
     public var isSelectedByDefault: Bool { level.isSelectedByDefault }
+
+    /// The caution order the engine uses when two rules match one path: the
+    /// higher value wins.
+    public var severity: Int {
+        switch self {
+        case .safe: 0
+        case .review: 1
+        case .protected: 2
+        }
+    }
 }
 
 /// One cleanup item (§7.1).

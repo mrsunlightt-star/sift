@@ -18,22 +18,43 @@ public struct SettingsView: View {
     public init() {}
 
     public var body: some View {
-        SiftPage(maxWidth: SiftMetrics.contentWidthForm) {
-            PageHeader(titleKey: .settingsTitle)
+        VStack(spacing: 0) {
+            SiftPageHeader(title: LocalizationKey.settingsTitle.localized, status: headerStatus) {
+                SiftMetricPill(
+                    symbolName: environment.entitlement.isUnlocked ? "checkmark.seal.fill" : "lock.open",
+                    value: (environment.entitlement.isUnlocked
+                        ? LocalizationKey.purchaseStatusPurchased
+                        : LocalizationKey.purchaseStatusFree).localized,
+                    tint: environment.entitlement.isUnlocked ? SiftColor.safe : SiftColor.accent
+                )
+            }
 
-            scanScopeSection
-            authorizedSection
-            thresholdsSection
-            confirmationSection
-            appearanceSection
-            privacySection
-            purchaseSection
-            diagnosticsSection
+            ScrollView {
+                VStack(alignment: .leading, spacing: SiftMetrics.pageSpacing) {
+                    scanScopeSection
+                    authorizedSection
+                    thresholdsSection
+                    confirmationSection
+                    appearanceSection
+                    privacySection
+                    purchaseSection
+                    diagnosticsSection
+                }
+                .padding(.horizontal, SiftMetrics.pagePadding)
+                .padding(.vertical, SiftMetrics.pageSpacing)
+                .frame(maxWidth: SiftMetrics.contentWidthForm, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .top)
+            }
         }
         .task {
             permissionReport = await environment.permissions.accessReport()
             hasStoredLicense = await environment.hasStoredLicense()
         }
+    }
+
+    private var headerStatus: String {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1"
+        return LocalizationKey.settingsHeaderStatus.localized(version)
     }
 
     // MARK: - Scan scope
@@ -151,7 +172,7 @@ public struct SettingsView: View {
                 Text(LocalizationKey.permissionOpenSettings.localized)
                     .font(SiftFont.caption)
             }
-            .buttonStyle(.link)
+            .buttonStyle(SiftLinkButtonStyle())
             if permissionHint {
                 Text(LocalizationKey.permissionFullDiskAccessDetail.localized)
                     .font(SiftFont.caption)
@@ -341,6 +362,15 @@ public struct SettingsView: View {
                 ) { language in
                     environment.selectLanguage(language)
                 }
+
+                Toggle(isOn: Binding(
+                    get: { environment.preferences.reduceMotion },
+                    set: { value in Task { await environment.updateSettings { $0.reduceMotion = value } } }
+                )) {
+                    Text(LocalizationKey.settingsReduceMotion.localized)
+                        .font(SiftFont.body)
+                }
+                .toggleStyle(.checkbox)
             }
         }
     }
@@ -363,7 +393,7 @@ public struct SettingsView: View {
                     Text(LocalizationKey.settingsClearHistory.localized)
                         .font(SiftFont.caption)
                 }
-                .buttonStyle(.link)
+                .buttonStyle(SiftLinkButtonStyle())
             }
         }
     }
@@ -405,7 +435,7 @@ public struct SettingsView: View {
                         Text(LocalizationKey.settingsRemoveLicense.localized)
                             .font(SiftFont.caption)
                     }
-                    .buttonStyle(.link)
+                    .buttonStyle(SiftLinkButtonStyle())
                 }
             }
         }
@@ -426,7 +456,7 @@ public struct SettingsView: View {
                         Text(LocalizationKey.settingsExportLogs.localized)
                             .font(SiftFont.caption)
                     }
-                    .buttonStyle(.link)
+                    .buttonStyle(SiftLinkButtonStyle())
                 }
                 Text(LocalizationKey.settingsExportLogsDetail.localized)
                     .font(SiftFont.caption)
@@ -474,7 +504,7 @@ public struct SettingsView: View {
                     Text(LocalizationKey.settingsResetDefaults.localized)
                         .font(SiftFont.caption)
                 }
-                .buttonStyle(.link)
+                .buttonStyle(SiftLinkButtonStyle())
             }
         }
     }
@@ -516,7 +546,7 @@ struct SettingsGroup<Content: View>: View {
         VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
             Text(titleKey.localized)
                 .font(SiftFont.sectionTitle)
-            SiftPanel {
+            SiftGlassCard(padding: SiftMetrics.spacingL) {
                 content
             }
         }

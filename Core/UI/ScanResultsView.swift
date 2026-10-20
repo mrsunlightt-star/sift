@@ -161,7 +161,7 @@ struct CategoryGroupCard: View {
                             Text(LocalizationKey.scanReviewDetails.localized)
                                 .font(SiftFont.caption)
                         }
-                        .buttonStyle(.link)
+                        .buttonStyle(SiftLinkButtonStyle())
                     }
                     if items.isEmpty, !isLoading {
                         Text(LocalizationKey.commonEmptyFolder.localized)

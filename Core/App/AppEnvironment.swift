@@ -62,6 +62,13 @@ public final class AppEnvironment: ObservableObject {
     private var restoredAuthorizedURLs: [URL] { grants.urls }
     /// Message shown above the result page after an export attempt.
     @Published public private(set) var reportExportMessage: String?
+    /// True while the scan request is being assembled, before the engine has a
+    /// session.
+    ///
+    /// Building the request reads the installed applications, which is slower
+    /// than starting the engine. Without this the page looked idle after the
+    /// user pressed Start, and a second press could start a second run.
+    @Published public private(set) var isPreparingScan = false
 
     private let logger = SiftLog.make("App")
 
@@ -278,9 +285,15 @@ public final class AppEnvironment: ObservableObject {
     /// not in how a scan runs. Keeping that here is what makes the gates agree:
     /// `scan.hasResults` means the same thing whichever page started the run.
     public func runScan(_ intent: ScanIntent) async {
+        // One run at a time. A second request while the first is assembling its
+        // request (or scanning) would put two runs' phases on one page.
+        guard !isPreparingScan, !scan.isRunning else { return }
         cleanup.resetForNewScan()
+        isPreparingScan = true
         let request = await makeScanRequest(includeDuplicates: intent.includesDuplicates)
         await scan.start(request)
+        // The engine has a session now; the phase it reports is the truth.
+        isPreparingScan = false
         // `start` only means the engine accepted the request. Paging and the
         // duplicate index are ready when the run reaches a terminal phase; asked
         // earlier they answer with an empty or partial result, and the first
@@ -297,6 +310,10 @@ public final class AppEnvironment: ObservableObject {
             category: intent.category
         )
         cleanup.setItems(page.items.map { $0.asCleanupItem() }, preselect: intent.preselectsItems)
+        // After the page is usable: reading the whole index for the risk split
+        // must not delay the result page. The overview states the split when it
+        // arrives.
+        await scan.loadRiskTotals()
         RecentHistory.recordScan()
     }
 

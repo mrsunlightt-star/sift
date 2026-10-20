@@ -54,7 +54,7 @@ final class SiftUITests: XCTestCase {
     /// shows its scope and waits for the user's confirmation.
     func test_storageAnalysisWaitsForTheUser() throws {
         let app = launchApp()
-        sidebarRow(app, "storageAnalysis").click()
+        sidebarRow(app, "storage").click()
 
         let start = app.descendants(matching: .any)
             .matching(identifier: "storage.analyze")
@@ -75,9 +75,7 @@ final class SiftUITests: XCTestCase {
     /// Every primary destination is reachable from the sidebar.
     func test_everyDestinationIsReachable() throws {
         let app = launchApp()
-        for destination in [
-            "dashboard", "smartScan", "junkCleanup", "uninstaller", "fileCleanup", "storageAnalysis",
-        ] {
+        for destination in ["dashboard", "scan", "apps", "storage"] {
             let row = sidebarRow(app, destination)
             if row.waitForExistence(timeout: 2) {
                 row.click()
@@ -90,11 +88,11 @@ final class SiftUITests: XCTestCase {
     /// runs (§5.1).
     func test_scanStartsAndCanBeCancelled() throws {
         let app = launchApp()
-        sidebarRow(app, "smartScan").click()
-        let start = app.buttons["开始扫描"].firstMatch
-        if start.waitForExistence(timeout: 3) {
+        sidebarRow(app, "scan").click()
+        let start = app.buttons["scan.start"].firstMatch
+        if start.waitForExistence(timeout: 5) {
             start.click()
-            let cancel = app.buttons["取消扫描"].firstMatch
+            let cancel = app.buttons["scan.cancel"].firstMatch
             if cancel.waitForExistence(timeout: 10) {
                 cancel.click()
             }
@@ -104,13 +102,20 @@ final class SiftUITests: XCTestCase {
 
     /// A free user reaching for a cleanup sees the paywall at that moment, not
     /// at launch (§12.2).
+    ///
+    /// The merged scan page is the only entry point now: start a scan, wait for
+    /// its result, then press the clean action. On a machine where a full scan
+    /// takes longer than the wait, the test does not pretend it ran the cleanup;
+    /// the paywall's own page is covered by the action test above.
     func test_cleanupAsksForAPurchase() throws {
         let app = launchApp()
-        sidebarRow(app, "junkCleanup").click()
-        let clean = app.buttons
-            .matching(NSPredicate(format: "label CONTAINS %@", "移入废纸篓"))
-            .firstMatch
-        if clean.waitForExistence(timeout: 5), clean.isEnabled {
+        sidebarRow(app, "scan").click()
+        let start = app.buttons["scan.start"].firstMatch
+        if start.waitForExistence(timeout: 5) {
+            start.click()
+        }
+        let clean = app.buttons["scan.clean"].firstMatch
+        if clean.waitForExistence(timeout: 30), clean.isEnabled {
             clean.click()
             XCTAssertTrue(
                 app.staticTexts

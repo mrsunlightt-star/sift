@@ -141,7 +141,7 @@ public struct CleanupResultView: View {
                     Text(LocalizationKey.scanOpenSystemSettings.localized)
                         .font(SiftFont.caption)
                 }
-                .buttonStyle(.link)
+                .buttonStyle(SiftLinkButtonStyle())
             }
         }
     }

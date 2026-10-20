@@ -6,14 +6,20 @@ import SwiftUI
 /// Each group shows its keeper and the copies that would be removed, and the
 /// removal set is per group: §5.5 forbids a single "delete duplicates" action
 /// that hides which copy survives.
-struct DuplicateGroupsCard: View {
+public struct DuplicateGroupsCard: View {
     let groups: [DuplicateGroup]
     @ObservedObject var scan: ScanModel
     @ObservedObject var cleanup: CleanupModel
     @State private var expanded: Set<Int64> = []
     @State private var loadedMembers: [Int64: [DuplicateMember]] = [:]
 
-    var body: some View {
+    public init(groups: [DuplicateGroup], scan: ScanModel, cleanup: CleanupModel) {
+        self.groups = groups
+        self.scan = scan
+        self.cleanup = cleanup
+    }
+
+    public var body: some View {
         SiftPanel(padding: SiftMetrics.spacingL) {
             VStack(alignment: .leading, spacing: SiftMetrics.spacingM) {
                 HStack(spacing: SiftMetrics.spacingM) {
@@ -37,7 +43,7 @@ struct DuplicateGroupsCard: View {
                         Text(LocalizationKey.scanSelectAll.localized)
                             .font(SiftFont.caption)
                     }
-                    .buttonStyle(.link)
+                    .buttonStyle(SiftLinkButtonStyle())
                 }
 
                 Divider()
@@ -75,7 +81,7 @@ struct DuplicateGroupsCard: View {
                                 Text(LocalizationKey.commonLoadMore.localized)
                                     .font(SiftFont.caption)
                             }
-                            .buttonStyle(.link)
+                            .buttonStyle(SiftLinkButtonStyle())
                         }
                     }
                 }

@@ -20,48 +20,62 @@ public struct PurchaseView: View {
     }
 
     public var body: some View {
-        SiftPage(maxWidth: SiftMetrics.contentWidthForm) {
-            PageHeader(titleKey: .purchaseTitle) {
-                if environment.entitlement.isUnlocked {
-                    SiftMetricPill(
-                        symbolName: "checkmark.seal.fill",
-                        value: LocalizationKey.purchaseStatusPurchased.localized,
-                        tint: SiftColor.safe
-                    )
+        VStack(spacing: 0) {
+            SiftPageHeader(title: LocalizationKey.purchaseTitle.localized, status: headerStatus) {
+                SiftMetricPill(
+                    symbolName: environment.entitlement.isUnlocked ? "checkmark.seal.fill" : "lock.open",
+                    value: (environment.entitlement.isUnlocked
+                        ? LocalizationKey.purchaseStatusPurchased
+                        : LocalizationKey.purchaseStatusFree).localized,
+                    tint: environment.entitlement.isUnlocked ? SiftColor.safe : SiftColor.accent
+                )
+            }
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: SiftMetrics.pageSpacing) {
+                    SiftHeroCard(
+                        symbolName: "lock.open",
+                        title: LocalizationKey.purchasePriceLine.localized,
+                        detail: LocalizationKey.purchaseUpdatesPromise.localized,
+                        tint: SiftColor.accent
+                    ) {
+                        EmptyView()
+                    }
+
+                    if let reason {
+                        NoticeBanner(
+                            level: .information,
+                            message: "\(reason.titleKey.localized) · \(LocalizationKey.purchaseLicenseRequiredDetail.localized)"
+                        )
+                    }
+
+                    comparison
+                    if !environment.entitlement.isUnlocked {
+                        licenseSection
+                    }
+                    if let message {
+                        NoticeBanner(
+                            level: message.isError ? .warning : .success,
+                            message: message.text
+                        )
+                    }
+                    footer
                 }
+                .padding(.horizontal, SiftMetrics.pagePadding)
+                .padding(.vertical, SiftMetrics.pageSpacing)
+                .frame(maxWidth: SiftMetrics.contentWidthStandard, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .top)
             }
-
-            SiftHeroCard(
-                symbolName: "lock.open",
-                title: LocalizationKey.purchasePriceLine.localized,
-                detail: LocalizationKey.purchaseUpdatesPromise.localized,
-                tint: SiftColor.accent
-            ) {
-                EmptyView()
-            }
-
-            if let reason {
-                NoticeBanner(
-                    level: .information,
-                    message: "\(reason.titleKey.localized) · \(LocalizationKey.purchaseLicenseRequiredDetail.localized)"
-                )
-            }
-
-            comparison
-            if !environment.entitlement.isUnlocked {
-                licenseSection
-            }
-            if let message {
-                NoticeBanner(
-                    level: message.isError ? .warning : .success,
-                    message: message.text
-                )
-            }
-            footer
         }
         .task {
             await environment.refreshEntitlement()
         }
+    }
+
+    private var headerStatus: String {
+        environment.entitlement.isUnlocked
+            ? LocalizationKey.purchaseActivated.localized
+            : LocalizationKey.purchaseLicenseRequired.localized
     }
 
     private var comparison: some View {
@@ -100,19 +114,15 @@ public struct PurchaseView: View {
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 320)
                 HStack(spacing: SiftMetrics.spacingM) {
-                    Button {
+                    SiftPrimaryButton(
+                        title: LocalizationKey.purchaseBuyButton.localized(environment.entitlement.formattedPrice),
+                        isEnabled: !isWorking && !licenseKey.trimmingCharacters(in: .whitespaces).isEmpty
+                    ) {
                         Task { await activate() }
-                    } label: {
-                        Text(LocalizationKey.purchaseBuyButton.localized(environment.entitlement.formattedPrice))
-                            .font(SiftFont.bodyEmphasis)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(isWorking || licenseKey.trimmingCharacters(in: .whitespaces).isEmpty)
 
-                    Button {
+                    SiftSecondaryButton(titleKey: .purchaseRestore) {
                         Task { await restore() }
-                    } label: {
-                        Text(LocalizationKey.purchaseRestore.localized)
                     }
                     .disabled(isWorking)
 

@@ -2,35 +2,33 @@ import Foundation
 import Shared
 import SwiftUI
 
-/// The five primary destinations plus the auxiliary pages (§4).
+/// The four primary destinations plus the two auxiliary pages.
 ///
-/// Kept as a single enum so the sidebar, the keyboard shortcuts and the
-/// deep-linkable titles cannot drift apart.
+/// The redesign merges smart scan, junk cleanup and file cleanup into one scan
+/// page: they always ran the same scan and differed only in which categories they
+/// displayed. Category filters now live inside the scan page, so navigation only
+/// has to name the places a user can go.
 public enum AppDestination: String, CaseIterable, Identifiable, Hashable, Sendable {
     case dashboard
-    case smartScan
-    case junkCleanup
-    case uninstaller
-    case fileCleanup
-    case storageAnalysis
+    case scan
+    case apps
+    case storage
     case settings
     case purchase
 
     public var id: String { rawValue }
 
-    /// The entries the main navigation keeps (§4), in sidebar order.
+    /// The entries the icon rail keeps, in order.
     public static var primary: [AppDestination] {
-        SidebarGroup.allCases.flatMap(\.destinations)
+        [.dashboard, .scan, .apps, .storage]
     }
 
     public var titleKey: LocalizationKey {
         switch self {
         case .dashboard: .navDashboard
-        case .smartScan: .navSmartScan
-        case .junkCleanup: .navJunkCleanup
-        case .uninstaller: .navUninstaller
-        case .fileCleanup: .navFileCleanup
-        case .storageAnalysis: .navStorageAnalysis
+        case .scan: .navScan
+        case .apps: .navApps
+        case .storage: .navStorageAnalysis
         case .settings: .navSettings
         case .purchase: .purchaseTitle
         }
@@ -39,26 +37,22 @@ public enum AppDestination: String, CaseIterable, Identifiable, Hashable, Sendab
     public var symbolName: String {
         switch self {
         case .dashboard: "square.grid.2x2"
-        case .smartScan: "viewfinder"
-        case .junkCleanup: "trash"
-        case .uninstaller: "shippingbox"
-        case .fileCleanup: "doc.on.doc"
-        case .storageAnalysis: "chart.pie"
+        case .scan: "viewfinder"
+        case .apps: "shippingbox"
+        case .storage: "chart.bar.xaxis"
         case .settings: "gearshape"
         case .purchase: "lock.open"
         }
     }
 
-    /// Digit shortcut matching the sidebar order, so ⌘1 is the overview and ⌘6
-    /// is storage. Settings uses the conventional ⌘, instead.
+    /// Digit shortcut matching the rail order, so ⌘1 is the overview and ⌘4 is
+    /// storage. Settings uses the conventional ⌘, instead.
     public var digitShortcut: KeyEquivalent? {
         switch self {
         case .dashboard: "1"
-        case .smartScan: "2"
-        case .junkCleanup: "3"
-        case .fileCleanup: "4"
-        case .uninstaller: "5"
-        case .storageAnalysis: "6"
+        case .scan: "2"
+        case .apps: "3"
+        case .storage: "4"
         case .settings, .purchase: nil
         }
     }
@@ -66,35 +60,6 @@ public enum AppDestination: String, CaseIterable, Identifiable, Hashable, Sendab
     /// The full shortcut, including the conventional settings binding.
     public var shortcut: KeyEquivalent? {
         self == .settings ? "," : digitShortcut
-    }
-}
-
-/// The three parts of the main navigation.
-///
-/// Grouping is a navigation decision, not a view decision: the sidebar renders
-/// the groups, the keyboard shortcuts number the same order, and the page header
-/// names the group a page belongs to.
-public enum SidebarGroup: String, CaseIterable, Identifiable, Sendable {
-    case workbench
-    case cleanup
-    case apps
-
-    public var id: String { rawValue }
-
-    public var titleKey: LocalizationKey {
-        switch self {
-        case .workbench: .navWorkbench
-        case .cleanup: .navGroupCleanup
-        case .apps: .navGroupApps
-        }
-    }
-
-    public var destinations: [AppDestination] {
-        switch self {
-        case .workbench: [.dashboard, .smartScan]
-        case .cleanup: [.junkCleanup, .fileCleanup]
-        case .apps: [.uninstaller, .storageAnalysis]
-        }
     }
 }
 
@@ -130,9 +95,9 @@ public enum PaywallReason: String, Sendable, Hashable {
 
     public var titleKey: LocalizationKey {
         switch self {
-        case .cleanJunk: .navJunkCleanup
-        case .uninstall: .navUninstaller
-        case .cleanFiles: .navFileCleanup
+        case .cleanJunk: .navScan
+        case .uninstall: .navApps
+        case .cleanFiles: .navScan
         case .exportReport: .cleanupResultExportReport
         }
     }

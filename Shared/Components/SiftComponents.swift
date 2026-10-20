@@ -1,5 +1,76 @@
 import SwiftUI
 
+// MARK: - Surfaces
+
+/// A glass card: the surface every section sits on.
+///
+/// Three layers, in the order the redesign describes them: the system material
+/// blurs what is behind the card, a tinted fill decides how much of the backdrop
+/// survives, and a top-edge highlight makes the surface look lit. The border is
+/// a hairline rather than a frame — a card that is outlined looks like a box, not
+/// like glass.
+public struct SiftGlassCard<Content: View>: View {
+    private let surface: SiftSurface
+    private let cornerRadius: CGFloat
+    private let padding: CGFloat
+    private let content: Content
+
+    public init(
+        surface: SiftSurface = .card,
+        cornerRadius: CGFloat = SiftMetrics.cornerRadiusXL,
+        padding: CGFloat = SiftMetrics.spacingXL,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.surface = surface
+        self.cornerRadius = cornerRadius
+        self.padding = padding
+        self.content = content()
+    }
+
+    public var body: some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        content
+            .padding(padding)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background {
+                ZStack {
+                    shape.fill(surface.material)
+                    shape.fill(surface.tint)
+                    shape.fill(
+                        LinearGradient(
+                            colors: [
+                                SiftColor.glassHighlight.opacity(surface == .floating ? 0.20 : 0.10),
+                                .clear,
+                            ],
+                            startPoint: .top,
+                            endPoint: .center
+                        )
+                    )
+                }
+            }
+            .overlay {
+                shape.strokeBorder(SiftColor.glassBorder, lineWidth: SiftMetrics.panelBorderWidth)
+            }
+            .overlay {
+                shape.strokeBorder(
+                    LinearGradient(
+                        colors: [SiftColor.glassHighlight.opacity(0.55), .clear],
+                        startPoint: .top,
+                        endPoint: .center
+                    ),
+                    lineWidth: SiftMetrics.panelBorderWidth
+                )
+                .allowsHitTesting(false)
+            }
+            .clipShape(shape)
+            .shadow(
+                color: .black.opacity(surface.shadowOpacity),
+                radius: surface.shadowRadius,
+                y: surface == .card ? 8 : 12
+            )
+    }
+}
+
 /// A panel with a hairline border, the surface every section sits on.
 public struct SiftPanel<Content: View>: View {
     private let padding: CGFloat
@@ -11,22 +82,374 @@ public struct SiftPanel<Content: View>: View {
     }
 
     public var body: some View {
-        content
-            .padding(padding)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(SiftColor.panel)
-            .clipShape(RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusL, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusL, style: .continuous)
-                    .stroke(SiftColor.border.opacity(0.7), lineWidth: SiftMetrics.panelBorderWidth)
-            }
+        SiftGlassCard(padding: padding) {
+            content
+        }
     }
 }
 
-/// A stat tile: a label, a large value and an optional caption.
+/// The window background: a quiet canvas with two ambient glows.
 ///
-/// Used for "Can be cleaned", "Apps to remove" and "Large files" on the
-/// dashboard.
+/// The glow is what the glass has to show through. Without it the material has
+/// nothing to blur and every card reads as flat grey — the exact failure the
+/// redesign's material section warns about.
+public struct SiftCanvasBackground: View {
+    public init() {}
+
+    public var body: some View {
+        ZStack {
+            SiftColor.canvas
+            RadialGradient(
+                colors: [SiftColor.accent.opacity(0.20), SiftColor.accent.opacity(0)],
+                center: UnitPoint(x: 0.86, y: -0.08),
+                startRadius: 20,
+                endRadius: 680
+            )
+            RadialGradient(
+                colors: [SiftColor.categoryPalette[2].opacity(0.12), .clear],
+                center: UnitPoint(x: 0.08, y: 1.05),
+                startRadius: 10,
+                endRadius: 620
+            )
+        }
+        .ignoresSafeArea()
+    }
+}
+
+// MARK: - Page chrome
+
+/// A page header: a small status line, then the display title.
+///
+/// The status line names the page's context (the workspace and the date, the
+/// scan this result came from, the volume being measured). It is deliberately
+/// quieter than the title, so the title stays the thing the eye lands on.
+public struct SiftPageHeader<Trailing: View>: View {
+    private let title: String
+    private let status: String?
+    private let trailing: Trailing
+
+    public init(
+        title: String,
+        status: String? = nil,
+        @ViewBuilder trailing: () -> Trailing
+    ) {
+        self.title = title
+        self.status = status
+        self.trailing = trailing()
+    }
+
+    public var body: some View {
+        VStack(spacing: 0) {
+            HStack(alignment: .bottom, spacing: SiftMetrics.spacingXL) {
+                VStack(alignment: .leading, spacing: SiftMetrics.spacingXS) {
+                    if let status, !status.isEmpty {
+                        Text(status)
+                            .font(SiftFont.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                    Text(title)
+                        .font(SiftFont.display)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: SiftMetrics.spacingL)
+                trailing
+                    .padding(.bottom, 2)
+            }
+            .padding(.horizontal, SiftMetrics.pagePadding)
+            .padding(.top, SiftMetrics.spacingL)
+            .padding(.bottom, SiftMetrics.spacingM)
+
+            Rectangle()
+                .fill(SiftColor.glassBorder)
+                .frame(height: 1)
+        }
+    }
+}
+
+extension SiftPageHeader where Trailing == EmptyView {
+    public init(title: String, status: String? = nil) {
+        self.init(title: title, status: status) { EmptyView() }
+    }
+}
+
+/// A section header inside a card or a page.
+public struct SiftSectionHeader<Trailing: View>: View {
+    private let title: String
+    private let trailing: Trailing
+
+    public init(_ title: String, @ViewBuilder trailing: () -> Trailing) {
+        self.title = title
+        self.trailing = trailing()
+    }
+
+    public var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: SiftMetrics.spacingM) {
+            Text(title)
+                .font(SiftFont.sectionTitle)
+            Spacer(minLength: SiftMetrics.spacingS)
+            trailing
+        }
+    }
+}
+
+extension SiftSectionHeader where Trailing == EmptyView {
+    public init(_ title: String) {
+        self.init(title) { EmptyView() }
+    }
+}
+
+/// The scrolling page column.
+///
+/// Every page uses the same outer margins and vertical rhythm; only the column
+/// width changes with the kind of content. That consistency is what makes the
+/// pages look like one app when the window is wide.
+public struct SiftPage<Content: View>: View {
+    private let maxWidth: CGFloat
+    private let content: Content
+
+    public init(maxWidth: CGFloat = SiftMetrics.contentWidthWide, @ViewBuilder content: () -> Content) {
+        self.maxWidth = maxWidth
+        self.content = content()
+    }
+
+    public var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: SiftMetrics.pageSpacing) {
+                content
+            }
+            .padding(.horizontal, SiftMetrics.pagePadding)
+            .padding(.top, SiftMetrics.pageSpacing)
+            .padding(.bottom, SiftMetrics.spacingXXL)
+            .frame(maxWidth: maxWidth, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .top)
+        }
+    }
+}
+
+// MARK: - Buttons
+
+/// The primary action: a violet gradient capsule with a soft glow.
+public struct SiftPrimaryButton: View {
+    private let title: String
+    private let symbolName: String?
+    private let isEnabled: Bool
+    private let action: () -> Void
+
+    @State private var isHovering = false
+
+    public init(title: String, symbolName: String? = nil, isEnabled: Bool = true, action: @escaping () -> Void) {
+        self.title = title
+        self.symbolName = symbolName
+        self.isEnabled = isEnabled
+        self.action = action
+    }
+
+    public init(
+        titleKey: LocalizationKey,
+        symbolName: String? = nil,
+        isEnabled: Bool = true,
+        action: @escaping () -> Void
+    ) {
+        self.init(title: titleKey.localized, symbolName: symbolName, isEnabled: isEnabled, action: action)
+    }
+
+    public var body: some View {
+        Button(action: action) {
+            HStack(spacing: SiftMetrics.spacingS) {
+                if let symbolName {
+                    Image(systemName: symbolName)
+                        .font(.system(size: 12, weight: .semibold))
+                }
+                Text(title)
+                    .font(SiftFont.bodyEmphasis)
+                    .lineLimit(1)
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, SiftMetrics.spacingXL)
+            .frame(minHeight: 42)
+            .background {
+                Capsule(style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [SiftColor.accentBright, SiftColor.accent],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .overlay {
+                        Capsule(style: .continuous)
+                            .fill(
+                                LinearGradient(
+                                    colors: [.white.opacity(isHovering ? 0.20 : 0.13), .clear],
+                                    startPoint: .top,
+                                    endPoint: .center
+                                )
+                            )
+                    }
+            }
+            .overlay {
+                Capsule(style: .continuous)
+                    .strokeBorder(.white.opacity(0.18), lineWidth: 1)
+            }
+            .shadow(
+                color: SiftColor.accent.opacity(isHovering ? 0.42 : 0.28),
+                radius: isHovering ? 18 : 12,
+                y: 7
+            )
+            .opacity(isEnabled ? 1 : 0.45)
+        }
+        .buttonStyle(SiftPressButtonStyle())
+        .disabled(!isEnabled)
+        .accessibilityLabel(Text(title))
+        .onHover { isHovering = $0 }
+    }
+}
+
+/// A secondary action: the same shape, but glass instead of paint.
+public struct SiftSecondaryButton: View {
+    private let title: String
+    private let symbolName: String?
+    private let action: () -> Void
+
+    @State private var isHovering = false
+
+    public init(title: String, symbolName: String? = nil, action: @escaping () -> Void) {
+        self.title = title
+        self.symbolName = symbolName
+        self.action = action
+    }
+
+    public init(titleKey: LocalizationKey, symbolName: String? = nil, action: @escaping () -> Void) {
+        self.init(title: titleKey.localized, symbolName: symbolName, action: action)
+    }
+
+    public var body: some View {
+        Button(action: action) {
+            HStack(spacing: SiftMetrics.spacingS) {
+                if let symbolName {
+                    Image(systemName: symbolName)
+                        .font(.system(size: 12, weight: .medium))
+                }
+                Text(title)
+                    .font(SiftFont.bodyEmphasis)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, SiftMetrics.spacingXL)
+            .frame(minHeight: 42)
+            .background {
+                Capsule(style: .continuous)
+                    .fill(.ultraThinMaterial)
+                    .overlay {
+                        Capsule(style: .continuous)
+                            .fill(isHovering ? SiftColor.hoverFill : Color.white.opacity(0.035))
+                    }
+            }
+            .overlay {
+                Capsule(style: .continuous)
+                    .strokeBorder(SiftColor.glassBorder, lineWidth: 1)
+            }
+        }
+        .buttonStyle(SiftPressButtonStyle())
+        .accessibilityLabel(Text(title))
+        .onHover { isHovering = $0 }
+    }
+}
+
+/// A plain icon button used in dense rows and page headers.
+public struct SiftIconButton: View {
+    private let symbolName: String
+    private let help: String
+    private let action: () -> Void
+
+    @State private var isHovering = false
+
+    public init(symbolName: String, help: String, action: @escaping () -> Void) {
+        self.symbolName = symbolName
+        self.help = help
+        self.action = action
+    }
+
+    public var body: some View {
+        Button(action: action) {
+            Image(systemName: symbolName)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(isHovering ? SiftColor.accent : .secondary)
+                .frame(width: 30, height: 30)
+                .background(
+                    RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
+                        .fill(isHovering ? SiftColor.hoverFill : .clear)
+                )
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(help)
+        .onHover { isHovering = $0 }
+    }
+}
+
+/// A link in the app's own accent.
+///
+/// The system link style is blue, which puts a second accent colour on a page
+/// whose primary action is violet. This style keeps link semantics — a text
+/// button with no chrome — and uses the product's accent.
+public struct SiftLinkButtonStyle: ButtonStyle {
+    public init() {}
+
+    public func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(SiftColor.accent)
+            .opacity(configuration.isPressed ? 0.55 : 1)
+            .contentShape(Rectangle())
+    }
+}
+
+/// Scale-on-press, the interaction the redesign specifies for every capsule.
+public struct SiftPressButtonStyle: ButtonStyle {
+    public init() {}
+
+    public func makeBody(configuration: Configuration) -> some View {
+        SiftPressBody(configuration: configuration)
+    }
+}
+
+private struct SiftPressBody: View {
+    let configuration: ButtonStyleConfiguration
+    @Environment(\.siftReduceMotion) private var reduceMotion
+
+    var body: some View {
+        configuration.label
+            .scaleEffect(reduceMotion ? 1 : (configuration.isPressed ? 0.96 : 1))
+            .animation(reduceMotion ? nil : SiftMotion.press, value: configuration.isPressed)
+    }
+}
+
+/// The older key-based primary button, kept so a page that has not been rebuilt
+/// yet still renders the new style rather than the system blue.
+public struct PrimaryActionButton: View {
+    private let titleKey: LocalizationKey
+    private let symbolName: String?
+    private let action: () -> Void
+
+    public init(titleKey: LocalizationKey, symbolName: String? = nil, action: @escaping () -> Void) {
+        self.titleKey = titleKey
+        self.symbolName = symbolName
+        self.action = action
+    }
+
+    public var body: some View {
+        SiftPrimaryButton(
+            title: titleKey.localized,
+            symbolName: symbolName,
+            action: action
+        )
+    }
+}
+
+// MARK: - Metrics and badges
+
+/// A stat tile: a label, a large value and an optional caption.
 public struct StatTile: View {
     private let titleKey: LocalizationKey
     private let value: String
@@ -49,21 +472,20 @@ public struct StatTile: View {
     }
 
     public var body: some View {
-        SiftPanel {
+        SiftGlassCard(padding: SiftMetrics.spacingL, content: {
             VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
-                Label {
-                    Text(titleKey.localized)
-                        .font(SiftFont.body)
-                        .foregroundStyle(.secondary)
-                } icon: {
+                HStack(spacing: SiftMetrics.spacingS) {
                     Image(systemName: symbolName)
+                        .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(tint)
+                    Text(titleKey.localized)
+                        .font(SiftFont.caption)
+                        .foregroundStyle(.secondary)
                 }
-                .labelStyle(.titleAndIcon)
 
                 Text(value)
                     .font(SiftFont.metric)
-                    .foregroundStyle(.primary)
+                    .monospacedDigit()
                     .contentTransition(.numericText())
                     .accessibilityLabel(Text(titleKey.localized))
                     .accessibilityValue(Text(value))
@@ -75,7 +497,33 @@ public struct StatTile: View {
                         .lineLimit(2)
                 }
             }
+        })
+    }
+}
+
+/// The large number on a hero card: the value at display size, the unit beside it.
+public struct SiftHugeMetric: View {
+    private let value: String
+    private let unit: String?
+
+    public init(_ value: String, unit: String? = nil) {
+        self.value = value
+        self.unit = unit
+    }
+
+    public var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: SiftMetrics.spacingS) {
+            Text(value)
+                .font(SiftFont.heroMetric)
+                .monospacedDigit()
+                .contentTransition(.numericText())
+            if let unit {
+                Text(unit)
+                    .font(SiftFont.heroUnit)
+                    .foregroundStyle(.secondary)
+            }
         }
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -91,11 +539,17 @@ public struct IconTile: View {
 
     public var body: some View {
         RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
-            .fill(tint.opacity(0.14))
+            .fill(
+                LinearGradient(
+                    colors: [tint.opacity(0.20), tint.opacity(0.10)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
             .frame(width: SiftMetrics.iconTileSize, height: SiftMetrics.iconTileSize)
             .overlay {
                 Image(systemName: symbolName)
-                    .font(.system(size: 15, weight: .medium))
+                    .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(tint)
             }
     }
@@ -103,8 +557,9 @@ public struct IconTile: View {
 
 /// Risk badge.
 ///
-/// Colour is never the only signal: the badge always carries an SF Symbol and a
-/// word, as §11.4 requires for accessibility and for colour-blind users.
+/// Colour is never the only signal: the badge always carries a word, and a lock
+/// for a protected item, as §11.4 requires for accessibility and for colour-blind
+/// users.
 public struct RiskBadge: View {
     private let risk: RiskLevel
 
@@ -113,24 +568,125 @@ public struct RiskBadge: View {
     }
 
     public var body: some View {
-        Label {
+        HStack(spacing: 5) {
+            if risk == .protected {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 8, weight: .bold))
+            } else {
+                Circle()
+                    .fill(SiftColor.color(for: risk))
+                    .frame(width: 5, height: 5)
+            }
             Text(risk.labelKey.localized)
                 .font(SiftFont.badge)
-        } icon: {
-            Image(systemName: risk.symbolName)
-                .font(.system(size: 9, weight: .bold))
         }
         .foregroundStyle(SiftColor.color(for: risk))
         .padding(.horizontal, SiftMetrics.spacingS)
         .padding(.vertical, 3)
         .background(
-            Capsule().fill(SiftColor.color(for: risk).opacity(0.14))
+            Capsule(style: .continuous).fill(SiftColor.color(for: risk).opacity(0.13))
         )
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Text(risk.labelKey.localized))
         .accessibilityHint(Text(risk.detailKey.localized))
     }
 }
+
+/// A filter chip: the selected chip is violet glass, the rest are quiet glass.
+public struct SiftFilterChip: View {
+    private let title: String
+    private let detail: String?
+    private let isSelected: Bool
+    private let action: () -> Void
+
+    @State private var isHovering = false
+
+    public init(title: String, detail: String? = nil, isSelected: Bool, action: @escaping () -> Void) {
+        self.title = title
+        self.detail = detail
+        self.isSelected = isSelected
+        self.action = action
+    }
+
+    public var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Text(title)
+                    .font(SiftFont.bodyEmphasis)
+                if let detail {
+                    Text(detail)
+                        .font(SiftFont.caption)
+                        .opacity(0.7)
+                }
+            }
+            .foregroundStyle(isSelected ? SiftColor.accent : Color.primary)
+            .padding(.horizontal, SiftMetrics.spacingL)
+            .frame(minHeight: 32)
+            .background {
+                Capsule(style: .continuous)
+                    .fill(isSelected ? SiftColor.selectedFill : Color.white.opacity(isHovering ? 0.08 : 0.035))
+                    .background(Capsule(style: .continuous).fill(.ultraThinMaterial))
+            }
+            .overlay {
+                Capsule(style: .continuous)
+                    .strokeBorder(
+                        isSelected ? SiftColor.accent.opacity(0.45) : SiftColor.glassBorder,
+                        lineWidth: 1
+                    )
+            }
+        }
+        .buttonStyle(SiftPressButtonStyle())
+        .onHover { isHovering = $0 }
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}
+
+/// A checkbox in the app's own palette.
+///
+/// The native checkbox follows the system accent, which would put a blue mark in
+/// the middle of a violet row. The word beside it is still the accessible label;
+/// this view only draws the mark.
+public struct SiftCheckbox: View {
+    @Binding private var isOn: Bool
+    private let isEnabled: Bool
+
+    public init(isOn: Binding<Bool>, isEnabled: Bool = true) {
+        self._isOn = isOn
+        self.isEnabled = isEnabled
+    }
+
+    public var body: some View {
+        Button {
+            guard isEnabled else { return }
+            isOn.toggle()
+        } label: {
+            RoundedRectangle(cornerRadius: 5, style: .continuous)
+                .fill(isOn && isEnabled ? SiftColor.accent : Color.white.opacity(0.06))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .strokeBorder(
+                            isOn && isEnabled ? SiftColor.accent.opacity(0.9) : SiftColor.glassBorder,
+                            lineWidth: 1
+                        )
+                }
+                .overlay {
+                    if isOn {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.white)
+                    }
+                }
+                .frame(width: 18, height: 18)
+                .opacity(isEnabled ? 1 : 0.35)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isOn ? .isSelected : [])
+        .accessibilityValue(Text(isOn ? "1" : "0"))
+    }
+}
+
+// MARK: - Bars and rings
 
 /// A coloured bar showing how much of a total a value represents.
 public struct UsageBar: View {
@@ -147,10 +703,16 @@ public struct UsageBar: View {
     public var body: some View {
         GeometryReader { geometry in
             ZStack(alignment: .leading) {
-                Capsule().fill(SiftColor.neutral.opacity(0.18))
-                Capsule()
-                    .fill(tint)
-                    .frame(width: max(geometry.size.width * fraction, fraction > 0 ? 3 : 0))
+                Capsule(style: .continuous).fill(SiftColor.neutral.opacity(0.16))
+                Capsule(style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [tint.opacity(0.85), tint],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(width: max(geometry.size.width * fraction, fraction > 0 ? 4 : 0))
             }
         }
         .frame(height: height)
@@ -158,9 +720,7 @@ public struct UsageBar: View {
     }
 }
 
-/// A stacked bar showing several segments of one total, used by the storage
-/// overview. Each segment is labelled in the legend beside it, so colour is
-/// never the only key.
+/// A stacked bar showing several segments of one total.
 public struct SegmentedUsageBar: View {
     public struct Segment: Identifiable, Sendable {
         public let id: String
@@ -186,7 +746,7 @@ public struct SegmentedUsageBar: View {
         GeometryReader { geometry in
             HStack(spacing: 2) {
                 ForEach(segments) { segment in
-                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                    RoundedRectangle(cornerRadius: height / 2, style: .continuous)
                         .fill(segment.tint)
                         .frame(width: max(geometry.size.width * segment.fraction - 2, 0))
                 }
@@ -196,6 +756,86 @@ public struct SegmentedUsageBar: View {
         .accessibilityHidden(true)
     }
 }
+
+/// A progress ring.
+///
+/// A determinate ring trims the stroke to `progress`; an indeterminate ring
+/// (`progress == nil`) slides a short arc around the track. The scan engine
+/// reports phases rather than a fraction, so the running page uses the
+/// indeterminate form instead of inventing a percentage.
+public struct SiftProgressRing: View {
+    private let progress: Double?
+    private let tint: Color
+    private let lineWidth: CGFloat
+    private let label: String?
+    private let caption: String?
+
+    @State private var spin = false
+    @Environment(\.siftReduceMotion) private var reduceMotion
+
+    public init(progress: Double?, tint: Color = SiftColor.accent, lineWidth: CGFloat = 10, label: String? = nil, caption: String? = nil) {
+        self.progress = progress.map { min(max($0, 0), 1) }
+        self.tint = tint
+        self.lineWidth = lineWidth
+        self.label = label
+        self.caption = caption
+    }
+
+    public var body: some View {
+        ZStack {
+            Circle()
+                .stroke(SiftColor.neutral.opacity(0.14), lineWidth: lineWidth)
+
+            if let progress {
+                Circle()
+                    .trim(from: 0, to: max(progress, 0.001))
+                    .stroke(
+                        AngularGradient(
+                            colors: [tint.opacity(0.55), tint, tint.opacity(0.55)],
+                            center: .center
+                        ),
+                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(-90))
+                    .animation(SiftMotion.progress, value: progress)
+            } else {
+                Circle()
+                    .trim(from: 0, to: 0.34)
+                    .stroke(
+                        AngularGradient(
+                            colors: [tint.opacity(0.15), tint, tint.opacity(0.15)],
+                            center: .center
+                        ),
+                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(reduceMotion ? -90 : (spin ? 360 : 0)))
+                    .animation(
+                        reduceMotion
+                            ? nil
+                            : .linear(duration: 1.35).repeatForever(autoreverses: false),
+                        value: spin
+                    )
+                    .onAppear { spin = true }
+            }
+
+            VStack(spacing: 2) {
+                if let label {
+                    Text(label)
+                        .font(.system(size: 22, weight: .semibold))
+                        .monospacedDigit()
+                }
+                if let caption {
+                    Text(caption)
+                        .font(SiftFont.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+// MARK: - Rows and states
 
 /// A row that resembles the sidebar and list rows in the mockups: icon tile,
 /// title, optional subtitle, trailing content.
@@ -252,10 +892,43 @@ extension SiftRow where Trailing == EmptyView {
     }
 }
 
+/// A selectable row surface with a hover highlight and a selected fill.
+public struct SiftSelectableRow<Content: View>: View {
+    private let isSelected: Bool
+    private let content: Content
+    private let action: () -> Void
+
+    @State private var isHovering = false
+
+    public init(isSelected: Bool, action: @escaping () -> Void, @ViewBuilder content: () -> Content) {
+        self.isSelected = isSelected
+        self.action = action
+        self.content = content()
+    }
+
+    public var body: some View {
+        Button(action: action) {
+            content
+                .padding(.horizontal, SiftMetrics.spacingM)
+                .padding(.vertical, SiftMetrics.spacingS)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
+                        .fill(isSelected ? SiftColor.selectedFill : (isHovering ? SiftColor.hoverFill : .clear))
+                )
+                .overlay {
+                    RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
+                        .strokeBorder(isSelected ? SiftColor.accent.opacity(0.35) : .clear, lineWidth: 1)
+                }
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovering = $0 }
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}
+
 /// An empty-state block: a symbol, a headline and a short explanation.
-///
-/// `ContentUnavailableView` is macOS 14 and later, so the macOS 13 baseline
-/// needs its own implementation (§6.1).
 public struct SiftEmptyState: View {
     private let symbolName: String
     private let titleKey: LocalizationKey
@@ -279,7 +952,7 @@ public struct SiftEmptyState: View {
     public var body: some View {
         VStack(spacing: SiftMetrics.spacingM) {
             Image(systemName: symbolName)
-                .font(.system(size: 34, weight: .light))
+                .font(.system(size: 32, weight: .light))
                 .foregroundStyle(.tertiary)
             Text(titleKey.localized)
                 .font(SiftFont.sectionTitle)
@@ -300,36 +973,6 @@ public struct SiftEmptyState: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, SiftMetrics.spacingXXL)
         .accessibilityElement(children: .combine)
-    }
-}
-
-/// The primary call-to-action button.
-public struct PrimaryActionButton: View {
-    private let titleKey: LocalizationKey
-    private let symbolName: String?
-    private let action: () -> Void
-
-    public init(titleKey: LocalizationKey, symbolName: String? = nil, action: @escaping () -> Void) {
-        self.titleKey = titleKey
-        self.symbolName = symbolName
-        self.action = action
-    }
-
-    public var body: some View {
-        Button(action: action) {
-            HStack(spacing: SiftMetrics.spacingS) {
-                if let symbolName {
-                    Image(systemName: symbolName)
-                }
-                Text(titleKey.localized)
-                    .font(SiftFont.bodyEmphasis)
-            }
-            .padding(.horizontal, SiftMetrics.spacingL)
-            .frame(minHeight: 34)
-        }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.large)
-        .keyboardShortcut(.defaultAction)
     }
 }
 
@@ -398,21 +1041,22 @@ public struct NoticeBanner: View {
                     Text(actionTitle.localized)
                         .font(SiftFont.bodyEmphasis)
                 }
-                .buttonStyle(.link)
+                .buttonStyle(SiftLinkButtonStyle())
             }
         }
         .padding(SiftMetrics.spacingM)
         .background(level.tint.opacity(0.10))
         .clipShape(RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
+                .strokeBorder(level.tint.opacity(0.18), lineWidth: 1)
+        }
         .accessibilityElement(children: .contain)
     }
 }
 
-/// A page header: an eyebrow naming the sidebar group, a display title, an
-/// optional subtitle and trailing actions aligned with the title.
-///
-/// The eyebrow is what ties a page to the group it was opened from, so the
-/// window has a readable hierarchy instead of a title floating over a card.
+/// The older page header. Kept for pages still using it; the redesigned pages
+/// use `SiftPageHeader` with a status line.
 public struct PageHeader<Trailing: View>: View {
     private let eyebrowKey: LocalizationKey?
     private let titleKey: LocalizationKey
@@ -464,8 +1108,7 @@ extension PageHeader where Trailing == EmptyView {
     }
 }
 
-/// A labelled horizontal bar chart row, used instead of a ring chart (§5.4
-/// explicitly ranks accurate lists above elaborate charts).
+/// A labelled horizontal bar chart row.
 public struct BreakdownBar: View {
     private let label: String
     private let value: String
@@ -484,7 +1127,7 @@ public struct BreakdownBar: View {
             HStack {
                 Circle()
                     .fill(tint)
-                    .frame(width: 8, height: 8)
+                    .frame(width: 7, height: 7)
                     .accessibilityHidden(true)
                 Text(label)
                     .font(SiftFont.body)
@@ -501,42 +1144,8 @@ public struct BreakdownBar: View {
     }
 }
 
-/// The scrolling page column.
-///
-/// Every page uses the same outer margins and vertical rhythm; only the column
-/// width changes with the kind of content. That consistency is what makes the
-/// pages look like one app when the window is wide, instead of a set of columns
-/// that each chose their own alignment.
-public struct SiftPage<Content: View>: View {
-    private let maxWidth: CGFloat
-    private let content: Content
-
-    public init(maxWidth: CGFloat = SiftMetrics.contentWidthWide, @ViewBuilder content: () -> Content) {
-        self.maxWidth = maxWidth
-        self.content = content()
-    }
-
-    public var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: SiftMetrics.spacingXL) {
-                content
-            }
-            .padding(.horizontal, SiftMetrics.spacingXXL)
-            .padding(.top, SiftMetrics.spacingXL)
-            .padding(.bottom, SiftMetrics.spacingXXL)
-            .frame(maxWidth: maxWidth, alignment: .leading)
-            .frame(maxWidth: .infinity, alignment: .top)
-        }
-        .background(SiftColor.windowBackground)
-    }
-}
-
 /// A primary block: an icon, a short headline, an explanation and the action
-/// that belongs to them, on one tinted surface.
-///
-/// The empty and first-run states use this instead of centring a small card in a
-/// large blank area: the block fills the page column deliberately, and the
-/// action sits where the eye already is.
+/// that belongs to them, on one tinted glass surface.
 public struct SiftHeroCard<Actions: View>: View {
     private let symbolName: String
     private let title: String
@@ -559,19 +1168,20 @@ public struct SiftHeroCard<Actions: View>: View {
     }
 
     public var body: some View {
+        let shape = RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusXL, style: .continuous)
         HStack(alignment: .top, spacing: SiftMetrics.spacingXL) {
             RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusL, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [tint.opacity(0.24), tint.opacity(0.08)],
+                        colors: [tint.opacity(0.32), tint.opacity(0.10)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
                 )
-                .frame(width: 64, height: 64)
+                .frame(width: 58, height: 58)
                 .overlay {
                     Image(systemName: symbolName)
-                        .font(.system(size: 27, weight: .medium))
+                        .font(.system(size: 24, weight: .medium))
                         .foregroundStyle(tint)
                 }
                 .accessibilityHidden(true)
@@ -594,19 +1204,29 @@ public struct SiftHeroCard<Actions: View>: View {
         }
         .padding(SiftMetrics.spacingXL)
         .background {
-            RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusXL, style: .continuous)
-                .fill(
+            ZStack {
+                shape.fill(.thinMaterial)
+                shape.fill(
                     LinearGradient(
-                        colors: [tint.opacity(0.10), SiftColor.panel],
+                        colors: [tint.opacity(0.20), SiftColor.cardGlass],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
                 )
+                shape.fill(
+                    LinearGradient(
+                        colors: [SiftColor.glassHighlight.opacity(0.12), .clear],
+                        startPoint: .top,
+                        endPoint: .center
+                    )
+                )
+            }
         }
         .overlay {
-            RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusXL, style: .continuous)
-                .stroke(tint.opacity(0.20), lineWidth: SiftMetrics.panelBorderWidth)
+            shape.strokeBorder(tint.opacity(0.24), lineWidth: 1)
         }
+        .clipShape(shape)
+        .shadow(color: .black.opacity(0.16), radius: 16, y: 8)
     }
 }
 
@@ -625,7 +1245,7 @@ public struct SiftMetricPill: View {
     public var body: some View {
         HStack(spacing: SiftMetrics.spacingS) {
             Image(systemName: symbolName)
-                .font(.system(size: 11, weight: .semibold))
+                .font(.system(size: 10, weight: .semibold))
             Text(value)
                 .font(SiftFont.bodyEmphasis)
                 .monospacedDigit()
@@ -633,17 +1253,22 @@ public struct SiftMetricPill: View {
         .foregroundStyle(tint)
         .padding(.horizontal, SiftMetrics.spacingM)
         .padding(.vertical, 6)
-        .background(Capsule().fill(tint.opacity(0.12)))
+        .background(Capsule(style: .continuous).fill(tint.opacity(0.12)))
+        .overlay {
+            Capsule(style: .continuous).strokeBorder(tint.opacity(0.18), lineWidth: 1)
+        }
     }
 }
 
 /// The language control.
 ///
-/// The sidebar footer and the settings page both render this view and both call
-/// the same selection closure, so the choice is written by one function and the
-/// two locations cannot disagree about how it is stored.
+/// The rail footer and the settings page both render this view and both call the
+/// same selection closure, so the choice is written by one function and the two
+/// locations cannot disagree about how it is stored.
 public struct LanguageMenu: View {
     public enum Style: Sendable {
+        /// The icon rail: a globe with the language's short name beside it.
+        case rail
         /// A sidebar footer row: globe, current language and a disclosure glyph.
         case sidebar
         /// A settings row: the label on the left, the current language on the right.
@@ -695,6 +1320,18 @@ public struct LanguageMenu: View {
     @ViewBuilder
     private var label: some View {
         switch style {
+        case .rail:
+            VStack(spacing: 4) {
+                Image(systemName: "globe")
+                    .font(.system(size: 15, weight: .medium))
+                Text(shortName)
+                    .font(SiftFont.railLabel)
+                    .lineLimit(1)
+            }
+            .foregroundStyle(.secondary)
+            .frame(width: SiftMetrics.railItemWidth, height: 48)
+            .contentShape(Rectangle())
+
         case .sidebar:
             HStack(spacing: SiftMetrics.spacingS) {
                 Image(systemName: "globe")
@@ -728,6 +1365,20 @@ public struct LanguageMenu: View {
                 }
             }
             .contentShape(Rectangle())
+        }
+    }
+
+    /// The rail has room for four characters at most.
+    private var shortName: String {
+        switch selection {
+        case .english: "EN"
+        case .simplifiedChinese: "中文"
+        case .japanese: "日本語"
+        case .korean: "한국어"
+        case .german: "DE"
+        case .french: "FR"
+        case .spanish: "ES"
+        case .russian: "RU"
         }
     }
 }

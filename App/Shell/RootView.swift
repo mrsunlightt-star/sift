@@ -13,186 +13,304 @@ import SwiftUI
 /// `PreferencesSnapshot` and the paywall reason bridge live in the junk cleanup
 /// feature, which owns the confirmation panel the shell presents.
 
-/// The window: a sidebar of destinations and the selected page.
+/// The window: an icon rail and the selected page, over the shared canvas.
 ///
-/// Public because the app entry point lives in a different target: the entry file
-/// is shared between the SwiftPM executable and the Xcode app target.
+/// The redesign replaces the system sidebar with a narrow rail. It carries the
+/// four destinations a user goes to, the language control and settings; category
+/// filters moved into the scan page, which is where they belong.
 public struct RootShellView: View {
     public init() {}
 
     @EnvironmentObject private var environment: AppEnvironment
     @EnvironmentObject private var router: AppRouter
+    @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
 
     public var body: some View {
-        NavigationSplitView {
-            SidebarView()
-                .navigationSplitViewColumnWidth(min: 210, ideal: SiftMetrics.sidebarWidth, max: 280)
-        } detail: {
-            DetailView(destination: router.destination)
+        ZStack {
+            SiftCanvasBackground()
+
+            HStack(spacing: 0) {
+                IconRailView()
+                DetailView(destination: router.destination)
+            }
+
+            presentationLayer
         }
-        .navigationSplitViewStyle(.balanced)
-        .background(SiftColor.windowBackground)
         .environment(\.locale, environment.preferences.language.locale)
+        .environment(
+            \.siftReduceMotion,
+            accessibilityReduceMotion || environment.preferences.reduceMotion
+        )
+        .preferredColorScheme(preferredColorScheme)
+        .tint(SiftColor.accent)
+        .animation(SiftMotion.panel, value: environment.cleanup.outcome != nil)
+        .animation(SiftMotion.panel, value: environment.cleanup.isConfirming)
+    }
+
+    private var preferredColorScheme: ColorScheme? {
+        switch environment.preferences.appearance {
+        case .system: nil
+        case .light: .light
+        case .dark: .dark
+        }
+    }
+
+    /// The result and the confirmation panel are presented by the shell, so they
+    /// appear above whichever page started the operation. A dimmed backdrop makes
+    /// them the only thing that can be clicked while they are open.
+    @ViewBuilder
+    private var presentationLayer: some View {
+        if let outcome = environment.cleanup.outcome {
+            ZStack {
+                Color.black.opacity(0.28)
+                    .ignoresSafeArea()
+                    .contentShape(Rectangle())
+
+                ScrollView {
+                    SiftGlassCard(surface: .floating, padding: 0) {
+                        CleanupResultView(
+                            outcome: outcome,
+                            report: environment.cleanup.report,
+                            onAcknowledge: {
+                                environment.cleanup.acknowledgeOutcome()
+                                environment.clearReportExportMessage()
+                            },
+                            onExport: {
+                                Task {
+                                    guard await environment.canExportReports() else {
+                                        environment.cleanup.acknowledgeOutcome()
+                                        router.requestPurchase(reason: .exportReport)
+                                        return
+                                    }
+                                    if let report = environment.cleanup.report {
+                                        await environment.exportReport(report)
+                                    }
+                                }
+                            },
+                            onOpenTrash: { Task { await environment.openTrash() } },
+                            onRevealFailed: { url in Task { await environment.reveal(url) } },
+                            onRequestPurchase: { router.requestPurchase(reason: .exportReport) },
+                            statusMessage: environment.reportExportMessage
+                        )
+                        .padding(SiftMetrics.spacingXL)
+                    }
+                    .frame(maxWidth: 820)
+                    .padding(SiftMetrics.spacingXXL)
+                }
+                .frame(maxWidth: 900)
+            }
+            .transition(.opacity.combined(with: .scale(scale: 0.98)))
+        }
+
+        if environment.cleanup.isConfirming {
+            ZStack {
+                Color.black.opacity(0.28)
+                    .ignoresSafeArea()
+                    .contentShape(Rectangle())
+
+                ConfirmationHost()
+                    .transition(.opacity.combined(with: .scale(scale: 0.98)))
+            }
+        }
     }
 }
 
-/// The sidebar: product identity, the three destination groups, and the
-/// utility rows at the bottom.
-///
-/// Language sits next to Settings and Unlock because it is a preference, not a
-/// page action: a control that changes the whole window belongs with the other
-/// window-level controls.
-struct SidebarView: View {
+/// The confirmation panel, hosted with the preferences snapshot the shell owns.
+private struct ConfirmationHost: View {
     @EnvironmentObject private var environment: AppEnvironment
     @EnvironmentObject private var router: AppRouter
-    /// Mirrors `router.destination` for the list.
-    ///
-    /// `List` keeps its own selection state; binding it straight to a computed
-    /// value let a programmatic navigation (a menu shortcut) move the page while
-    /// the highlighted row stayed behind. The list writes here, the router
-    /// publishes here, and both directions meet in this one value.
-    @State private var selection: AppDestination? = .dashboard
+    @StateObject private var preferences = PreferencesSnapshot()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            identity
-                .padding(.horizontal, SiftMetrics.spacingL)
-                .padding(.top, SiftMetrics.spacingL)
-                .padding(.bottom, SiftMetrics.spacingM)
-
-            List(selection: selectionBinding) {
-                ForEach(SidebarGroup.allCases) { group in
-                    Section {
-                        ForEach(group.destinations) { destination in
-                            Label(destination.titleKey.localized, systemImage: destination.symbolName)
-                                .tag(destination)
-                                .accessibilityLabel(Text(destination.titleKey.localized))
-                                .accessibilityIdentifier("sidebar.\(destination.rawValue)")
-                        }
-                    } header: {
-                        Text(group.titleKey.localized)
-                            .font(SiftFont.eyebrow)
-                            .textCase(.uppercase)
-                            .tracking(0.5)
+        SiftGlassCard(surface: .floating, padding: 0) {
+            CleanupConfirmationView(
+                cleanup: environment.cleanup,
+                preferences: preferences,
+                onConfirm: {
+                    Task {
+                        await environment.cleanup.confirmCleanup(
+                            scanReport: environment.scan.report
+                        )
+                        RecentHistoryBridge.record(environment.cleanup.outcome)
                     }
+                },
+                onCancel: { environment.cleanup.isConfirming = false },
+                onToggleSkipConfirmation: { value in
+                    Task { await environment.updateSettings { $0.skipConfirmation = value } }
                 }
-            }
-            .listStyle(.sidebar)
-            .scrollContentBackground(.hidden)
-            // The list rows are AppKit-backed and keep their rendered text when
-            // only the environment object changes. Rebuilding the list on a
-            // language change is what makes the sidebar switch with the page.
-            .id(environment.preferences.language)
-            .onReceive(router.$destination) { destination in
-                if selection != destination {
-                    selection = destination
-                }
-            }
-
-            Divider()
-
-            footer
+            )
+            .padding(SiftMetrics.spacingXL)
         }
-        .background(.thinMaterial)
+        .frame(width: 560)
+        .task(id: environment.preferences) {
+            preferences.skipConfirmation = environment.preferences.skipConfirmation
+            preferences.requireConfirmation = environment.preferences.requireConfirmation
+        }
     }
+}
 
-    private var footer: some View {
-        VStack(spacing: 2) {
+// MARK: - Rail
+
+/// The icon rail: the product mark, the four destinations, then the window-level
+/// controls at the bottom.
+struct IconRailView: View {
+    @EnvironmentObject private var environment: AppEnvironment
+    @EnvironmentObject private var router: AppRouter
+    @State private var hovered: AppDestination?
+
+    var body: some View {
+        VStack(spacing: SiftMetrics.spacingXS) {
+            SiftMark()
+                .frame(width: 40, height: 40)
+                .padding(.top, 8)
+                .padding(.bottom, SiftMetrics.spacingXL)
+
+            ForEach(AppDestination.primary) { destination in
+                railItem(destination)
+            }
+
+            Spacer(minLength: SiftMetrics.spacingL)
+
+            if !environment.entitlement.isUnlocked {
+                unlockButton
+                    .padding(.bottom, SiftMetrics.spacingS)
+            }
+
             LanguageMenu(
                 selection: environment.preferences.language,
-                style: .sidebar,
+                style: .rail,
                 identifier: "sidebar.language"
             ) { language in
                 environment.selectLanguage(language)
             }
             .help(LocalizationKey.settingsGroupLanguage.localized)
 
-            footerRow(.settings)
-
-            if !environment.entitlement.isUnlocked {
-                footerRow(.purchase)
-            }
+            railItem(.settings)
         }
-        .padding(.horizontal, SiftMetrics.spacingM)
-        .padding(.vertical, SiftMetrics.spacingM)
+        .padding(.bottom, SiftMetrics.spacingM)
+        .frame(width: SiftMetrics.railWidth)
+        .frame(maxHeight: .infinity)
+        .background {
+            ZStack {
+                Rectangle().fill(.ultraThinMaterial)
+                Rectangle().fill(SiftColor.baseGlass)
+                LinearGradient(
+                    colors: [SiftColor.glassHighlight.opacity(0.06), .clear],
+                    startPoint: .top,
+                    endPoint: .center
+                )
+            }
+            .ignoresSafeArea()
+        }
+        .overlay(alignment: .trailing) {
+            Rectangle()
+                .fill(SiftColor.glassBorder)
+                .frame(width: 1)
+                .ignoresSafeArea()
+        }
     }
 
-    private func footerRow(_ destination: AppDestination) -> some View {
+    private func railItem(_ destination: AppDestination) -> some View {
         let isSelected = router.destination == destination
+        let isHovering = hovered == destination
         return Button {
-            if destination == .purchase {
-                router.requestPurchase(reason: .cleanJunk)
-            } else {
-                router.go(to: destination)
-            }
+            router.go(to: destination)
         } label: {
-            HStack(spacing: SiftMetrics.spacingS) {
+            VStack(spacing: 5) {
                 Image(systemName: destination.symbolName)
-                    .font(.system(size: 12, weight: .medium))
-                    .frame(width: 18)
+                    .font(.system(size: 19, weight: .medium))
+                    .frame(height: 22)
                 Text(destination.titleKey.localized)
-                    .font(SiftFont.body)
-                Spacer(minLength: SiftMetrics.spacingS)
+                    .font(SiftFont.railLabel)
+                    .lineLimit(1)
             }
-            .foregroundStyle(isSelected ? SiftColor.accent : .secondary)
-            .padding(.horizontal, SiftMetrics.spacingS)
-            .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
-            .background(
-                isSelected ? SiftColor.accent.opacity(0.10) : Color.clear,
-                in: RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
-            )
+            .foregroundStyle(isSelected ? SiftColor.accent : Color.secondary)
+            .frame(width: SiftMetrics.railItemWidth, height: SiftMetrics.railItemHeight)
+            .background {
+                RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
+                    .fill(isSelected ? SiftColor.selectedFill : (isHovering ? SiftColor.hoverFill : .clear))
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
+                    .strokeBorder(
+                        isSelected ? SiftColor.accent.opacity(0.35) : .clear,
+                        lineWidth: 1
+                    )
+            }
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(SiftPressButtonStyle())
+        .onHover { hovered = $0 ? destination : (hovered == destination ? nil : hovered) }
         .accessibilityLabel(Text(destination.titleKey.localized))
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
         .accessibilityIdentifier("sidebar.\(destination.rawValue)")
     }
 
-    private var identity: some View {
-        HStack(spacing: SiftMetrics.spacingM) {
-            RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
+    private var unlockButton: some View {
+        Button {
+            router.requestPurchase(reason: .cleanJunk)
+        } label: {
+            VStack(spacing: 4) {
+                Image(systemName: "lock.open")
+                    .font(.system(size: 13, weight: .semibold))
+                Text(LocalizationKey.purchaseTitle.localized)
+                    .font(.system(size: 9, weight: .medium))
+                    .lineLimit(1)
+            }
+            .foregroundStyle(SiftColor.accent)
+            .frame(width: SiftMetrics.railItemWidth, height: 46)
+            .background {
+                RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
+                    .fill(SiftColor.accent.opacity(0.10))
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
+                    .strokeBorder(SiftColor.accent.opacity(0.22), lineWidth: 1)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(SiftPressButtonStyle())
+        .accessibilityIdentifier("sidebar.purchase")
+        .help(LocalizationKey.purchaseTitle.localized)
+    }
+}
+
+/// The product mark: three lines in a violet rounded square.
+struct SiftMark: View {
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [SiftColor.accent, SiftColor.accent.opacity(0.72)],
+                        colors: [SiftColor.accentBright, SiftColor.accent],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
                 )
-                .frame(width: 40, height: 40)
-                .overlay {
-                    Image(systemName: "wand.and.sparkles")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(.white)
-                }
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(LocalizationKey.appName.localized)
-                    .font(.system(size: 16, weight: .semibold))
-                Text(LocalizationKey.appTagline.localized)
-                    .font(SiftFont.caption)
-                    .foregroundStyle(.secondary)
+            VStack(spacing: 4) {
+                markLine(width: 18)
+                markLine(width: 14)
+                markLine(width: 18)
             }
         }
+        .overlay {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(.white.opacity(0.22), lineWidth: 1)
+        }
+        .shadow(color: SiftColor.accent.opacity(0.35), radius: 10, y: 4)
+        .accessibilityHidden(true)
     }
 
-    /// Bridges the list's selection to the router.
-    ///
-    /// A programmatic navigation is written back through `onReceive` instead of
-    /// by reading the router inside the binding, which is what kept the old
-    /// highlighted row when a shortcut changed the destination.
-    private var selectionBinding: Binding<AppDestination?> {
-        Binding(
-            get: { selection },
-            set: { value in
-                guard let value else { return }
-                selection = value
-                router.go(to: value)
-            }
-        )
+    private func markLine(width: CGFloat) -> some View {
+        Capsule()
+            .fill(.white.opacity(0.92))
+            .frame(width: width, height: 2.2)
     }
 }
 
-/// Routes the sidebar selection to the feature's root view.
+// MARK: - Pages
+
+/// Routes the rail selection to the feature's root view.
 ///
 /// Each feature receives a navigation closure rather than a router, so a feature
 /// can ask the shell to move without knowing what the shell is.
@@ -200,26 +318,32 @@ struct DetailView: View {
     let destination: AppDestination
     @EnvironmentObject private var environment: AppEnvironment
     @EnvironmentObject private var router: AppRouter
-    @StateObject private var preferences = PreferencesSnapshot()
+    @Environment(\.siftReduceMotion) private var reduceMotion
 
     var body: some View {
         Group {
             switch destination {
             case .dashboard:
-                DashboardView()
-            case .smartScan:
-                SmartScanView { router.requestPurchase(reason: .cleanJunk) }
-            case .junkCleanup:
-                JunkCleanupView { router.requestPurchase(reason: .cleanJunk) }
-            case .uninstaller:
-                UninstallerView { router.requestPurchase(reason: .uninstall) }
-            case .fileCleanup:
-                FileCleanupView(
-                    onRequestPurchase: { router.requestPurchase(reason: .cleanFiles) },
+                DashboardView(
+                    scan: environment.scan,
+                    cleanup: environment.cleanup,
+                    onOpenScan: { router.go(to: .scan) },
+                    onOpenApps: { router.go(to: .apps) }
+                )
+            case .scan:
+                ScanView(
+                    scan: environment.scan,
+                    cleanup: environment.cleanup,
+                    onRequestPurchase: { router.requestPurchase(reason: .cleanJunk) },
                     onManageScope: { router.go(to: .settings) }
                 )
-            case .storageAnalysis:
-                StorageAnalysisView(model: environment.storageAnalysis)
+            case .apps:
+                UninstallerView { router.requestPurchase(reason: .uninstall) }
+            case .storage:
+                StorageAnalysisView(
+                    model: environment.storageAnalysis,
+                    onGoClean: { router.go(to: .scan) }
+                )
             case .settings:
                 SettingsView()
             case .purchase:
@@ -227,76 +351,13 @@ struct DetailView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(SiftColor.windowBackground)
-        .overlay(alignment: .top) {
-            // The result page is presented from the shell so it appears whichever
-            // page started the cleanup, and stays until the user dismisses it.
-            if let outcome = environment.cleanup.outcome {
-                ScrollView {
-                    CleanupResultView(
-                        outcome: outcome,
-                        report: environment.cleanup.report,
-                        onAcknowledge: {
-                            environment.cleanup.acknowledgeOutcome()
-                            environment.clearReportExportMessage()
-                        },
-                        onExport: {
-                            Task {
-                                guard await environment.canExportReports() else {
-                                    environment.cleanup.acknowledgeOutcome()
-                                    router.requestPurchase(reason: .exportReport)
-                                    return
-                                }
-                                if let report = environment.cleanup.report {
-                                    await environment.exportReport(report)
-                                }
-                            }
-                        },
-                        onOpenTrash: { Task { await environment.openTrash() } },
-                        onRevealFailed: { url in Task { await environment.reveal(url) } },
-                        onRequestPurchase: { router.requestPurchase(reason: .exportReport) },
-                        statusMessage: environment.reportExportMessage
-                    )
-                    .background(SiftColor.windowBackground)
-                }
-                .background(.regularMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusL, style: .continuous))
-                .shadow(radius: 20, y: 6)
-                .padding(SiftMetrics.spacingXL)
-                .transition(.opacity)
-            }
-        }
-        .overlay(alignment: .bottom) {
-            // The confirmation panel is presented from the shell so it appears
-            // above whichever page started the cleanup.
-            if environment.cleanup.isConfirming {
-                CleanupConfirmationView(
-                    cleanup: environment.cleanup,
-                    preferences: preferences,
-                    onConfirm: {
-                        Task {
-                            await environment.cleanup.confirmCleanup(
-                                scanReport: environment.scan.report
-                            )
-                            RecentHistoryBridge.record(environment.cleanup.outcome)
-                        }
-                    },
-                    onCancel: { environment.cleanup.isConfirming = false },
-                    onToggleSkipConfirmation: { value in
-                        Task { await environment.updateSettings { $0.skipConfirmation = value } }
-                    }
-                )
-                .background(.regularMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusL, style: .continuous))
-                .shadow(radius: 24, y: 8)
-                .padding(SiftMetrics.spacingXL)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
-        }
-        .task(id: environment.preferences) {
-            preferences.skipConfirmation = environment.preferences.skipConfirmation
-            preferences.requireConfirmation = environment.preferences.requireConfirmation
-        }
+        .id(destination)
+        .transition(
+            reduceMotion
+                ? .opacity
+                : .opacity.combined(with: .offset(y: 8))
+        )
+        .animation(reduceMotion ? .easeInOut(duration: 0.12) : SiftMotion.page, value: destination)
     }
 }
 

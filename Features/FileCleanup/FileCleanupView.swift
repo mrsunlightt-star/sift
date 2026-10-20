@@ -128,7 +128,7 @@ public struct FileCleanupView: View {
                         Text(LocalizationKey.filesManageScope.localized)
                             .font(SiftFont.caption)
                     }
-                    .buttonStyle(.link)
+                    .buttonStyle(SiftLinkButtonStyle())
                 }
                 Text(LocalizationKey.filesRequiresAuthorization.localized)
                     .font(SiftFont.caption)

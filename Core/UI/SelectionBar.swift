@@ -36,7 +36,7 @@ public struct SelectionBar: View {
             } label: {
                 Text(LocalizationKey.scanSelectAllShown.localized(cleanup.items.count))
             }
-            .buttonStyle(.link)
+            .buttonStyle(SiftLinkButtonStyle())
             .accessibilityLabel(
                 Text(LocalizationKey.scanSelectAllShown.localized(cleanup.items.count))
             )
@@ -46,7 +46,7 @@ public struct SelectionBar: View {
             } label: {
                 Text(LocalizationKey.scanDeselectAll.localized)
             }
-            .buttonStyle(.link)
+            .buttonStyle(SiftLinkButtonStyle())
 
             Spacer()
 

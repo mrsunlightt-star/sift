@@ -273,12 +273,14 @@ These are product promises, not implementation details. Each has tests behind it
     protection removes the deletion path and nothing else, which is what keeps a
     protected index's rebuild advice intact.
 17. **One implementation per user operation.** A scan starts only through
-    `AppEnvironment.runScan(_:)`; the pages differ in the `ScanIntent` they pass
-    and the category they show, not in how a scan runs or in what "a scan has run"
-    means. Authorising a folder happens only in Settings, and every page that
-    depends on a grant links there. Confirmation and the cleanup result come from
-    the shell, so no page can reach a weaker flow by choosing a different entry
-    point.
+    `AppEnvironment.runScan(_:)`. There is one scan page; it runs `.everything`
+    and the chips filter the categories it displays, so "smart scan", "junk
+    cleanup" and "file cleanup" cannot mean three different runs. A scan is
+    single-flight: a second request is ignored while one is preparing or
+    running, so two runs' phases cannot appear on one page. Authorising a folder
+    happens only in Settings, and every page that depends on a grant links there.
+    Confirmation and the cleanup result come from the shell, so no page can reach
+    a weaker flow by choosing a different entry point.
 18. **Diagnostics only read.** The only programs the app runs are the two status
     queries in `Core/Diagnostics/SystemQuery.swift`: `mdutil -s` and
     `tmutil listlocalsnapshots`, by absolute path with fixed arguments and no
@@ -373,8 +375,18 @@ These are product promises, not implementation details. Each has tests behind it
   numbers start disagreeing.
 - `Core/Scanner/ScanIntent.swift` is the one place the differences between scan
   scopes live, and `AppEnvironment.runScan` is the one function that starts a
-  scan. A page supplies an intent and renders its own categories; it does not
-  assemble a request.
+  scan. The scan page passes `.everything`; the chips (`ScanFilter` in
+  `Features/Scan`) only choose which categories of that one result are shown.
+  A page never assembles a request.
+- `App/Shell/RootView.swift` is the icon rail: four primary destinations
+  (overview, scan, apps, storage) plus the language control and settings. The
+  category filters that used to be sidebar entries live in the scan page now.
+- `Shared/DesignSystem/SiftTheme.swift` and `Shared/Components/SiftComponents.swift`
+  are the design system. A page uses `SiftPageHeader`, `SiftGlassCard`,
+  `SiftPrimaryButton`, `SiftSecondaryButton`, `SiftCheckbox` and
+  `SiftLinkButtonStyle`; it does not introduce a second palette, a system-blue
+  link or a surface that skips the glass layers. `SiftProgressRing` is
+  indeterminate only where the engine reports phases rather than a fraction.
 
 ## Two preferences that are scan scopes
 

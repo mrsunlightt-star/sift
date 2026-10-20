@@ -44,11 +44,11 @@ struct SiftApp: App {
             RootShellView()
                 .environmentObject(environment)
                 .environmentObject(router)
-                .frame(minWidth: 980, minHeight: 640)
+                .frame(minWidth: 1100, minHeight: 720)
                 .task { await environment.bootstrap() }
         }
-        .windowToolbarStyle(.unified(showsTitle: false))
-        .defaultSize(width: 1160, height: 780)
+        .windowStyle(.hiddenTitleBar)
+        .defaultSize(width: 1340, height: 860)
         .commands { SiftCommands(router: router) }
     }
 }

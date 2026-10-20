@@ -21,6 +21,36 @@ public final class ScanModel: ObservableObject {
     @Published public private(set) var report: ScanReport?
     @Published public private(set) var duplicateGroups: [DuplicateGroup] = []
     @Published public private(set) var failure: (code: ErrorCode, message: String)?
+    /// When this run began, for the elapsed clock on the running page. Cleared
+    /// with the rest of the run's state.
+    @Published public private(set) var runStartedAt: Date?
+
+    /// How much of the result is safe to select, how much needs a look, and how
+    /// much can never be selected.
+    ///
+    /// A category is not a risk level: logs hold both safe files and diagnostic
+    /// reports, so a per-category guess would describe the overview's two numbers
+    /// wrongly. These totals are accumulated from the item events themselves and
+    /// therefore describe the whole run, not just the page the list is showing.
+    @Published public private(set) var safeBytes: Int64 = 0
+    @Published public private(set) var reviewBytes: Int64 = 0
+    @Published public private(set) var protectedBytes: Int64 = 0
+    @Published public private(set) var safeItemCount = 0
+    @Published public private(set) var reviewItemCount = 0
+    @Published public private(set) var protectedItemCount = 0
+    /// Reclaimable bytes the duplicate pipeline reported. Duplicates arrive as
+    /// groups rather than items, so they are counted separately.
+    @Published public private(set) var duplicateReclaimableBytes: Int64 = 0
+    /// True once the risk split has been read from the finished index. The
+    /// overview only states the split when it is complete.
+    @Published public private(set) var riskTotalsComplete = false
+
+    /// Seconds since this run started, or the finished run's duration.
+    public var elapsed: TimeInterval {
+        guard let runStartedAt else { return 0 }
+        let end = report?.finishedAt ?? Date()
+        return max(end.timeIntervalSince(runStartedAt), 0)
+    }
 
     /// How many of the scanner's item batches are kept for the live list.
     ///
@@ -91,9 +121,14 @@ public final class ScanModel: ObservableObject {
 
         generation &+= 1
         let run = generation
+        runStartedAt = Date()
         do {
             let session = try await engine.startScan(request)
             self.session = session
+            // The session exists; say so before the first event arrives, or the
+            // page falls back to its idle state between Start and the engine's
+            // first progress update.
+            phase = .preparing
             beginPolling(session, run: run)
         } catch let error as ScannerError {
             failure = (error.code, error.message)
@@ -133,6 +168,15 @@ public final class ScanModel: ObservableObject {
         duplicateGroups = []
         report = nil
         failure = nil
+        runStartedAt = nil
+        safeBytes = 0
+        reviewBytes = 0
+        protectedBytes = 0
+        safeItemCount = 0
+        reviewItemCount = 0
+        protectedItemCount = 0
+        duplicateReclaimableBytes = 0
+        riskTotalsComplete = false
     }
 
     // MARK: - Paging
@@ -199,6 +243,97 @@ public final class ScanModel: ObservableObject {
         return (try? await session.duplicateMembers(groupID: group.id)) ?? group.members
     }
 
+    /// Reads the risk split from the finished index.
+    ///
+    /// The live item stream can report one path twice — two rules match it and
+    /// the engine keeps the more cautious row in the index — so accumulating the
+    /// stream overstated the safe share. The index is the settled answer, and
+    /// its rows are deduplicated by path exactly as the engine decided.
+    public func loadRiskTotals(limit: Int = 1_000) async {
+        guard let session, report != nil else { return }
+        // A newer run may replace this one while the index is being read; its
+        // report and totals must not be overwritten by the run that finished
+        // first.
+        let run = generation
+        guard isCurrent(run) else { return }
+        riskTotalsComplete = false
+
+        var accumulator = RiskAccumulator()
+        var offset = 0
+        var complete = false
+
+        while !Task.isCancelled {
+            guard let page = try? await session.page(
+                offset: offset,
+                limit: limit,
+                sort: .size,
+                category: nil
+            ) else {
+                return
+            }
+            if page.items.isEmpty {
+                complete = page.remaining == 0
+                break
+            }
+            for item in page.items {
+                accumulator.add(item)
+            }
+            offset += page.items.count
+            if page.remaining == 0 {
+                complete = true
+                break
+            }
+        }
+
+        guard !Task.isCancelled, isCurrent(run) else { return }
+        safeBytes = accumulator.safeBytes
+        reviewBytes = accumulator.reviewBytes
+        protectedBytes = accumulator.protectedBytes
+        safeItemCount = accumulator.safeCount
+        reviewItemCount = accumulator.reviewCount
+        protectedItemCount = accumulator.protectedCount
+        riskTotalsComplete = complete
+    }
+
+    /// One entry per path at the most cautious risk the index kept.
+    private struct RiskAccumulator {
+        var safeBytes: Int64 = 0
+        var reviewBytes: Int64 = 0
+        var protectedBytes: Int64 = 0
+        var safeCount = 0
+        var reviewCount = 0
+        var protectedCount = 0
+        private var byPath: [String: (risk: CleanupRisk, bytes: Int64)] = [:]
+
+        mutating func add(_ item: CleanupItemSummary) {
+            let path = item.url.standardizedFileURL.path
+            if let existing = byPath[path] {
+                guard item.risk.severity > existing.risk.severity else { return }
+                subtract(existing.risk, existing.bytes)
+            }
+            byPath[path] = (item.risk, item.sizeInBytes)
+            accumulate(item.risk, item.sizeInBytes, count: 1)
+        }
+
+        private mutating func subtract(_ risk: CleanupRisk, _ bytes: Int64) {
+            accumulate(risk, bytes, count: -1)
+        }
+
+        private mutating func accumulate(_ risk: CleanupRisk, _ bytes: Int64, count: Int) {
+            switch risk {
+            case .safe:
+                safeBytes += bytes
+                safeCount += count
+            case .review:
+                reviewBytes += bytes
+                reviewCount += count
+            case .protected:
+                protectedBytes += bytes
+                protectedCount += count
+            }
+        }
+    }
+
     // MARK: - Event pump
 
     /// Drains the event stream until the scan reports completion.
@@ -263,7 +398,6 @@ public final class ScanModel: ObservableObject {
                 if recentItems.count > liveItemLimit {
                     recentItems.removeFirst(recentItems.count - liveItemLimit)
                 }
-
             case let .duplicateGroupFound(_, memberCount, reclaimableBytes):
                 // The group list is loaded in full once the scan finishes; this
                 // keeps a running count without holding every member.
@@ -284,6 +418,7 @@ public final class ScanModel: ObservableObject {
                 }
                 self.progress.filesSeen = report.scannedFileCount
                 self.progress.bytesSeen = report.scannedByteCount
+                self.duplicateReclaimableBytes = report.duplicateReclaimableBytes
 
             case let .failed(code, message):
                 self.failure = (code, message)
