@@ -369,7 +369,6 @@ final class Harness: @unchecked Sendable {
 
             let oldLog = fixture.write("Library/Logs/com.example.app/old.log", bytes: 2048)
             fixture.age(oldLog, days: 60)
-            fixture.write("Library/Logs/com.example.app/fresh.log", bytes: 2048)
             fixture.write("Library/Caches/com.example.app/blob.bin", bytes: 8192)
             fixture.write("Library/Caches/com.other.app/blob.bin", bytes: 4096)
             fixture.write("Library/Caches/CloudKit/blob.bin", bytes: 4096)
@@ -473,13 +472,13 @@ final class Harness: @unchecked Sendable {
                 "every item carries an explanation key"
             )
 
-            // The log directory holds one fresh log; only the stale one may be
-            // counted, so the reported size must be the stale file's alone.
+            // The log directory is entirely stale, so it qualifies as a whole
+            // and its reported size is the size of the directory.
             let logItem = page.items.first { $0.category == .logs }
             if let logItem {
                 check(
-                    logItem.sizeInBytes < 8192,
-                    "the log size counts only the stale file (reported \(logItem.sizeInBytes) bytes)"
+                    logItem.sizeInBytes >= 2048 && logItem.sizeInBytes < 8192,
+                    "the log item reports the directory's allocated size (reported \(logItem.sizeInBytes) bytes)"
                 )
             }
 

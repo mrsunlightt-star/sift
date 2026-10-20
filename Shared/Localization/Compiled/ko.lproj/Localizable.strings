@@ -394,6 +394,8 @@
 "settings.skipConfirmationWarning" = "클릭하면 바로 정리를 시작합니다. 항목은 휴지통으로 이동하지만 목록을 먼저 볼 수 없습니다.";
 "settings.staleThreshold" = "오래된 항목 기준";
 "settings.title" = "설정";
+"settings.userRules" = "사용자 규칙 파일 사용";
+"settings.userRulesDetail" = "앱 데이터 폴더의 CleaningRules.json을 읽습니다. 다음 검사부터 적용됩니다.";
 "storage.analysing" = "분석 중…";
 "storage.analyze" = "저장 공간 분석";
 "storage.analyzedSummary" = "%@ 분석 · %@개 파일";
@@ -408,7 +410,7 @@
 "storage.externalDisk" = "외장 디스크";
 "storage.goClean" = "정리하러 가기";
 "storage.headerStatus" = "저장 공간 · %@";
-"storage.includeVolume" = "볼륨 전체 포함";
+"storage.includeVolume" = "볼륨 전체 진단 포함";
 "storage.lastAnalyzed" = "마지막 분석: %@";
 "storage.localNote" = "이 Mac에서 분석한 데이터입니다. 업로드하거나 전송하지 않습니다.";
 "storage.noAccess" = "Sift가 아직 이 위치를 읽을 수 없습니다.";
@@ -416,7 +418,7 @@
 "storage.otherUsed" = "기타 사용";
 "storage.reanalyze" = "다시 분석";
 "storage.reclaimable" = "확보 가능";
-"storage.scopeNote" = "홈과 승인한 폴더입니다. 볼륨 전체를 포함하면 디스크 전체를 검사하므로 더 오래 걸립니다.";
+"storage.scopeNote" = "파일 분류는 홈과 이 디스크에서 승인한 폴더를 포함합니다. 스위치는 시스템 진단에 볼륨 전체를 포함합니다.";
 "storage.spaceDistribution" = "공간 분포";
 "storage.start" = "분석 시작";
 "storage.startTitle" = "디스크를 무엇이 차지하는지 확인";

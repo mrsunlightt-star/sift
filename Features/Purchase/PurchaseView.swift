@@ -70,6 +70,8 @@ public struct PurchaseView: View {
         .task {
             await environment.refreshEntitlement()
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("purchase.view")
     }
 
     private var headerStatus: String {

@@ -115,6 +115,11 @@ final class RuleEngineTests: XCTestCase, @unchecked Sendable {
                 .applicationResidue,
                 "rule `\(rule.id)` claims residue; only the scanner may, because only it knows what is installed"
             )
+            XCTAssertNotEqual(
+                rule.relativePath,
+                "Application Support",
+                "rule `\(rule.id)` offers every application's live data under Application Support"
+            )
         }
     }
 

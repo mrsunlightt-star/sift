@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		115520CF099E64BA79F95959 /* RuleEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFDDF3FC5E599ECDA179E3C2 /* RuleEngineTests.swift */; };
+		2495D7C06270FB4B5BCE6634 /* AppEnvironmentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5C10482C581F7F6D95A8559 /* AppEnvironmentTests.swift */; };
 		2A8E152209B5054681072AE5 /* SettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 921BA13E319C34E8ABDFFDD8 /* SettingsTests.swift */; };
 		2E4CAA713800648EA8A6D3E9 /* EntitlementTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 463DEB72F0879437562981E8 /* EntitlementTests.swift */; };
 		4559BA34F688288543DA22AF /* AppShell in Frameworks */ = {isa = PBXBuildFile; productRef = 56F7A5B5CAC090C12AA0EF22 /* AppShell */; };
@@ -75,6 +76,7 @@
 		CFDDF3FC5E599ECDA179E3C2 /* RuleEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuleEngineTests.swift; sourceTree = "<group>"; };
 		D0A82EFF95D94FE10F5901DB /* Sift.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Sift.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D814713B9DB23C3EB74B8680 /* EngineAgreementTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineAgreementTests.swift; sourceTree = "<group>"; };
+		F5C10482C581F7F6D95A8559 /* AppEnvironmentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppEnvironmentTests.swift; sourceTree = "<group>"; };
 		FC33CEC8D838AAEFC66045CC /* ScanModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanModelTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -113,6 +115,7 @@
 		471D4825D8CDC0FF2969BDC9 /* Tests */ = {
 			isa = PBXGroup;
 			children = (
+				F5C10482C581F7F6D95A8559 /* AppEnvironmentTests.swift */,
 				512A105FFD3DA5DADB04AF98 /* ApplicationDiscoveryTests.swift */,
 				03FD81D851B1C14B0CEEF4CD /* AuthorizationTests.swift */,
 				CDF792F92B19FCA9E06D51C0 /* DiagnosticsTests.swift */,
@@ -343,6 +346,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2495D7C06270FB4B5BCE6634 /* AppEnvironmentTests.swift in Sources */,
 				8930660EB2BD5E1B2E5C2D14 /* ApplicationDiscoveryTests.swift in Sources */,
 				A402385EF3529317AED1CEDE /* AuthorizationTests.swift in Sources */,
 				F911C7F8E1916B88218FE046 /* DiagnosticsTests.swift in Sources */,

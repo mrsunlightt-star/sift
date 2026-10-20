@@ -394,6 +394,8 @@
 "settings.skipConfirmationWarning" = "点击后 Sift 会立即开始清理。内容仍会进入废纸篓，但不会先显示列表。";
 "settings.staleThreshold" = "过期阈值";
 "settings.title" = "设置";
+"settings.userRules" = "使用自定义规则文件";
+"settings.userRulesDetail" = "从应用数据目录读取 CleaningRules.json，下一次扫描生效。";
 "storage.analysing" = "分析中…";
 "storage.analyze" = "分析存储";
 "storage.analyzedSummary" = "已分析 %@ · %@ 个文件";
@@ -408,7 +410,7 @@
 "storage.externalDisk" = "外部磁盘";
 "storage.goClean" = "去清理";
 "storage.headerStatus" = "存储 · %@";
-"storage.includeVolume" = "包含整卷分析";
+"storage.includeVolume" = "包含整卷诊断";
 "storage.lastAnalyzed" = "上次分析：%@";
 "storage.localNote" = "数据来自本机分析，不上传、不联网。";
 "storage.noAccess" = "Sift 还无法读取此位置。";
@@ -416,7 +418,7 @@
 "storage.otherUsed" = "其他已用";
 "storage.reanalyze" = "重新分析";
 "storage.reclaimable" = "可回收空间";
-"storage.scopeNote" = "个人文件夹和你授权的文件夹。包含整卷会扫描整个磁盘，耗时更长。";
+"storage.scopeNote" = "文件分类统计个人文件夹和此磁盘上已授权的文件夹；开关会为系统诊断加入整卷范围。";
 "storage.spaceDistribution" = "空间分布";
 "storage.start" = "开始分析";
 "storage.startTitle" = "看看磁盘被什么占用";

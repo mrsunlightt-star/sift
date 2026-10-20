@@ -394,6 +394,8 @@
 "settings.skipConfirmationWarning" = "Sift beginnt sofort nach dem Klick. Alles landet im Papierkorb, aber ohne vorherige Liste.";
 "settings.staleThreshold" = "Schwelle für veraltete Einträge";
 "settings.title" = "Einstellungen";
+"settings.userRules" = "Eigene Regeldatei verwenden";
+"settings.userRulesDetail" = "Liest CleaningRules.json aus dem Datenordner der App. Gilt ab dem nächsten Scan.";
 "storage.analysing" = "Analyse läuft…";
 "storage.analyze" = "Speicher analysieren";
 "storage.analyzedSummary" = "%@ gemessen · %@ Dateien";
@@ -408,7 +410,7 @@
 "storage.externalDisk" = "Externes Laufwerk";
 "storage.goClean" = "Bereinigen";
 "storage.headerStatus" = "Speicher · %@";
-"storage.includeVolume" = "Gesamtes Volume einbeziehen";
+"storage.includeVolume" = "Diagnose des gesamten Volumes einbeziehen";
 "storage.lastAnalyzed" = "Zuletzt analysiert: %@";
 "storage.localNote" = "Auf diesem Mac gemessen. Nichts wird hochgeladen oder gesendet.";
 "storage.noAccess" = "Sift kann diesen Ort noch nicht lesen.";
@@ -416,7 +418,7 @@
 "storage.otherUsed" = "Sonstiges belegt";
 "storage.reanalyze" = "Erneut analysieren";
 "storage.reclaimable" = "Freigebbar";
-"storage.scopeNote" = "Ihr Benutzerordner und die autorisierten Ordner. Das gesamte Volume zu einbeziehen scannt die ganze Festplatte und dauert länger.";
+"storage.scopeNote" = "Die Dateikategorien umfassen Ihren Benutzerordner und autorisierte Ordner auf diesem Volume. Die Option ergänzt die Systemdiagnose für das gesamte Volume.";
 "storage.spaceDistribution" = "Speicherverteilung";
 "storage.start" = "Analyse starten";
 "storage.startTitle" = "Sehen Sie, was den Speicher belegt";

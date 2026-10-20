@@ -12,15 +12,18 @@ public final class StorageAnalysisModel: ObservableObject {
     @Published public private(set) var report: StorageDiagnosticReport = .empty
     @Published public private(set) var isAnalyzing = false
     @Published public private(set) var lastAnalyzedAt: Date?
-    /// Whether the next run also measures the volume root. The user chooses the
-    /// scope before starting; it is part of the confirmation, not a default.
+    /// Whether the next run also asks the diagnostic providers about the whole
+    /// volume. File categories always cover the home folder's volume; this is
+    /// the slower, read-only half of the page.
     @Published public var includeVolumeRoot = false
 
     private var cancellation = CancellationFlag()
 
     public init() {}
 
-    public var hasResult: Bool { report.providerCount > 0 }
+    public var hasResult: Bool {
+        report.providerCount > 0 || analysis.scannedFileCount > 0 || analysis.totalBytes > 0
+    }
 
     /// Starts a run unless one is already in flight.
     ///

@@ -318,13 +318,21 @@ These are product promises, not implementation details. Each has tests behind it
     the single source; the shipped `CleaningRules.json` and the Swift fallback
     table are generated from it, and `Scripts/verify.sh` fails when either is
     stale. No shipped rule carries the `applicationResidue` category, and none
-    targets `~/Library/Containers` or `~/Library/Group Containers`: a rule matches
-    a name shape or an age and cannot know whether an application is installed, so
-    a rule over those locations offered the live data of installed applications —
-    every directory under `Application Support` as "residue", and the whole store
-    as one cleanup item. Residue comes from `scan_application_residue`, which
-    compares the name against the installed bundle identifiers, and a container
-    that belongs to a live application belongs to the uninstaller instead.
+    targets `~/Library/Containers`, `~/Library/Group Containers` or
+    `~/Library/Application Support`: a rule matches a name shape or an age and
+    cannot know whether an application is installed, so a rule over those
+    locations offered the live data of installed applications — every directory
+    under `Application Support` as "residue", and the whole store as one cleanup
+    item. Residue comes from `scan_application_residue`, which compares the name
+    against the installed bundle identifiers, and a container that belongs to a
+    live application belongs to the uninstaller instead.
+
+    A child-directory rule with an age threshold is still allowed (the log rules
+    use one), but the scanner may only offer a directory whose **every** file is
+    past the threshold. The item is moved whole, so a mixed directory would take
+    fresh files the threshold did not count; both engines compare the filtered
+    measurement with the whole-directory measurement and skip the directory when
+    they differ.
 24. **Every explanation the scanner attaches resolves.** A rule names the key of
     the sentence the user reads and the row renders it with no arguments, so the
     key has to exist in the catalog and carry no `%d`/`%@`; the parameterised

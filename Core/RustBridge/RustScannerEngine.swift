@@ -386,11 +386,19 @@ private final class RustScanSession: ScanSession, @unchecked Sendable {
                 needsFullDiskAccess: entry.code == "permissionDenied"
             )
         }
+        // `isPartial` is the flag the core computes; the phase string is carried
+        // beside it for readers. Deriving the phase from the flag keeps an older
+        // core that still writes "ready" from turning a partial scan into a
+        // complete one.
+        let isPartial = payload.isPartial ?? false
+        let phase: ScanPhase = isPartial
+            ? .partial
+            : (ScanPhase(rawValue: payload.phase ?? "ready") ?? .ready)
         return ScanReport(
             sessionID: payload.sessionId ?? "",
             startedAt: Date(),
             finishedAt: Date(),
-            phase: ScanPhase(rawValue: payload.phase ?? "ready") ?? .ready,
+            phase: phase,
             scannedFileCount: Int(payload.scannedFileCount ?? 0),
             scannedByteCount: payload.scannedByteCount ?? 0,
             scannedLocationCount: scannedLocationCount,
@@ -694,6 +702,7 @@ private struct RustSummary: Decodable {
     let duplicateGroupCount: Int64?
     let duplicateReclaimableBytes: Int64?
     let skipped: [Skip]?
+    let isPartial: Bool?
 
     struct Category: Decodable {
         let category: String

@@ -386,7 +386,14 @@ public struct StorageAnalysisView: View {
         Group {
             switch report.coverage {
             case .complete:
-                NoticeBanner(level: .success, titleKey: .diagnosticsCoverageComplete)
+                // The diagnostic providers can be complete while the category
+                // walk could not read a folder. The totals are a lower bound in
+                // that case too, so the page must not call them complete.
+                if analysis.skippedCount > 0 {
+                    NoticeBanner(level: .warning, titleKey: .diagnosticsCoveragePartial)
+                } else {
+                    NoticeBanner(level: .success, titleKey: .diagnosticsCoverageComplete)
+                }
             case .partial:
                 NoticeBanner(level: .warning, titleKey: .diagnosticsCoveragePartial)
             case .permissionDenied:

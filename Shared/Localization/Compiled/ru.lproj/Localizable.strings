@@ -394,6 +394,8 @@
 "settings.skipConfirmationWarning" = "Sift начнёт очистку сразу после нажатия. Файлы попадут в Корзину, но список вы не увидите.";
 "settings.staleThreshold" = "Порог устаревания";
 "settings.title" = "Настройки";
+"settings.userRules" = "Использовать файл правил";
+"settings.userRulesDetail" = "Читает CleaningRules.json из папки данных приложения. Применяется со следующего сканирования.";
 "storage.analysing" = "Анализ…";
 "storage.analyze" = "Анализировать хранилище";
 "storage.analyzedSummary" = "Измерено %@ · файлов: %@";
@@ -408,7 +410,7 @@
 "storage.externalDisk" = "Внешний диск";
 "storage.goClean" = "Перейти к очистке";
 "storage.headerStatus" = "Хранилище · %@";
-"storage.includeVolume" = "Включить весь том";
+"storage.includeVolume" = "Включить диагностику всего тома";
 "storage.lastAnalyzed" = "Последний анализ: %@";
 "storage.localNote" = "Измерено на этом Mac. Ничего не отправляется в сеть.";
 "storage.noAccess" = "Sift пока не может прочитать это место.";
@@ -416,7 +418,7 @@
 "storage.otherUsed" = "Прочее занято";
 "storage.reanalyze" = "Повторить анализ";
 "storage.reclaimable" = "Можно освободить";
-"storage.scopeNote" = "Домашняя папка и разрешённые папки. Весь том означает сканирование всего диска и занимает больше времени.";
+"storage.scopeNote" = "Категории файлов охватывают домашнюю папку и разрешённые папки на этом диске. Переключатель добавляет диагностику всего тома.";
 "storage.spaceDistribution" = "Распределение пространства";
 "storage.start" = "Начать анализ";
 "storage.startTitle" = "Посмотрите, что занимает диск";

@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import XCTest
 @testable import Core
@@ -39,8 +40,11 @@ final class ScannerTests: XCTestCase, @unchecked Sendable {
     }
 
     /// Runs a scan to completion and returns what it found.
-    private func runScan(_ request: ScanRequest) async throws -> (items: [CleanupItemSummary], report: ScanReport?, skipped: [SkippedLocation]) {
-        let session = try await makeEngine().startScan(request)
+    private func runScan(
+        _ request: ScanRequest,
+        engine: (any ScannerEngine)? = nil
+    ) async throws -> (items: [CleanupItemSummary], report: ScanReport?, skipped: [SkippedLocation]) {
+        let session = try await (engine ?? makeEngine()).startScan(request)
         var items: [CleanupItemSummary] = []
         var skipped: [SkippedLocation] = []
         var report: ScanReport?
@@ -168,17 +172,51 @@ final class ScannerTests: XCTestCase, @unchecked Sendable {
         )
     }
 
-    func test_logAgeFilterCountsOnlyStaleFiles() async throws {
+    func test_aLogDirectoryWithAFreshFileIsNotOffered() async throws {
         let stale = fixture.write("Library/Logs/com.example.app/old.log", bytes: 2048)
         fixture.age(stale, days: 60)
         fixture.write("Library/Logs/com.example.app/fresh.log", bytes: 2048)
 
         let result = try await runScan(makeRequest())
-        let logItem = try XCTUnwrap(result.items.first { $0.category == .logs })
-        XCTAssertLessThan(
-            logItem.sizeInBytes,
-            8192,
-            "a fresh log next to a stale one must not be counted as reclaimable"
+        XCTAssertFalse(
+            result.items.contains { $0.category == .logs },
+            "moving the directory would take the fresh log the threshold did not count"
+        )
+    }
+
+    /// A directory item is moved whole, so an age filter may only decide whether
+    /// it qualifies. A mixed directory must not be offered with a size that
+    /// counts only its stale files.
+    func test_anAgeFilteredDirectoryRuleDoesNotMoveFreshFiles() async throws {
+        let old = fixture.write("Library/Application Support/Mixed/old.bin", bytes: 4096)
+        fixture.age(old, days: 60)
+        fixture.write("Library/Application Support/Mixed/fresh.bin", bytes: 4096)
+        let allOld = fixture.write("Library/Application Support/AllOld/old.bin", bytes: 4096)
+        fixture.age(allOld, days: 60)
+
+        let rule = RuleEngine.Rule(
+            id: "mixed-age",
+            category: .temporaryFiles,
+            risk: .review,
+            root: .homeLibrary,
+            relativePath: "Application Support",
+            matchSpec: .childDirectories,
+            excludes: [],
+            minAgeDays: 30,
+            requiresFullDiskAccess: false,
+            explanationKey: "cleanup.explanation.temporary",
+            isEnabled: true
+        )
+        let rules = RuleEngine(rules: [rule], homeDirectory: fixture.url)
+        let result = try await runScan(makeRequest(), engine: SwiftScannerEngine(rules: rules))
+
+        let names = Set(result.items.map(\.displayName))
+        XCTAssertFalse(names.contains("Mixed"), "a directory with fresh files must not be offered")
+        XCTAssertTrue(names.contains("AllOld"), "an entirely stale directory is still eligible")
+        XCTAssertEqual(
+            result.items.first { $0.displayName == "AllOld" }?.sizeInBytes,
+            4096,
+            "the reported size is the size of what the move takes"
         )
     }
 
@@ -374,6 +412,33 @@ final class ScannerTests: XCTestCase, @unchecked Sendable {
                 "the unreadable folder is reported by code"
             )
         }
+    }
+
+    /// The production engine's completion summary is what the page applies
+    /// last. A skipped folder must leave it `partial`, not `ready`.
+    func test_theProductionEngineReportsASkippedFolderAsPartial() async throws {
+        // Root ignores the mode bits, so the skip is only observable for a
+        // normal user; without one there is nothing this test can assert.
+        guard geteuid() != 0 else { return }
+
+        let locked = fixture.directory("Library/Caches/com.locked")
+        fixture.write("Library/Caches/com.locked/blob.bin", bytes: 4096)
+        fixture.write("Library/Caches/com.ok/blob.bin", bytes: 4096)
+        var permissions = try FileManager.default.attributesOfItem(atPath: locked.path)
+        permissions[.posixPermissions] = 0o000
+        try FileManager.default.setAttributes(permissions, ofItemAtPath: locked.path)
+        defer {
+            var restore = try? FileManager.default.attributesOfItem(atPath: locked.path)
+            restore?[.posixPermissions] = 0o755
+            if let restore { try? FileManager.default.setAttributes(restore, ofItemAtPath: locked.path) }
+        }
+
+        let rules = RuleEngine(rules: RuleEngine.builtInRules, homeDirectory: fixture.url)
+        let engine = ScannerEngineFactory.makeDefault(rules: rules)
+        let result = try await runScan(makeRequest(), engine: engine)
+
+        XCTAssertEqual(result.report?.phase, .partial)
+        XCTAssertEqual(result.report?.isPartial, true)
     }
 
     func test_everyItemCarriesAnExplanationAndRuleID() async throws {

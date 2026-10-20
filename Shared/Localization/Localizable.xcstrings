@@ -21223,6 +21223,114 @@
         }
       }
     },
+    "settings.userRules": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use a custom rule file"
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用自定义规则文件"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "사용자 규칙 파일 사용"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Использовать файл правил"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usar un archivo de reglas"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カスタムルールファイルを使用"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utiliser un fichier de règles"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eigene Regeldatei verwenden"
+          }
+        }
+      }
+    },
+    "settings.userRulesDetail": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reads CleaningRules.json from the app's data folder. Applies to the next scan."
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从应用数据目录读取 CleaningRules.json，下一次扫描生效。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "앱 데이터 폴더의 CleaningRules.json을 읽습니다. 다음 검사부터 적용됩니다."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Читает CleaningRules.json из папки данных приложения. Применяется со следующего сканирования."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lee CleaningRules.json de la carpeta de datos de la app. Se aplica al próximo análisis."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アプリのデータフォルダの CleaningRules.json を読み込みます。次回のスキャンから適用されます。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lit CleaningRules.json dans le dossier de données de l’app. S’applique au prochain scan."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Liest CleaningRules.json aus dem Datenordner der App. Gilt ab dem nächsten Scan."
+          }
+        }
+      }
+    },
     "storage.analysing": {
       "comment": null,
       "extractionState": "manual",
@@ -21986,49 +22094,49 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Include the whole volume"
+            "value": "Include whole-volume diagnostics"
           }
         },
         "zh-hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "包含整卷分析"
+            "value": "包含整卷诊断"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "볼륨 전체 포함"
+            "value": "볼륨 전체 진단 포함"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Включить весь том"
+            "value": "Включить диагностику всего тома"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Incluir todo el volumen"
+            "value": "Incluir diagnóstico de todo el volumen"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "ボリューム全体を含める"
+            "value": "ボリューム全体の診断を含める"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Inclure tout le volume"
+            "value": "Inclure le diagnostic du volume entier"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Gesamtes Volume einbeziehen"
+            "value": "Diagnose des gesamten Volumes einbeziehen"
           }
         }
       }
@@ -22418,49 +22526,49 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Home and the folders you authorised. Including the volume scans the whole disk and takes longer."
+            "value": "File categories cover your home folder and authorised folders on this disk. The toggle adds whole-volume system diagnostics."
           }
         },
         "zh-hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "个人文件夹和你授权的文件夹。包含整卷会扫描整个磁盘，耗时更长。"
+            "value": "文件分类统计个人文件夹和此磁盘上已授权的文件夹；开关会为系统诊断加入整卷范围。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "홈과 승인한 폴더입니다. 볼륨 전체를 포함하면 디스크 전체를 검사하므로 더 오래 걸립니다."
+            "value": "파일 분류는 홈과 이 디스크에서 승인한 폴더를 포함합니다. 스위치는 시스템 진단에 볼륨 전체를 포함합니다."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Домашняя папка и разрешённые папки. Весь том означает сканирование всего диска и занимает больше времени."
+            "value": "Категории файлов охватывают домашнюю папку и разрешённые папки на этом диске. Переключатель добавляет диагностику всего тома."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tu carpeta personal y las carpetas autorizadas. Incluir el volumen analiza todo el disco y tarda más."
+            "value": "Las categorías cubren tu carpeta personal y las carpetas autorizadas en este disco. La opción añade el diagnóstico de todo el volumen."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "ホームと許可したフォルダです。ボリューム全体を含めるとディスク全体を走査するため時間がかかります。"
+            "value": "ファイル分類はホームとこのディスク上で許可したフォルダを対象にします。スイッチはシステム診断にボリューム全体を加えます。"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Votre dossier personnel et les dossiers autorisés. Inclure le volume analyse tout le disque et prend plus de temps."
+            "value": "Les catégories couvrent votre dossier personnel et les dossiers autorisés sur ce disque. L’option ajoute le diagnostic du volume entier."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ihr Benutzerordner und die autorisierten Ordner. Das gesamte Volume zu einbeziehen scannt die ganze Festplatte und dauert länger."
+            "value": "Die Dateikategorien umfassen Ihren Benutzerordner und autorisierte Ordner auf diesem Volume. Die Option ergänzt die Systemdiagnose für das gesamte Volume."
           }
         }
       }

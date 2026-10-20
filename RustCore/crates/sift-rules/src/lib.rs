@@ -538,17 +538,25 @@ pub fn default_rules() -> Vec<Rule> {
     ));
 
     // --- Logs --------------------------------------------------------------
+    //
+    // The rule still matches each application's log directory, but the scanner
+    // only offers one whose every file is stale. A directory is moved as a
+    // whole, so a mixed directory would take fresh logs the threshold did not
+    // count. DiagnosticReports is left to its own rule below.
     rules.push(following_stale_threshold(with_min_age(
-        with_spec(
-            rule(
-                "user-logs",
-                Logs,
-                Safe,
-                HomeLibrary,
-                "Logs",
-                "cleanup.explanation.logsItem",
+        with_excludes(
+            with_spec(
+                rule(
+                    "user-logs",
+                    Logs,
+                    Safe,
+                    HomeLibrary,
+                    "Logs",
+                    "cleanup.explanation.logsItem",
+                ),
+                MatchSpec::ChildDirectories,
             ),
-            MatchSpec::ChildDirectories,
+            &["DiagnosticReports"],
         ),
         30,
     )));
@@ -622,20 +630,11 @@ pub fn default_rules() -> Vec<Rule> {
     ));
 
     // --- Temporary files ---------------------------------------------------
-    rules.push(with_min_age(
-        with_spec(
-            rule(
-                "user-temporary-items",
-                TemporaryFiles,
-                Review,
-                HomeLibrary,
-                "Application Support",
-                "cleanup.explanation.temporary",
-            ),
-            MatchSpec::ChildDirectories,
-        ),
-        30,
-    ));
+    //
+    // There is deliberately no rule over `Application Support`: it holds the
+    // live data of installed applications (and this app's own data), and a
+    // rule can only match a name shape or an age. Saved window state is
+    // rebuildable and remains the one shipped temporary-files rule.
     rules.push(with_spec(
         rule(
             "user-saved-state",
@@ -1302,6 +1301,20 @@ mod tests {
                  because it is the only thing that knows which applications are installed",
                 rule.id
             );
+            // `Application Support` holds the live data of installed
+            // applications (and this app's own data). A child-directory rule
+            // there offers each application's data as one item without knowing
+            // whether the application is installed; only the residue scanner may
+            // make that decision.
+            assert_ne!(
+                rule.relative_path, "Application Support",
+                "rule `{}` offers every application's data under Application Support",
+                rule.id
+            );
+            // A child-directory rule with an age threshold is allowed (logs
+            // use one), but the scanner must only offer a directory whose every
+            // file is stale; `an_age_filtered_directory_rule_skips_a_directory_with_fresh_files`
+            // covers that side.
         }
     }
 

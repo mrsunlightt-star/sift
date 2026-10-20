@@ -17,8 +17,6 @@ public struct CleanupResultView: View {
     /// A failure the shell hit while exporting; the local report still exists.
     let statusMessage: String?
 
-    @State private var isExporting = false
-
     public init(
         outcome: CleanupOutcome,
         report: CleanupReport?,
@@ -186,13 +184,16 @@ public struct CleanupResultView: View {
                     Label(LocalizationKey.cleanupResultShowTrash.localized, systemImage: "trash")
                 }
 
-                Button {
-                    isExporting = true
-                    onExport()
-                } label: {
-                    Label(LocalizationKey.cleanupResultExportReport.localized, systemImage: "doc.text")
+                // The uninstaller has no stored report, and a failed local write
+                // leaves the cleanup result without one. A button that opens
+                // nothing is worse than no button.
+                if report != nil {
+                    Button {
+                        onExport()
+                    } label: {
+                        Label(LocalizationKey.cleanupResultExportReport.localized, systemImage: "doc.text")
+                    }
                 }
-                .disabled(isExporting)
 
                 Spacer()
 

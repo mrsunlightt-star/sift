@@ -43,8 +43,12 @@ public struct RootShellView: View {
         )
         .preferredColorScheme(preferredColorScheme)
         .tint(SiftColor.accent)
-        .animation(SiftMotion.panel, value: environment.cleanup.outcome != nil)
-        .animation(SiftMotion.panel, value: environment.cleanup.isConfirming)
+        .animation(reduceMotion ? nil : SiftMotion.panel, value: environment.cleanup.outcome != nil)
+        .animation(reduceMotion ? nil : SiftMotion.panel, value: environment.cleanup.isConfirming)
+    }
+
+    private var reduceMotion: Bool {
+        accessibilityReduceMotion || environment.preferences.reduceMotion
     }
 
     private var preferredColorScheme: ColorScheme? {
@@ -99,7 +103,7 @@ public struct RootShellView: View {
                 }
                 .frame(maxWidth: 900)
             }
-            .transition(.opacity.combined(with: .scale(scale: 0.98)))
+            .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.98)))
         }
 
         if environment.cleanup.isConfirming {
@@ -109,7 +113,7 @@ public struct RootShellView: View {
                     .contentShape(Rectangle())
 
                 ConfirmationHost()
-                    .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                    .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.98)))
             }
         }
     }

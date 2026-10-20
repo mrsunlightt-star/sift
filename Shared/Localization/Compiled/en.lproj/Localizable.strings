@@ -394,6 +394,8 @@
 "settings.skipConfirmationWarning" = "Sift will start cleaning as soon as you click. Items still go to the Trash, but you will not see the list first.";
 "settings.staleThreshold" = "Stale threshold";
 "settings.title" = "Settings";
+"settings.userRules" = "Use a custom rule file";
+"settings.userRulesDetail" = "Reads CleaningRules.json from the app's data folder. Applies to the next scan.";
 "storage.analysing" = "Analyzing…";
 "storage.analyze" = "Analyze storage";
 "storage.analyzedSummary" = "%@ measured · %@ files";
@@ -408,7 +410,7 @@
 "storage.externalDisk" = "External disk";
 "storage.goClean" = "Go clean";
 "storage.headerStatus" = "Storage · %@";
-"storage.includeVolume" = "Include the whole volume";
+"storage.includeVolume" = "Include whole-volume diagnostics";
 "storage.lastAnalyzed" = "Last analysed %@";
 "storage.localNote" = "Measured on this Mac. Nothing is uploaded or sent online.";
 "storage.noAccess" = "Sift cannot read this location yet.";
@@ -416,7 +418,7 @@
 "storage.otherUsed" = "Other used";
 "storage.reanalyze" = "Analyze again";
 "storage.reclaimable" = "Reclaimable";
-"storage.scopeNote" = "Home and the folders you authorised. Including the volume scans the whole disk and takes longer.";
+"storage.scopeNote" = "File categories cover your home folder and authorised folders on this disk. The toggle adds whole-volume system diagnostics.";
 "storage.spaceDistribution" = "Space distribution";
 "storage.start" = "Start analysis";
 "storage.startTitle" = "See what occupies the disk";

@@ -394,6 +394,8 @@
 "settings.skipConfirmationWarning" = "クリックするとすぐに削除が始まります。ゴミ箱には入りますが、一覧は表示されません。";
 "settings.staleThreshold" = "古い項目のしきい値";
 "settings.title" = "設定";
+"settings.userRules" = "カスタムルールファイルを使用";
+"settings.userRulesDetail" = "アプリのデータフォルダの CleaningRules.json を読み込みます。次回のスキャンから適用されます。";
 "storage.analysing" = "分析中…";
 "storage.analyze" = "ストレージを分析";
 "storage.analyzedSummary" = "%@ を計測 · %@ ファイル";
@@ -408,7 +410,7 @@
 "storage.externalDisk" = "外付けディスク";
 "storage.goClean" = "整理する";
 "storage.headerStatus" = "ストレージ · %@";
-"storage.includeVolume" = "ボリューム全体を含める";
+"storage.includeVolume" = "ボリューム全体の診断を含める";
 "storage.lastAnalyzed" = "前回の分析: %@";
 "storage.localNote" = "この Mac で計測したデータです。送信やアップロードは行いません。";
 "storage.noAccess" = "この場所はまだ読み取れません。";
@@ -416,7 +418,7 @@
 "storage.otherUsed" = "その他の使用";
 "storage.reanalyze" = "再分析";
 "storage.reclaimable" = "解放可能";
-"storage.scopeNote" = "ホームと許可したフォルダです。ボリューム全体を含めるとディスク全体を走査するため時間がかかります。";
+"storage.scopeNote" = "ファイル分類はホームとこのディスク上で許可したフォルダを対象にします。スイッチはシステム診断にボリューム全体を加えます。";
 "storage.spaceDistribution" = "スペースの内訳";
 "storage.start" = "分析を開始";
 "storage.startTitle" = "ディスクを何が占めているか見る";

@@ -33,7 +33,7 @@ public enum BuiltInRules {
             root: .homeLibrary,
             relativePath: "Logs",
             matchSpec: .childDirectories,
-            excludes: [],
+            excludes: ["DiagnosticReports"],
             minAgeDays: 30,
             usesStaleThreshold: true,
             requiresFullDiskAccess: false,
@@ -94,20 +94,6 @@ public enum BuiltInRules {
             usesStaleThreshold: false,
             requiresFullDiskAccess: false,
             explanationKey: "cleanup.explanation.installers",
-            isEnabled: true
-        ),
-        RuleEngine.Rule(
-            id: "user-temporary-items",
-            category: .temporaryFiles,
-            risk: .review,
-            root: .homeLibrary,
-            relativePath: "Application Support",
-            matchSpec: .childDirectories,
-            excludes: [],
-            minAgeDays: 30,
-            usesStaleThreshold: false,
-            requiresFullDiskAccess: false,
-            explanationKey: "cleanup.explanation.temporary",
             isEnabled: true
         ),
         RuleEngine.Rule(

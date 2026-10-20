@@ -442,14 +442,30 @@ fn child_directory_candidates(
                     .iter()
                     .map(PathBuf::from)
                     .collect();
-                measure_directory_matching(
+                let matching = measure_directory_matching(
                     &entry.path,
                     cancel,
                     &context.home_dir,
                     &authorized,
                     skips_hidden(context),
                     &|modified| older_than_days(modified, min_age_days),
-                )
+                );
+                // The item is the directory, so moving it takes every file in
+                // it. The age filter may only decide eligibility, never which
+                // files move: a directory with one stale file next to fresh
+                // ones is not a cleanup item, because the move would take the
+                // fresh files too.
+                let (whole, _) = measure_directory(
+                    &entry.path,
+                    cancel,
+                    &context.home_dir,
+                    &authorized,
+                    skips_hidden(context),
+                );
+                if matching.bytes != whole.bytes || matching.files != whole.files {
+                    continue;
+                }
+                whole
             }
             None => {
                 let authorized: Vec<PathBuf> = context
@@ -1997,6 +2013,10 @@ mod tests {
         harness
             .tree
             .file("Library/Logs/com.example.app/fresh.log", 2048);
+        let all_old = harness
+            .tree
+            .file("Library/Logs/com.allold.app/old.log", 2048);
+        harness.tree.age(&all_old, 60);
 
         let cancel = CancelToken::new();
         let mut files = |_: u64, _: u64| {};
@@ -2008,8 +2028,68 @@ mod tests {
             .iter()
             .filter(|c| c.category == Category::Logs)
             .collect();
-        assert_eq!(logs.len(), 1, "only the 60-day-old log qualifies");
-        assert!(logs[0].path.to_string_lossy().contains("com.example.app"));
+        assert_eq!(
+            logs.len(),
+            1,
+            "only the directory whose every file is stale qualifies"
+        );
+        assert!(logs[0].path.to_string_lossy().contains("com.allold.app"));
+        assert!(
+            logs[0].is_directory,
+            "the log rule offers the directory as its unit of cleanup"
+        );
+    }
+
+    #[test]
+    fn an_age_filtered_directory_rule_skips_a_directory_with_fresh_files() {
+        // A user rule may still combine `childDirectories` with an age. The
+        // directory is moved whole, so a mixed directory would take files the
+        // age filter did not count. It must be skipped rather than offered with
+        // a size smaller than the move.
+        let harness = Harness::new("mixed-directory-age");
+        let old = harness
+            .tree
+            .file("Library/Application Support/Mixed/old.bin", 4096);
+        harness.tree.age(&old, 60);
+        harness
+            .tree
+            .file("Library/Application Support/Mixed/fresh.bin", 4096);
+        let all_old = harness
+            .tree
+            .file("Library/Application Support/AllOld/old.bin", 4096);
+        harness.tree.age(&all_old, 60);
+
+        let rule = RuleSet::from_json(
+            r#"{"schemaVersion":1,"rules":[
+                {"id":"mixed-age","category":"temporaryFiles","risk":"review",
+                 "root":"homeLibrary","relativePath":"Application Support",
+                 "matchSpec":"childDirectories","minAgeDays":30,
+                 "explanationKey":"cleanup.explanation.temporary"}
+            ]}"#,
+        )
+        .expect("the test rule parses")
+        .rules
+        .into_iter()
+        .next()
+        .expect("one rule");
+
+        let cancel = CancelToken::new();
+        let mut files = |_: u64, _: u64| {};
+        let mut path = |_: &Path| {};
+        let mut context = harness.context(&mut files, &mut path);
+        let root = harness.tree.root.join("Library/Application Support");
+        let (candidates, _) = child_directory_candidates(&rule, &root, &mut context, &cancel);
+
+        let names: Vec<&str> = candidates
+            .iter()
+            .map(|candidate| candidate.display_name.as_str())
+            .collect();
+        assert_eq!(
+            names,
+            vec!["AllOld"],
+            "only a directory whose every file is stale may be moved whole"
+        );
+        assert_eq!(candidates[0].size_bytes, 4096);
     }
 
     #[test]

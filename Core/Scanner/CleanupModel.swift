@@ -183,7 +183,10 @@ public final class CleanupModel: ObservableObject {
         operation: CleanupOperationName = .junkCleanup
     ) async {
         failure = nil
-        guard !selectedItems.isEmpty else { return }
+        // A result already on screen and a confirmation panel are two modal
+        // layers; only one may exist. The same guard stops a second batch from
+        // being prepared while the first is still moving files.
+        guard outcome == nil, !isWorking, !selectedItems.isEmpty else { return }
         let candidates = selectedItems.map(FileOperationService.Candidate.init(item:))
         let verdict = await operations.preflight(candidates)
         preflight = verdict
@@ -215,7 +218,7 @@ public final class CleanupModel: ObservableObject {
         operation: CleanupOperationName = .junkCleanup,
         scanReport: ScanReport? = nil
     ) async {
-        guard let preflight else { return }
+        guard let preflight, !isWorking else { return }
         isConfirming = false
         isWorking = true
         defer { isWorking = false }

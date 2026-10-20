@@ -30,7 +30,9 @@
       "relativePath": "Logs",
       "matchSpec": "childDirectories",
       "extensions": [],
-      "excludes": [],
+      "excludes": [
+        "DiagnosticReports"
+      ],
       "minAgeDays": 30,
       "usesStaleThreshold": true,
       "packageExtensions": [],
@@ -111,22 +113,6 @@
       "packageExtensions": [],
       "requiresFullDiskAccess": false,
       "explanationKey": "cleanup.explanation.installers",
-      "enabled": true
-    },
-    {
-      "id": "user-temporary-items",
-      "category": "temporaryFiles",
-      "risk": "review",
-      "root": "homeLibrary",
-      "relativePath": "Application Support",
-      "matchSpec": "childDirectories",
-      "extensions": [],
-      "excludes": [],
-      "minAgeDays": 30,
-      "usesStaleThreshold": false,
-      "packageExtensions": [],
-      "requiresFullDiskAccess": false,
-      "explanationKey": "cleanup.explanation.temporary",
       "enabled": true
     },
     {

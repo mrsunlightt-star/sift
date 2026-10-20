@@ -570,8 +570,20 @@ public struct UninstallerView: View {
     private func loadPlan() async {
         guard let application = selected else { return }
         isLoadingPlan = true
-        plan = environment.applications.relatedFiles(for: application)
-        isLoadingPlan = false
+        defer { isLoadingPlan = false }
+
+        // Measuring a related directory walks the whole tree. Doing that on the
+        // main actor froze the page before it could show the loading state.
+        let discovery = environment.applications
+        let requestedID = application.id
+        let measuredPlan = await Task.detached(priority: .userInitiated) {
+            discovery.relatedFiles(for: application)
+        }.value
+
+        // A second selection while the first was being measured must not show
+        // the previous application's files under the new one.
+        guard selected?.id == requestedID else { return }
+        plan = measuredPlan
         includeReviewFiles = false
         quitFailure = nil
     }

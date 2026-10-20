@@ -77,10 +77,12 @@ final class SiftUITests: XCTestCase {
         let app = launchApp()
         for destination in ["dashboard", "scan", "apps", "storage"] {
             let row = sidebarRow(app, destination)
-            if row.waitForExistence(timeout: 2) {
-                row.click()
-                XCTAssertTrue(app.windows.firstMatch.exists)
-            }
+            XCTAssertTrue(
+                row.waitForExistence(timeout: 3),
+                "the rail should carry \(destination) immediately"
+            )
+            row.click()
+            XCTAssertTrue(app.windows.firstMatch.exists)
         }
     }
 
@@ -90,14 +92,24 @@ final class SiftUITests: XCTestCase {
         let app = launchApp()
         sidebarRow(app, "scan").click()
         let start = app.buttons["scan.start"].firstMatch
-        if start.waitForExistence(timeout: 5) {
-            start.click()
-            let cancel = app.buttons["scan.cancel"].firstMatch
-            if cancel.waitForExistence(timeout: 10) {
-                cancel.click()
-            }
+        XCTAssertTrue(start.waitForExistence(timeout: 5), "the scan page offers a start button")
+        start.click()
+
+        let cancel = app.buttons["scan.cancel"].firstMatch
+        guard cancel.waitForExistence(timeout: 10) else {
+            // A tiny home directory can finish before the cancel control is
+            // sampled; in that case the running state was never observable and
+            // pretending the test exercised it would be dishonest.
+            throw XCTSkip("the scan finished before the cancel control appeared")
         }
-        XCTAssertTrue(app.windows.firstMatch.exists)
+        cancel.click()
+        XCTAssertTrue(
+            app.descendants(matching: .any)
+                .matching(identifier: "scan.start")
+                .firstMatch
+                .waitForExistence(timeout: 10),
+            "after cancelling, the page offers a new scan"
+        )
     }
 
     /// A free user reaching for a cleanup sees the paywall at that moment, not
@@ -111,19 +123,21 @@ final class SiftUITests: XCTestCase {
         let app = launchApp()
         sidebarRow(app, "scan").click()
         let start = app.buttons["scan.start"].firstMatch
-        if start.waitForExistence(timeout: 5) {
-            start.click()
-        }
+        XCTAssertTrue(start.waitForExistence(timeout: 5))
+        start.click()
+
         let clean = app.buttons["scan.clean"].firstMatch
-        if clean.waitForExistence(timeout: 30), clean.isEnabled {
-            clean.click()
-            XCTAssertTrue(
-                app.staticTexts
-                    .matching(NSPredicate(format: "label CONTAINS %@", "解锁"))
-                    .firstMatch
-                    .waitForExistence(timeout: 5)
-            )
+        guard clean.waitForExistence(timeout: 30), clean.isEnabled else {
+            throw XCTSkip("the machine produced no preselectable items, so the clean action was not reachable")
         }
+        clean.click()
+        XCTAssertTrue(
+            app.descendants(matching: .any)
+                .matching(identifier: "purchase.view")
+                .firstMatch
+                .waitForExistence(timeout: 5),
+            "a free user reaches the paywall when asking to clean"
+        )
     }
 
     /// Settings opens and is reachable from the sidebar footer.

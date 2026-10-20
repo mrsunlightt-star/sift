@@ -69,6 +69,33 @@ final class StorageAnalysisTests: XCTestCase, @unchecked Sendable {
         XCTAssertEqual(analysis.scannedByteCount, 4096)
     }
 
+    func test_nestedRootsAreNotCountedTwice() async throws {
+        fixture.write("Downloads/a.bin", bytes: 4096)
+
+        let analysis = try await makeAnalyzer().analyze(
+            roots: [
+                ScanRoot(url: fixture.url, anchor: .home),
+                ScanRoot(url: fixture.url.appendingPathComponent("Downloads"), anchor: .authorized),
+            ]
+        )
+
+        XCTAssertEqual(analysis.scannedFileCount, 1, "the nested root is the same file")
+        XCTAssertEqual(analysis.scannedByteCount, 4096)
+    }
+
+    /// Protected user content is deliberately out of scope, not unreadable.
+    func test_protectedContentDoesNotMakeTheMeasurementLookIncomplete() async throws {
+        fixture.write("Documents/taxes.pdf", bytes: 4096)
+        fixture.write("Library/Caches/com.example.app/blob.bin", bytes: 4096)
+
+        let analysis = try await makeAnalyzer().analyze(
+            roots: [ScanRoot(url: fixture.url, anchor: .home)]
+        )
+
+        XCTAssertEqual(analysis.scannedFileCount, 1)
+        XCTAssertEqual(analysis.skippedCount, 0, "a protected folder is not a read failure")
+    }
+
     func test_everyFileTypeHasItsOwnTitle() {
         let identifiers = [
             "images", "video", "audio", "documents", "archives", "code", "data", "other",

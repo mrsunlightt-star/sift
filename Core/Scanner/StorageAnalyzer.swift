@@ -34,19 +34,20 @@ public struct StorageAnalyzer {
         // A root only reaches here because the user added it to the scan scope,
         // which is itself the authorisation. The protection list still applies to
         // every entry inside it, checked per file below.
-        //
-        // Roots are resolved through symlinks so a root and its children share
-        // one spelling: otherwise `/var/...` against `/private/var/...` never
-        // compares equal and the folder roll-up escapes the root.
-        let searchable = roots
-            .map { $0.url.resolvingSymlinksInPath() }
-            .filter { root in
-                root.isFileURL
-                    && !ignoredPaths.contains(where: { RuleEngine.isPrefix($0, root.path) })
-            }
+        let searchable = Self.measurementRoots(roots: roots, ignoredPaths: ignoredPaths)
         guard let first = searchable.first else {
             return Self.volumeOnlyAnalysis(for: home)
         }
+
+        // A directory below the root can be another disk's mount point. Walking
+        // into it would attribute that disk's bytes to this volume and read a
+        // location the user did not authorise for a measurement.
+        let mountPoints = Set(
+            (FileManager.default.mountedVolumeURLs(
+                includingResourceValuesForKeys: nil,
+                options: [.skipHiddenVolumes]
+            ) ?? []).map { $0.resolvingSymlinksInPath().path }
+        )
 
         var categories: [String: (bytes: Int64, files: Int)] = [:]
         var directories: [String: (bytes: Int64, files: Int)] = [:]
@@ -84,10 +85,15 @@ public struct StorageAnalyzer {
                     }
                     if rules.isInExcludedLocation(child.path) { continue }
                     if rules.protectionReason(for: child.path) != nil {
-                        skipped += 1
+                        // Protected user content is deliberately out of scope,
+                        // not unreadable. Counting it as a failed read made the
+                        // totals look incomplete for a complete, safe walk.
                         continue
                     }
                     if values?.isDirectory == true {
+                        if mountPoints.contains(child.resolvingSymlinksInPath().path) {
+                            continue
+                        }
                         let name = child.lastPathComponent
                         if FileWalker.defaultSkipDirectoryNames.contains(name) { continue }
                         if rules.isPackageDirectory(name: name) {
@@ -178,6 +184,38 @@ public struct StorageAnalyzer {
             "Storage analysed (files=\(scannedFiles) categories=\(categoryEntries.count) skipped=\(skipped))"
         )
         return analysis
+    }
+
+    /// The roots whose bytes may be added to this analysis.
+    ///
+    /// One volume at a time: the page reports that volume's used and free
+    /// figures, so a root on another disk would make the categories exceed the
+    /// usage they are drawn against. Roots are resolved through symlinks and
+    /// collapsed to the outermost one, because walking `~` and `~/Downloads`
+    /// counts the same file twice.
+    static func measurementRoots(roots: [ScanRoot], ignoredPaths: [String]) -> [URL] {
+        let resolved = roots
+            .map { $0.url.resolvingSymlinksInPath() }
+            .filter { root in
+                root.isFileURL
+                    && !ignoredPaths.contains(where: { RuleEngine.isPrefix($0, root.path) })
+            }
+        guard let first = resolved.first else { return [] }
+
+        let volume = first.volumeRoot.path
+        let sameVolume = resolved.filter { $0.volumeRoot.path == volume }
+        let ordered = sameVolume.sorted {
+            let lhs = $0.pathComponents.count
+            let rhs = $1.pathComponents.count
+            return lhs == rhs ? $0.path < $1.path : lhs < rhs
+        }
+
+        var kept: [URL] = []
+        for root in ordered {
+            if kept.contains(where: { RuleEngine.isPrefix($0.path, root.path) }) { continue }
+            kept.append(root)
+        }
+        return kept
     }
 
     /// Adds one file to the category total, the folder rollup and the top list.

@@ -22,19 +22,27 @@ public struct ApplicationDiscovery: @unchecked Sendable {
     /// Application directories, in the order the specification lists them (§5.3).
     private let applicationDirectories: [URL]
 
-    public init(rules: RuleEngine, fileManager: FileManager = .default, additionalDirectories: [URL] = []) {
+    public init(
+        rules: RuleEngine,
+        fileManager: FileManager = .default,
+        additionalDirectories: [URL] = [],
+        includeDefaultDirectories: Bool = true
+    ) {
         self.rules = rules
         self.fileManager = fileManager
-        var directories = [
-            URL(fileURLWithPath: "/Applications", isDirectory: true),
-            URL(fileURLWithPath: "/Applications/Utilities", isDirectory: true),
-            // System applications are listed and marked uninstallable-protected,
-            // not hidden (§5.3). A directory only reachable through here would
-            // otherwise be absent from the list entirely.
-            URL(fileURLWithPath: "/System/Applications", isDirectory: true),
-            URL(fileURLWithPath: "/System/Applications/Utilities", isDirectory: true),
-            fileManager.homeDirectoryForCurrentUser.appendingPathComponent("Applications", isDirectory: true),
-        ]
+        var directories: [URL] = []
+        if includeDefaultDirectories {
+            directories = [
+                URL(fileURLWithPath: "/Applications", isDirectory: true),
+                URL(fileURLWithPath: "/Applications/Utilities", isDirectory: true),
+                // System applications are listed and marked uninstallable-protected,
+                // not hidden (§5.3). A directory only reachable through here would
+                // otherwise be absent from the list entirely.
+                URL(fileURLWithPath: "/System/Applications", isDirectory: true),
+                URL(fileURLWithPath: "/System/Applications/Utilities", isDirectory: true),
+                fileManager.homeDirectoryForCurrentUser.appendingPathComponent("Applications", isDirectory: true),
+            ]
+        }
         directories.append(contentsOf: additionalDirectories)
         self.applicationDirectories = directories
     }
@@ -53,13 +61,7 @@ public struct ApplicationDiscovery: @unchecked Sendable {
         var seen = Set<String>()
 
         for directory in applicationDirectories {
-            guard let contents = try? fileManager.contentsOfDirectory(
-                at: directory,
-                includingPropertiesForKeys: [.isDirectoryKey, .isApplicationKey],
-                options: [.skipsHiddenFiles]
-            ) else { continue }
-
-            for url in contents where url.pathExtension == "app" {
+            for url in applicationBundleURLs(in: directory) {
                 guard let application = describe(url: url, runningPaths: runningPaths) else { continue }
                 guard seen.insert(application.id).inserted else { continue }
                 if application.isSystemApplication, !includingSystemApplications { continue }
@@ -290,12 +292,7 @@ public struct ApplicationDiscovery: @unchecked Sendable {
         var identifiers: [String] = []
         var seen = Set<String>()
         for directory in applicationDirectories {
-            guard let contents = try? fileManager.contentsOfDirectory(
-                at: directory,
-                includingPropertiesForKeys: nil,
-                options: [.skipsHiddenFiles]
-            ) else { continue }
-            for url in contents where url.pathExtension == "app" {
+            for url in applicationBundleURLs(in: directory) {
                 guard let identifier = Bundle(url: url)?.bundleIdentifier,
                       !identifier.isEmpty,
                       seen.insert(identifier).inserted else { continue }
@@ -303,5 +300,39 @@ public struct ApplicationDiscovery: @unchecked Sendable {
             }
         }
         return identifiers
+    }
+
+    /// Every `.app` bundle below an application directory.
+    ///
+    /// Some vendors install one level deeper (`/Applications/Adobe Photoshop
+    /// 2024/Adobe Photoshop 2024.app`). Looking only at immediate children left
+    /// those applications out of the installed set, so residue detection then
+    /// treated their live containers as belonging to an uninstalled app.
+    ///
+    /// The enumerator does not descend into a bundle, and the depth cap keeps a
+    /// stray package tree from turning discovery into a full-disk walk.
+    private func applicationBundleURLs(in directory: URL) -> [URL] {
+        guard let enumerator = fileManager.enumerator(
+            at: directory,
+            includingPropertiesForKeys: [.isDirectoryKey, .isApplicationKey],
+            options: [.skipsHiddenFiles, .skipsPackageDescendants],
+            errorHandler: { _, _ in true }
+        ) else {
+            return []
+        }
+
+        var urls: [URL] = []
+        for case let url as URL in enumerator {
+            let depth = url.pathComponents.count - directory.pathComponents.count
+            if depth > 3 {
+                enumerator.skipDescendants()
+                continue
+            }
+            if url.pathExtension.caseInsensitiveCompare("app") == .orderedSame {
+                urls.append(url)
+                enumerator.skipDescendants()
+            }
+        }
+        return urls
     }
 }

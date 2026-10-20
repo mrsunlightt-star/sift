@@ -401,6 +401,8 @@ public enum LocalizationKey: String, Sendable, CaseIterable {
     case settingsSkipConfirmationWarning = "settings.skipConfirmationWarning"
     case settingsStaleThreshold = "settings.staleThreshold"
     case settingsTitle = "settings.title"
+    case settingsUserRules = "settings.userRules"
+    case settingsUserRulesDetail = "settings.userRulesDetail"
     case storageAnalysing = "storage.analysing"
     case storageAnalyze = "storage.analyze"
     case storageAnalyzedSummary = "storage.analyzedSummary"

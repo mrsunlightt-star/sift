@@ -51,6 +51,37 @@ final class ApplicationDiscoveryTests: XCTestCase, @unchecked Sendable {
         XCTAssertTrue(paths.contains("/System/Applications/Utilities"))
     }
 
+    func test_anApplicationNestedInAVendorFolderIsStillInstalled() async {
+        _ = fixture.directory("Vendor/Notes.app/Contents")
+        let plist = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+          <key>CFBundleIdentifier</key><string>com.vendor.notes</string>
+          <key>CFBundleName</key><string>Notes</string>
+          <key>CFBundleExecutable</key><string>Notes</string>
+        </dict>
+        </plist>
+        """
+        fixture.writeBytes("Vendor/Notes.app/Contents/Info.plist", Data(plist.utf8))
+        fixture.write("Vendor/Notes.app/Contents/MacOS/Notes", bytes: 0)
+
+        let discovery = ApplicationDiscovery(
+            rules: RuleEngine(rules: RuleEngine.builtInRules, homeDirectory: fixture.url),
+            additionalDirectories: [fixture.url],
+            includeDefaultDirectories: false
+        )
+
+        let applications = await discovery.installedApplications()
+        XCTAssertTrue(
+            applications.contains { $0.bundleIdentifier == "com.vendor.notes" },
+            "a nested .app must be listed, or its live data looks like residue"
+        )
+        let identifiers = await discovery.installedBundleIdentifiers()
+        XCTAssertTrue(identifiers.contains("com.vendor.notes"))
+    }
+
     func test_onlyAnIdentifierMatchIsConfirmed() {
         fixture.write("Library/Application Support/com.vendor.notes/data.bin", bytes: 4096)
         fixture.write("Library/Application Support/notes/data.bin", bytes: 4096)

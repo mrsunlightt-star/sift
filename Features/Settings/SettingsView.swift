@@ -99,12 +99,20 @@ public struct SettingsView: View {
                     get: { environment.preferences.userRulesEnabled },
                     set: { value in Task { await environment.updateSettings { $0.userRulesEnabled = value } } }
                 )) {
-                    Text(LocalizationKey.settingsGroupIgnores.localized)
-                        .font(SiftFont.body)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(LocalizationKey.settingsUserRules.localized)
+                            .font(SiftFont.body)
+                        Text(LocalizationKey.settingsUserRulesDetail.localized)
+                            .font(SiftFont.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
                 .toggleStyle(.checkbox)
 
                 if !environment.preferences.ignoredPaths.isEmpty {
+                    Text(LocalizationKey.settingsGroupIgnores.localized)
+                        .font(SiftFont.bodyEmphasis)
                     VStack(alignment: .leading, spacing: SiftMetrics.spacingXS) {
                         ForEach(environment.preferences.ignoredPaths, id: \.self) { path in
                             HStack {
@@ -505,6 +513,7 @@ public struct SettingsView: View {
                         .font(SiftFont.caption)
                 }
                 .buttonStyle(SiftLinkButtonStyle())
+                .disabled(environment.cleanup.isWorking || environment.isPreparingScan)
             }
         }
     }

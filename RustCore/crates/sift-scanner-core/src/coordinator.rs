@@ -656,9 +656,19 @@ fn build_summary(
     let duplicate_group_count = index.duplicate_group_count()?;
     let duplicate_reclaimable_bytes = index.duplicate_reclaimable_bytes()?;
 
+    let is_partial = !skipped.is_empty() || duplicate_report.truncated;
+    // The summary carries the final phase as well as the flag. The event stream
+    // already says `partial`, but the completion event used to overwrite it with
+    // `ready`, so the page showed a complete scan after a permission skip.
+    let phase = if is_partial {
+        PhaseName::Partial
+    } else {
+        PhaseName::Ready
+    };
+
     Ok(ScanSummary {
         session_id: request.session_id.clone(),
-        phase: PhaseName::Ready.as_str().to_string(),
+        phase: phase.as_str().to_string(),
         scanned_file_count: handle.state.files_seen.load(Ordering::Relaxed),
         scanned_byte_count: handle.state.bytes_seen.load(Ordering::Relaxed),
         item_count: totals.item_count,
@@ -668,7 +678,7 @@ fn build_summary(
         duplicate_reclaimable_bytes,
         skipped: skipped.to_vec(),
         elapsed_millis: started.elapsed().as_millis() as i64,
-        is_partial: !skipped.is_empty() || duplicate_report.truncated,
+        is_partial,
     })
 }
 
@@ -879,6 +889,15 @@ mod tests {
         let has_failed = events.iter().any(|e| matches!(e, Event::Failed { .. }));
         assert!(!has_failed, "one unreadable folder must not fail the scan");
         assert!(events.iter().any(|e| matches!(e, Event::Completed(_))));
+
+        // The completion summary is what Swift applies last, so it has to carry
+        // the same phase the event stream reported before it.
+        let summary = summary_of(&events);
+        assert!(
+            summary.is_partial,
+            "the skipped folder makes the scan partial"
+        );
+        assert_eq!(summary.phase, "partial");
 
         // Restore permissions so the fixture can clean up on drop.
         let mut permissions = std::fs::metadata(&locked).unwrap().permissions();

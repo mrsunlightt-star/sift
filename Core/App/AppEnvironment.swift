@@ -17,25 +17,30 @@ public final class AppEnvironment: ObservableObject {
     @Published public private(set) var preferences: AppSettings = .default
 
     // Domain services.
-    public let rules: RuleEngine
-    public let scanner: any ScannerEngine
-    public let operations: FileOperationService
+    //
+    // The rule-dependent services are replaceable because the user-rule switch
+    // is a runtime setting: the engines read the rule table when they are
+    // created, so changing the table without rebuilding them left the old rules
+    // running until the next launch.
+    public private(set) var rules: RuleEngine
+    public private(set) var scanner: any ScannerEngine
+    public private(set) var operations: FileOperationService
     public let reports: ReportService
     public let permissions: PermissionsService
     public let entitlements: EntitlementService
     /// The locations the user authorised, shared with the rule engine.
     public let authorizedScope: AuthorizedScope
     public let authorization: AuthorizationService
-    public let applications: ApplicationDiscovery
-    public let volumes: VolumeEnumerator
-    public let storageAnalyzer: StorageAnalyzer
+    public private(set) var applications: ApplicationDiscovery
+    public private(set) var volumes: VolumeEnumerator
+    public private(set) var storageAnalyzer: StorageAnalyzer
     /// The read-only diagnostics. It shares the rule engine, so a location that is
     /// protected for a scan is protected here too.
     public let diagnostics: StorageDiagnosticEngine
 
     // Observable state shared by the features.
-    public let scan: ScanModel
-    public let cleanup: CleanupModel
+    @Published public private(set) var scan: ScanModel
+    @Published public private(set) var cleanup: CleanupModel
     /// The storage page's last result and its running state. Owned here so
     /// leaving the page neither loses the result nor starts another analysis.
     public let storageAnalysis: StorageAnalysisModel
@@ -69,6 +74,10 @@ public final class AppEnvironment: ObservableObject {
     /// than starting the engine. Without this the page looked idle after the
     /// user pressed Start, and a second press could start a second run.
     @Published public private(set) var isPreparingScan = false
+
+    /// A user-rule change that arrived while a scan or cleanup was in flight.
+    /// The next scan rebuilds the engines before it starts.
+    private var pendingRuleReload = false
 
     private let logger = SiftLog.make("App")
 
@@ -139,8 +148,49 @@ public final class AppEnvironment: ObservableObject {
 
     /// Republishes settings after the user changes something.
     public func updateSettings(_ mutate: @Sendable (inout AppSettings) -> Void) async {
+        let previous = await settings.current()
         await settings.update(mutate)
         preferences = await settings.current()
+
+        // The engines read the rule table when they are created, so a change to
+        // the user-rule switch has to rebuild them. Deferred while a scan or a
+        // cleanup owns the old services; `runScan` applies it before it starts.
+        if preferences.userRulesEnabled != previous.userRulesEnabled {
+            await reloadUserRulesWhenIdle()
+        }
+    }
+
+    /// Rebuilds every service that holds a `RuleEngine`.
+    ///
+    /// The scanner and the file-operation service do not share one mutable rule
+    /// object: each owns a value copy. Replacing them together is what keeps the
+    /// discovery rules and the pre-flight checks describing the same table.
+    private func rebuildRuleDependentServices() async {
+        let userRuleURL = preferences.userRulesEnabled ? await settings.userRuleURL() : nil
+        let rules = RuleEngine(userRuleURL: userRuleURL, authorized: authorizedScope)
+        let scanner = ScannerEngineFactory.makeDefault(rules: rules)
+        let operations = FileOperationService(rules: rules)
+
+        self.rules = rules
+        self.scanner = scanner
+        self.operations = operations
+        self.applications = ApplicationDiscovery(rules: rules)
+        self.volumes = VolumeEnumerator(rules: rules)
+        self.storageAnalyzer = StorageAnalyzer(rules: rules)
+        // The models are replaced as well: a result produced by the old table
+        // must not stay selectable under the new one.
+        self.scan = ScanModel(engine: scanner, rules: rules)
+        self.cleanup = CleanupModel(rules: rules, operations: operations, reports: reports)
+        self.engineKind = scanner.kind
+    }
+
+    private func reloadUserRulesWhenIdle() async {
+        guard !isPreparingScan, !scan.isRunning, !cleanup.isWorking else {
+            pendingRuleReload = true
+            return
+        }
+        pendingRuleReload = false
+        await rebuildRuleDependentServices()
     }
 
     /// The one way the interface changes language.
@@ -170,7 +220,7 @@ public final class AppEnvironment: ObservableObject {
         let rules = rules
         let home = URL(fileURLWithPath: rules.homeDirectory)
         let request = await makeScanRequest(includeDuplicates: false)
-        let roots = request.roots
+        let roots = Self.storageAnalysisRoots(home: home, roots: request.roots)
         let ignoredPaths = request.ignoredPaths
         let diagnosticRoots = diagnosticRoots(includeVolumeRoot: storageAnalysis.includeVolumeRoot)
 
@@ -286,8 +336,20 @@ public final class AppEnvironment: ObservableObject {
     /// `scan.hasResults` means the same thing whichever page started the run.
     public func runScan(_ intent: ScanIntent) async {
         // One run at a time. A second request while the first is assembling its
-        // request (or scanning) would put two runs' phases on one page.
-        guard !isPreparingScan, !scan.isRunning else { return }
+        // request (or scanning) would put two runs' phases on one page, and a
+        // cleanup in flight owns the current selection the scan would reset.
+        guard !isPreparingScan, !scan.isRunning, !cleanup.isWorking else { return }
+
+        if pendingRuleReload {
+            pendingRuleReload = false
+            await rebuildRuleDependentServices()
+        }
+
+        // Capture the pair: rebuilding the services replaces both, and the run
+        // that is already under way must finish against the objects it started
+        // with rather than writing its result into the new ones.
+        let scan = self.scan
+        let cleanup = self.cleanup
         cleanup.resetForNewScan()
         isPreparingScan = true
         let request = await makeScanRequest(includeDuplicates: intent.includesDuplicates)
@@ -314,7 +376,12 @@ public final class AppEnvironment: ObservableObject {
         // must not delay the result page. The overview states the split when it
         // arrives.
         await scan.loadRiskTotals()
-        RecentHistory.recordScan()
+        // A cancelled or failed run is not a scan history entry: the page never
+        // showed it as a result, and recording it would claim a completed scan
+        // that the user stopped.
+        if scan.phase == .ready || scan.phase == .partial {
+            RecentHistory.recordScan()
+        }
     }
 
     /// Adds a folder or volume the user picked in a file panel.
@@ -387,6 +454,28 @@ public final class AppEnvironment: ObservableObject {
         return Self.nonOverlappingDuplicateRoots(roots)
     }
 
+    /// The roots a storage analysis may measure.
+    ///
+    /// The page reports one volume's used/free figures. Measuring a folder on a
+    /// different volume at the same time put another disk's bytes into those
+    /// figures, so the analysis is limited to the home folder's volume. Nested
+    /// roots are collapsed: walking both `~` and `~/Downloads` counted the same
+    /// file twice.
+    static func storageAnalysisRoots(home: URL, roots: [ScanRoot]) -> [ScanRoot] {
+        let volume = home.resolvingSymlinksInPath().volumeRoot.path
+        let eligible = roots.filter {
+            $0.url.resolvingSymlinksInPath().volumeRoot.path == volume
+        }
+        guard !eligible.isEmpty else {
+            return [ScanRoot(url: home, anchor: .home)]
+        }
+        let paths = nonOverlappingDuplicateRoots(eligible.map(\.url.path))
+        return paths.map { path in
+            eligible.first { RuleEngine.normalize($0.url.path) == path }
+                ?? ScanRoot(url: URL(fileURLWithPath: path), anchor: .home)
+        }
+    }
+
     /// Drops duplicate and nested roots, keeping the outermost one.
     ///
     /// The duplicate scan walks every root it is given, so a granted folder
@@ -429,9 +518,27 @@ public final class AppEnvironment: ObservableObject {
     }
 
     /// Restores every setting to its default.
+    ///
+    /// Authorisation is part of the settings: releasing the stored grants only
+    /// in the settings store left the scan scope and the settings rows using the
+    /// old grants until the next launch.
     public func resetSettings() async {
+        // A cleanup owns a pre-flighted batch; resetting underneath it would
+        // lose the result while the move is still running. A request being
+        // assembled owns the old models in the same way.
+        guard !cleanup.isWorking, !isPreparingScan else { return }
+        if scan.isRunning {
+            await scan.cancel()
+        }
+
         await settings.resetToDefaults()
         preferences = await settings.current()
+
+        await authorization.releaseAll()
+        grants = GrantRegistry()
+        authorizedLocations = []
+        pendingRuleReload = false
+        await rebuildRuleDependentServices()
     }
 
     /// True when a licence key is stored on this machine.

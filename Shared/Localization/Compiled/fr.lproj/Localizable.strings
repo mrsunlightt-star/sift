@@ -394,6 +394,8 @@
 "settings.skipConfirmationWarning" = "Sift nettoiera dès le clic. Les éléments iront à la corbeille, mais sans liste préalable.";
 "settings.staleThreshold" = "Seuil d’ancienneté";
 "settings.title" = "Réglages";
+"settings.userRules" = "Utiliser un fichier de règles";
+"settings.userRulesDetail" = "Lit CleaningRules.json dans le dossier de données de l’app. S’applique au prochain scan.";
 "storage.analysing" = "Analyse…";
 "storage.analyze" = "Analyser le stockage";
 "storage.analyzedSummary" = "%@ mesurés · %@ fichiers";
@@ -408,7 +410,7 @@
 "storage.externalDisk" = "Disque externe";
 "storage.goClean" = "Nettoyer";
 "storage.headerStatus" = "Stockage · %@";
-"storage.includeVolume" = "Inclure tout le volume";
+"storage.includeVolume" = "Inclure le diagnostic du volume entier";
 "storage.lastAnalyzed" = "Dernière analyse : %@";
 "storage.localNote" = "Mesuré sur ce Mac. Rien n’est envoyé en ligne.";
 "storage.noAccess" = "Sift ne peut pas encore lire cet emplacement.";
@@ -416,7 +418,7 @@
 "storage.otherUsed" = "Autre utilisé";
 "storage.reanalyze" = "Réanalyser";
 "storage.reclaimable" = "Récupérable";
-"storage.scopeNote" = "Votre dossier personnel et les dossiers autorisés. Inclure le volume analyse tout le disque et prend plus de temps.";
+"storage.scopeNote" = "Les catégories couvrent votre dossier personnel et les dossiers autorisés sur ce disque. L’option ajoute le diagnostic du volume entier.";
 "storage.spaceDistribution" = "Répartition de l’espace";
 "storage.start" = "Lancer l’analyse";
 "storage.startTitle" = "Voyez ce qui occupe le disque";

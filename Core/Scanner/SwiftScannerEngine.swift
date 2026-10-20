@@ -396,9 +396,22 @@ actor SwiftScanSession: ScanSession {
         let measured: (bytes: Int64, files: Int)
         var newestQualifying: Date?
         if let minimumAgeDays {
-            measured = measureMatching(url: url, days: minimumAgeDays, newest: &newestQualifying)
-            // A directory whose files are all still fresh is not a cleanup item.
-            guard measured.bytes > 0 else { return nil }
+            let matching = measureMatching(url: url, days: minimumAgeDays, newest: &newestQualifying)
+            // The item is the directory, so the move takes every file in it.
+            // The threshold may only decide whether the directory qualifies; it
+            // must not count a stale subset while the move takes fresh files
+            // too. A mixed directory is therefore not a cleanup item.
+            let whole = FileWalker.measure(
+                url: url,
+                rules: rules,
+                skipHidden: skipsHiddenEntries,
+                isCancelled: { self.cancelledSync }
+            )
+            guard matching.bytes > 0,
+                  matching.bytes == whole.bytes,
+                  matching.files == whole.files
+            else { return nil }
+            measured = whole
         } else {
             measured = FileWalker.measure(
                 url: url,
