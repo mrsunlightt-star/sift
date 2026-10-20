@@ -10,6 +10,30 @@ import Shared
 /// That is what makes the layering real rather than decorative: a view that wants
 /// to delete something has to go through this graph, and this graph is where the
 /// safety checks live.
+/// One destructive operation after the entitlement gate and pre-flight.
+public struct OperationExecution: Sendable {
+    public let outcome: CleanupOutcome
+    public let report: CleanupReport?
+
+    public init(outcome: CleanupOutcome, report: CleanupReport?) {
+        self.outcome = outcome
+        self.report = report
+    }
+}
+
+/// What the interface should do after asking the environment to execute.
+public enum OperationGateResult: Sendable {
+    case executed(OperationExecution)
+    /// The user is on the free tier. No file was touched.
+    case purchaseRequired
+    /// There was nothing executable after pre-flight.
+    case nothingToDo
+    /// The confirmation panel is open; execution happens from the shell.
+    case awaitingConfirmation
+    /// Another destructive operation owns the file-operation service.
+    case busy
+}
+
 @MainActor
 public final class AppEnvironment: ObservableObject {
     // Settings and preferences.
@@ -33,7 +57,6 @@ public final class AppEnvironment: ObservableObject {
     public let authorization: AuthorizationService
     public private(set) var applications: ApplicationDiscovery
     public private(set) var volumes: VolumeEnumerator
-    public private(set) var storageAnalyzer: StorageAnalyzer
     /// The read-only diagnostics. It shares the rule engine, so a location that is
     /// protected for a scan is protected here too.
     public let diagnostics: StorageDiagnosticEngine
@@ -74,6 +97,10 @@ public final class AppEnvironment: ObservableObject {
     /// than starting the engine. Without this the page looked idle after the
     /// user pressed Start, and a second press could start a second run.
     @Published public private(set) var isPreparingScan = false
+    /// True while a destructive operation outside `CleanupModel` (today, the
+    /// uninstaller) owns the file-operation service. The pages disable their
+    /// action while it is set, so two confirmations cannot submit the same batch.
+    @Published public private(set) var isPerformingFileOperation = false
 
     /// A user-rule change that arrived while a scan or cleanup was in flight.
     /// The next scan rebuilds the engines before it starts.
@@ -82,13 +109,13 @@ public final class AppEnvironment: ObservableObject {
     private let logger = SiftLog.make("App")
 
     public init(settings: SettingsStore = SettingsStore()) {
-        // The rule engine reads the user's rule file only when they enabled it,
-        // so a stray file in the data directory cannot change behaviour silently.
-        let ruleURL = UserDefaults.standard.bool(forKey: "settings.userRulesEnabled")
-            ? SettingsStore.defaultSupportDirectory().appendingPathComponent("CleaningRules.json")
-            : nil
+        // The initial engine uses the shipped table. `bootstrap()` reads the
+        // injected settings store and rebuilds the rule-dependent services when
+        // the user enabled their rule file. Reading `UserDefaults.standard`
+        // here bypassed the injected store, so a preview or test suite with a
+        // different suite ran a different table than its preferences said.
         let authorizedScope = AuthorizedScope()
-        let rules = RuleEngine(userRuleURL: ruleURL, authorized: authorizedScope)
+        let rules = RuleEngine(userRuleURL: nil, authorized: authorizedScope)
         let scanner = ScannerEngineFactory.makeDefault(rules: rules)
         let operations = FileOperationService(rules: rules)
         let reports = ReportService()
@@ -114,7 +141,6 @@ public final class AppEnvironment: ObservableObject {
         })
         self.applications = ApplicationDiscovery(rules: rules)
         self.volumes = VolumeEnumerator(rules: rules)
-        self.storageAnalyzer = StorageAnalyzer(rules: rules)
         self.diagnostics = StorageDiagnosticEngine()
         self.scan = ScanModel(engine: scanner, rules: rules)
         self.cleanup = CleanupModel(rules: rules, operations: operations, reports: reports)
@@ -133,6 +159,12 @@ public final class AppEnvironment: ObservableObject {
     /// Loads preferences and the initial data the shell needs.
     public func bootstrap() async {
         preferences = await settings.current()
+        // The engine was built with the shipped table. If the injected store
+        // says the user's rule file is enabled, rebuild before anything can
+        // scan and honour it.
+        if preferences.userRulesEnabled {
+            await rebuildRuleDependentServices()
+        }
         availableVolumes = volumes.mountedVolumes()
 
         // Reopen the user's grants before anything can scan. A bookmark that no
@@ -176,7 +208,6 @@ public final class AppEnvironment: ObservableObject {
         self.operations = operations
         self.applications = ApplicationDiscovery(rules: rules)
         self.volumes = VolumeEnumerator(rules: rules)
-        self.storageAnalyzer = StorageAnalyzer(rules: rules)
         // The models are replaced as well: a result produced by the old table
         // must not stay selectable under the new one.
         self.scan = ScanModel(engine: scanner, rules: rules)
@@ -215,12 +246,19 @@ public final class AppEnvironment: ObservableObject {
         guard let flag = storageAnalysis.begin() else { return }
         defer { storageAnalysis.abortIfStillRunning() }
 
-        let analyzer = storageAnalyzer
+        // One run, one grant snapshot — the same rule the scan follows.
+        let rules = rules.snapshottingAuthorization(restoredAuthorizedURLs.map(\.path))
+        let analyzer = StorageAnalyzer(rules: rules)
         let diagnostics = diagnostics
-        let rules = rules
         let home = URL(fileURLWithPath: rules.homeDirectory)
         let request = await makeScanRequest(includeDuplicates: false)
-        let roots = Self.storageAnalysisRoots(home: home, roots: request.roots)
+        // The system-log root exists for the cleanup rule, not for measuring the
+        // user's storage: it lives outside the home volume and would add system
+        // data to a page that reports the user's own disk usage.
+        let roots = Self.storageAnalysisRoots(
+            home: home,
+            roots: request.roots.filter { $0.anchor != .systemLibrary }
+        )
         let ignoredPaths = request.ignoredPaths
         let diagnosticRoots = diagnosticRoots(includeVolumeRoot: storageAnalysis.includeVolumeRoot)
 
@@ -230,6 +268,7 @@ public final class AppEnvironment: ObservableObject {
                 measured = try await analyzer.analyze(
                     roots: roots,
                     ignoredPaths: ignoredPaths,
+                    includeHiddenFiles: request.includeHiddenFiles,
                     cancelled: { flag.isCancelled }
                 )
             } catch {
@@ -327,6 +366,17 @@ public final class AppEnvironment: ObservableObject {
         var roots: [ScanRoot] = [
             ScanRoot(url: home, anchor: .home),
         ]
+        // The `system-logs` rule is anchored at `/Library/Logs`. Without a root
+        // that reaches it, the rule and its `requiresFullDiskAccess` marker were
+        // dead metadata: the engine's authorisation check dropped every visit.
+        // The location is readable only with Full Disk Access; when it is not,
+        // the walk reports the permission skip the permissions page explains.
+        let systemLogs = URL(fileURLWithPath: "/Library/Logs", isDirectory: true)
+        if FileManager.default.fileExists(atPath: systemLogs.path) {
+            roots.append(
+                ScanRoot(url: systemLogs, anchor: .systemLibrary, isCleanable: true)
+            )
+        }
         for url in restoredAuthorizedURLs {
             // A grant inside the home folder is already covered by the home
             // root. Adding it again would walk the same tree twice — and, for
@@ -377,20 +427,30 @@ public final class AppEnvironment: ObservableObject {
         // One run at a time. A second request while the first is assembling its
         // request (or scanning) would put two runs' phases on one page, and a
         // cleanup in flight owns the current selection the scan would reset.
-        guard !isPreparingScan, !scan.isRunning, !cleanup.isWorking else { return }
+        guard !isPreparingScan, !scan.isRunning, !cleanup.isWorking,
+              !isPerformingFileOperation else { return }
 
+        // Claim the single-flight gate *before* the first suspension. The rule
+        // rebuild awaits, and a second request arriving at that suspension used
+        // to pass the same guard and rebuild the services a second time.
+        isPreparingScan = true
         if pendingRuleReload {
             pendingRuleReload = false
             await rebuildRuleDependentServices()
         }
 
-        // Capture the pair: rebuilding the services replaces both, and the run
-        // that is already under way must finish against the objects it started
-        // with rather than writing its result into the new ones.
-        let scan = self.scan
+        // Freeze the grants for this run. The scanner is built from a rule
+        // engine that carries the paths in force now; adding or removing a
+        // grant while the walk is running must affect the next run, not change
+        // the protection decision halfway through this one.
+        let runRules = rules.snapshottingAuthorization(restoredAuthorizedURLs.map(\.path))
+        let runScanner = ScannerEngineFactory.makeDefault(rules: runRules)
+        let scan = ScanModel(engine: runScanner, rules: runRules)
+        self.scan = scan
+        self.scanner = runScanner
+        engineKind = runScanner.kind
         let cleanup = self.cleanup
         cleanup.resetForNewScan()
-        isPreparingScan = true
         let request = await makeScanRequest(includeDuplicates: intent.includesDuplicates)
         await scan.start(request)
         // The engine has a session now; the phase it reports is the truth.
@@ -421,6 +481,107 @@ public final class AppEnvironment: ObservableObject {
         if scan.phase == .ready || scan.phase == .partial {
             RecentHistory.recordScan()
         }
+    }
+
+    // MARK: - Destructive operations
+
+    /// The capability an operation needs.
+    private func capability(for operation: CleanupOperationName) -> EntitlementService.Capability {
+        switch operation {
+        case .uninstall: .uninstallApplications
+        case .largeFiles, .oldFiles, .duplicateFiles: .cleanFiles
+        case .smartScan, .junkCleanup: .cleanJunk
+        }
+    }
+
+    /// Prepares a cleanup and, when confirmation is disabled, executes it.
+    ///
+    /// The entitlement gate runs before preparation and again in
+    /// `confirmCleanup`, so a confirmation panel that stays open past the end of
+    /// the offline window cannot execute a batch the free tier is not allowed to
+    /// perform.
+    public func beginCleanup(
+        operation: CleanupOperationName,
+        requiresConfirmation: Bool,
+        scanReport: ScanReport? = nil
+    ) async -> OperationGateResult {
+        guard await entitlements.allows(capability(for: operation)) else {
+            return .purchaseRequired
+        }
+        switch await cleanup.prepareCleanup(
+            requiresConfirmation: requiresConfirmation,
+            operation: operation
+        ) {
+        case .nothingToDo:
+            return .nothingToDo
+        case .awaitingConfirmation:
+            return .awaitingConfirmation
+        case .readyToExecute:
+            return await confirmCleanup(operation: operation, scanReport: scanReport)
+        }
+    }
+
+    /// Executes the plan the confirmation panel is describing.
+    ///
+    /// This is the last entitlement check before `FileOperationService`. It is
+    /// deliberately here rather than only at the button that opened the panel:
+    /// the licence can expire while the panel is open.
+    public func confirmCleanup(
+        operation: CleanupOperationName? = nil,
+        scanReport: ScanReport? = nil
+    ) async -> OperationGateResult {
+        let operation = operation ?? cleanup.preparedOperation
+        guard await entitlements.allows(capability(for: operation)) else {
+            cleanup.cancelConfirmation()
+            return .purchaseRequired
+        }
+        guard !isPerformingFileOperation else { return .busy }
+        guard let outcome = await cleanup.executePrepared(operation: operation, scanReport: scanReport)
+        else { return .nothingToDo }
+        RecentHistory.recordCleanup(outcome)
+        return .executed(OperationExecution(outcome: outcome, report: cleanup.report))
+    }
+
+    /// Runs the uninstaller through the same pre-flight and execution boundary
+    /// as a scan cleanup.
+    ///
+    /// The uninstaller used to call `preflight` and `moveToTrash` itself, which
+    /// gave it its own working flag, its own entitlement timing and no report.
+    public func performUninstall(items: [CleanupItem]) async -> OperationGateResult {
+        guard !isPerformingFileOperation, !cleanup.isWorking else { return .busy }
+        guard await entitlements.allows(.uninstallApplications) else { return .purchaseRequired }
+        guard !items.isEmpty else { return .nothingToDo }
+
+        isPerformingFileOperation = true
+        defer { isPerformingFileOperation = false }
+
+        let verdict = await operations.preflight(items.map(FileOperationService.Candidate.init(item:)))
+        let outcome: CleanupOutcome
+        if let plan = verdict.makeApprovedPlan(operation: .uninstall) {
+            outcome = await operations.execute(plan)
+        } else {
+            // Nothing survived pre-flight. The refusals are still the result:
+            // the user selected an application and is owed the reason it was
+            // left alone, not an empty page.
+            outcome = CleanupOutcome(
+                results: verdict.refusedResults,
+                categoryTotals: [],
+                startedAt: Date(),
+                finishedAt: Date(),
+                operationName: .uninstall
+            )
+        }
+
+        var report: CleanupReport?
+        do {
+            let made = await reports.makeReport(from: outcome, scanReport: scan.report)
+            try await reports.storeLocally(made)
+            report = made
+        } catch {
+            logger.error("The uninstall report could not be stored locally")
+        }
+        RecentHistory.recordCleanup(outcome)
+        return .executed(OperationExecution(outcome: outcome, report: report))
     }
 
     /// Adds a folder or volume the user picked in a file panel.
@@ -543,15 +704,25 @@ public final class AppEnvironment: ObservableObject {
     /// analysis widens what the product can see, so its scope has to be as
     /// explicit as the scan scope is (§7).
     public func diagnosticRoots(includeVolumeRoot: Bool) -> [DiagnosticRoot] {
-        var roots = [DiagnosticRoot(url: URL(fileURLWithPath: rules.homeDirectory), kind: .home)]
+        let home = URL(fileURLWithPath: rules.homeDirectory).resolvingSymlinksInPath()
+        let homeVolume = home.volumeRoot.path
+        var roots = [DiagnosticRoot(url: home, kind: .home)]
         for location in authorizedLocations {
             guard let url = grants.url(for: location.id) else { continue }
-            // A grant for a whole disk is a volume the diagnostics may look at;
-            // a granted folder is just a folder.
-            roots.append(DiagnosticRoot(url: url, kind: location.isVolume ? .volume : .authorized))
+            // Only a whole volume on the *same* disk as the measured home may be
+            // a `.volume` root. Treating a granted external disk as the primary
+            // volume paired its capacity with the home volume's categories; a
+            // granted folder is a folder regardless.
+            let isHomeVolume = url.resolvingSymlinksInPath().volumeRoot.path == homeVolume
+            roots.append(
+                DiagnosticRoot(
+                    url: url,
+                    kind: location.isVolume && isHomeVolume ? .volume : .authorized
+                )
+            )
         }
         if includeVolumeRoot, !roots.contains(where: { $0.kind == .volume }) {
-            roots.append(DiagnosticRoot(url: URL(fileURLWithPath: "/"), kind: .volume))
+            roots.append(DiagnosticRoot(url: URL(fileURLWithPath: homeVolume), kind: .volume))
         }
         return roots
     }
@@ -601,6 +772,21 @@ public final class AppEnvironment: ObservableObject {
 
         var locations = await settings.current().authorizedLocations
         var changed = false
+        // A location has one row. A settings file written by an older build can
+        // hold the same resolved path under two identifiers; the registry keeps
+        // one, and the row the other identifier owned goes with it.
+        var seenPaths = Set<String>()
+        var duplicateIDs: [UUID] = []
+        for entry in restored.locations {
+            let path = RuleEngine.normalize(entry.url.path)
+            if !seenPaths.insert(path).inserted {
+                duplicateIDs.append(entry.id)
+            }
+        }
+        if !duplicateIDs.isEmpty {
+            locations.removeAll { duplicateIDs.contains($0.id) }
+            changed = true
+        }
         for entry in restored.locations {
             guard let index = locations.firstIndex(where: { $0.id == entry.id }) else { continue }
             let existing = locations[index]

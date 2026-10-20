@@ -395,6 +395,19 @@ fn measure_within(
         };
         for entry in read_dir.flatten() {
             let path = entry.path();
+            let name = path
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_default();
+            if options.skip_paths.iter().any(|skip| path.starts_with(skip)) {
+                continue;
+            }
+            if options.skip_hidden && name.starts_with('.') {
+                continue;
+            }
+            if is_protected_by_policy(options, &path) {
+                continue;
+            }
             let metadata = match std::fs::symlink_metadata(&path) {
                 Ok(metadata) => metadata,
                 Err(_) => continue,
@@ -403,6 +416,9 @@ fn measure_within(
                 continue;
             }
             if metadata.is_dir() {
+                if options.skip_directory_names.contains(&name) {
+                    continue;
+                }
                 stack.push(path);
             } else if metadata.is_file() {
                 let size = allocated_size(&metadata);
@@ -413,7 +429,6 @@ fn measure_within(
             }
         }
     }
-    let _ = options;
     total
 }
 

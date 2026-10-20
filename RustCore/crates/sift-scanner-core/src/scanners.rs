@@ -203,6 +203,16 @@ fn authorized_paths(context: &ScanContext<'_>) -> Vec<PathBuf> {
         .collect()
 }
 
+/// The user's "never visit" list, as paths.
+fn ignored_paths(context: &ScanContext<'_>) -> Vec<PathBuf> {
+    context
+        .request
+        .ignore_paths
+        .iter()
+        .map(PathBuf::from)
+        .collect()
+}
+
 /// Measured size of a directory tree, without producing per-file entries.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct Measured {
@@ -217,12 +227,15 @@ pub fn measure_directory(
     home: &Path,
     authorized_roots: &[PathBuf],
     skip_hidden: bool,
+    skip_paths: &[PathBuf],
 ) -> (Measured, WalkReport) {
     let mut options = WalkOptions::new(home.to_path_buf(), WalkMode::Files)
         .with_ignores(walker::DEFAULT_SKIP_DIRECTORY_NAMES);
     options.authorized_roots = authorized_roots.to_vec();
     options.skip_hidden = skip_hidden;
+    options.skip_paths = skip_paths.to_vec();
     options.stop_at_packages = true;
+    skip_excluded_directories(&mut options);
     let _ = &mut options;
     let report = walker::walk(path, &options, cancel);
     let measured = Measured {
@@ -358,6 +371,7 @@ fn directory_candidate(
         &context.home_dir,
         &authorized,
         skips_hidden(context),
+        &ignored_paths(context),
     );
     context
         .progress
@@ -448,6 +462,7 @@ fn child_directory_candidates(
                     &context.home_dir,
                     &authorized,
                     skips_hidden(context),
+                    &ignored_paths(context),
                     &|modified| older_than_days(modified, min_age_days),
                 );
                 // The item is the directory, so moving it takes every file in
@@ -461,6 +476,7 @@ fn child_directory_candidates(
                     &context.home_dir,
                     &authorized,
                     skips_hidden(context),
+                    &ignored_paths(context),
                 );
                 if matching.bytes != whole.bytes || matching.files != whole.files {
                     continue;
@@ -480,6 +496,7 @@ fn child_directory_candidates(
                     &context.home_dir,
                     &authorized,
                     skips_hidden(context),
+                    &ignored_paths(context),
                 )
                 .0
             }
@@ -618,6 +635,7 @@ pub fn measure_directory_matching(
     home: &Path,
     authorized_roots: &[PathBuf],
     skip_hidden: bool,
+    skip_paths: &[PathBuf],
     accept_file: &dyn Fn(i64) -> bool,
 ) -> Measured {
     let mut measured = Measured::default();
@@ -638,6 +656,12 @@ pub fn measure_directory_matching(
                 continue;
             }
             if skip_hidden && is_hidden_name(&entry_path) {
+                continue;
+            }
+            if skip_paths.iter().any(|skip| entry_path.starts_with(skip)) {
+                continue;
+            }
+            if is_in_excluded_location(&entry_path) {
                 continue;
             }
             if metadata.is_dir() {
@@ -861,20 +885,38 @@ fn file_threshold_scan(
 
     // A root the caller marked measure-only contributes nothing to a cleanup
     // queue: it is scanned for storage totals, never for candidates.
-    let roots: Vec<PathBuf> = context
+    let mut roots: Vec<(PathBuf, Option<u32>)> = context
         .request
         .roots
         .iter()
         .filter(|root| root.is_cleanable)
-        .map(|root| PathBuf::from(&root.path))
+        .map(|root| (PathBuf::from(&root.path), root.max_depth))
         .collect();
     // A granted folder inside the home directory is covered by the home root.
-    // Walking both would offer the same file twice.
-    let roots = collapse_nested_roots(roots);
+    // Walking both would offer the same file twice. The max depth travels with
+    // the root: the Swift fallback limits its walk, and the two engines must
+    // offer the same deep files.
+    roots.sort_by(|(left, _), (right, _)| {
+        left.components()
+            .count()
+            .cmp(&right.components().count())
+            .then_with(|| left.cmp(right))
+    });
+    let mut collapsed: Vec<(PathBuf, Option<u32>)> = Vec::with_capacity(roots.len());
+    for (root, max_depth) in roots {
+        if collapsed
+            .iter()
+            .any(|(parent, _)| is_prefix_of(&parent.to_string_lossy(), &root.to_string_lossy()))
+        {
+            continue;
+        }
+        collapsed.push((root, max_depth));
+    }
     let mut seen_paths: HashSet<PathBuf> = HashSet::new();
 
-    for root in roots {
+    for (root, max_depth) in collapsed {
         let mut options = WalkOptions::new(context.home_dir.clone(), WalkMode::Files);
+        options.max_depth = max_depth;
         options.authorized_roots = authorized_paths(context);
         options.skip_directory_names = walker::DEFAULT_SKIP_DIRECTORY_NAMES
             .iter()
@@ -1067,8 +1109,14 @@ pub fn scan_application_residue(
             }
             // Measured whole and without the hidden filter: the item is the
             // directory, and trashing it takes the dotfiles inside it as well.
-            let (measured, inner) =
-                measure_directory(&entry.path, cancel, &context.home_dir, &authorized, false);
+            let (measured, inner) = measure_directory(
+                &entry.path,
+                cancel,
+                &context.home_dir,
+                &authorized,
+                false,
+                &ignored_paths(context),
+            );
             if measured.bytes == 0 {
                 continue;
             }
@@ -1154,8 +1202,14 @@ pub fn scan_application_residue(
                 continue;
             }
             // Whole, as above: the container is the item.
-            let (measured, inner) =
-                measure_directory(&entry.path, cancel, &context.home_dir, &authorized, false);
+            let (measured, inner) = measure_directory(
+                &entry.path,
+                cancel,
+                &context.home_dir,
+                &authorized,
+                false,
+                &ignored_paths(context),
+            );
             if measured.bytes == 0 {
                 continue;
             }
@@ -2866,6 +2920,7 @@ mod tests {
             &harness.tree.root,
             &[],
             false,
+            &[],
         );
         assert_eq!(report.total_files, 2);
         assert!(measured.bytes >= 4096 + 8192);

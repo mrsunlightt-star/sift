@@ -620,9 +620,14 @@ public struct ScanView: View {
 
         items = []
         cursors = [:]
+        // A previous filter may have had more pages. Leaving the old value set
+        // showed "Load more" on a filter that had already loaded everything.
+        hasMore = false
+        let expectedKey = reloadKey
 
         for category in filter.rowCategories {
             let page = await scan.page(offset: 0, limit: pageSize, sort: sort, category: category)
+            guard reloadKey == expectedKey else { return }
             items.append(contentsOf: page.items)
             cursors[category] = page.items.count
             if page.remaining > 0 { hasMore = true }
@@ -636,11 +641,13 @@ public struct ScanView: View {
         guard !isLoading else { return }
         isLoading = true
         defer { isLoading = false }
+        let expectedKey = reloadKey
 
         var added: [CleanupItemSummary] = []
         for category in filter.rowCategories {
             let offset = cursors[category] ?? 0
             let page = await scan.page(offset: offset, limit: pageSize, sort: sort, category: category)
+            guard reloadKey == expectedKey else { return }
             added.append(contentsOf: page.items)
             cursors[category] = offset + page.items.count
         }
@@ -652,6 +659,7 @@ public struct ScanView: View {
                 sort: sort,
                 category: category
             )
+            guard reloadKey == expectedKey else { return }
             if page.remaining > 0 { hasMore = true }
         }
         let known = Set(items.map { CleanupItem.stableID(category: $0.category, url: $0.url) })
@@ -730,14 +738,14 @@ public struct ScanView: View {
     }
 
     private func beginCleanup() async {
-        guard await environment.canClean() else {
-            onRequestPurchase()
-            return
-        }
-        await cleanup.prepareCleanup(
+        let result = await environment.beginCleanup(
+            operation: .smartScan,
             requiresConfirmation: environment.preferences.showsConfirmationPanel,
-            operation: .smartScan
+            scanReport: environment.scan.report
         )
+        if case .purchaseRequired = result {
+            onRequestPurchase()
+        }
     }
 }
 

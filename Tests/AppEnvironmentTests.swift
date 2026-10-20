@@ -49,6 +49,43 @@ final class AppEnvironmentTests: XCTestCase, @unchecked Sendable {
         )
     }
 
+    /// The entitlement gate runs again at the execution boundary, not only when
+    /// the confirmation panel opened.
+    func test_theFreeTierCannotExecuteAPreparedCleanup() async throws {
+        let environment = await MainActor.run { makeEnvironment() }
+        let folder = FileManager.default.temporaryDirectory
+            .appendingPathComponent("sift-gate-\(UUID().uuidString)", isDirectory: true)
+        let file = folder.appendingPathComponent("Library/Caches/com.example.app/blob.bin")
+        try FileManager.default.createDirectory(
+            at: file.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try Data(repeating: 0x41, count: 4096).write(to: file)
+        defer { try? FileManager.default.removeItem(at: folder) }
+
+        let item = CleanupItem(
+            url: file,
+            displayName: file.lastPathComponent,
+            category: .applicationCache,
+            risk: .safe,
+            sizeInBytes: 4096,
+            fileCount: 1,
+            explanationKey: "cleanup.explanation.cache",
+            sourceRuleID: "tests"
+        )
+        await MainActor.run { environment.cleanup.setItems([item]) }
+        _ = await environment.cleanup.prepareCleanup(requiresConfirmation: false)
+
+        let result = await environment.confirmCleanup(operation: .junkCleanup)
+        guard case .purchaseRequired = result else {
+            return XCTFail("the free tier must not execute a cleanup")
+        }
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: file.path),
+            "the file was not moved"
+        )
+    }
+
     /// Resetting settings must release the grants as well as forget them in the
     /// settings store; otherwise the scan scope keeps reading an old volume.
     func test_resetSettingsReleasesAuthorizedLocations() async throws {

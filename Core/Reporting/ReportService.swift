@@ -36,19 +36,17 @@ public actor ReportService {
 
     /// Builds a report from a finished operation.
     ///
-    /// Display names are included for at most the first `entryLimit` items and
-    /// only as leaf names: the report is useful to the user without becoming a
-    /// file listing (§13.2).
+    /// Entries carry a category, a size and a status — never a file name. A leaf
+    /// name is still a file name: `Tax_Return_2026.pdf` or a customer name in a
+    /// shared report is exactly the leak the de-identification rule forbids.
     public func makeReport(
         from outcome: CleanupOutcome,
         scanReport: ScanReport?,
         entryLimit: Int = 20
     ) -> CleanupReport {
         let entries = outcome.results.prefix(entryLimit).map { result in
-            // The report keeps the file name only: no directory component ever
-            // reaches the report, which is what makes it safe to share.
             CleanupReport.Entry(
-                displayName: result.sourceURL.lastPathComponent,
+                displayName: "",
                 category: result.category?.rawValue ?? "unknown",
                 sizeInBytes: result.sizeInBytes,
                 status: result.status.rawValue,
@@ -194,11 +192,16 @@ public struct PDFPageRenderer {
         if !report.entries.isEmpty {
             cursor.section(LocalizationKey.cleanupResultDetails.localized)
             cursor.tableHeader([
-                LocalizationKey.commonPath.localized,
+                LocalizationKey.reportCategories.localized,
                 LocalizationKey.commonSize.localized,
             ])
             for entry in report.entries {
-                cursor.tableRow([entry.displayName, entry.formattedSize])
+                // The category, not the name: a report that leaves the machine
+                // must not describe which files a person cleaned.
+                cursor.tableRow([
+                    displayName(forCategory: entry.category),
+                    entry.formattedSize,
+                ])
             }
         }
 

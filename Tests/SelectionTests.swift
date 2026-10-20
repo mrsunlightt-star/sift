@@ -159,7 +159,7 @@ final class SelectionTests: XCTestCase, @unchecked Sendable {
         let selected = await model.selectedCount
         XCTAssertEqual(selected, 2)
 
-        await model.prepareCleanup(requiresConfirmation: true)
+        _ = await model.prepareCleanup(requiresConfirmation: true)
         let confirming = await model.isConfirming
         let approvedCount = await model.approvedCount
         let approvedItems = await model.approvedByCategory.reduce(0) { $0 + $1.itemCount }
@@ -177,7 +177,7 @@ final class SelectionTests: XCTestCase, @unchecked Sendable {
         XCTAssertEqual(approvedAfter, 2)
         XCTAssertEqual(totalsAfter, 2, "the approved summary still describes both items")
 
-        await model.confirmCleanup(operation: .junkCleanup)
+        await model.executePrepared(operation: .junkCleanup)
 
         let outcome = await model.outcome
         XCTAssertEqual(

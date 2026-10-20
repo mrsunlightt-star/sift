@@ -13,6 +13,10 @@ public struct ScanResultsView: View {
     @State private var page: [CleanupItemSummary] = []
     @State private var isLoading = false
     @State private var hasMore = false
+    /// Identifies the category load the visible page belongs to. A page request
+    /// that returns after the user switched categories must not append rows to
+    /// the new category's list.
+    @State private var loadGeneration = 0
 
     private let pageSize = 200
     /// The categories this page owns, or `nil` for all of them.
@@ -26,6 +30,9 @@ public struct ScanResultsView: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: SiftMetrics.spacingL) {
+            if let failure = scan.resultLoadFailure {
+                NoticeBanner(level: .error, message: failure)
+            }
             summaryHeader
             let totals = scan.categoryTotals.limited(to: categories)
             if totals.isEmpty {
@@ -44,7 +51,7 @@ public struct ScanResultsView: View {
                         hasMore: hasMore,
                         cleanup: cleanup,
                         onToggle: { Task { await toggle(total.category) } },
-                        onLoadMore: { Task { await loadMore(for: total.category) } }
+                        onLoadMore: { Task { await loadMore(for: total.category, generation: loadGeneration) } }
                     )
                 }
             }
@@ -85,16 +92,23 @@ public struct ScanResultsView: View {
             expandedCategory = nil
             return
         }
+        loadGeneration &+= 1
+        let generation = loadGeneration
         expandedCategory = category
         page = []
-        await loadMore(for: category)
+        hasMore = false
+        await loadMore(for: category, generation: generation)
     }
 
-    private func loadMore(for category: CleanupCategory) async {
-        guard !isLoading else { return }
+    private func loadMore(for category: CleanupCategory, generation: Int) async {
+        guard generation == loadGeneration, expandedCategory == category else { return }
         isLoading = true
-        defer { isLoading = false }
+        defer {
+            if generation == loadGeneration { isLoading = false }
+        }
         let next = await scan.page(offset: page.count, limit: pageSize, sort: .size, category: category)
+        // The user may have switched categories while the page was being read.
+        guard generation == loadGeneration, expandedCategory == category else { return }
         page.append(contentsOf: next.items)
         hasMore = next.remaining > 0
         cleanup.appendItems(next.items.map { $0.asCleanupItem() })

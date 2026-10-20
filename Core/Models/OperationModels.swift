@@ -251,6 +251,45 @@ public struct FileIdentitySnapshot: Sendable, Hashable {
     }
 }
 
+/// A pre-flighted batch that is allowed to reach the Trash.
+///
+/// The only way to obtain one is `PreflightReport.makeApprovedPlan(operation:)`.
+/// The initialiser is internal to `Core` on purpose: a feature page cannot
+/// assemble a plan from a live selection, so the risk and identity checks that
+/// pre-flight performed cannot be skipped by choosing another entry point.
+public struct ApprovedPlan: Sendable {
+    public let operation: CleanupOperationName
+    public let items: [CleanupItem]
+    /// The object each approved path named at pre-flight. Every item has one;
+    /// execution refuses an item whose identity is missing or has changed.
+    public let identities: [String: FileIdentitySnapshot]
+    public let categoryTotals: [CategoryTotal]
+    /// Items pre-flight refused, carried into the outcome so the result page
+    /// describes the whole batch rather than only the items that moved.
+    public let refusedResults: [FileOperationResult]
+    public let preparedAt: Date
+
+    init(
+        operation: CleanupOperationName,
+        items: [CleanupItem],
+        identities: [String: FileIdentitySnapshot],
+        categoryTotals: [CategoryTotal],
+        refusedResults: [FileOperationResult],
+        preparedAt: Date = Date()
+    ) {
+        self.operation = operation
+        self.items = items
+        self.identities = identities
+        self.categoryTotals = categoryTotals
+        self.refusedResults = refusedResults
+        self.preparedAt = preparedAt
+    }
+
+    public var count: Int { items.count }
+    public var bytes: Int64 { items.reduce(0) { $0 + $1.sizeInBytes } }
+    public var formattedBytes: String { SiftFormat.bytes(bytes) }
+}
+
 /// The result of pre-flight checking a whole selection.
 public struct PreflightReport: Sendable {
     public let ready: [CleanupItem]
@@ -262,8 +301,8 @@ public struct PreflightReport: Sendable {
     /// The object each ready item named at pre-flight, keyed by item id.
     ///
     /// Execution compares this snapshot with the object at the path immediately
-    /// before the move. An item with no entry keeps the older checks only; the
-    /// pre-flight path fills one for every item it approves.
+    /// before the move. Every ready item must have an entry; an item with no
+    /// identity is not approved.
     public let identities: [String: FileIdentitySnapshot]
 
     public init(
@@ -321,6 +360,41 @@ public struct PreflightReport: Sendable {
                 category: $0.category
             )
         }
+    }
+
+    /// The batch execution is allowed to act on.
+    ///
+    /// Returns `nil` when a ready item has no identity or is not cleanable. The
+    /// checks repeat what `FileOperationService.preflight` already enforced, so a
+    /// report assembled by another caller cannot turn into an executable plan.
+    public func makeApprovedPlan(
+        operation: CleanupOperationName,
+        categoryTotals: [CategoryTotal]? = nil
+    ) -> ApprovedPlan? {
+        guard !ready.isEmpty else { return nil }
+        guard ready.allSatisfy({ $0.risk.isCleanable }) else { return nil }
+        guard ready.allSatisfy({ identities[$0.id] != nil }) else { return nil }
+        let totals = categoryTotals ?? Self.categoryTotals(for: ready)
+        return ApprovedPlan(
+            operation: operation,
+            items: ready,
+            identities: identities,
+            categoryTotals: totals,
+            refusedResults: refusedResults
+        )
+    }
+
+    private static func categoryTotals(for items: [CleanupItem]) -> [CategoryTotal] {
+        var totals: [CleanupCategory: (count: Int, bytes: Int64)] = [:]
+        for item in items {
+            var entry = totals[item.category] ?? (0, 0)
+            entry.count += 1
+            entry.bytes += item.sizeInBytes
+            totals[item.category] = entry
+        }
+        return totals
+            .map { CategoryTotal(category: $0.key, itemCount: $0.value.count, totalBytes: $0.value.bytes) }
+            .sorted { $0.category.displayOrder < $1.category.displayOrder }
     }
 }
 

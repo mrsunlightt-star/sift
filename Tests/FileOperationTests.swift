@@ -26,6 +26,15 @@ final class FileOperationTests: XCTestCase, @unchecked Sendable {
         return FileOperationService(rules: engine, isDryRun: true)
     }
 
+    private func approve(
+        _ service: FileOperationService,
+        _ items: [CleanupItem],
+        operation: CleanupOperationName = .junkCleanup
+    ) async -> ApprovedPlan? {
+        let verdict = await service.preflight(items.map(FileOperationService.Candidate.init(item:)))
+        return verdict.makeApprovedPlan(operation: operation)
+    }
+
     private func item(_ url: URL, size: Int64 = 4096, risk: CleanupRisk = .safe) -> CleanupItem {
         CleanupItem(
             url: url,
@@ -106,11 +115,9 @@ final class FileOperationTests: XCTestCase, @unchecked Sendable {
         try? FileManager.default.removeItem(at: file)
         try? FileManager.default.createDirectory(at: file, withIntermediateDirectories: true)
 
-        let outcome = await service.moveToTrash(
-            verdict.ready,
-            operation: .junkCleanup,
-            identities: verdict.identities
-        )
+        let plan = verdict.makeApprovedPlan(operation: .junkCleanup)
+        XCTAssertNotNil(plan)
+        let outcome = await service.execute(plan!)
 
         XCTAssertEqual(outcome.movedCount, 0)
         XCTAssertEqual(outcome.results.first?.errorCode, ErrorCode.itemChanged.rawValue)
@@ -127,11 +134,9 @@ final class FileOperationTests: XCTestCase, @unchecked Sendable {
         let approved = item(file)
         let verdict = await service.preflight([FileOperationService.Candidate(item: approved)])
 
-        let outcome = await service.moveToTrash(
-            verdict.ready,
-            operation: .junkCleanup,
-            identities: verdict.identities
-        )
+        let plan = verdict.makeApprovedPlan(operation: .junkCleanup)
+        XCTAssertNotNil(plan)
+        let outcome = await service.execute(plan!)
 
         XCTAssertEqual(outcome.movedCount, 1)
         XCTAssertEqual(outcome.failedCount, 0)
@@ -166,12 +171,20 @@ final class FileOperationTests: XCTestCase, @unchecked Sendable {
         let victim = elsewhere.appendingPathComponent("thing.bin")
         try? Data(repeating: 0x78, count: 4096).write(to: victim)
         let cacheDirectory = fixture.directory("Library/Caches/com.example.app")
+        let cacheFile = cacheDirectory.appendingPathComponent("thing.bin")
+        try? Data(repeating: 0x79, count: 4096).write(to: cacheFile)
+
+        let service = makeService()
+        let verdict = await service.preflight([FileOperationService.Candidate(item: item(cacheFile))])
+        let plan = verdict.makeApprovedPlan(operation: .junkCleanup)
+        XCTAssertNotNil(plan)
+
+        // Re-point an ancestor after pre-flight. The object at the written path
+        // is now the victim under Documents.
         try? FileManager.default.removeItem(at: cacheDirectory)
         try? FileManager.default.createSymbolicLink(at: cacheDirectory, withDestinationURL: elsewhere)
 
-        let outcome = await makeService().moveToTrash([
-            item(cacheDirectory.appendingPathComponent("thing.bin"))
-        ])
+        let outcome = await service.execute(plan!)
         XCTAssertEqual(outcome.movedCount, 0)
         XCTAssertEqual(outcome.results.first?.errorCode, ErrorCode.itemChanged.rawValue)
         XCTAssertTrue(
@@ -208,6 +221,49 @@ final class FileOperationTests: XCTestCase, @unchecked Sendable {
             throughLink.ready.isEmpty,
             "a symlink the user selected is still refused, as it always was"
         )
+    }
+
+    /// A scanner can mark an ordinary path `protected`; the operation boundary
+    /// must refuse it even though the protection list has no entry for the path.
+    func test_preflightRefusesAProtectedRiskOnAnOrdinaryPath() async {
+        let file = fixture.write("Library/Caches/com.example.app/blob.bin", bytes: 4096)
+        let verdict = await makeService().preflight([
+            FileOperationService.Candidate(item: item(file, risk: .protected))
+        ])
+        XCTAssertTrue(verdict.ready.isEmpty)
+        XCTAssertEqual(verdict.protected.count, 1)
+        XCTAssertNil(verdict.makeApprovedPlan(operation: .junkCleanup))
+    }
+
+    /// A ready item with no identity is not an approvable plan.
+    func test_aPlanWithoutIdentityIsNotApproved() {
+        let item = item(fixture.url.appendingPathComponent("Library/Caches/com.example.app/blob.bin"))
+        let report = PreflightReport(
+            ready: [item],
+            skipped: [],
+            subsumed: [],
+            protected: [],
+            identities: [:]
+        )
+        XCTAssertNil(report.makeApprovedPlan(operation: .junkCleanup))
+    }
+
+    /// If a plan reaches execution without an identity, the move is refused
+    /// instead of falling back to a path-only check.
+    func test_executionRefusesAPlanWithoutIdentity() async {
+        let file = fixture.write("Library/Caches/com.example.app/blob.bin", bytes: 4096)
+        let approved = item(file)
+        let plan = ApprovedPlan(
+            operation: .junkCleanup,
+            items: [approved],
+            identities: [:],
+            categoryTotals: [],
+            refusedResults: []
+        )
+        let outcome = await makeService().execute(plan)
+        XCTAssertEqual(outcome.movedCount, 0)
+        XCTAssertEqual(outcome.results.first?.errorCode, ErrorCode.itemChanged.rawValue)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: file.path))
     }
 
     func test_preflightRefusesProtectedContent() async {
@@ -248,10 +304,22 @@ final class FileOperationTests: XCTestCase, @unchecked Sendable {
     }
 
     func test_executionTimeRecheckBlocksAProtectedPath() async {
-        // Handed straight to execution without pre-flight, the service must still
-        // refuse: the check exists twice on purpose (§13.3).
+        // A plan assembled by another caller must still be refused: the check
+        // exists twice on purpose (§13.3).
         let file = fixture.write("Documents/taxes.pdf", bytes: 4096)
-        let outcome = await makeService().moveToTrash([item(file)], operation: .junkCleanup)
+        let approved = item(file)
+        let identity = FileIdentitySnapshot.of(path: file.path)
+        XCTAssertNotNil(identity)
+        let report = PreflightReport(
+            ready: [approved],
+            skipped: [],
+            subsumed: [],
+            protected: [],
+            identities: [approved.id: identity!]
+        )
+        let plan = report.makeApprovedPlan(operation: .junkCleanup)
+        XCTAssertNotNil(plan)
+        let outcome = await makeService().execute(plan!)
         XCTAssertEqual(outcome.failedCount, 1)
         XCTAssertEqual(outcome.failedResults.first?.errorCode, ErrorCode.protectedLocation.rawValue)
         XCTAssertTrue(FileManager.default.fileExists(atPath: file.path))
@@ -259,18 +327,28 @@ final class FileOperationTests: XCTestCase, @unchecked Sendable {
 
     func test_dryRunMovesNothing() async {
         let file = fixture.write("Library/Caches/com.example.app/blob.bin", bytes: 4096)
-        let outcome = await makeService().moveToTrash([item(file)], operation: .junkCleanup)
+        let service = makeService()
+        let plan = await approve(service, [item(file)])
+        XCTAssertNotNil(plan)
+        let outcome = await service.execute(plan!)
         XCTAssertEqual(outcome.movedCount, 1)
         XCTAssertTrue(FileManager.default.fileExists(atPath: file.path))
     }
 
     func test_releasedBytesCountOnlyWhatMoved() async {
         let cache = fixture.write("Library/Caches/com.example.app/blob.bin", bytes: 4096)
-        let document = fixture.write("Documents/taxes.pdf", bytes: 8192)
-        let outcome = await makeService().moveToTrash(
-            [item(cache, size: 4096), item(document, size: 8192)],
-            operation: .junkCleanup
-        )
+        let service = makeService()
+        let verdict = await service.preflight([
+            FileOperationService.Candidate(item: item(cache, size: 4096)),
+            FileOperationService.Candidate(item: item(
+                fixture.write("Documents/taxes.pdf", bytes: 8192),
+                size: 8192
+            )),
+        ])
+        XCTAssertEqual(verdict.ready.count, 1, "the protected document never enters the plan")
+        let plan = verdict.makeApprovedPlan(operation: .junkCleanup)
+        XCTAssertNotNil(plan)
+        let outcome = await service.execute(plan!)
         XCTAssertEqual(outcome.releasedBytes, 4096)
     }
 
@@ -309,11 +387,9 @@ final class FileOperationTests: XCTestCase, @unchecked Sendable {
         XCTAssertEqual(verdict.refusedResults.count, 1, "the pre-flight refusal becomes a result")
         XCTAssertEqual(verdict.refusedResults.first?.errorCode, ErrorCode.fileNotFound.rawValue)
 
-        let outcome = await service.moveToTrash(
-            verdict.ready,
-            operation: .junkCleanup,
-            refusedByPreflight: verdict.refusedResults
-        )
+        let plan = verdict.makeApprovedPlan(operation: .junkCleanup)
+        XCTAssertNotNil(plan)
+        let outcome = await service.execute(plan!)
         XCTAssertEqual(outcome.results.count, 2, "one moved and one refused, both reported")
         XCTAssertEqual(outcome.movedCount, 1)
         XCTAssertEqual(outcome.skippedCount, 1)
@@ -384,7 +460,10 @@ final class TrashIntegrationTests: XCTestCase, @unchecked Sendable {
             sourceRuleID: "tests"
         )
 
-        let outcome = await service.moveToTrash([item])
+        let verdict = await service.preflight([FileOperationService.Candidate(item: item)])
+        let plan = verdict.makeApprovedPlan(operation: .junkCleanup)
+        XCTAssertNotNil(plan)
+        let outcome = await service.execute(plan!)
 
         XCTAssertEqual(outcome.movedCount, 1)
         XCTAssertEqual(outcome.failedCount, 0, "\(outcome.failedResults.map(\.message))")

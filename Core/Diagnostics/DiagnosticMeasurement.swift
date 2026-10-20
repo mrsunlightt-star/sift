@@ -1,6 +1,31 @@
 import Foundation
 import Shared
 
+/// One run's measurement allowance, shared by every provider and location.
+public final class DiagnosticBudget: @unchecked Sendable {
+    private let lock = NSLock()
+    private var remaining: Int
+
+    public init(_ limit: Int) {
+        self.remaining = max(limit, 0)
+    }
+
+    /// Consumes one entry, or reports that the run is out of budget.
+    func consume() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard remaining > 0 else { return false }
+        remaining -= 1
+        return true
+    }
+
+    public var isExhausted: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return remaining <= 0
+    }
+}
+
 /// The result of measuring one location.
 public struct DiagnosticMeasurement: Sendable {
     /// Space the file system allocated inside the location.
@@ -72,6 +97,14 @@ enum DiagnosticMeasurer {
         budget: Int = StorageDiagnostics.defaultMeasurementBudget,
         isCancelled: () -> Bool
     ) -> DiagnosticMeasurement {
+        measure(url, budget: DiagnosticBudget(budget), isCancelled: isCancelled)
+    }
+
+    static func measure(
+        _ url: URL,
+        budget: DiagnosticBudget,
+        isCancelled: () -> Bool
+    ) -> DiagnosticMeasurement {
         var result = DiagnosticMeasurement()
 
         let rootValues = try? url.resourceValues(forKeys: Set(keys))
@@ -101,7 +134,6 @@ enum DiagnosticMeasurer {
         }
 
         let rootVolume = volumeIdentifier(of: url)
-        var visited = 0
         var stack = [url]
         while let directory = stack.popLast() {
             if isCancelled() { return result }
@@ -119,11 +151,10 @@ enum DiagnosticMeasurer {
             }
             for child in contents {
                 if isCancelled() { return result }
-                if visited >= budget {
+                guard budget.consume() else {
                     result.truncated = true
                     return result
                 }
-                visited += 1
 
                 let values = try? child.resourceValues(forKeys: Set(keys))
                 if values?.isSymbolicLink == true { continue }

@@ -69,6 +69,37 @@ final class StorageAnalysisTests: XCTestCase, @unchecked Sendable {
         XCTAssertEqual(analysis.scannedByteCount, 4096)
     }
 
+    func test_hiddenFilesFollowTheScanPreference() async throws {
+        fixture.write(".hidden/data.bin", bytes: 8192)
+        fixture.write("visible.bin", bytes: 4096)
+
+        let shown = try await makeAnalyzer().analyze(
+            roots: [ScanRoot(url: fixture.url, anchor: .home)],
+            includeHiddenFiles: true
+        )
+        XCTAssertEqual(shown.scannedFileCount, 2)
+
+        let hidden = try await makeAnalyzer().analyze(
+            roots: [ScanRoot(url: fixture.url, anchor: .home)],
+            includeHiddenFiles: false
+        )
+        XCTAssertEqual(hidden.scannedFileCount, 1, "\(hidden.topFiles.map(\.url.path))")
+        XCTAssertEqual(hidden.scannedByteCount, 4096, "\(hidden.topFiles.map(\.url.path))")
+        XCTAssertFalse(hidden.topFiles.contains { $0.url.lastPathComponent == "data.bin" })
+    }
+
+    func test_anIgnoredSubtreeInsideAPackageIsNotMeasured() async throws {
+        fixture.write("App.app/Contents/keep.bin", bytes: 4096)
+        let ignored = fixture.write("App.app/Contents/ignored/data.bin", bytes: 8192)
+
+        let analysis = try await makeAnalyzer().analyze(
+            roots: [ScanRoot(url: fixture.url, anchor: .home)],
+            ignoredPaths: [ignored.deletingLastPathComponent().path]
+        )
+
+        XCTAssertEqual(analysis.scannedByteCount, 4096)
+    }
+
     func test_nestedRootsAreNotCountedTwice() async throws {
         fixture.write("Downloads/a.bin", bytes: 4096)
 

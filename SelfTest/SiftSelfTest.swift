@@ -307,10 +307,13 @@ final class Harness: @unchecked Sendable {
             equal(linkVerdict.ready.count, 0, "a symlink is refused")
 
             // A dry-run batch reports each item and moves nothing.
-            let outcome = await dryRun.moveToTrash(
-                [makeItem(url: cacheFile, risk: .safe)],
-                operation: .junkCleanup
-            )
+            let cacheItem = makeItem(url: cacheFile, risk: .safe)
+            let cacheVerdict = await dryRun.preflight([
+                FileOperationService.Candidate(item: cacheItem)
+            ])
+            let cachePlan = cacheVerdict.makeApprovedPlan(operation: .junkCleanup)
+            check(cachePlan != nil, "a pre-flighted item produces an approved plan")
+            let outcome = await dryRun.execute(cachePlan!)
             equal(outcome.movedCount, 1, "a dry run reports one moved item")
             equal(outcome.failedCount, 0, "a dry run reports no failures")
             check(
@@ -319,30 +322,42 @@ final class Harness: @unchecked Sendable {
             )
 
             // The protection check also runs at execution time, not only in
-            // pre-flight: a stale result cannot slip a document through.
-            let guarded = await dryRun.moveToTrash(
-                [makeItem(url: documentFile, risk: .safe)],
-                operation: .junkCleanup
-            )
-            equal(guarded.failedCount, 1, "a protected path fails at execution time")
-            equal(
-                guarded.failedResults.first?.errorCode,
-                ErrorCode.protectedLocation.rawValue,
-                "the failure carries the protectedLocation code"
-            )
+            // pre-flight: a plan assembled with the document's identity still
+            // fails when the service reaches the protection list.
+            let documentItem = makeItem(url: documentFile, risk: .safe)
+            if let identity = FileIdentitySnapshot.of(path: documentFile.path) {
+                let forged = PreflightReport(
+                    ready: [documentItem],
+                    skipped: [],
+                    subsumed: [],
+                    protected: [],
+                    identities: [documentItem.id: identity]
+                )
+                if let plan = forged.makeApprovedPlan(operation: .junkCleanup) {
+                    let guarded = await dryRun.execute(plan)
+                    equal(guarded.failedCount, 1, "a protected path fails at execution time")
+                    equal(
+                        guarded.failedResults.first?.errorCode,
+                        ErrorCode.protectedLocation.rawValue,
+                        "the failure carries the protectedLocation code"
+                    )
+                } else {
+                    check(false, "a ready item with an identity is approvable")
+                }
+            } else {
+                check(false, "the document fixture has an identity")
+            }
             check(
                 FileManager.default.fileExists(atPath: documentFile.path),
                 "the document is untouched"
             )
 
             // Released bytes are computed from what moved, not from the request.
-            let mixed = await dryRun.moveToTrash(
-                [
-                    makeItem(url: cacheFile, size: 4096, risk: .safe),
-                    makeItem(url: documentFile, size: 8192, risk: .safe),
-                ],
-                operation: .junkCleanup
-            )
+            let mixedVerdict = await dryRun.preflight([
+                FileOperationService.Candidate(item: makeItem(url: cacheFile, size: 4096, risk: .safe))
+            ])
+            let mixedPlan = mixedVerdict.makeApprovedPlan(operation: .junkCleanup)!
+            let mixed = await dryRun.execute(mixedPlan)
             equal(mixed.releasedBytes, 4096, "released bytes count only the items that moved")
 
             // Paths with spaces, non-ASCII characters and traversal are handled
@@ -379,12 +394,13 @@ final class Harness: @unchecked Sendable {
 
             let engine = SwiftScannerEngine(rules: RuleEngine(rules: RuleEngine.builtInRules, homeDirectory: home))
             let request = ScanRequest(
+                homeDirectory: home,
                 roots: [ScanRoot(url: home, anchor: .home)],
                 largeFileThresholdBytes: 1024 * 1024,
                 oldFileThresholdDays: 180,
                 staleThresholdDays: 30,
                 ignoredPaths: [],
-                installedBundleIdentifiers: [],
+                installedBundleIdentifiers: ["com.example.app", "com.other.app"],
                 includeDuplicates: false,
                 duplicateRoots: []
             )
@@ -494,9 +510,14 @@ final class Harness: @unchecked Sendable {
                 "consecutive pages do not repeat rows"
             )
 
-            // The analysis path shares the same rules.
-            let analysis = (try? await engine.analyzeStorage(roots: [ScanRoot(url: home, anchor: .home)]))
-                ?? .empty
+            // The analysis path shares the same rules. `StorageAnalyzer` is the
+            // one owner of measurement; the scan engines only discover items.
+            let analyzer = StorageAnalyzer(
+                rules: RuleEngine(rules: RuleEngine.builtInRules, homeDirectory: home)
+            )
+            let analysis = (try? await analyzer.analyze(
+                roots: [ScanRoot(url: home, anchor: .home)]
+            )) ?? .empty
             check(analysis.scannedFileCount > 0, "storage analysis examines files")
             check(analysis.categories.count > 0, "storage analysis groups by category")
             check(analysis.totalBytes > 0, "storage analysis reports volume capacity")
@@ -539,6 +560,7 @@ final class Harness: @unchecked Sendable {
                 rules: RuleEngine(rules: RuleEngine.builtInRules, homeDirectory: home)
             )
             let request = ScanRequest(
+                homeDirectory: home,
                 roots: [ScanRoot(url: home, anchor: .home)],
                 includeDuplicates: true,
                 duplicateRoots: [fixture.root.appendingPathComponent("Downloads").path]

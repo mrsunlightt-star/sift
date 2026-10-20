@@ -55,6 +55,12 @@ public struct ScanRequest: Sendable {
     public var includeDuplicates: Bool
     /// Roots the duplicate pipeline may search. Empty means "use `roots`".
     public var duplicateRoots: [String]
+    /// How many full-content hashes the duplicate pipeline may compute.
+    ///
+    /// One number for both engines: a Swift fallback that stopped at a private
+    /// limit reported fewer groups and still called the run complete, while the
+    /// Rust core kept going and marked its run partial.
+    public var duplicateMaxFullHashes: Int
     /// Validated extra rule definitions, handed to the Rust engine verbatim.
     ///
     /// The Swift engine reads the same file through `RuleEngine`, so both cores
@@ -73,6 +79,7 @@ public struct ScanRequest: Sendable {
         includeHiddenFiles: Bool = true,
         includeDuplicates: Bool = true,
         duplicateRoots: [String] = [],
+        duplicateMaxFullHashes: Int = ScanDefaults.duplicateMaxFullHashes,
         extraRulesJSON: String? = nil
     ) {
         self.homeDirectory = homeDirectory
@@ -86,6 +93,7 @@ public struct ScanRequest: Sendable {
         self.includeHiddenFiles = includeHiddenFiles
         self.includeDuplicates = includeDuplicates
         self.duplicateRoots = duplicateRoots
+        self.duplicateMaxFullHashes = duplicateMaxFullHashes
         self.extraRulesJSON = extraRulesJSON
     }
 }
@@ -122,6 +130,8 @@ public enum ScanDefaults {
     public static let staleThresholdDays = 30
     /// Small files are not worth reporting as duplicates or old files.
     public static let duplicateMinimumBytes: Int64 = 4 * 1024
+    /// Cap on full hashes per duplicate scan. Both engines read this value.
+    public static let duplicateMaxFullHashes = 200_000
     /// Files below this size are excluded from the old-file list.
     public static let oldFileMinimumBytes: Int64 = 10 * 1024 * 1024
     /// Caps for the analysis lists (§5.4).
@@ -195,19 +205,6 @@ public protocol ScannerEngine: Sendable {
     /// Starts a scan. The call returns as soon as the engine has a session; the
     /// work continues on its own thread or task.
     func startScan(_ request: ScanRequest) async throws -> any ScanSession
-
-    /// Analyses storage without producing cleanup items.
-    ///
-    /// `ignoredPaths` carries the user's "never visit" list into the analysis, so
-    /// a location excluded from scans is excluded from the storage page too.
-    func analyzeStorage(roots: [ScanRoot], ignoredPaths: [String]) async throws -> StorageAnalysis
-}
-
-public extension ScannerEngine {
-    /// Analysis with no ignore list, for callers that have no settings scope.
-    func analyzeStorage(roots: [ScanRoot]) async throws -> StorageAnalysis {
-        try await analyzeStorage(roots: roots, ignoredPaths: [])
-    }
 }
 
 /// Errors a scanner can raise, always carrying a code the UI can act on.

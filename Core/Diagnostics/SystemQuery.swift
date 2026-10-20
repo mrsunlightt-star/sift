@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 
 /// What macOS reports about its own indexes and snapshots.
@@ -43,21 +44,50 @@ enum SystemQuery {
             return Outcome(output: "", succeeded: false)
         }
 
-        // A watchdog rather than a wait deadline: a tool that hangs must not hang
-        // a scan. The output of both queries is a few hundred bytes, far below the
-        // pipe buffer, so reading to EOF cannot deadlock against the child.
-        let watchdog = DispatchWorkItem {
-            if process.isRunning { process.terminate() }
+        // The caller waits on the *read*, with a deadline. A watchdog that only
+        // calls `terminate()` left the synchronous read and `waitUntilExit()`
+        // blocked when the tool ignored SIGTERM or kept the pipe open — the
+        // page then sat in "analyzing" with no verdict at all.
+        let box = OutputBox()
+        let finished = DispatchSemaphore(value: 0)
+        DispatchQueue.global().async {
+            box.set(pipe.fileHandleForReading.readDataToEndOfFile())
+            finished.signal()
         }
-        DispatchQueue.global().asyncAfter(deadline: .now() + timeout, execute: watchdog)
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-        watchdog.cancel()
 
+        if finished.wait(timeout: .now() + timeout) == .timedOut {
+            process.terminate()
+            if finished.wait(timeout: .now() + 1) == .timedOut {
+                kill(process.processIdentifier, SIGKILL)
+                _ = finished.wait(timeout: .now() + 1)
+            }
+            process.waitUntilExit()
+            return Outcome(output: "", succeeded: false)
+        }
+
+        process.waitUntilExit()
         return Outcome(
-            output: String(data: data, encoding: .utf8) ?? "",
+            output: String(data: box.value, encoding: .utf8) ?? "",
             succeeded: process.terminationStatus == 0
         )
+    }
+
+    /// A small locked box for the bytes read on the background queue.
+    private final class OutputBox: @unchecked Sendable {
+        private let lock = NSLock()
+        private var data = Data()
+
+        func set(_ next: Data) {
+            lock.lock()
+            data = next
+            lock.unlock()
+        }
+
+        var value: Data {
+            lock.lock()
+            defer { lock.unlock() }
+            return data
+        }
     }
 
     // MARK: - Spotlight

@@ -108,6 +108,16 @@ public actor FileOperationService {
         for candidate in ordered {
             let path = candidate.url.path
 
+            // The scanner marks an item `protected` precisely so it can never be
+            // acted on. That decision is repeated here because this service is
+            // the last boundary before `trashItem`, and a future entry point must
+            // not be able to hand it a protected item by constructing one.
+            if !candidate.risk.isCleanable {
+                protected.append(candidate)
+                logger.notice("Refused a non-cleanable risk at pre-flight")
+                continue
+            }
+
             if let reason = rules.protectionReason(for: path) {
                 protected.append(candidate)
                 logger.notice(
@@ -284,7 +294,12 @@ public actor FileOperationService {
 
     // MARK: - Execution
 
-    /// Moves a pre-flighted selection to the Trash.
+    /// Moves an approved plan to the Trash.
+    ///
+    /// This is the only destructive entry point. It takes an `ApprovedPlan`
+    /// rather than a live selection so the risk level, the object identity and
+    /// the pre-flight refusals are the ones the user approved, not ones a caller
+    /// could rebuild from a newer list.
     ///
     /// Returns one result per item. Items are processed sequentially on this
     /// actor so two operations can never race on the same path.
@@ -296,17 +311,30 @@ public actor FileOperationService {
     /// nothing but the items that happened to arrive would hide the refusals.
     /// The moved and failed items come first, so the page still leads with what
     /// it did.
-    public func moveToTrash(
-        _ items: [CleanupItem],
-        categoryTotals: [CategoryTotal] = [],
-        operation: CleanupOperationName = .junkCleanup,
-        identities: [String: FileIdentitySnapshot] = [:],
-        refusedByPreflight: [FileOperationResult] = []
-    ) async -> CleanupOutcome {
+    public func execute(_ plan: ApprovedPlan) async -> CleanupOutcome {
         let startedAt = Date()
         var results: [FileOperationResult] = []
+        let operation = plan.operation
+        let categoryTotals = plan.categoryTotals
 
-        for item in items {
+        for item in plan.items {
+            // A protected item is not executable even if a plan was assembled by
+            // hand. The pre-flight pass refuses it too; this is the last word.
+            guard item.risk.isCleanable else {
+                logger.error("Blocked a non-cleanable risk at execution time")
+                results.append(
+                    FileOperationResult(
+                        sourceURL: item.url,
+                        status: .failed,
+                        errorCode: ErrorCode.protectedLocation.rawValue,
+                        message: LocalizationKey.cleanupFailureProtectedLocation.localized,
+                        sizeInBytes: item.sizeInBytes,
+                        category: item.category
+                    )
+                )
+                continue
+            }
+
             // Re-validate every item immediately before acting: the scan result
             // may be minutes old, and a protected path must never slip through
             // because it was classified earlier.
@@ -378,22 +406,35 @@ public actor FileOperationService {
             // it is replaced. `trashItem` would then move the new object, which
             // the user never selected and the protection list never judged.
             // Pre-flight recorded the object it approved; anything else at this
-            // path now is refused.
-            if let expected = identities[item.id] {
-                guard let current = FileIdentitySnapshot.of(path: item.url.path), current == expected else {
-                    logger.error("Refused an item whose object changed before the move (code=itemChanged)")
-                    results.append(
-                        FileOperationResult(
-                            sourceURL: item.url,
-                            status: .skipped,
-                            errorCode: ErrorCode.itemChanged.rawValue,
-                            message: LocalizationKey.cleanupFailureItemChanged.localized,
-                            sizeInBytes: item.sizeInBytes,
-                            category: item.category
-                        )
+            // path now is refused. A missing snapshot is refused too: falling
+            // back to the path checks is exactly the gap this snapshot closes.
+            guard let expected = plan.identities[item.id] else {
+                logger.error("Refused an item without a pre-flight identity (code=itemChanged)")
+                results.append(
+                    FileOperationResult(
+                        sourceURL: item.url,
+                        status: .skipped,
+                        errorCode: ErrorCode.itemChanged.rawValue,
+                        message: LocalizationKey.cleanupFailureItemChanged.localized,
+                        sizeInBytes: item.sizeInBytes,
+                        category: item.category
                     )
-                    continue
-                }
+                )
+                continue
+            }
+            guard let current = FileIdentitySnapshot.of(path: item.url.path), current == expected else {
+                logger.error("Refused an item whose object changed before the move (code=itemChanged)")
+                results.append(
+                    FileOperationResult(
+                        sourceURL: item.url,
+                        status: .skipped,
+                        errorCode: ErrorCode.itemChanged.rawValue,
+                        message: LocalizationKey.cleanupFailureItemChanged.localized,
+                        sizeInBytes: item.sizeInBytes,
+                        category: item.category
+                    )
+                )
+                continue
             }
 
             if isDryRun {
@@ -444,7 +485,7 @@ public actor FileOperationService {
         }
 
         let finishedAt = Date()
-        results.append(contentsOf: refusedByPreflight)
+        results.append(contentsOf: plan.refusedResults)
         let outcome = CleanupOutcome(
             results: results,
             categoryTotals: categoryTotals,

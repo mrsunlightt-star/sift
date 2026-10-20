@@ -44,6 +44,9 @@ public final class ScanModel: ObservableObject {
     /// True once the risk split has been read from the finished index. The
     /// overview only states the split when it is complete.
     @Published public private(set) var riskTotalsComplete = false
+    /// Why the last page read failed, when it did. A failed index read is not an
+    /// empty result: the page keeps the previous rows and says the read failed.
+    @Published public private(set) var resultLoadFailure: String?
 
     /// Seconds since this run started, or the finished run's duration.
     public var elapsed: TimeInterval {
@@ -70,6 +73,10 @@ public final class ScanModel: ObservableObject {
     /// and started. A pump may only write into the run it was started for, or a
     /// cancelled scan's results appear under the new scan's heading.
     private var generation = 0
+    /// True once the engine published a verdict — completed, failed, or a
+    /// cancellation. A phase event alone is not a verdict: `.ready` can arrive
+    /// in one poll batch and its report in the next.
+    private var terminalReceived = false
 
     public init(engine: any ScannerEngine, rules: RuleEngine) {
         self.engine = engine
@@ -99,7 +106,7 @@ public final class ScanModel: ObservableObject {
     /// describes an unfinished run. This is the completion gate that makes the
     /// result pages read one settled scan.
     public func waitUntilSettled() async {
-        while session != nil, !isSettled {
+        while session != nil, !terminalReceived {
             if Task.isCancelled { return }
             try? await Task.sleep(nanoseconds: 20_000_000)
         }
@@ -121,6 +128,7 @@ public final class ScanModel: ObservableObject {
 
         generation &+= 1
         let run = generation
+        terminalReceived = false
         runStartedAt = Date()
         do {
             let session = try await engine.startScan(request)
@@ -133,9 +141,11 @@ public final class ScanModel: ObservableObject {
         } catch let error as ScannerError {
             failure = (error.code, error.message)
             phase = .failed
+            terminalReceived = true
         } catch {
             failure = (.internalError, LocalizationKey.commonUnknownError.localized)
             phase = .failed
+            terminalReceived = true
         }
     }
 
@@ -147,6 +157,7 @@ public final class ScanModel: ObservableObject {
     /// run, and a scan left in `scanning` would offer a cancel button forever.
     public func cancel() async {
         generation &+= 1
+        terminalReceived = true
         pollTask?.cancel()
         pollTask = nil
         guard let session else {
@@ -177,6 +188,8 @@ public final class ScanModel: ObservableObject {
         protectedItemCount = 0
         duplicateReclaimableBytes = 0
         riskTotalsComplete = false
+        resultLoadFailure = nil
+        terminalReceived = false
     }
 
     // MARK: - Paging
@@ -191,8 +204,23 @@ public final class ScanModel: ObservableObject {
         guard let session else {
             return ScanPage(items: [], remaining: 0)
         }
-        return (try? await session.page(offset: offset, limit: limit, sort: sort, category: category))
-            ?? ScanPage(items: [], remaining: 0)
+        do {
+            let page = try await session.page(
+                offset: offset,
+                limit: limit,
+                sort: sort,
+                category: category
+            )
+            resultLoadFailure = nil
+            return page
+        } catch {
+            // An index that cannot be read is not an empty result. Keep the
+            // failure so the page can say what happened instead of rendering
+            // "nothing found".
+            resultLoadFailure = (error as? ScannerError)?.message
+                ?? LocalizationKey.commonUnknownError.localized
+            return ScanPage(items: [], remaining: 0)
+        }
     }
 
     /// How many duplicate groups one page holds.
@@ -218,7 +246,12 @@ public final class ScanModel: ObservableObject {
     /// Loads the first page of duplicate groups, once a scan has finished.
     public func loadDuplicateGroups(limit: Int = ScanModel.duplicateGroupsPageSize) async {
         guard let session else { return }
-        duplicateGroups = (try? await session.duplicateGroups(offset: 0, limit: limit)) ?? []
+        do {
+            duplicateGroups = try await session.duplicateGroups(offset: 0, limit: limit)
+            resultLoadFailure = nil
+        } catch {
+            recordLoadFailure(error)
+        }
     }
 
     /// Appends the next page of duplicate groups.
@@ -227,20 +260,35 @@ public final class ScanModel: ObservableObject {
     /// on screen keeps its expansion and its selection.
     public func loadMoreDuplicateGroups(limit: Int = ScanModel.duplicateGroupsPageSize) async {
         guard let session, hasMoreDuplicateGroups else { return }
-        let next = (try? await session.duplicateGroups(
-            offset: duplicateGroups.count,
-            limit: limit
-        )) ?? []
-        // A page that repeats what is already loaded would leave the button
-        // offering a load that never advances.
-        let known = Set(duplicateGroups.map(\.id))
-        duplicateGroups.append(contentsOf: next.filter { !known.contains($0.id) })
+        do {
+            let next = try await session.duplicateGroups(
+                offset: duplicateGroups.count,
+                limit: limit
+            )
+            // A page that repeats what is already loaded would leave the button
+            // offering a load that never advances.
+            let known = Set(duplicateGroups.map(\.id))
+            duplicateGroups.append(contentsOf: next.filter { !known.contains($0.id) })
+            resultLoadFailure = nil
+        } catch {
+            recordLoadFailure(error)
+        }
     }
 
     /// Loads the members of one duplicate group.
     public func duplicateMembers(for group: DuplicateGroup) async -> [DuplicateMember] {
         guard let session else { return group.members }
-        return (try? await session.duplicateMembers(groupID: group.id)) ?? group.members
+        do {
+            return try await session.duplicateMembers(groupID: group.id)
+        } catch {
+            recordLoadFailure(error)
+            return group.members
+        }
+    }
+
+    private func recordLoadFailure(_ error: Error) {
+        resultLoadFailure = (error as? ScannerError)?.message
+            ?? LocalizationKey.commonUnknownError.localized
     }
 
     /// Reads the risk split from the finished index.
@@ -263,12 +311,16 @@ public final class ScanModel: ObservableObject {
         var complete = false
 
         while !Task.isCancelled {
-            guard let page = try? await session.page(
-                offset: offset,
-                limit: limit,
-                sort: .size,
-                category: nil
-            ) else {
+            let page: ScanPage
+            do {
+                page = try await session.page(
+                    offset: offset,
+                    limit: limit,
+                    sort: .size,
+                    category: nil
+                )
+            } catch {
+                recordLoadFailure(error)
                 return
             }
             if page.items.isEmpty {
@@ -369,9 +421,10 @@ public final class ScanModel: ObservableObject {
                     // `waitUntilSettled` from waiting forever on a run that can
                     // never settle; a decoded summary that failed is the case
                     // this exists for.
-                    if !self.isSettled {
+                    if !self.terminalReceived {
                         self.failure = (.internalError, LocalizationKey.commonUnknownError.localized)
                         self.phase = .failed
+                        self.terminalReceived = true
                     }
                     break
                 }
@@ -419,8 +472,12 @@ public final class ScanModel: ObservableObject {
                 }
 
             case let .completed(report):
+                // A failure is a verdict. A later completion event from the same
+                // worker must not turn a partial write back into a success.
+                guard self.failure == nil else { break }
                 self.report = report
                 self.phase = report.phase
+                self.terminalReceived = true
                 self.categoryTotals = report.categoryTotals
                 if !report.skippedLocations.isEmpty {
                     self.skippedLocations = report.skippedLocations
@@ -432,6 +489,7 @@ public final class ScanModel: ObservableObject {
             case let .failed(code, message):
                 self.failure = (code, message)
                 self.phase = .failed
+                self.terminalReceived = true
             }
         }
     }

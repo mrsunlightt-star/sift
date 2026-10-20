@@ -59,12 +59,18 @@ public actor PermissionsService {
             return cached.1
         }
         let report = Self.locations(home: home).map { url, titleKey, needsFullDiskAccess in
-            LocationAccess(
+            let readable = isReadable(url)
+            return LocationAccess(
                 url: url,
                 title: titleKey.localized,
-                isReadable: isReadable(url),
-                // A location that does not exist is not a permission problem.
-                requiresFullDiskAccess: needsFullDiskAccess && !fileManager.fileExists(atPath: url.path)
+                isReadable: readable,
+                // A location that does not exist is not a permission problem;
+                // an existing location that cannot be listed is. The old test
+                // was inverted, so a denied system log folder never offered the
+                // Full Disk Access button.
+                requiresFullDiskAccess: needsFullDiskAccess
+                    && fileManager.fileExists(atPath: url.path)
+                    && !readable
             )
         }
         cachedReport = (Date(), report)

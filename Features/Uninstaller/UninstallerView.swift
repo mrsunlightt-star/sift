@@ -19,6 +19,7 @@ public struct UninstallerView: View {
     @State private var isLoadingPlan = false
     @State private var isConfirming = false
     @State private var outcome: CleanupOutcome?
+    @State private var outcomeReport: CleanupReport?
     @State private var includeReviewFiles = false
     @State private var quitFailure: String?
     @State private var showsAllApps = false
@@ -494,7 +495,9 @@ public struct UninstallerView: View {
                 title: LocalizationKey.appsUninstallAndClean.localized(
                     plan.formattedTotal(includeReviewFiles: includeReviewFiles)
                 ),
-                isEnabled: !plan.application.isSystemApplication && !environment.cleanup.isWorking
+                isEnabled: !plan.application.isSystemApplication
+                    && !environment.cleanup.isWorking
+                    && !environment.isPerformingFileOperation
             ) {
                 Task { await requestUninstall(plan) }
             }
@@ -549,13 +552,26 @@ public struct UninstallerView: View {
             SiftGlassCard(surface: .floating, padding: 0) {
                 CleanupResultView(
                     outcome: outcome,
-                    report: nil as CleanupReport?,
-                    onAcknowledge: { self.outcome = nil },
-                    onExport: {},
+                    report: outcomeReport,
+                    onAcknowledge: {
+                        self.outcome = nil
+                        self.outcomeReport = nil
+                    },
+                    onExport: {
+                        Task {
+                            guard await environment.canExportReports() else {
+                                onRequestPurchase()
+                                return
+                            }
+                            if let report = outcomeReport {
+                                await environment.exportReport(report)
+                            }
+                        }
+                    },
                     onOpenTrash: { Task { await environment.openTrash() } },
                     onRevealFailed: { url in Task { await environment.reveal(url) } },
                     onRequestPurchase: onRequestPurchase,
-                    statusMessage: nil
+                    statusMessage: environment.reportExportMessage
                 )
                 .padding(SiftMetrics.spacingXL)
             }
@@ -609,30 +625,20 @@ public struct UninstallerView: View {
     private func performUninstall() async {
         guard let plan else { return }
         let items = plan.selectedItems(includeReviewFiles: includeReviewFiles)
-        let candidates = items.map(FileOperationService.Candidate.init(item:))
-        let preflight = await environment.operations.preflight(candidates)
-        let result = await environment.operations.moveToTrash(
-            preflight.ready,
-            categoryTotals: [
-                CategoryTotal(
-                    category: .applicationResidue,
-                    itemCount: preflight.ready.count,
-                    totalBytes: preflight.ready.reduce(0) { $0 + $1.sizeInBytes }
-                )
-            ],
-            operation: .uninstall,
-            identities: preflight.identities,
-            // Whatever the pre-flight refused — the running application, a
-            // related file that is already gone — is reported on the result page
-            // with its reason instead of disappearing from the batch.
-            refusedByPreflight: preflight.refusedResults
-        )
-        outcome = result
-        RecentHistory.recordCleanup(result)
-        environment.invalidateApplications()
-        await environment.loadApplications(force: true)
-        selected = nil
-        self.plan = nil
+        let result = await environment.performUninstall(items: items)
+        switch result {
+        case let .executed(execution):
+            outcome = execution.outcome
+            outcomeReport = execution.report
+            environment.invalidateApplications()
+            await environment.loadApplications(force: true)
+            selected = nil
+            self.plan = nil
+        case .purchaseRequired:
+            onRequestPurchase()
+        case .nothingToDo, .busy, .awaitingConfirmation:
+            break
+        }
     }
 }
 

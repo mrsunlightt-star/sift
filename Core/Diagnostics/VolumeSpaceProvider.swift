@@ -57,7 +57,7 @@ public struct VolumeSpaceProvider: StorageDiagnosticProvider {
 
                 let measured = DiagnosticMeasurer.measure(
                     child,
-                    budget: context.measurementBudget,
+                    budget: context.budget,
                     isCancelled: context.isCancelled
                 )
                 if context.isCancelled() { break }

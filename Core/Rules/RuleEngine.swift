@@ -134,6 +134,10 @@ public struct RuleEngine: Sendable {
     /// that exist to stop Sift scanning those trees by default. It never unlocks
     /// user content, keychains or a photos library.
     private let authorized: AuthorizedScope
+    /// The grants captured when a scan started, when this engine is a run
+    /// snapshot. A live engine reads the shared scope; a scan must not see a
+    /// grant added halfway through its walk.
+    private let authorizedSnapshot: [String]?
     /// The home directory every path comparison is made against.
     ///
     /// Exposed because the scanners, the storage analysis and the file
@@ -151,13 +155,15 @@ public struct RuleEngine: Sendable {
     public init(
         homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser,
         userRuleURL: URL? = nil,
-        authorized: AuthorizedScope = AuthorizedScope()
+        authorized: AuthorizedScope = AuthorizedScope(),
+        authorizedSnapshot: [String]? = nil
     ) {
         // Resolved on the way in so every later comparison uses one spelling of
         // the path. `URL.resolvingSymlinksInPath` is used rather than
         // `FileManager` so a path that does not exist yet still resolves.
         self.homeDirectory = Self.normalize(homeDirectory.resolvingSymlinksInPath().path)
         self.authorized = authorized
+        self.authorizedSnapshot = authorizedSnapshot?.map(Self.normalize)
 
         var table = Self.bundledRules()
         var acceptedUserRules: String?
@@ -187,12 +193,37 @@ public struct RuleEngine: Sendable {
     public init(
         rules: [Rule],
         homeDirectory: URL,
-        authorized: AuthorizedScope = AuthorizedScope()
+        authorized: AuthorizedScope = AuthorizedScope(),
+        userRulesJSON: String? = nil,
+        authorizedSnapshot: [String]? = nil
     ) {
         self.rules = rules
         self.homeDirectory = Self.normalize(homeDirectory.path)
         self.authorized = authorized
-        self.userRulesJSON = nil
+        self.userRulesJSON = userRulesJSON
+        self.authorizedSnapshot = authorizedSnapshot?.map(Self.normalize)
+    }
+
+    /// A copy of this engine whose grants are frozen at the paths given.
+    ///
+    /// The scan path builds one of these per run. The engine that pre-flights
+    /// the result keeps using the live scope, so a grant added while a scan is
+    /// running is honoured by the next run and by a pre-flight of the current
+    /// result only once it is in force.
+    public func snapshottingAuthorization(_ paths: [String]) -> RuleEngine {
+        RuleEngine(
+            rules: rules,
+            homeDirectory: URL(fileURLWithPath: homeDirectory),
+            authorized: authorized,
+            userRulesJSON: userRulesJSON,
+            authorizedSnapshot: paths
+        )
+    }
+
+    /// The grants in force for this engine: the run snapshot when one exists,
+    /// the shared scope otherwise.
+    private var effectiveAuthorizedPaths: [String] {
+        authorizedSnapshot ?? authorized.paths
     }
 
     // MARK: - Protection
@@ -243,7 +274,7 @@ public struct RuleEngine: Sendable {
         // `/Library` or `/private/var` would otherwise expose launch daemons and
         // the system database, so authorisation is consulted only here.
         if Self.isPrefix("/Volumes", resolved) {
-            if authorized.contains(resolved) {
+            if effectiveAuthorizedPaths.contains(where: { Self.isPrefix($0, resolved) }) {
                 return nil
             }
             return .systemPath("/Volumes")
@@ -419,8 +450,8 @@ public struct RuleEngine: Sendable {
             // Never guessed from a mount point name: only roots the user
             // actually authorised are considered (§8.3).
             let grants = rule.root == .externalVolume
-                ? authorized.paths.filter { Self.isMountedVolume($0) }
-                : authorized.paths
+                ? effectiveAuthorizedPaths.filter { Self.isMountedVolume($0) }
+                : effectiveAuthorizedPaths
             return grants.sorted().flatMap { grant in
                 Self.roots(under: grant, relativePath: rule.relativePath)
             }

@@ -125,7 +125,7 @@ step "7/9  Swift: self-test and XCTest suites"
 run_logged "${LOG_DIR}/self-test" bash -c "cd '${REPO_ROOT}' && swift run SiftSelfTest"
 run_logged "${LOG_DIR}/swift-tests" bash -c "cd '${REPO_ROOT}' && ./Scripts/run-tests.sh"
 
-step "8/9  Xcode: test plan (skipped without Xcode)"
+step "8/9  Xcode: test plan"
 # XCTest ships with Xcode, not the Command Line Tools, so this stage is the one
 # that needs it. The suite above runs either way; this runs the same files under
 # the real framework and then the UI tests, which nothing else can execute.
@@ -230,9 +230,9 @@ if xcode_available; then
     fi
   done
   if [[ "${UI_STATE}" == "did not run" ]]; then
-    echo "  → note: Xcode's UI-test runner did not start on either attempt, so no UI"
-    echo "    test ran. It fails the same way on the runner this project builds on,"
-    echo "    before any test case executes; logs in ${LOG_DIR}."
+    echo "  → FAILED (UI target: the runner did not start on either attempt, so no"
+    echo "    UI test executed; logs in ${LOG_DIR}). Re-run on a machine that can run it."
+    FAILED=1
   fi
 else
   echo "  → skipped (no Xcode; Scripts/run-tests.sh covered the suite)"

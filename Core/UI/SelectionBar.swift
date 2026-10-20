@@ -79,18 +79,17 @@ public struct SelectionBar: View {
     }
 
     private func beginCleanup() async {
-        // The gate is checked here, not on entry to the app.
-        guard await environment.canClean() else {
-            onRequestPurchase()
-            return
-        }
-        // The preference decides whether the confirmation panel appears. It can
-        // only be off because the user turned it off, and everything still goes
-        // to the Trash either way.
-        await cleanup.prepareCleanup(
+        // `AppEnvironment` owns the entitlement gate and the execution boundary.
+        // The preference only decides whether the panel appears; a later
+        // confirmation is gated again inside `confirmCleanup`.
+        let result = await environment.beginCleanup(
+            operation: operation,
             requiresConfirmation: environment.preferences.showsConfirmationPanel,
-            operation: operation
+            scanReport: environment.scan.report
         )
+        if case .purchaseRequired = result {
+            onRequestPurchase()
+        }
     }
 }
 

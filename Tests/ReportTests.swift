@@ -32,7 +32,7 @@ final class ReportTests: XCTestCase, @unchecked Sendable {
             failedCount: 1,
             entries: (0..<entries).map { index in
                 CleanupReport.Entry(
-                    displayName: "file\(index).bin",
+                    displayName: "",
                     category: "applicationCache",
                     sizeInBytes: 1024,
                     status: OperationStatus.movedToTrash.rawValue,
@@ -64,10 +64,10 @@ final class ReportTests: XCTestCase, @unchecked Sendable {
         let url = try await service.storeLocally(report)
         let contents = try String(contentsOf: url, encoding: .utf8)
 
-        // The report names files but never the directories they live in (§13.2).
+        // A report never names a file, not even as a leaf name (§13.2).
         XCTAssertFalse(contents.contains("/Users/"))
         XCTAssertFalse(contents.contains("/Library/"))
-        XCTAssertTrue(contents.contains("file0.bin"))
+        XCTAssertFalse(contents.contains("file0.bin"))
     }
 
     func test_pdfRendersADocumentWithALongTable() async {

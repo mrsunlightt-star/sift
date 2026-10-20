@@ -45,7 +45,7 @@ public struct SpotlightDiagnosticProvider: StorageDiagnosticProvider {
 
                 let measured = DiagnosticMeasurer.measure(
                     store,
-                    budget: context.measurementBudget,
+                    budget: context.budget,
                     isCancelled: context.isCancelled
                 )
                 measuredBytes += measured.allocatedBytes

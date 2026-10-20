@@ -60,9 +60,11 @@ def registry_entry(name: str, text: str) -> str:
             f'            let instance = {name}()\n'
             f'            instance.setUp()\n'
             f'            defer {{ instance.tearDown() }}\n'
-            f'            try? instance.setUpWithError()\n'
-            f'            defer {{ try? instance.tearDownWithError() }}\n'
-            f'            try await instance.{method}()\n'
+            f'            try instance.setUpWithError()\n'
+            f'            var thrown: Error?\n'
+            f'            do {{ try await instance.{method}() }} catch {{ thrown = error }}\n'
+            f'            do {{ try instance.tearDownWithError() }} catch {{ if thrown == nil {{ thrown = error }} }}\n'
+            f'            if let thrown {{ throw thrown }}\n'
             f'        }}),'
         )
     return "\n".join(lines)
@@ -78,9 +80,12 @@ def main() -> int:
 
     rewritten = 0
     entries: list[str] = []
+    registered = 0
+    declared = 0
     for source in sorted(source_dir.glob("*.swift")):
         text = source.read_text(encoding="utf-8")
         result = rewrite(text)
+        declared += len(TEST_PATTERN.findall(result))
         if result != text:
             rewritten += 1
         (target_dir / source.name).write_text(result, encoding="utf-8")
@@ -90,7 +95,9 @@ def main() -> int:
         for index, match in enumerate(matches):
             start = match.end()
             end = matches[index + 1].start() if index + 1 < len(matches) else len(result)
-            entries.append(registry_entry(match.group(1), result[start:end]))
+            body = result[start:end]
+            registered += len(TEST_PATTERN.findall(body))
+            entries.append(registry_entry(match.group(1), body))
 
     # An explicit registry, rather than runtime discovery: walking every class in
     # the process sends messages to AppKit internals that abort when asked.
@@ -107,7 +114,13 @@ def main() -> int:
         "",
     ]
     (target_dir / "TestRegistry.swift").write_text("\n".join(registry), encoding="utf-8")
-    print(f"  rewrote {rewritten} of {len(list(source_dir.glob('*.swift')))} files, registered {sum(len(e.splitlines()) for e in entries)} tests")
+    if registered != declared:
+        print(
+            f"  ERROR: {declared} test methods declared but {registered} registered; "
+            "a test would not run"
+        )
+        return 1
+    print(f"  rewrote {rewritten} of {len(list(source_dir.glob('*.swift')))} files, registered {registered} test methods")
     return 0
 
 

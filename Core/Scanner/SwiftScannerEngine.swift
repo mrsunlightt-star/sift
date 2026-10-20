@@ -48,6 +48,16 @@ public actor SwiftScannerEngine: ScannerEngine {
     }
 
     public func startScan(_ request: ScanRequest) async throws -> any ScanSession {
+        // The rules are anchored to one home directory. A request naming a
+        // different one would be measured against the wrong protection list,
+        // while the Rust core anchors to the request — the two engines would
+        // scan different trees. Refuse the mismatch instead of guessing.
+        guard RuleEngine.normalize(request.homeDirectory.path) == rules.homeDirectory else {
+            throw ScannerError(
+                code: .invalidRequest,
+                message: "The scan request and the rule table name different home directories."
+            )
+        }
         let sessionID = UUID().uuidString
         let session = SwiftScanSession(id: sessionID, request: request, rules: rules)
         await session.start()
@@ -57,14 +67,6 @@ public actor SwiftScannerEngine: ScannerEngine {
         return session
     }
 
-    public func analyzeStorage(roots: [ScanRoot], ignoredPaths: [String]) async throws -> StorageAnalysis {
-        let flag = CancellationFlag()
-        return try await StorageAnalyzer(rules: rules).analyze(
-            roots: roots,
-            ignoredPaths: ignoredPaths,
-            cancelled: { flag.isCancelled }
-        )
-    }
 }
 
 /// One Swift scan session.
@@ -81,6 +83,11 @@ actor SwiftScanSession: ScanSession {
 
     private var events: [ScanEvent] = []
     private var items: [CleanupItemSummary] = []
+    /// Index by normalised path, so two rules that match one location produce
+    /// one row at the more cautious risk — the same merge the Rust coordinator
+    /// performs before its index.
+    private var itemIndexByPath: [String: Int] = [:]
+    private var duplicatesTruncated = false
     private var groups: [DuplicateGroup] = []
     private var skipped: [SkippedLocation] = []
     private var progress = ScanProgress()
@@ -295,7 +302,7 @@ actor SwiftScanSession: ScanSession {
         switch spec {
         case .directory:
             if let item = directoryItem(rule: rule, url: root, minimumAgeDays: minimumAgeDays) {
-                add([item])
+                add([item], dedupeParents: true)
             }
 
         case .childDirectories:
@@ -318,7 +325,7 @@ actor SwiftScanSession: ScanSession {
                 }
                 found.append(item)
             }
-            add(found)
+            add(found, dedupeParents: true)
 
         case let .filesByExtension(extensions):
             let report = FileWalker.walk(
@@ -342,7 +349,7 @@ actor SwiftScanSession: ScanSession {
                 }
                 return summary(entry: entry, rule: rule)
             }
-            add(found)
+            add(found, dedupeParents: true)
 
         case .anyFile:
             let report = FileWalker.walk(
@@ -364,7 +371,7 @@ actor SwiftScanSession: ScanSession {
                 }
                 return summary(entry: entry, rule: rule)
             }
-            add(found)
+            add(found, dedupeParents: true)
         }
     }
 
@@ -396,7 +403,12 @@ actor SwiftScanSession: ScanSession {
         let measured: (bytes: Int64, files: Int)
         var newestQualifying: Date?
         if let minimumAgeDays {
-            let matching = measureMatching(url: url, days: minimumAgeDays, newest: &newestQualifying)
+            let matching = measureMatching(
+                url: url,
+                days: minimumAgeDays,
+                newest: &newestQualifying,
+                skipPaths: request.ignoredPaths
+            )
             // The item is the directory, so the move takes every file in it.
             // The threshold may only decide whether the directory qualifies; it
             // must not count a stale subset while the move takes fresh files
@@ -405,6 +417,7 @@ actor SwiftScanSession: ScanSession {
                 url: url,
                 rules: rules,
                 skipHidden: skipsHiddenEntries,
+                skipPaths: request.ignoredPaths,
                 isCancelled: { self.cancelledSync }
             )
             guard matching.bytes > 0,
@@ -417,6 +430,7 @@ actor SwiftScanSession: ScanSession {
                 url: url,
                 rules: rules,
                 skipHidden: skipsHiddenEntries,
+                skipPaths: request.ignoredPaths,
                 isCancelled: { self.cancelledSync }
             )
             guard measured.bytes > 0 else { return nil }
@@ -443,7 +457,12 @@ actor SwiftScanSession: ScanSession {
     ///
     /// An age threshold belongs to files, not to the folder: `~/Library/Logs/<app>`
     /// may hold a week-old and a year-old log, and only the stale one counts.
-    private func measureMatching(url: URL, days: Int, newest: inout Date?) -> (bytes: Int64, files: Int) {
+    private func measureMatching(
+        url: URL,
+        days: Int,
+        newest: inout Date?,
+        skipPaths: [String]
+    ) -> (bytes: Int64, files: Int) {
         var bytes: Int64 = 0
         var files = 0
         var stack = [url]
@@ -461,6 +480,7 @@ actor SwiftScanSession: ScanSession {
                 if values?.isSymbolicLink == true { continue }
                 if rules.protectionReason(for: child.path) != nil { continue }
                 if rules.isInExcludedLocation(child.path) { continue }
+                if skipPaths.contains(where: { RuleEngine.isPrefix($0, child.path) }) { continue }
                 if isOutOfScope(child.lastPathComponent) { continue }
                 if values?.isDirectory == true {
                     stack.append(child)
@@ -544,7 +564,13 @@ actor SwiftScanSession: ScanSession {
                 if rules.isExcludedBundleName(name) { continue }
                 if !rules.looksLikeBundleIdentifier(name) { continue }
                 if installed.contains(name.lowercased()) { continue }
-                let measured = FileWalker.measure(url: entry.url, rules: rules, isCancelled: { self.cancelledSync })
+                let measured = FileWalker.measure(
+                    url: entry.url,
+                    rules: rules,
+                    skipHidden: skipsHiddenEntries,
+                    skipPaths: request.ignoredPaths,
+                    isCancelled: { self.cancelledSync }
+                )
                 guard measured.bytes > 0 else { continue }
                 found.append(
                     CleanupItemSummary(
@@ -588,7 +614,13 @@ actor SwiftScanSession: ScanSession {
                 if readings.contains(where: { installed.contains($0) }) { continue }
                 guard let bundleID = readings.first(where: { rules.looksLikeBundleIdentifier($0) })
                 else { continue }
-                let measured = FileWalker.measure(url: entry.url, rules: rules, isCancelled: { self.cancelledSync })
+                let measured = FileWalker.measure(
+                    url: entry.url,
+                    rules: rules,
+                    skipHidden: skipsHiddenEntries,
+                    skipPaths: request.ignoredPaths,
+                    isCancelled: { self.cancelledSync }
+                )
                 guard measured.bytes > 0 else { continue }
                 found.append(
                     CleanupItemSummary(
@@ -738,8 +770,12 @@ actor SwiftScanSession: ScanSession {
                 .filter { directoryExists($0) }
         }
         // Duplicate candidates are cleanup candidates: a measure-only root is
-        // measured for storage, never offered for removal.
+        // measured for storage, never offered for removal. An explicit request
+        // whose roots are all measure-only therefore has nothing to search —
+        // the `allowed.isEmpty` fallback below is only for a request that named
+        // no roots at all.
         let allowed = request.roots.filter(\.isCleanable).map(\.url)
+        if !request.roots.isEmpty, allowed.isEmpty { return }
         let searchable = Self.nonOverlappingRoots(
             roots.filter { root in
                 rules.protectionReason(for: root.path) == nil
@@ -783,6 +819,7 @@ actor SwiftScanSession: ScanSession {
         // Stage 2 and 3: sample, then hash the survivors.
         var byDigest: [String: (size: Int64, urls: [URL])] = [:]
         var hashes = 0
+        let maxFullHashes = max(request.duplicateMaxFullHashes, 0)
         for (size, urls) in bySize where urls.count > 1 {
             var bySample: [String: [URL]] = [:]
             for url in urls {
@@ -793,7 +830,13 @@ actor SwiftScanSession: ScanSession {
             for (_, sameSample) in bySample where sameSample.count > 1 {
                 for url in sameSample {
                     if cancelled { return }
-                    guard hashes < 50_000 else { return }
+                    guard hashes < maxFullHashes else {
+                        // The cap is a budget, not a result: the run is partial
+                        // and says so instead of reporting a complete list that
+                        // silently stopped halfway.
+                        duplicatesTruncated = true
+                        return
+                    }
                     guard let digest = fullDigest(url: url) else { continue }
                     hashes += 1
                     var entry = byDigest[digest] ?? (size, [])
@@ -940,17 +983,99 @@ actor SwiftScanSession: ScanSession {
     }
 
     /// Adds a batch of items, publishing bounded event batches.
-    private func add(_ found: [CleanupItemSummary]) {
+    ///
+    /// Two rules can name one path, and a rule can name a directory whose child
+    /// an earlier rule already reported. The Rust core merges the first case and
+    /// drops the second before its index; doing it here keeps the two engines'
+    /// rows and totals identical instead of relying on the page to deduplicate.
+    private func add(_ found: [CleanupItemSummary], dedupeParents: Bool = false) {
         guard !found.isEmpty else { return }
-        items.append(contentsOf: found)
+        var emitted: [CleanupItemSummary] = []
+        for incoming in Self.dedupeParentChild(found) {
+            let path = RuleEngine.normalize(incoming.url.path)
+            if let existing = itemIndexByPath[path] {
+                let kept = items[existing]
+                // The more cautious risk wins; the rule id breaks a tie so two
+                // runs over the same tree produce the same row.
+                if (incoming.risk.severity, incoming.sourceRuleID)
+                    > (kept.risk.severity, kept.sourceRuleID) {
+                    items[existing] = incoming
+                }
+                continue
+            }
+            // Across the rule phase, a directory subsumes a child that an
+            // earlier rule already reported. The residue and threshold phases
+            // opt out: their child is a different cleanup item and Rust keeps
+            // both rows.
+            if dedupeParents,
+               items.contains(where: { candidate in
+                   candidate.isDirectory
+                       && RuleEngine.isPrefix(
+                           RuleEngine.normalize(candidate.url.path),
+                           path
+                       )
+               }) {
+                continue
+            }
+            if dedupeParents, incoming.isDirectory {
+                let subsumed = items.indices.filter { index in
+                    RuleEngine.isPrefix(path, RuleEngine.normalize(items[index].url.path))
+                }
+                if !subsumed.isEmpty {
+                    for index in subsumed.sorted(by: >) {
+                        items.remove(at: index)
+                    }
+                    rebuildItemIndex()
+                }
+            }
+            itemIndexByPath[path] = items.count
+            items.append(incoming)
+            emitted.append(incoming)
+        }
+        guard !emitted.isEmpty else { return }
         progress.itemsFound = items.count
         var index = 0
-        while index < found.count {
-            let end = min(index + eventBatchSize, found.count)
-            events.append(.itemsFound(Array(found[index..<end])))
+        while index < emitted.count {
+            let end = min(index + eventBatchSize, emitted.count)
+            events.append(.itemsFound(Array(emitted[index..<end])))
             index = end
         }
         events.append(.progress(progress))
+    }
+
+    private func rebuildItemIndex() {
+        itemIndexByPath.removeAll(keepingCapacity: true)
+        for (index, item) in items.enumerated() {
+            itemIndexByPath[RuleEngine.normalize(item.url.path)] = index
+        }
+    }
+
+    /// Drops a candidate contained in another *in the same batch*.
+    ///
+    /// The scope is deliberate. Rust's `dedupe_parent_child` runs over the
+    /// rule-driven candidates and not across the residue or threshold phases: a
+    /// residue directory below a rule's directory is its own cleanup item. A
+    /// process-wide parent check here dropped that row from the Swift fallback
+    /// while the Rust core kept it.
+    private static func dedupeParentChild(_ found: [CleanupItemSummary]) -> [CleanupItemSummary] {
+        let ordered = found.sorted { first, second in
+            let firstDepth = first.url.pathComponents.count
+            let secondDepth = second.url.pathComponents.count
+            return firstDepth == secondDepth ? first.url.path < second.url.path : firstDepth < secondDepth
+        }
+        var kept: [CleanupItemSummary] = []
+        for item in ordered {
+            let path = RuleEngine.normalize(item.url.path)
+            if kept.contains(where: { parent in
+                parent.isDirectory
+                    && RuleEngine.isPrefix(RuleEngine.normalize(parent.url.path), path)
+                    && RuleEngine.normalize(parent.url.path) != path
+            }) {
+                continue
+            }
+            kept.append(item)
+        }
+        return kept
     }
 
     private func recordSkips(_ skips: [FileWalker.Skip]) {
@@ -971,7 +1096,7 @@ actor SwiftScanSession: ScanSession {
     }
 
     private func finish(startedAt: Date) {
-        phase = skipped.isEmpty ? .ready : .partial
+        phase = (skipped.isEmpty && !duplicatesTruncated) ? .ready : .partial
         progress.phase = phase
         let report = buildReport(startedAt: startedAt, phase: phase)
         events.append(.phaseChanged(phase))

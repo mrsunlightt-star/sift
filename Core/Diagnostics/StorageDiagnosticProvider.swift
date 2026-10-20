@@ -44,19 +44,25 @@ public struct StorageDiagnosticContext: Sendable {
     public let homeDirectory: URL
     /// Checked between entries; a run must stop promptly when the user cancels.
     public let isCancelled: @Sendable () -> Bool
-    /// How many directory entries one measurement may visit before it stops and
+    /// How many directory entries the whole run may visit before it stops and
     /// reports an estimate. Keeps a whole-volume analysis responsive.
     public let measurementBudget: Int
+    /// The same budget as a counter shared by every provider. A per-measurement
+    /// limit let ten locations each spend the full allowance, so a "two million
+    /// entry" run could read twenty million.
+    public let budget: DiagnosticBudget
 
     public init(
         roots: [DiagnosticRoot],
         homeDirectory: URL,
         measurementBudget: Int = StorageDiagnostics.defaultMeasurementBudget,
+        budget: DiagnosticBudget? = nil,
         isCancelled: @escaping @Sendable () -> Bool = { false }
     ) {
         self.roots = roots
         self.homeDirectory = homeDirectory
         self.measurementBudget = measurementBudget
+        self.budget = budget ?? DiagnosticBudget(measurementBudget)
         self.isCancelled = isCancelled
     }
 

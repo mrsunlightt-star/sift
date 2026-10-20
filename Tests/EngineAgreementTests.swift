@@ -166,17 +166,28 @@ final class EngineAgreementTests: XCTestCase, @unchecked Sendable {
         _ request: ScanRequest
     ) async throws -> [CleanupItemSummary] {
         let session = try await engine.startScan(request)
-        var items: [CleanupItemSummary] = []
         let deadline = Date().addingTimeInterval(60)
         while Date() < deadline {
-            for event in await session.pollEvents(maxEvents: 256) {
-                if case let .itemsFound(batch) = event { items.append(contentsOf: batch) }
-            }
+            _ = await session.pollEvents(maxEvents: 256)
             if await session.isFinished() { break }
             try? await Task.sleep(nanoseconds: 20_000_000)
         }
-        for event in await session.pollEvents(maxEvents: 1024) {
-            if case let .itemsFound(batch) = event { items.append(contentsOf: batch) }
+        // The page is the settled answer. The live event stream cannot retract
+        // the first row when a later rule replaces the same path at a more
+        // cautious risk; both engines' indexes can, and the result page reads
+        // the index.
+        var items: [CleanupItemSummary] = []
+        var offset = 0
+        while true {
+            let page = try await session.page(
+                offset: offset,
+                limit: 256,
+                sort: .size,
+                category: nil
+            )
+            items.append(contentsOf: page.items)
+            offset += page.items.count
+            if page.remaining == 0 || page.items.isEmpty { break }
         }
         return items
     }

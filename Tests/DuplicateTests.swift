@@ -24,6 +24,7 @@ final class DuplicateTests: XCTestCase, @unchecked Sendable {
         let rules = RuleEngine(rules: RuleEngine.builtInRules, homeDirectory: fixture.url)
         let engine = SwiftScannerEngine(rules: rules)
         let request = ScanRequest(
+            homeDirectory: fixture.url,
             roots: [ScanRoot(url: fixture.url, anchor: .home)],
             includeDuplicates: true,
             duplicateRoots: roots ?? [fixture.url.appendingPathComponent("Downloads").path]
@@ -130,6 +131,7 @@ final class DuplicateTests: XCTestCase, @unchecked Sendable {
         let engine = SwiftScannerEngine(rules: rules)
         let session = try await engine.startScan(
             ScanRequest(
+                homeDirectory: fixture.url,
                 roots: [ScanRoot(url: fixture.url, anchor: .home)],
                 includeDuplicates: true,
                 duplicateRoots: [fixture.url.appendingPathComponent("Downloads").path]

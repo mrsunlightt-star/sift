@@ -57,6 +57,12 @@ public struct StorageAnalysisView: View {
                         }
                     }
 
+                    if case .cancelled = model.runOutcome {
+                        // Cancellation is an outcome, not a silence: the last
+                        // result stays, and the page says this run was stopped.
+                        NoticeBanner(level: .information, titleKey: .scanPhaseCancelled)
+                    }
+
                     if isAnalyzing {
                         analyzingCard
                     }

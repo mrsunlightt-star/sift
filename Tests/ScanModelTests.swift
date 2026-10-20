@@ -59,6 +59,22 @@ final class ScanModelTests: XCTestCase, @unchecked Sendable {
         )
     }
 
+    /// `.ready` is a phase, not a verdict. A session that publishes it and then
+    /// finishes without a report leaves the page with no result, so the model
+    /// reports a failure instead of waiting forever.
+    func test_aReadyPhaseWithoutACompletedEventFails() async {
+        let fixture = TemporaryDirectory(tag: "scan-model-ready-only")
+        let rules = RuleEngine(rules: RuleEngine.builtInRules, homeDirectory: fixture.url)
+        let model = await ScanModel(
+            engine: BurstScannerEngine(queuedPhaseEvents: 4, includesCompletion: false),
+            rules: rules
+        )
+        await model.start(makeRequest(home: fixture.url))
+        await model.waitUntilSettled()
+        let phase = await model.phase
+        XCTAssertEqual(phase, .failed)
+    }
+
     func test_cancellingAScanSettlesThePhase() async throws {
         let fixture = TemporaryDirectory(tag: "scan-model-cancel")
         for index in 0..<20 {
@@ -203,27 +219,47 @@ final class ScanModelTests: XCTestCase, @unchecked Sendable {
 /// ordinary poll batch and one 256-event tail batch.
 private struct BurstScannerEngine: ScannerEngine {
     let queuedPhaseEvents: Int
+    var includesCompletion = true
     var kind: ScannerEngineKind { .swift }
 
     func startScan(_ request: ScanRequest) async throws -> any ScanSession {
-        BurstScanSession(queuedPhaseEvents: queuedPhaseEvents)
+        BurstScanSession(
+            queuedPhaseEvents: queuedPhaseEvents,
+            includesCompletion: includesCompletion
+        )
     }
 
-    func analyzeStorage(
-        roots: [ScanRoot],
-        ignoredPaths: [String]
-    ) async throws -> StorageAnalysis {
-        throw ScannerError(code: .internalError)
-    }
 }
 
 private actor BurstScanSession: ScanSession {
     nonisolated let id = "burst-session"
     private var events: [ScanEvent]
 
-    init(queuedPhaseEvents: Int) {
+    init(queuedPhaseEvents: Int, includesCompletion: Bool = true) {
         events = Array(repeating: .phaseChanged(.preparing), count: queuedPhaseEvents)
         events.append(.phaseChanged(.ready))
+        guard includesCompletion else { return }
+        // A phase event is not a verdict: the real engines publish the report
+        // after it, and `waitUntilSettled` waits for this event specifically.
+        events.append(
+            .completed(
+                ScanReport(
+                    sessionID: "burst-session",
+                    startedAt: Date(),
+                    finishedAt: Date(),
+                    phase: .ready,
+                    scannedFileCount: 0,
+                    scannedByteCount: 0,
+                    scannedLocationCount: 1,
+                    itemCount: 0,
+                    itemBytes: 0,
+                    categoryTotals: [],
+                    duplicateGroupCount: 0,
+                    duplicateReclaimableBytes: 0,
+                    skippedLocations: []
+                )
+            )
+        )
     }
 
     func pollEvents(maxEvents: Int) async -> [ScanEvent] {
@@ -261,12 +297,6 @@ private struct SilentScannerEngine: ScannerEngine {
         SilentScanSession()
     }
 
-    func analyzeStorage(
-        roots: [ScanRoot],
-        ignoredPaths: [String]
-    ) async throws -> StorageAnalysis {
-        throw ScannerError(code: .internalError)
-    }
 }
 
 private actor SilentScanSession: ScanSession {

@@ -132,10 +132,12 @@ private struct ConfirmationHost: View {
                 preferences: preferences,
                 onConfirm: {
                     Task {
-                        await environment.cleanup.confirmCleanup(
+                        let result = await environment.confirmCleanup(
                             scanReport: environment.scan.report
                         )
-                        RecentHistoryBridge.record(environment.cleanup.outcome)
+                        if case .purchaseRequired = result {
+                            router.requestPurchase(reason: .cleanJunk)
+                        }
                     }
                 },
                 onCancel: { environment.cleanup.isConfirming = false },

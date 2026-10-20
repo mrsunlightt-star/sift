@@ -26,6 +26,7 @@ actor RustScannerEngine: ScannerEngine {
 
     init(indexDirectory: URL = SettingsStore.defaultSupportDirectory().appendingPathComponent("Index", isDirectory: true)) {
         self.indexDirectory = indexDirectory
+        SiftABILayout.verify()
     }
 
     /// Confirms the linked library matches the header this build compiled against.
@@ -88,97 +89,6 @@ actor RustScannerEngine: ScannerEngine {
             owner: owner,
             indexURL: indexURL,
             scannedLocationCount: request.roots.count
-        )
-    }
-
-    func analyzeStorage(roots: [ScanRoot], ignoredPaths: [String]) async throws -> StorageAnalysis {
-        let payload: [String: Any] = [
-            "homeDir": FileManager.default.homeDirectoryForCurrentUser.path,
-            "roots": roots.map(\.url.path),
-            "ignorePaths": ignoredPaths,
-            "topFileLimit": ScanDefaults.topFileLimit,
-            "topDirectoryLimit": ScanDefaults.topDirectoryLimit,
-            "largeFileThresholdBytes": ScanDefaults.largeFileThresholdBytes,
-            // The roots were chosen by the user, so they carry the same grant the
-            // scan does; without it an authorised volume would be skipped.
-            "authorizedRoots": roots.map(\.url.path),
-        ]
-        guard let json = try? JSONSerialization.data(withJSONObject: payload),
-              let text = String(data: json, encoding: .utf8) else {
-            throw ScannerError(code: .invalidRequest, message: LocalizationKey.commonUnknownError.localized)
-        }
-
-        let analysis = text.withCStringBuffer { buffer in
-            sift_storage_analyse(buffer.value)
-        }
-        guard let analysis else {
-            throw ScannerError(code: .internalError, message: LocalizationKey.commonUnknownError.localized)
-        }
-        defer { sift_storage_analysis_free(analysis) }
-
-        guard analysis.pointee.ok else {
-            throw ScannerError(code: .partialFailure, message: readString(analysis.pointee.error))
-        }
-        return Self.convert(analysis.pointee)
-    }
-
-    /// Converts the C analysis into the domain model.
-    private static func convert(_ value: SiftStorageAnalysis) -> StorageAnalysis {
-        var categories: [StorageAnalysis.Category] = []
-        if let pointer = value.categories {
-            for index in 0..<value.category_count {
-                let row = pointer[index]
-                categories.append(
-                    StorageAnalysis.Category(
-                        id: readString(row.category),
-                        title: StorageAnalyzer.title(for: readString(row.category)),
-                        sizeInBytes: row.total_bytes,
-                        fileCount: Int(row.item_count)
-                    )
-                )
-            }
-        }
-        var files: [StorageAnalysis.FileEntry] = []
-        if let pointer = value.files {
-            for index in 0..<value.file_count {
-                let row = pointer[index]
-                files.append(
-                    StorageAnalysis.FileEntry(
-                        url: URL(fileURLWithPath: readString(row.path)),
-                        sizeInBytes: Int64(row.size_bytes),
-                        modifiedAt: row.modified_secs > 0
-                            ? Date(timeIntervalSince1970: TimeInterval(row.modified_secs))
-                            : nil
-                    )
-                )
-            }
-        }
-        var directories: [StorageAnalysis.DirectoryEntry] = []
-        if let pointer = value.directories {
-            for index in 0..<value.directory_count {
-                let row = pointer[index]
-                directories.append(
-                    StorageAnalysis.DirectoryEntry(
-                        url: URL(fileURLWithPath: readString(row.path)),
-                        sizeInBytes: Int64(row.size_bytes),
-                        fileCount: Int(row.file_count)
-                    )
-                )
-            }
-        }
-        return StorageAnalysis(
-            mountPoint: readString(value.mount_point),
-            volumeName: readString(value.volume_name),
-            totalBytes: Int64(value.total_bytes),
-            freeBytes: Int64(value.free_bytes),
-            usedBytes: Int64(value.used_bytes),
-            categories: categories,
-            topFiles: files,
-            topDirectories: directories,
-            scannedFileCount: Int(value.scanned_file_count),
-            scannedByteCount: Int64(value.scanned_byte_count),
-            skippedCount: Int(value.skipped_count),
-            isAggregated: value.aggregated
         )
     }
 
@@ -268,6 +178,18 @@ private final class RustScanSession: ScanSession, @unchecked Sendable {
         var events: [ScanEvent] = []
         for index in 0..<Int(written) {
             var raw = buffer[index]
+            guard raw.version == UInt32(SIFT_FFI_VERSION) else {
+                // The library answered with a shape this build did not compile
+                // against. A silently skipped event would leave the page waiting
+                // for a terminal phase that can never arrive.
+                events.append(
+                    .failed(
+                        code: .internalError,
+                        message: "The scanner core returned an incompatible event."
+                    )
+                )
+                break
+            }
             if let event = self.convert(&raw) {
                 events.append(event)
             }
@@ -309,6 +231,12 @@ private final class RustScanSession: ScanSession, @unchecked Sendable {
             items.reserveCapacity(raw.item_count)
             for index in 0..<raw.item_count {
                 let row = pointer[index]
+                guard row.version == UInt32(SIFT_FFI_VERSION) else {
+                    return .failed(
+                        code: .internalError,
+                        message: "The scanner core returned an incompatible result row."
+                    )
+                }
                 guard let category = CleanupCategory(rawValue: readString(row.category)),
                       let risk = CleanupRisk(rawValue: readString(row.risk)) else { continue }
                 items.append(
@@ -460,11 +388,23 @@ private final class RustScanSession: ScanSession, @unchecked Sendable {
                 message: readString(error.message)
             )
         }
+        guard page.version == UInt32(SIFT_FFI_VERSION) else {
+            throw ScannerError(
+                code: .internalError,
+                message: "The scanner core returned an incompatible result page."
+            )
+        }
 
         var items: [CleanupItemSummary] = []
         if let pointer = page.items {
             for index in 0..<page.item_count {
                 let row = pointer[index]
+                guard row.version == UInt32(SIFT_FFI_VERSION) else {
+                    throw ScannerError(
+                        code: .internalError,
+                        message: "The scanner core returned an incompatible result row."
+                    )
+                }
                 guard let rowCategory = CleanupCategory(rawValue: readString(row.category)),
                       let rowRisk = CleanupRisk(rawValue: readString(row.risk)) else { continue }
                 items.append(
@@ -681,7 +621,7 @@ private struct RustScanRequest: Encodable {
         self.duplicates = Duplicates(
             roots: request.duplicateRoots,
             minSizeBytes: UInt64(ScanDefaults.duplicateMinimumBytes),
-            maxFullHashes: 200_000
+            maxFullHashes: UInt64(max(request.duplicateMaxFullHashes, 0))
         )
         // Batches of 512 keep the event queue small without making the poller
         // work per file.

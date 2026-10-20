@@ -58,7 +58,7 @@ public struct DeveloperIndexDiagnosticProvider: StorageDiagnosticProvider {
 
                 let measured = DiagnosticMeasurer.measure(
                     index,
-                    budget: context.measurementBudget,
+                    budget: context.budget,
                     isCancelled: context.isCancelled
                 )
                 if measured.unreadableCount > 0 {
@@ -95,7 +95,7 @@ public struct DeveloperIndexDiagnosticProvider: StorageDiagnosticProvider {
         // reclaimable: it is what makes a developer Mac lose tens of gigabytes.
         let derivedMeasured = DiagnosticMeasurer.measure(
             derivedData,
-            budget: context.measurementBudget,
+            budget: context.budget,
             isCancelled: context.isCancelled
         )
         if derivedMeasured.truncated {

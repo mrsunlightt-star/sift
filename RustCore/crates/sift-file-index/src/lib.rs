@@ -324,12 +324,17 @@ impl FileIndex {
                     is_selected_by_default, resolve_warning
                  ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)
                  ON CONFLICT(session_id, path) DO UPDATE SET
+                    display_name = excluded.display_name,
+                    parent_path = excluded.parent_path,
                     size_bytes = excluded.size_bytes,
                     file_count = excluded.file_count,
                     risk = excluded.risk,
                     category = excluded.category,
                     category_order = excluded.category_order,
+                    bundle_id = excluded.bundle_id,
                     modified_secs = excluded.modified_secs,
+                    created_secs = excluded.created_secs,
+                    is_directory = excluded.is_directory,
                     explanation = excluded.explanation,
                     explanation_key = excluded.explanation_key,
                     rule_id = excluded.rule_id,
@@ -702,6 +707,20 @@ mod tests {
         let page = index.page_items(0, 10, ScanSort::Size, None).unwrap();
         assert_eq!(page[0].size_bytes, 250);
         assert_eq!(page[0].risk, "review");
+    }
+
+    #[test]
+    fn a_later_row_updates_the_bundle_id_it_adds() {
+        let mut index = index();
+        index
+            .insert_items(&[row("/a/b", "applicationCache", 100, "safe")])
+            .unwrap();
+        let mut residue = row("/a/b", "applicationResidue", 100, "review");
+        residue.bundle_id = Some("com.example.app".to_string());
+        index.insert_items(&[residue]).unwrap();
+        let page = index.page_items(0, 10, ScanSort::Size, None).unwrap();
+        assert_eq!(page[0].bundle_id.as_deref(), Some("com.example.app"));
+        assert_eq!(page[0].category, "applicationResidue");
     }
 
     #[test]

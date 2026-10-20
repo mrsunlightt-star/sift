@@ -260,6 +260,9 @@ pub struct AnalysisOptions {
     pub top_file_limit: u32,
     pub top_directory_limit: u32,
     pub large_file_threshold_bytes: u64,
+    /// Whether dot entries are part of the measurement. The app passes the same
+    /// `showHiddenFiles` preference a cleanup scan uses.
+    pub include_hidden_files: bool,
 }
 
 impl AnalysisOptions {
@@ -272,6 +275,7 @@ impl AnalysisOptions {
             top_file_limit: DEFAULT_TOP_FILE_LIMIT,
             top_directory_limit: DEFAULT_TOP_DIRECTORY_LIMIT,
             large_file_threshold_bytes: 1024 * 1024 * 1024,
+            include_hidden_files: true,
         }
     }
 }
@@ -483,6 +487,14 @@ pub fn analyse(options: &AnalysisOptions, cancel: &CancelToken) -> StorageAnalys
                 .ignore_paths
                 .iter()
                 .any(|skip| path.starts_with(skip))
+            {
+                continue;
+            }
+            if !options.include_hidden_files
+                && path
+                    .file_name()
+                    .map(|name| name.to_string_lossy().starts_with('.'))
+                    .unwrap_or(false)
             {
                 continue;
             }

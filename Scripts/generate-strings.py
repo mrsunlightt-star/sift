@@ -1182,8 +1182,25 @@ def main() -> int:
         if keys_current != rendered_keys:
             print("LocalizationKey.swift is out of date; run Scripts/generate-strings.py")
             return 1
+        strings_root = CATALOG.parent / "Compiled"
+        for language, content in rendered_strings_files().items():
+            path = strings_root / f"{language}.lproj" / "Localizable.strings"
+            current_strings = path.read_text(encoding="utf-8") if path.exists() else ""
+            if current_strings != content:
+                print(f"{path.relative_to(REPO_ROOT)} is out of date; run Scripts/generate-strings.py")
+                return 1
+        expected_dirs = {f"{language}.lproj" for language in rendered_strings_files()}
+        if strings_root.exists():
+            extra = sorted(
+                entry.name
+                for entry in strings_root.iterdir()
+                if entry.is_dir() and entry.name not in expected_dirs
+            )
+            if extra:
+                print(f"unexpected .lproj bundles under {strings_root.relative_to(REPO_ROOT)}: {extra}")
+                return 1
         print(
-            f"Localizable.xcstrings and LocalizationKey.swift are current "
+            f"Localizable.xcstrings, LocalizationKey.swift and .lproj bundles are current "
             f"({len(STRINGS)} keys, {len(LANGUAGES)} languages)"
         )
         return 0

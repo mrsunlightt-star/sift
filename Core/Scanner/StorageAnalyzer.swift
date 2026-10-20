@@ -27,6 +27,7 @@ public struct StorageAnalyzer {
         roots: [ScanRoot],
         ignoredPaths: [String] = [],
         largeFileThresholdBytes: Int64 = ScanDefaults.largeFileThresholdBytes,
+        includeHiddenFiles: Bool = true,
         cancelled: @escaping @Sendable () -> Bool = { false }
     ) async throws -> StorageAnalysis {
         // The rule set's home, not the process home: see RuleEngine.homeDirectory.
@@ -80,6 +81,12 @@ public struct StorageAnalyzer {
                 for child in contents {
                     let values = try? child.resourceValues(forKeys: Set(keys))
                     if values?.isSymbolicLink == true { continue }
+                    // The hidden-file preference is a scope, not a display
+                    // filter: the storage page must describe the same tree a
+                    // cleanup scan would produce.
+                    if !includeHiddenFiles, child.lastPathComponent.hasPrefix(".") {
+                        continue
+                    }
                     if ignoredPaths.contains(where: { RuleEngine.isPrefix($0, child.path) }) {
                         continue
                     }
@@ -101,6 +108,8 @@ public struct StorageAnalyzer {
                             let measured = FileWalker.measure(
                                 url: child,
                                 rules: rules,
+                                skipHidden: !includeHiddenFiles,
+                                skipPaths: ignoredPaths,
                                 isCancelled: cancelled
                             )
                             record(
@@ -237,8 +246,9 @@ public struct StorageAnalyzer {
         categories[category] = entry
 
         if size >= threshold, size > 0 {
-            topFiles.append(
-                StorageAnalysis.FileEntry(url: path, sizeInBytes: size, modifiedAt: modified)
+            Self.insertTopFile(
+                StorageAnalysis.FileEntry(url: path, sizeInBytes: size, modifiedAt: modified),
+                into: &topFiles
             )
         }
 
@@ -255,7 +265,37 @@ public struct StorageAnalyzer {
             if parent.path == current.path { break }
             current = parent
         }
+        // The rollup map is the one structure whose key count grows with the
+        // tree. Keep the largest ancestors and drop the tail: the page only
+        // ever renders the top directory limit, and an unbounded map was the
+        // opposite of the bounded accumulator this file promises.
+        if directories.count > Self.directoryRollupLimit {
+            let kept = directories
+                .sorted { $0.value.bytes > $1.value.bytes }
+                .prefix(Self.directoryRollupLimit / 2)
+            directories = Dictionary(uniqueKeysWithValues: kept.map { ($0.key, $0.value) })
+        }
     }
+
+    /// Keeps the largest entries in a bounded, descending list.
+    private static func insertTopFile(
+        _ entry: StorageAnalysis.FileEntry,
+        into list: inout [StorageAnalysis.FileEntry]
+    ) {
+        if list.count >= ScanDefaults.topFileLimit,
+           let smallest = list.last,
+           entry.sizeInBytes <= smallest.sizeInBytes {
+            return
+        }
+        list.append(entry)
+        list.sort { $0.sizeInBytes > $1.sizeInBytes }
+        if list.count > ScanDefaults.topFileLimit {
+            list.removeLast(list.count - ScanDefaults.topFileLimit)
+        }
+    }
+
+    /// How many directory rollups one analysis may retain before pruning.
+    private static let directoryRollupLimit = 20_000
 
     /// Maps a file onto a display category by its extension.
     public static func category(for url: URL) -> String {

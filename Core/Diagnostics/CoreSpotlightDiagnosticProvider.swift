@@ -29,7 +29,7 @@ public struct CoreSpotlightDiagnosticProvider: StorageDiagnosticProvider {
 
         let measured = DiagnosticMeasurer.measure(
             store,
-            budget: context.measurementBudget,
+            budget: context.budget,
             isCancelled: context.isCancelled
         )
         let unreadable = measured.isUnreadable

@@ -245,6 +245,7 @@ enum FileWalker {
         url: URL,
         rules: RuleEngine,
         skipHidden: Bool = false,
+        skipPaths: [String] = [],
         isCancelled: () -> Bool
     ) -> (bytes: Int64, files: Int) {
         var bytes: Int64 = 0
@@ -261,6 +262,10 @@ enum FileWalker {
                 let values = try? child.resourceValues(forKeys: Set(resourceKeys))
                 if values?.isSymbolicLink == true { continue }
                 if skipHidden, child.lastPathComponent.hasPrefix(".") { continue }
+                // The user's "never visit" list applies to a measurement as well
+                // as to a walk: measuring the ignored subtree would report bytes
+                // a move of the parent directory would still take with it.
+                if skipPaths.contains(where: { RuleEngine.isPrefix($0, child.path) }) { continue }
                 // The walk never descends into an excluded location, so neither
                 // may a measurement: otherwise a directory's reported size would
                 // count bytes the scan refuses to offer.

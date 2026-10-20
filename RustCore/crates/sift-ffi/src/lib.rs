@@ -958,6 +958,14 @@ pub unsafe extern "C" fn sift_storage_analyse(
             /// grants as a scan, or an authorised volume would be skipped.
             #[serde(default)]
             authorized_roots: Vec<String>,
+            /// Whether dot entries are part of the measurement. Missing means
+            /// the historical, permissive behaviour.
+            #[serde(default = "storage_hidden_default")]
+            include_hidden_files: bool,
+        }
+
+        fn storage_hidden_default() -> bool {
+            true
         }
 
         let fail = |message: &str| {
@@ -982,6 +990,7 @@ pub unsafe extern "C" fn sift_storage_analyse(
         analysis_options.ignore_paths = options.ignore_paths.iter().map(PathBuf::from).collect();
         analysis_options.authorized_roots =
             options.authorized_roots.iter().map(PathBuf::from).collect();
+        analysis_options.include_hidden_files = options.include_hidden_files;
         if let Some(limit) = options.top_file_limit {
             analysis_options.top_file_limit = limit;
         }

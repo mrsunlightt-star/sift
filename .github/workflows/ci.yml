@@ -79,6 +79,16 @@ jobs:
       - name: Bootstrap (Rust archive, strings, Xcode project)
         run: ./Scripts/bootstrap.sh
 
+      # The same generated-source gates `Scripts/verify.sh` runs. Without them
+      # CI could stay green while a generated table, string catalog or
+      # explanation key was stale.
+      - name: Generated sources are current
+        run: |
+          python3 Scripts/generate-strings.py --check
+          python3 Scripts/generate-protection.py --check
+          python3 Scripts/generate-rules.py --check
+          python3 Scripts/check-explanation-keys.py
+
       - name: Build the app with the Rust core linked
         run: swift build
 
@@ -89,6 +99,11 @@ jobs:
       # framework runs the suite here rather than the Command Line Tools shim.
       - name: XCTest suite
         run: swift test
+
+      # The runner the Command-Line-Tools-only path uses. Running it here as
+      # well proves the shim still executes every test the real framework does.
+      - name: Command-line test runner
+        run: ./Scripts/run-tests.sh
 
       - name: Type-check the XCTest suite
         run: ./Scripts/check-tests.sh
@@ -172,7 +187,8 @@ jobs:
             fi
           done
           if [ "${ui_state}" != "ran" ]; then
-            echo "::warning::Xcode's UI-test runner did not start on either attempt, so this run has no UI test result"
+            echo "::error::Xcode's UI-test runner did not start on either attempt; no UI test executed"
+            exit 1
           fi
           echo "UI tests: ${ui_state}"
 

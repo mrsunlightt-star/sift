@@ -28,6 +28,7 @@ final class ScannerTests: XCTestCase, @unchecked Sendable {
 
     private func makeRequest(includeDuplicates: Bool = false) -> ScanRequest {
         ScanRequest(
+            homeDirectory: fixture.url,
             roots: [ScanRoot(url: fixture.url, anchor: .home)],
             largeFileThresholdBytes: 1024 * 1024,
             oldFileThresholdDays: 180,
@@ -73,6 +74,48 @@ final class ScannerTests: XCTestCase, @unchecked Sendable {
             }
         }
         return (items, report, skipped)
+    }
+
+    /// A measure-only root contributes no cleanup candidates, including the
+    /// duplicate pipeline. The empty `allowed` set used to mean "search
+    /// everything", so a read-only request still produced groups.
+    func test_aMeasureOnlyRootProducesNoDuplicateGroups() async throws {
+        fixture.writeBytes("Documents/a.bin", Data(repeating: 0x41, count: 8192))
+        fixture.writeBytes("Documents/b.bin", Data(repeating: 0x41, count: 8192))
+
+        let request = ScanRequest(
+            homeDirectory: fixture.url,
+            roots: [ScanRoot(url: fixture.url, anchor: .home, isCleanable: false)],
+            includeDuplicates: true,
+            duplicateRoots: [fixture.url.appendingPathComponent("Documents").path]
+        )
+        let session = try await makeEngine().startScan(request)
+        let deadline = Date().addingTimeInterval(10)
+        while Date() < deadline {
+            _ = await session.pollEvents(maxEvents: 256)
+            if await session.isFinished() { break }
+            try? await Task.sleep(nanoseconds: 20_000_000)
+        }
+        let groups = try await session.duplicateGroups(offset: 0, limit: 100)
+        XCTAssertTrue(groups.isEmpty)
+    }
+
+    /// The cache rule and the residue scan name the same directory. The page
+    /// keeps one row, at the more cautious risk — the Rust core's merge.
+    func test_onePathMatchedByTwoRulesIsOneRowAtTheMoreCautiousRisk() async throws {
+        fixture.write("Library/Caches/com.example.app/blob.bin", bytes: 8192)
+        let session = try await makeEngine().startScan(makeRequest())
+        let deadline = Date().addingTimeInterval(10)
+        while Date() < deadline {
+            _ = await session.pollEvents(maxEvents: 256)
+            if await session.isFinished() { break }
+            try? await Task.sleep(nanoseconds: 20_000_000)
+        }
+        let page = try await session.page(offset: 0, limit: 100, sort: .size, category: nil)
+        let rows = page.items.filter { $0.url.lastPathComponent == "com.example.app" }
+        XCTAssertEqual(rows.count, 1)
+        XCTAssertEqual(rows.first?.category, .applicationResidue)
+        XCTAssertEqual(rows.first?.risk, .review)
     }
 
     func test_scanFindsCachesLogsAndInstallers() async throws {

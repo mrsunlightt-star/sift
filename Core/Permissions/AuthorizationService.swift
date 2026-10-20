@@ -118,13 +118,16 @@ public struct GrantRegistry: Sendable {
     private var urlsByID: [UUID: URL]
 
     public init(_ restored: [RestoredLocation] = []) {
-        // `uniquingKeysWith` rather than the trapping initialiser: duplicate
-        // identifiers mean a corrupt settings file, which must not crash the
-        // launch it is being read during.
-        urlsByID = Dictionary(
-            restored.map { ($0.id, $0.url) },
-            uniquingKeysWith: { first, _ in first }
-        )
+        // One row per resolved path, even when an older build stored the same
+        // location twice or beside a symlink spelling of itself. `urls` feeds
+        // the scan roots, and a duplicate there walks one tree twice.
+        var seenPaths = Set<String>()
+        urlsByID = [:]
+        for entry in restored {
+            let path = RuleEngine.normalize(entry.url.path)
+            guard seenPaths.insert(path).inserted else { continue }
+            urlsByID[entry.id] = entry.url
+        }
     }
 
     /// The resolved URLs, ordered so a scan request is reproducible.

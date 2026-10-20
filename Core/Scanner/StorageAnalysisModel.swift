@@ -70,7 +70,12 @@ public final class StorageAnalysisModel: ObservableObject {
         self.analysis = analysis
         self.report = report
         lastAnalyzedAt = Date()
-        runOutcome = .completed(partial: analysis.skippedCount > 0 || analysis.isAggregated)
+        // A capped *list* is not an incomplete measurement. The verdict only
+        // says partial when the walk could not read a folder or a diagnostic
+        // provider reported incomplete coverage.
+        runOutcome = .completed(
+            partial: analysis.skippedCount > 0 || report.coverage != .complete
+        )
         isAnalyzing = false
     }
 

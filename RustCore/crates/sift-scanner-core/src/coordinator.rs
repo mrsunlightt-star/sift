@@ -19,6 +19,7 @@ use crate::types::{
 use crate::walker;
 use sift_file_index::{FileIndex, ItemRecord, ScanSort};
 use sift_hasher::CancelToken;
+use sift_rules::collapse_path;
 use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
@@ -269,6 +270,33 @@ impl Engine {
                 "home directory must be an absolute path".to_string(),
             ));
         }
+        // The ABI is a trust boundary too. A request that named `/Volumes`, `/`
+        // or the home directory itself as an authorised root would lift the
+        // blanket volume guard for every disk, and the Swift allowlist cannot
+        // protect a caller that never used it. The shape is checked here when
+        // the request is read, not only where the UI happens to build one.
+        for root in &request.roots {
+            if !Path::new(&root.path).is_absolute() {
+                return Err(EngineError::InvalidRequest(
+                    "scan roots must be absolute paths".to_string(),
+                ));
+            }
+        }
+        for grant in &request.authorized_roots {
+            let path = collapse_path(grant);
+            let home_text = collapse_path(&home.to_string_lossy());
+            let inside_volumes = path.starts_with("/Volumes/");
+            let inside_home = path.starts_with(&format!("{home_text}/"));
+            if path == "/"
+                || path == "/Volumes"
+                || path == home_text
+                || !(inside_volumes || inside_home)
+            {
+                return Err(EngineError::InvalidRequest(
+                    "an authorised root is outside the allowlist".to_string(),
+                ));
+            }
+        }
 
         self.cancel_current();
 
@@ -416,7 +444,12 @@ fn run_scan(handle: &Arc<ScanHandle>, request: &ScanRequest) {
             finish_cancelled(handle);
             return;
         }
-        persist_candidates(handle, candidates, &batch_size, &mut pending_batch);
+        if let Err(error) = persist_candidates(handle, candidates, &batch_size, &mut pending_batch)
+        {
+            handle.state.set_phase(PhaseName::Failed);
+            handle.push_failed(error.code().as_str(), &error.user_message());
+            return;
+        }
         handle.push_batch(std::mem::take(&mut pending_batch));
         publish_if_due(handle);
 
@@ -424,7 +457,12 @@ fn run_scan(handle: &Arc<ScanHandle>, request: &ScanRequest) {
         if !cancel.is_cancelled() {
             let (residue, report) = scanners::scan_application_residue(&mut context, cancel);
             record_skips(handle, &report.skips, &mut skipped);
-            persist_candidates(handle, residue, &batch_size, &mut pending_batch);
+            if let Err(error) = persist_candidates(handle, residue, &batch_size, &mut pending_batch)
+            {
+                handle.state.set_phase(PhaseName::Failed);
+                handle.push_failed(error.code().as_str(), &error.user_message());
+                return;
+            }
             handle.push_batch(std::mem::take(&mut pending_batch));
             publish_if_due(handle);
         }
@@ -437,13 +475,21 @@ fn run_scan(handle: &Arc<ScanHandle>, request: &ScanRequest) {
                 request.large_file_threshold_bytes,
             );
             record_skips(handle, &report.skips, &mut skipped);
-            persist_candidates(handle, large, &batch_size, &mut pending_batch);
+            if let Err(error) = persist_candidates(handle, large, &batch_size, &mut pending_batch) {
+                handle.state.set_phase(PhaseName::Failed);
+                handle.push_failed(error.code().as_str(), &error.user_message());
+                return;
+            }
             handle.push_batch(std::mem::take(&mut pending_batch));
 
             let (old, report) =
                 scanners::scan_old_files(&mut context, cancel, request.old_file_threshold_days);
             record_skips(handle, &report.skips, &mut skipped);
-            persist_candidates(handle, old, &batch_size, &mut pending_batch);
+            if let Err(error) = persist_candidates(handle, old, &batch_size, &mut pending_batch) {
+                handle.state.set_phase(PhaseName::Failed);
+                handle.push_failed(error.code().as_str(), &error.user_message());
+                return;
+            }
             handle.push_batch(std::mem::take(&mut pending_batch));
             publish_if_due(handle);
         }
@@ -545,27 +591,19 @@ fn persist_candidates(
     candidates: Vec<Candidate>,
     batch_size: &usize,
     pending_batch: &mut Vec<ScanItemSummary>,
-) {
+) -> Result<(), EngineError> {
     if candidates.is_empty() {
-        return;
+        return Ok(());
     }
     let rows: Vec<_> = candidates.iter().map(Candidate::to_item_row).collect();
     {
-        let index_result = handle.index_checked();
-        let mut index = match index_result {
-            Ok(index) => index,
-            Err(_) => {
-                handle.push_failed("internal", "Scan results could not be stored.");
-                return;
-            }
-        };
+        let mut index = handle.index_checked()?;
         // Chunked transactions stay responsive while still amortising the WAL
         // sync cost.
         for chunk in rows.chunks(1024) {
-            if index.insert_items(chunk).is_err() {
-                handle.push_failed("internal", "Scan results could not be stored.");
-                return;
-            }
+            index.insert_items(chunk).map_err(|_| {
+                EngineError::Internal("Scan results could not be stored.".to_string())
+            })?;
         }
     }
     handle
@@ -594,6 +632,7 @@ fn persist_candidates(
             pending_batch.reserve(*batch_size);
         }
     }
+    Ok(())
 }
 
 /// Records skipped locations, deduplicated and bounded.

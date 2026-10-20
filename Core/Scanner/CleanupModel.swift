@@ -38,6 +38,10 @@ public final class CleanupModel: ObservableObject {
     /// selection. Set by `setItems`, so a page that presents items for review
     /// (file cleanup) never preselects a later page either.
     private var preselectsAppendedItems = true
+    /// The operation the panel is describing. The shell executes the prepared
+    /// plan after the panel closes, and the report must name the operation the
+    /// user actually started rather than a default.
+    public private(set) var preparedOperation: CleanupOperationName = .junkCleanup
 
     public init(rules: RuleEngine, operations: FileOperationService, reports: ReportService) {
         self.rules = rules
@@ -206,8 +210,19 @@ public final class CleanupModel: ObservableObject {
 
     // MARK: - Flow
 
-    /// Runs the pre-flight pass, then either opens the confirmation panel or —
-    /// when the user has turned confirmation off — executes immediately.
+    /// How a prepared cleanup should continue.
+    public enum Preparation: Sendable, Equatable {
+        /// The confirmation panel describes a plan the user must approve.
+        case awaitingConfirmation
+        /// Confirmation is disabled, so the caller may execute the plan now.
+        case readyToExecute
+        /// There was no selection, or nothing survived pre-flight.
+        case nothingToDo
+    }
+
+    /// Runs the pre-flight pass and, when confirmation is enabled, opens the
+    /// panel. Execution is deliberately a separate step so the entitlement gate
+    /// can run immediately before the move.
     ///
     /// The preference is passed in rather than read here so the model stays free
     /// of the settings store; the caller is the view that knows the user's
@@ -215,55 +230,62 @@ public final class CleanupModel: ObservableObject {
     public func prepareCleanup(
         requiresConfirmation: Bool = true,
         operation: CleanupOperationName = .junkCleanup
-    ) async {
+    ) async -> Preparation {
         failure = nil
+        preparedOperation = operation
         // A result already on screen and a confirmation panel are two modal
         // layers; only one may exist. The same guard stops a second batch from
         // being prepared while the first is still moving files.
-        guard outcome == nil, !isWorking, !selectedItems.isEmpty else { return }
+        guard outcome == nil, !isWorking, !selectedItems.isEmpty else { return .nothingToDo }
         let candidates = selectedItems.map(FileOperationService.Candidate.init(item:))
         let verdict = await operations.preflight(candidates)
         preflight = verdict
 
-        if verdict.ready.isEmpty {
+        if verdict.ready.isEmpty || verdict.makeApprovedPlan(operation: .junkCleanup) == nil {
             // Nothing executable: report why instead of opening a panel that
             // could not do anything.
+            preflight = nil
             failure = (
                 .partialFailure,
                 verdict.protected.isEmpty
                     ? LocalizationKey.cleanupFailureFileNotFound.localized
                     : LocalizationKey.cleanupFailureProtectedLocation.localized
             )
-            return
+            return .nothingToDo
         }
-        if requiresConfirmation {
-            isConfirming = true
-        } else {
-            // The user opted out. Everything still goes to the Trash, and the
-            // result page still appears, but the list is not shown first.
-            await confirmCleanup(operation: operation)
-        }
+        isConfirming = requiresConfirmation
+        return requiresConfirmation ? .awaitingConfirmation : .readyToExecute
     }
 
-    /// Performs the cleanup with the pre-flighted items.
+    /// Hides the confirmation panel without executing the plan.
+    public func cancelConfirmation() {
+        isConfirming = false
+    }
+
+    /// Performs the cleanup with the plan pre-flight approved.
     ///
-    /// `keepWindowOpen` is a UI preference only; it never changes what is moved.
-    public func confirmCleanup(
-        operation: CleanupOperationName = .junkCleanup,
+    /// This method does not check entitlement; the caller is the composition
+    /// root, which checks it immediately before calling here.
+    @discardableResult
+    public func executePrepared(
+        operation: CleanupOperationName? = nil,
         scanReport: ScanReport? = nil
-    ) async {
-        guard let preflight, !isWorking else { return }
+    ) async -> CleanupOutcome? {
+        guard let preflight, !isWorking else { return nil }
+        let operation = operation ?? preparedOperation
+        guard let plan = preflight.makeApprovedPlan(operation: operation) else {
+            // The selection or the identity map changed after pre-flight. The
+            // safest answer is to refuse the batch rather than execute a plan
+            // this model cannot vouch for.
+            isConfirming = false
+            failure = (.itemChanged, LocalizationKey.cleanupFailureItemChanged.localized)
+            return nil
+        }
         isConfirming = false
         isWorking = true
         defer { isWorking = false }
 
-        let outcome = await operations.moveToTrash(
-            preflight.ready,
-            categoryTotals: approvedByCategory,
-            operation: operation,
-            identities: preflight.identities,
-            refusedByPreflight: preflight.refusedResults
-        )
+        let outcome = await operations.execute(plan)
         self.outcome = outcome
 
         do {
@@ -278,6 +300,7 @@ public final class CleanupModel: ObservableObject {
         // Drop the items that moved: leaving them selected would let a second
         // click act on paths that no longer exist.
         removeItems(at: Set(outcome.results.filter { $0.status == .movedToTrash }.map(\.sourceURL)))
+        return outcome
     }
 
     /// Clears everything before a new scan, so a stale selection can never
