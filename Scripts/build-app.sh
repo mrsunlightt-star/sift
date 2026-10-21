@@ -169,7 +169,10 @@ if [[ -f "${REPO_ROOT}/Resources/AppIcon.icns" ]]; then
 fi
 
 echo "==> Signing (ad-hoc, development only)"
-codesign --force --deep --sign - "${APP_DIR}" 2>&1 | grep -v "replacing existing signature" || true
+# `--options runtime` enables the Hardened Runtime, which the release checklist
+# also requires. There is no nested code in the bundle, so `--deep` is not
+# needed (and Apple discourages it for signing).
+codesign --force --options runtime --sign - "${APP_DIR}" 2>&1 | grep -v "replacing existing signature" || true
 codesign --verify --deep --strict "${APP_DIR}" && echo "    signature verified"
 
 if [[ "${INSTALL}" == "1" ]]; then

@@ -104,7 +104,12 @@ final class ScannerTests: XCTestCase, @unchecked Sendable {
     /// keeps one row, at the more cautious risk — the Rust core's merge.
     func test_onePathMatchedByTwoRulesIsOneRowAtTheMoreCautiousRisk() async throws {
         fixture.write("Library/Caches/com.example.app/blob.bin", bytes: 8192)
-        let session = try await makeEngine().startScan(makeRequest())
+        // An empty installed list now means discovery failed, and residue is
+        // skipped; name another application so `com.example.app` is genuinely
+        // uninstalled and the residue scan claims the directory too.
+        var request = makeRequest()
+        request.installedBundleIdentifiers = ["com.other.app"]
+        let session = try await makeEngine().startScan(request)
         let deadline = Date().addingTimeInterval(10)
         while Date() < deadline {
             _ = await session.pollEvents(maxEvents: 256)
@@ -545,6 +550,16 @@ final class ScannerTests: XCTestCase, @unchecked Sendable {
         XCTAssertFalse(
             residue.contains("UBF8T346G9.Office"),
             "a name in neither spelling is left alone"
+        )
+    }
+
+    /// The walker stops at a mount point: `/` and `/dev` are different
+    /// filesystems, and a nested mount belongs to a volume the user never
+    /// authorised for this scan.
+    func test_theWalkerCanTellTwoFilesystemsApart() {
+        XCTAssertNotEqual(
+            FileWalker.device(of: URL(fileURLWithPath: "/")),
+            FileWalker.device(of: URL(fileURLWithPath: "/dev"))
         )
     }
 }

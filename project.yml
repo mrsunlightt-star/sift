@@ -56,9 +56,14 @@ targets:
         PRODUCT_NAME: Sift
         PRODUCT_BUNDLE_IDENTIFIER: com.siftmac.cleaner
         INFOPLIST_FILE: Config/Info.plist
-        # Swap this to Config/Sift-AppStore.entitlements for a sandboxed Mac App
-        # Store build (§12.4). It is a target setting, so it cannot be a scheme.
+        # The direct build is not sandboxed, so this is the one entitlements file.
+        # There is no Mac App Store target: that channel would require App
+        # Sandbox, which cannot scan the home Library or list installed apps.
         CODE_SIGN_ENTITLEMENTS: Config/Sift.entitlements
+        # The direct build is not sandboxed, so the hardened runtime is the code
+        # integrity boundary. It is a target setting, not a global one: the test
+        # bundles are injected into the app and do not need it.
+        ENABLE_HARDENED_RUNTIME: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         # The C ABI header and the Rust archive.

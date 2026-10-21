@@ -322,16 +322,19 @@ pub extern "C" fn sift_rules_json() -> SiftString {
 
 /// Classifies a path against the compiled-in protection list.
 ///
-/// Returns `0` when scannable, `1` for user content, `2` for a system prefix
-/// and `3` for secrets. Swift uses this to explain a skip before it happens.
+/// Returns `0` when scannable, `1` for user content, `2` for a system prefix,
+/// `3` for secrets and `-1` when the question could not be answered (invalid
+/// UTF-8, or a panic). Callers must treat `-1` as protected, not as scannable:
+/// an answer that was not given must never unlock a path.
 ///
 /// # Safety
 /// Both strings must be valid `SiftString` values.
 #[no_mangle]
 pub unsafe extern "C" fn sift_path_protection(home_dir: SiftString, path: SiftString) -> i32 {
-    guard(0, || {
+    const UNKNOWN: i32 = -1;
+    guard(UNKNOWN, || {
         let (Some(home), Some(path)) = (as_str(&home_dir), as_str(&path)) else {
-            return 0;
+            return UNKNOWN;
         };
         match protection_reason(home, path) {
             None => 0,
@@ -530,10 +533,14 @@ fn convert_event(event: Event) -> SiftScanEvent {
             ..base
         },
         Event::ItemBatch { items } => {
-            let mut summaries = items.iter().map(convert_item_summary).collect::<Vec<_>>();
-            let count = summaries.len();
-            let pointer = summaries.as_mut_ptr();
-            std::mem::forget(summaries);
+            let summaries: Vec<SiftItemSummary> = items.iter().map(convert_item_summary).collect();
+            // `into_boxed_slice` pins the allocation to exactly `len` elements.
+            // Taking `as_mut_ptr()` from a `Vec` and later rebuilding a
+            // `Box<[T]>` is only correct when capacity == len, and `collect`
+            // does not promise that (it over-allocates past 1024 elements).
+            let boxed = summaries.into_boxed_slice();
+            let count = boxed.len();
+            let pointer = Box::into_raw(boxed) as *mut SiftItemSummary;
             SiftScanEvent {
                 kind: EVENT_ITEMS,
                 items: pointer,
@@ -725,10 +732,12 @@ pub unsafe extern "C" fn sift_scan_page_results(
                 // Counted with the same filter as the page, so `remaining`
                 // never promises rows the filter cannot produce.
                 let total = handle_ref.index().count_items(category_value).unwrap_or(0);
-                let mut items = rows.iter().map(convert_item_record).collect::<Vec<_>>();
-                let count = items.len();
-                let pointer = items.as_mut_ptr();
-                std::mem::forget(items);
+                let items: Vec<SiftItemSummary> = rows.iter().map(convert_item_record).collect();
+                // See `convert_event`: the free path rebuilds a `Box<[T]>`, so
+                // the allocation must be exactly `len` elements.
+                let boxed = items.into_boxed_slice();
+                let count = boxed.len();
+                let pointer = Box::into_raw(boxed) as *mut SiftItemSummary;
                 *out = SiftPage {
                     version: SIFT_FFI_VERSION,
                     items: pointer,
@@ -904,10 +913,7 @@ pub unsafe extern "C" fn sift_scan_skipped_json(handle: *mut SiftScanHandle) -> 
         if handle.is_null() {
             return SiftString::EMPTY;
         }
-        let index = (*handle).handle.index();
-        let Ok(skipped) = index.skipped_locations() else {
-            return SiftString::EMPTY;
-        };
+        let skipped = (*handle).handle.skipped_locations();
         #[derive(serde::Serialize)]
         struct Row {
             path: String,
@@ -917,11 +923,11 @@ pub unsafe extern "C" fn sift_scan_skipped_json(handle: *mut SiftScanHandle) -> 
         }
         let rows: Vec<Row> = skipped
             .into_iter()
-            .map(|(path, code, message, byte_count)| Row {
-                path,
-                code,
-                message,
-                byte_count,
+            .map(|location| Row {
+                path: location.path,
+                code: location.code,
+                message: location.message,
+                byte_count: location.byte_count,
             })
             .collect();
         match serde_json::to_string(&rows) {
@@ -931,14 +937,66 @@ pub unsafe extern "C" fn sift_scan_skipped_json(handle: *mut SiftScanHandle) -> 
     })
 }
 
-/// Runs a storage analysis from a JSON options object.
+/// A cancellation token for a storage analysis.
+///
+/// The analyse call is blocking, so the UI runs it on a background thread and
+/// calls [`sift_storage_cancel`] from the thread that owns the cancel button.
+/// The token is an atomic flag; cloning it would copy the value rather than
+/// share it, which is why the pointer is passed through.
+pub struct SiftStorageCancel {
+    token: CancelToken,
+}
+
+/// Creates a storage cancellation token. Free it with
+/// [`sift_storage_cancel_free`].
+#[no_mangle]
+pub extern "C" fn sift_storage_cancel_new() -> *mut SiftStorageCancel {
+    guard(std::ptr::null_mut(), || {
+        Box::into_raw(Box::new(SiftStorageCancel {
+            token: CancelToken::new(),
+        }))
+    })
+}
+
+/// Requests cancellation. Safe from any thread and in any state.
 ///
 /// # Safety
-/// `options_json` must be a valid `SiftString`. The result must be freed with
+/// `cancel` must come from [`sift_storage_cancel_new`], or be null.
+#[no_mangle]
+pub unsafe extern "C" fn sift_storage_cancel(cancel: *mut SiftStorageCancel) {
+    guard((), || {
+        if !cancel.is_null() {
+            (*cancel).token.cancel();
+        }
+    });
+}
+
+/// Frees a storage cancellation token.
+///
+/// # Safety
+/// `cancel` must come from [`sift_storage_cancel_new`] and be freed once.
+#[no_mangle]
+pub unsafe extern "C" fn sift_storage_cancel_free(cancel: *mut SiftStorageCancel) {
+    guard((), || {
+        if !cancel.is_null() {
+            drop(Box::from_raw(cancel));
+        }
+    });
+}
+
+/// Runs a storage analysis from a JSON options object.
+///
+/// `cancel` may be null. When it is not, the analysis stops at its next
+/// checkpoint when [`sift_storage_cancel`] is called from another thread.
+///
+/// # Safety
+/// `options_json` must be a valid `SiftString`, `cancel` must come from
+/// [`sift_storage_cancel_new`] or be null, and the result must be freed with
 /// [`sift_storage_analysis_free`].
 #[no_mangle]
 pub unsafe extern "C" fn sift_storage_analyse(
     options_json: SiftString,
+    cancel: *mut SiftStorageCancel,
 ) -> *mut SiftStorageAnalysis {
     guard(std::ptr::null_mut(), || {
         #[derive(serde::Deserialize)]
@@ -952,6 +1010,8 @@ pub unsafe extern "C" fn sift_storage_analyse(
             top_file_limit: Option<u32>,
             #[serde(default)]
             top_directory_limit: Option<u32>,
+            #[serde(default)]
+            directory_rollup_limit: Option<u32>,
             #[serde(default)]
             large_file_threshold_bytes: Option<u64>,
             /// Roots the caller authorised. Storage analysis honours the same
@@ -997,13 +1057,26 @@ pub unsafe extern "C" fn sift_storage_analyse(
         if let Some(limit) = options.top_directory_limit {
             analysis_options.top_directory_limit = limit;
         }
+        if let Some(limit) = options.directory_rollup_limit {
+            analysis_options.directory_rollup_limit = limit as usize;
+        }
         if let Some(threshold) = options.large_file_threshold_bytes {
             analysis_options.large_file_threshold_bytes = threshold;
         }
 
-        let analysis = storage::analyse(&analysis_options, &CancelToken::new());
+        // Borrow the caller's token, never a clone: `CancelToken::clone` copies
+        // the current flag rather than sharing it, so a clone could never be
+        // cancelled from the UI thread.
+        let own_token;
+        let token = if cancel.is_null() {
+            own_token = CancelToken::new();
+            &own_token
+        } else {
+            &(*cancel).token
+        };
+        let analysis = storage::analyse(&analysis_options, token);
 
-        let mut categories = analysis
+        let categories: Vec<SiftCategoryTotal> = analysis
             .categories
             .iter()
             .map(|category| SiftCategoryTotal {
@@ -1013,11 +1086,11 @@ pub unsafe extern "C" fn sift_storage_analyse(
                 total_bytes: category.size_bytes as i64,
             })
             .collect::<Vec<_>>();
-        let category_count = categories.len();
-        let category_pointer = categories.as_mut_ptr();
-        std::mem::forget(categories);
+        let category_boxed = categories.into_boxed_slice();
+        let category_count = category_boxed.len();
+        let category_pointer = Box::into_raw(category_boxed) as *mut SiftCategoryTotal;
 
-        let mut files = analysis
+        let files: Vec<SiftStorageFile> = analysis
             .top_files
             .iter()
             .map(|file| SiftStorageFile {
@@ -1029,11 +1102,11 @@ pub unsafe extern "C" fn sift_storage_analyse(
                 modified_secs: file.modified_secs,
             })
             .collect::<Vec<_>>();
-        let file_count = files.len();
-        let file_pointer = files.as_mut_ptr();
-        std::mem::forget(files);
+        let file_boxed = files.into_boxed_slice();
+        let file_count = file_boxed.len();
+        let file_pointer = Box::into_raw(file_boxed) as *mut SiftStorageFile;
 
-        let mut directories = analysis
+        let directories: Vec<SiftStorageDirectory> = analysis
             .top_directories
             .iter()
             .map(|directory| SiftStorageDirectory {
@@ -1044,9 +1117,9 @@ pub unsafe extern "C" fn sift_storage_analyse(
                 file_count: directory.file_count,
             })
             .collect::<Vec<_>>();
-        let directory_count = directories.len();
-        let directory_pointer = directories.as_mut_ptr();
-        std::mem::forget(directories);
+        let directory_boxed = directories.into_boxed_slice();
+        let directory_count = directory_boxed.len();
+        let directory_pointer = Box::into_raw(directory_boxed) as *mut SiftStorageDirectory;
 
         Box::into_raw(Box::new(SiftStorageAnalysis {
             version: SIFT_FFI_VERSION,
@@ -1173,7 +1246,11 @@ pub extern "C" fn sift_default_risk_for_category(category: SiftString) -> SiftSt
             .iter()
             .filter(|rule| rule.category.as_str() == value)
             .map(|rule| rule.risk)
-            .min()
+            // `Risk` orders Safe < Review < Protected, so the most cautious
+            // level is the maximum. `min` answered `safe` for `logs`, which has
+            // both safe and review rules, and would have preselected
+            // diagnostic reports.
+            .max()
             .unwrap_or(Risk::Review);
         SiftString::from_str(risk.as_str())
     })
@@ -1300,6 +1377,64 @@ mod tests {
                 sift_string_free(value);
             }
         }
+    }
+
+    #[test]
+    fn a_case_variant_is_classified_as_protected() {
+        unsafe {
+            let home = string("/Users/example");
+            let documents = string("/Users/example/documents/a.txt");
+            let keychain = string("/Users/example/LIBRARY/KEYCHAINS/login.keychain-db");
+            assert_eq!(sift_path_protection(home, documents), 1);
+            assert_eq!(sift_path_protection(home, keychain), 3);
+            sift_string_free(home);
+            sift_string_free(documents);
+            sift_string_free(keychain);
+        }
+    }
+
+    #[test]
+    fn an_unanswerable_protection_query_is_not_scannable() {
+        unsafe {
+            let home = string("/Users/example");
+            // Invalid UTF-8: the answer is unknown, and the caller must treat
+            // unknown as protected.
+            let mut invalid = [0xFFu8];
+            let value = SiftString {
+                ptr: invalid.as_mut_ptr(),
+                len: invalid.len(),
+            };
+            assert_eq!(sift_path_protection(home, value), -1);
+            sift_string_free(home);
+        }
+    }
+
+    #[test]
+    fn a_large_item_batch_frees_with_the_boxed_slice_layout() {
+        // More than 1024 items is where `Vec::collect` starts over-allocating;
+        // the free path rebuilds a `Box<[T]>`, so the allocation must be exact.
+        let items: Vec<sift_scanner_core::ScanItemSummary> = (0..5000)
+            .map(|index| sift_scanner_core::ScanItemSummary {
+                path: format!("/tmp/item-{index}"),
+                display_name: format!("item-{index}"),
+                parent_path: "/tmp".to_string(),
+                category: "logs".to_string(),
+                risk: "safe".to_string(),
+                size_bytes: 1,
+                file_count: 1,
+                explanation_key: "cleanup.explanation.logsItem".to_string(),
+                rule_id: "test".to_string(),
+                bundle_id: None,
+                modified_secs: 0,
+                is_directory: false,
+            })
+            .collect();
+        let mut event = convert_event(Event::ItemBatch { items });
+        assert_eq!(event.item_count, 5000);
+        assert!(!event.items.is_null());
+        unsafe { sift_event_free_items(&mut event) };
+        assert!(event.items.is_null());
+        assert_eq!(event.item_count, 0);
     }
 
     #[test]
@@ -1696,6 +1831,13 @@ mod tests {
         unsafe { sift_string_free(risk) };
         assert_eq!(text, "safe");
 
+        // `logs` holds both safe and review rules; the category default is the
+        // more cautious one, or diagnostic reports would be preselected.
+        let logs = sift_default_risk_for_category(string("logs"));
+        let text = unsafe { as_str(&logs) }.unwrap().to_string();
+        unsafe { sift_string_free(logs) };
+        assert_eq!(text, "review");
+
         let unknown = sift_default_risk_for_category(string("nonsense"));
         let text = unsafe { as_str(&unknown) }.unwrap().to_string();
         unsafe { sift_string_free(unknown) };
@@ -1715,7 +1857,7 @@ mod tests {
         })
         .to_string();
 
-        let analysis = unsafe { sift_storage_analyse(string(&options)) };
+        let analysis = unsafe { sift_storage_analyse(string(&options), std::ptr::null_mut()) };
         assert!(!analysis.is_null());
         unsafe {
             assert!((*analysis).ok, "analysis succeeds");
@@ -1729,20 +1871,49 @@ mod tests {
 
     #[test]
     fn storage_analysis_rejects_broken_options() {
-        let analysis = unsafe { sift_storage_analyse(string("{bad")) };
+        let analysis = unsafe { sift_storage_analyse(string("{bad"), std::ptr::null_mut()) };
         assert!(!analysis.is_null());
         unsafe {
             assert!(!(*analysis).ok);
             assert!(!(*analysis).error.ptr.is_null());
             sift_storage_analysis_free(analysis);
         }
-        let null_analysis = unsafe { sift_storage_analyse(SiftString::EMPTY) };
+        let null_analysis =
+            unsafe { sift_storage_analyse(SiftString::EMPTY, std::ptr::null_mut()) };
         assert!(!null_analysis.is_null());
         unsafe {
             assert!(!(*null_analysis).ok);
             sift_storage_analysis_free(null_analysis);
         }
         unsafe { sift_storage_analysis_free(std::ptr::null_mut()) };
+    }
+
+    #[test]
+    fn a_cancelled_storage_analysis_stops_early() {
+        let tree = sift_scanner_core::walker::fixtures::TempTree::new("ffi-storage-cancel");
+        tree.file("a/data.bin", 4096);
+        let options = serde_json::json!({
+            "homeDir": tree.root.to_string_lossy(),
+            "roots": [tree.root.to_string_lossy()]
+        })
+        .to_string();
+
+        let cancel = sift_storage_cancel_new();
+        assert!(!cancel.is_null());
+        unsafe {
+            sift_storage_cancel(cancel);
+            let analysis = sift_storage_analyse(string(&options), cancel);
+            assert!(!analysis.is_null());
+            assert!((*analysis).ok);
+            assert_eq!(
+                (*analysis).scanned_file_count,
+                0,
+                "a pre-cancelled analysis visits nothing"
+            );
+            sift_storage_analysis_free(analysis);
+            sift_storage_cancel_free(cancel);
+            sift_storage_cancel_free(std::ptr::null_mut());
+        }
     }
 
     #[test]

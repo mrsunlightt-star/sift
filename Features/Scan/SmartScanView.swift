@@ -44,7 +44,10 @@ public struct ScanView: View {
     }
 
     private var isPreparing: Bool { environment.isPreparingScan }
-    private var isBusy: Bool { isPreparing || scan.isRunning }
+    /// The environment holds the run until its first page is loaded, not just
+    /// until the engine settles. The page must use the same gate, or it offers
+    /// a rescan the environment will ignore.
+    private var isBusy: Bool { environment.isScanInFlight }
 
     public var body: some View {
         VStack(spacing: 0) {
@@ -152,6 +155,12 @@ public struct ScanView: View {
                     : nil
             )
         }
+        if let failure = scan.resultLoadFailure {
+            // The index could not be read. Without this line the page showed an
+            // empty result area, which reads as "nothing was found" — a
+            // different statement from "the result could not be loaded".
+            NoticeBanner(level: .error, message: failure)
+        }
         if !scan.skippedLocations.isEmpty {
             SkippedLocationsCard(locations: scan.skippedLocations)
         }
@@ -194,6 +203,16 @@ public struct ScanView: View {
                 Task { await scan.cancel() }
             }
             .accessibilityIdentifier("scan.cancel")
+        } else if isBusy {
+            // The engine settled but the first page is still being read. A
+            // rescan button here would start a run the environment refuses.
+            HStack(spacing: SiftMetrics.spacingS) {
+                ProgressView().controlSize(.small)
+                Text(LocalizationKey.scanPhaseReady.localized)
+                    .font(SiftFont.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, SiftMetrics.spacingM)
         } else if scan.hasResults {
             SiftPrimaryButton(titleKey: .scanRescan, symbolName: "arrow.clockwise") {
                 Task { await environment.runScan(.everything) }
@@ -321,7 +340,7 @@ public struct ScanView: View {
 
                 Divider()
 
-                if items.isEmpty, !isLoading {
+                if items.isEmpty, !isLoading, scan.resultLoadFailure == nil {
                     SiftEmptyState(
                         symbolName: "checkmark.circle",
                         titleKey: .scanNothingFound,

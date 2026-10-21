@@ -26,7 +26,60 @@ actor RustScannerEngine: ScannerEngine {
 
     init(indexDirectory: URL = SettingsStore.defaultSupportDirectory().appendingPathComponent("Index", isDirectory: true)) {
         self.indexDirectory = indexDirectory
+        Self.prepareIndexDirectory(indexDirectory)
         SiftABILayout.verify()
+    }
+
+    /// Creates the index directory with owner-only permissions and removes the
+    /// artifacts a crashed session left behind.
+    ///
+    /// The database and its WAL carry every scanned path and file name. The
+    /// directory is 0700 and the files 0600 so another account cannot read them;
+    /// a sweep at launch is what stops an interrupted run from keeping that data
+    /// indefinitely. Only files older than a day are removed, so a scan that is
+    /// still running is never touched.
+    private static func prepareIndexDirectory(_ directory: URL) {
+        let fileManager = FileManager.default
+        try? fileManager.createDirectory(
+            at: directory,
+            withIntermediateDirectories: true,
+            attributes: [.posixPermissions: 0o700]
+        )
+        // `createDirectory` does not tighten a directory that already exists.
+        try? fileManager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
+
+        guard let entries = try? fileManager.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: [.contentModificationDateKey],
+            options: [.skipsHiddenFiles]
+        ) else { return }
+        let cutoff = Date().addingTimeInterval(-24 * 60 * 60)
+        var bases = Set<URL>()
+        for entry in entries {
+            let name = entry.lastPathComponent
+            guard name.contains(".sqlite") else { continue }
+            let baseName = name.hasSuffix("-wal") || name.hasSuffix("-shm")
+                ? String(name.dropLast(4))
+                : name
+            bases.insert(directory.appendingPathComponent(baseName))
+        }
+        for base in bases {
+            let attributes = try? fileManager.attributesOfItem(atPath: base.path)
+            let modified = (attributes?[.modificationDate] as? Date) ?? .distantPast
+            if modified < cutoff {
+                removeIndexArtifacts(at: base)
+            }
+        }
+    }
+
+    /// Removes the database and the WAL/SHM files SQLite writes beside it.
+    ///
+    /// `-wal` and `-shm` carry the same rows as the database; deleting only the
+    /// `.sqlite` file leaves a copy of every scanned path behind.
+    fileprivate static func removeIndexArtifacts(at url: URL) {
+        for suffix in ["", "-wal", "-shm"] {
+            try? FileManager.default.removeItem(at: URL(fileURLWithPath: url.path + suffix))
+        }
     }
 
     /// Confirms the linked library matches the header this build compiled against.
@@ -58,7 +111,8 @@ actor RustScannerEngine: ScannerEngine {
 
         // The index lives in the app's data directory and is removed when the
         // session ends: the spec requires scan results not to accumulate.
-        try? FileManager.default.createDirectory(at: indexDirectory, withIntermediateDirectories: true)
+        // `prepareIndexDirectory` also sets the owner-only permissions.
+        Self.prepareIndexDirectory(indexDirectory)
         let sessionID = UUID().uuidString
         let indexURL = indexDirectory.appendingPathComponent("\(sessionID).sqlite")
 
@@ -80,6 +134,16 @@ actor RustScannerEngine: ScannerEngine {
             throw ScannerError(code: code, message: message)
         }
         releaseResult(&error)
+
+        // The database holds every scanned path; keep it owner-readable only.
+        // SQLite creates `-wal`/`-shm` on first write, but they live in the 0700
+        // directory, so the directory permission covers them too.
+        for suffix in ["", "-wal", "-shm"] {
+            try? FileManager.default.setAttributes(
+                [.posixPermissions: 0o600],
+                ofItemAtPath: indexURL.path + suffix
+            )
+        }
 
         logger.info("Scan started (engine=rust roots=\(request.roots.count))")
         let owner = RustEngineHandle(pointer: engine)
@@ -156,8 +220,9 @@ private final class RustScanSession: ScanSession, @unchecked Sendable {
         // session is released only after its last caller has let it go.
         sift_scan_free(handle)
         // The SQLite index is a scan artifact; removing it keeps the data
-        // directory from accumulating paths the user has since deleted.
-        try? FileManager.default.removeItem(at: indexURL)
+        // directory from accumulating paths the user has since deleted. The WAL
+        // and shared-memory files hold the same rows and must go with it.
+        RustScannerEngine.removeIndexArtifacts(at: indexURL)
         _ = owner
     }
 
@@ -176,25 +241,30 @@ private final class RustScanSession: ScanSession, @unchecked Sendable {
         guard written > 0 else { return [] }
 
         var events: [ScanEvent] = []
+        var sawIncompatible = false
         for index in 0..<Int(written) {
             var raw = buffer[index]
+            // Every event owns strings and possibly an item array, even one
+            // this build cannot interpret. Free it on every path, including the
+            // version-mismatch branch that used to leak it.
+            defer { sift_event_free_items(&raw) }
+            guard !sawIncompatible else { continue }
             guard raw.version == UInt32(SIFT_FFI_VERSION) else {
                 // The library answered with a shape this build did not compile
                 // against. A silently skipped event would leave the page waiting
                 // for a terminal phase that can never arrive.
+                sawIncompatible = true
                 events.append(
                     .failed(
                         code: .internalError,
                         message: "The scanner core returned an incompatible event."
                     )
                 )
-                break
+                continue
             }
             if let event = self.convert(&raw) {
                 events.append(event)
             }
-            // Item arrays and strings are owned by this side until freed here.
-            sift_event_free_items(&raw)
         }
         return events
     }
@@ -587,6 +657,7 @@ private struct RustScanRequest: Encodable {
         let path: String
         let anchor: String
         let isCleanable: Bool
+        let includesThresholdFiles: Bool
         let maxDepth: UInt32?
         let volumeId: String?
     }
@@ -605,6 +676,7 @@ private struct RustScanRequest: Encodable {
                 path: root.url.path,
                 anchor: root.anchor.rawValue,
                 isCleanable: root.isCleanable,
+                includesThresholdFiles: root.includesThresholdFiles,
                 maxDepth: root.maxDepth.map(UInt32.init),
                 volumeId: root.volumeIdentifier
             )

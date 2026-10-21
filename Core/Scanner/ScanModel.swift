@@ -44,8 +44,12 @@ public final class ScanModel: ObservableObject {
     /// True once the risk split has been read from the finished index. The
     /// overview only states the split when it is complete.
     @Published public private(set) var riskTotalsComplete = false
-    /// Why the last page read failed, when it did. A failed index read is not an
-    /// empty result: the page keeps the previous rows and says the read failed.
+    /// Why a page read failed, when one did. A failed index read is not an empty
+    /// result: the page keeps the previous rows and says the read failed.
+    ///
+    /// Cleared by `reset()` for a new run, not by a later successful page. A
+    /// result page reads several category pages in sequence, and letting the
+    /// next page erase the failure hid the one category that could not be read.
     @Published public private(set) var resultLoadFailure: String?
 
     /// Seconds since this run started, or the finished run's duration.
@@ -88,7 +92,13 @@ public final class ScanModel: ObservableObject {
 
     public var isRunning: Bool { phase.isRunning }
 
-    public var hasResults: Bool { phase.hasResults }
+    /// True only once the run published its report, not merely its phase.
+    ///
+    /// `.ready` can arrive in one poll batch and the report in the next. The
+    /// page used to show its result branch on the phase alone, so that window
+    /// displayed an empty list under a finished heading — and offered a rescan
+    /// while the first run was still loading its first page.
+    public var hasResults: Bool { phase.hasResults && report != nil }
 
     /// True once the run has reached a phase no further event will leave.
     private var isSettled: Bool {
@@ -205,14 +215,12 @@ public final class ScanModel: ObservableObject {
             return ScanPage(items: [], remaining: 0)
         }
         do {
-            let page = try await session.page(
+            return try await session.page(
                 offset: offset,
                 limit: limit,
                 sort: sort,
                 category: category
             )
-            resultLoadFailure = nil
-            return page
         } catch {
             // An index that cannot be read is not an empty result. Keep the
             // failure so the page can say what happened instead of rendering
@@ -248,7 +256,6 @@ public final class ScanModel: ObservableObject {
         guard let session else { return }
         do {
             duplicateGroups = try await session.duplicateGroups(offset: 0, limit: limit)
-            resultLoadFailure = nil
         } catch {
             recordLoadFailure(error)
         }
@@ -269,7 +276,6 @@ public final class ScanModel: ObservableObject {
             // offering a load that never advances.
             let known = Set(duplicateGroups.map(\.id))
             duplicateGroups.append(contentsOf: next.filter { !known.contains($0.id) })
-            resultLoadFailure = nil
         } catch {
             recordLoadFailure(error)
         }

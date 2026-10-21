@@ -226,6 +226,13 @@ public struct RuleEngine: Sendable {
         authorizedSnapshot ?? authorized.paths
     }
 
+    /// The grants in force, for callers that hand paths to another engine.
+    ///
+    /// The Rust storage analysis applies the same protection list as a scan, so
+    /// it needs the same grants; without them an authorised volume would be
+    /// measured as a protected `/Volumes` tree.
+    public var authorizedRoots: [String] { effectiveAuthorizedPaths }
+
     // MARK: - Protection
 
     /// Why a path may not be touched, or `nil` when it may be.
@@ -256,11 +263,15 @@ public struct RuleEngine: Sendable {
     public func protectionReason(for path: String) -> ProtectionReason? {
         let resolved = Self.normalize(path)
 
-        for child in ProtectedPaths.homeChildren where Self.isPrefix("\(homeDirectory)/\(child)", resolved) {
+        // Protection names are literals and macOS volumes are case-insensitive
+        // by default, so `~/documents` is the user's Documents directory. The
+        // comparison folds case; rule matching keeps the exact `isPrefix`.
+        for child in ProtectedPaths.homeChildren
+        where Self.isProtectedPrefix("\(homeDirectory)/\(child)", resolved) {
             return .userContent(child)
         }
         for entry in ProtectedPaths.libraryChildren
-        where Self.isPrefix("\(homeDirectory)/\(entry.path)", resolved) {
+        where Self.isProtectedPrefix("\(homeDirectory)/\(entry.path)", resolved) {
             switch entry.kind {
             case .userContent: return .userContent(entry.path)
             case .secrets: return .secrets(entry.path)
@@ -273,15 +284,16 @@ public struct RuleEngine: Sendable {
         // the user added. It must never lift a real system prefix: granting
         // `/Library` or `/private/var` would otherwise expose launch daemons and
         // the system database, so authorisation is consulted only here.
-        if Self.isPrefix("/Volumes", resolved) {
-            if effectiveAuthorizedPaths.contains(where: { Self.isPrefix($0, resolved) }) {
+        if Self.isProtectedPrefix("/Volumes", resolved) {
+            if effectiveAuthorizedPaths.contains(where: { Self.isProtectedPrefix($0, resolved) }) {
                 return nil
             }
             return .systemPath("/Volumes")
         }
 
         // Everything else in the protection list is a hard rule.
-        for prefix in ProtectedPaths.prefixes where prefix != "/Volumes" && Self.isPrefix(prefix, resolved) {
+        for prefix in ProtectedPaths.prefixes
+        where prefix != "/Volumes" && Self.isProtectedPrefix(prefix, resolved) {
             return .systemPath(prefix)
         }
         return nil
@@ -299,9 +311,19 @@ public struct RuleEngine: Sendable {
         // An explicit allowlist: a grant is either one concrete volume or a
         // folder inside the user's own home. Nothing else is authorisable, which
         // is what keeps `/`, `/Library` and `/private/var` out of reach.
-        if Self.isPrefix("/Volumes", path) {
+        if Self.isProtectedPrefix("/Volumes", path) {
             // `/Volumes` itself is the container of every disk, not a grant.
-            return path != "/Volumes" && components.count >= 2
+            guard path != "/Volumes", components.count >= 2 else { return false }
+            // A network share has no meaningful local size, no per-syscall
+            // timeout, and no Trash the user can undo after unmounting. The
+            // volume list already hides them; the allowlist must refuse them
+            // even when the panel hands one back.
+            let resolved = url.resolvingSymlinksInPath()
+            if let isLocal = try? resolved.resourceValues(forKeys: [.volumeIsLocalKey]).volumeIsLocal,
+               isLocal == false {
+                return false
+            }
+            return true
         }
         guard Self.isPrefix(homeDirectory, path), path != homeDirectory else {
             return false
@@ -312,11 +334,11 @@ public struct RuleEngine: Sendable {
         // ignore would leave the settings page showing access the user does not
         // actually have. The list comes from the shared table for that reason.
         for child in ProtectedPaths.homeChildren
-        where Self.isPrefix("\(homeDirectory)/\(child)", path) {
+        where Self.isProtectedPrefix("\(homeDirectory)/\(child)", path) {
             return false
         }
         for entry in ProtectedPaths.libraryChildren
-        where Self.isPrefix("\(homeDirectory)/\(entry.path)", path) {
+        where Self.isProtectedPrefix("\(homeDirectory)/\(entry.path)", path) {
             return false
         }
         if Self.isPhotoLibrary(path) {
@@ -434,36 +456,61 @@ public struct RuleEngine: Sendable {
     /// a folder inside home are grants, but they are not volumes, and treating
     /// them as one would apply a volume-wide rule to a folder.
     public func resolvedRoots(for rule: Rule) -> [URL] {
+        let roots: [URL]
         switch rule.root {
         case .home:
-            return Self.roots(under: homeDirectory, relativePath: rule.relativePath)
+            roots = Self.roots(under: homeDirectory, relativePath: rule.relativePath)
         case .homeLibrary:
-            return Self.roots(
+            roots = Self.roots(
                 under: "\(homeDirectory)/Library",
                 relativePath: rule.relativePath
             )
         case .applications:
-            return Self.roots(under: "/Applications", relativePath: rule.relativePath)
+            roots = Self.roots(under: "/Applications", relativePath: rule.relativePath)
         case .systemLibrary:
-            return Self.roots(under: "/Library", relativePath: rule.relativePath)
+            roots = Self.roots(under: "/Library", relativePath: rule.relativePath)
         case .authorized, .externalVolume:
             // Never guessed from a mount point name: only roots the user
             // actually authorised are considered (§8.3).
             let grants = rule.root == .externalVolume
                 ? effectiveAuthorizedPaths.filter { Self.isMountedVolume($0) }
                 : effectiveAuthorizedPaths
-            return grants.sorted().flatMap { grant in
+            roots = grants.sorted().flatMap { grant in
                 Self.roots(under: grant, relativePath: rule.relativePath)
             }
         }
+        // An anchor is a place to look inside, never a cleanup item. This also
+        // catches `root: home, relativePath: "Library"`, which is spelled as a
+        // descendant but resolves to the container.
+        return roots.filter { !isCleanupContainer($0.path) }
+    }
+
+    /// True when `path` is a container rather than a cleanup target.
+    ///
+    /// `~/Library` and the other containers remain scannable (the product lives
+    /// inside them), but they are never a single item: moving one would take
+    /// every application's data with it.
+    public func isCleanupContainer(_ path: String) -> Bool {
+        Self.isCleanupContainer(path, home: homeDirectory)
+    }
+
+    static func isCleanupContainer(_ path: String, home: String) -> Bool {
+        // Case-folded: `~/library` is `~/Library` on a default APFS volume.
+        let path = normalize(path).lowercased()
+        let home = normalize(home).lowercased()
+        return path == home
+            || path == "\(home)/library"
+            || path == "\(home)/applications"
+            || ["/", "/volumes", "/applications", "/library"].contains(path)
     }
 
     /// The roots inside `base` that `relativePath` names, collapsed.
     ///
-    /// Empty when the relative path would leave `base`. `decode` already refuses
-    /// such a file, so this is the second line rather than the only one: it also
-    /// covers the built-in table, and it is what makes the path the engine walks
-    /// the same one the protection check judges. Without it
+    /// Empty when the relative path would leave `base`, or when it is empty: an
+    /// anchor is not a cleanup item. `decode` already refuses such a file, so
+    /// this is the second line rather than the only one: it also covers the
+    /// built-in table, and it is what makes the path the engine walks the same
+    /// one the protection check judges. Without it
     /// `/Users/alice/Library/../../Shared` is checked as `/Users/Shared` and
     /// walked as written.
     ///
@@ -477,8 +524,11 @@ public struct RuleEngine: Sendable {
         // `Path::join` replaces the anchor with it outright: refusing it is what
         // keeps one rule from meaning two things.
         guard !relativePath.hasPrefix("/") else { return [] }
+        guard !relativePath.trimmingCharacters(in: CharacterSet(charactersIn: "/")).isEmpty else {
+            return []
+        }
         let basePath = collapse(base)
-        let joined = relativePath.isEmpty ? basePath : collapse("\(basePath)/\(relativePath)")
+        let joined = collapse("\(basePath)/\(relativePath)")
         guard isPrefix(basePath, joined) else { return [] }
         return [URL(fileURLWithPath: joined)]
     }
@@ -688,6 +738,20 @@ public struct RuleEngine: Sendable {
         if prefix == "/" { return true }
         if path == prefix { return true }
         return path.hasPrefix(prefix + "/")
+    }
+
+    /// The protection list's comparison: case-folded, because macOS volumes are
+    /// case-insensitive by default.
+    ///
+    /// `~/documents` and `~/library/keychains` resolve to the protected
+    /// directories. Only the protection check folds case; rule matching keeps
+    /// `isPrefix`, so a case-sensitive volume does not start matching a
+    /// differently-cased sibling.
+    static func isProtectedPrefix(_ prefix: String, _ path: String) -> Bool {
+        let prefix = normalize(prefix).lowercased()
+        let path = normalize(path).lowercased()
+        if prefix == "/" { return true }
+        return path == prefix || path.hasPrefix(prefix + "/")
     }
 
     /// Component depth of `path` below `root`, or `nil` when outside it.

@@ -154,7 +154,7 @@ public struct DashboardView: View {
                 }
 
                 HStack(spacing: SiftMetrics.spacingM) {
-                    if scan.isRunning || environment.isPreparingScan {
+                    if environment.isScanInFlight {
                         SiftPrimaryButton(
                             titleKey: .overviewViewProgress,
                             symbolName: "arrow.right"
@@ -165,7 +165,7 @@ public struct DashboardView: View {
                         SiftPrimaryButton(
                             titleKey: .dashboardStartScan,
                             symbolName: "viewfinder",
-                            isEnabled: !scan.isRunning && !environment.isPreparingScan
+                            isEnabled: !environment.isScanInFlight
                         ) {
                             Task { await environment.runScan(.everything) }
                         }

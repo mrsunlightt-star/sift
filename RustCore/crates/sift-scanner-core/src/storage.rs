@@ -10,7 +10,7 @@
 
 use crate::walker::{self, DEFAULT_SKIP_DIRECTORY_NAMES};
 use sift_hasher::CancelToken;
-use sift_rules::is_protected_path_authorized;
+use sift_rules::{collapse_path, is_prefix_of, is_protected_path_authorized, normalize_path};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -18,6 +18,9 @@ use std::path::{Path, PathBuf};
 pub const DEFAULT_TOP_FILE_LIMIT: u32 = 500;
 /// Default number of directories returned.
 pub const DEFAULT_TOP_DIRECTORY_LIMIT: u32 = 100;
+/// Default cap on retained directory rollups. The Swift analyzer used the same
+/// number; the map is pruned rather than allowed to grow with the tree.
+pub const DEFAULT_DIRECTORY_ROLLUP_LIMIT: usize = 20_000;
 /// Beyond this many entries the analysis aggregates instead of listing.
 pub const MAX_LISTED_RESULTS: u64 = 10_000;
 
@@ -259,6 +262,10 @@ pub struct AnalysisOptions {
     pub ignore_paths: Vec<PathBuf>,
     pub top_file_limit: u32,
     pub top_directory_limit: u32,
+    /// How many directory rollups may be retained before the smallest are
+    /// pruned. The page renders only `top_directory_limit`, so the tail is a
+    /// memory bound rather than a display choice.
+    pub directory_rollup_limit: usize,
     pub large_file_threshold_bytes: u64,
     /// Whether dot entries are part of the measurement. The app passes the same
     /// `showHiddenFiles` preference a cleanup scan uses.
@@ -274,6 +281,7 @@ impl AnalysisOptions {
             ignore_paths: Vec::new(),
             top_file_limit: DEFAULT_TOP_FILE_LIMIT,
             top_directory_limit: DEFAULT_TOP_DIRECTORY_LIMIT,
+            directory_rollup_limit: DEFAULT_DIRECTORY_ROLLUP_LIMIT,
             large_file_threshold_bytes: 1024 * 1024 * 1024,
             include_hidden_files: true,
         }
@@ -290,6 +298,10 @@ struct Accumulator {
     started: std::time::Instant,
     categories: HashMap<&'static str, (u64, u64)>,
     directory_sizes: HashMap<PathBuf, (u64, u64)>,
+    /// Directories whose earlier total was pruned. They are not re-created by
+    /// later files: a fresh entry would report a partial total as the whole
+    /// size of the directory.
+    discarded_directories: std::collections::HashSet<PathBuf>,
     top_files: Vec<StorageFile>,
     scanned_files: u64,
     scanned_bytes: u64,
@@ -305,6 +317,7 @@ impl Accumulator {
             started: std::time::Instant::now(),
             categories: HashMap::new(),
             directory_sizes: HashMap::new(),
+            discarded_directories: std::collections::HashSet::new(),
             top_files: Vec::new(),
             scanned_files: 0,
             scanned_bytes: 0,
@@ -315,7 +328,20 @@ impl Accumulator {
     }
 
     fn visit_file(&mut self, path: &Path, size: u64, modified_secs: i64) {
-        self.scanned_files += 1;
+        self.record(path, size, 1, modified_secs);
+    }
+
+    /// Records a package directory as one item holding `files` files.
+    ///
+    /// The category and file totals must count the files inside the bundle, not
+    /// the bundle itself; the Swift analyzer and the page both report the
+    /// contents.
+    fn visit_bundle(&mut self, path: &Path, size: u64, files: u64, modified_secs: i64) {
+        self.record(path, size, files, modified_secs);
+    }
+
+    fn record(&mut self, path: &Path, size: u64, files: u64, modified_secs: i64) {
+        self.scanned_files += files;
         self.scanned_bytes += size;
         if self.scanned_files > MAX_LISTED_RESULTS {
             self.aggregated = true;
@@ -330,7 +356,7 @@ impl Accumulator {
             .entry(category_for_extension(&extension))
             .or_insert((0, 0));
         entry.0 += size;
-        entry.1 += 1;
+        entry.1 += files;
 
         if size >= self.options.large_file_threshold_bytes && size > 0 {
             self.top_files.push(StorageFile {
@@ -382,14 +408,64 @@ impl Accumulator {
             ) {
                 break;
             }
-            let entry = self
-                .directory_sizes
-                .entry(directory.to_path_buf())
-                .or_insert((0, 0));
-            entry.0 += size;
-            entry.1 += 1;
+            if !self.discarded_directories.contains(directory) {
+                let entry = self
+                    .directory_sizes
+                    .entry(directory.to_path_buf())
+                    .or_insert((0, 0));
+                entry.0 += size;
+                entry.1 += 1;
+            }
             current = directory.parent();
         }
+        if self.directory_sizes.len() > self.options.directory_rollup_limit.max(2) {
+            self.prune_rollups();
+        }
+    }
+
+    /// Drops the smallest rollups, keeping every ancestor of a kept one.
+    ///
+    /// The page renders only the top directory limit, so the tail is not shown
+    /// either way. What matters is that an entry still in the map is complete:
+    /// the names of the dropped entries are remembered so a later file cannot
+    /// reintroduce one with a partial total.
+    fn prune_rollups(&mut self) {
+        let limit = self.options.directory_rollup_limit.max(2);
+        let keep_count = (limit / 2).max(1);
+        let mut ranked: Vec<(PathBuf, u64)> = self
+            .directory_sizes
+            .iter()
+            .map(|(path, (bytes, _))| (path.clone(), *bytes))
+            .collect();
+        ranked.sort_by(|left, right| right.1.cmp(&left.1).then_with(|| left.0.cmp(&right.0)));
+        let mut kept: std::collections::HashSet<PathBuf> = ranked
+            .iter()
+            .take(keep_count)
+            .map(|(path, _)| path.clone())
+            .collect();
+        // A parent's total is at least its child's, but ties and path ordering
+        // can separate them. Keeping the ancestor chain also means the kept
+        // child keeps receiving the parent's other descendants' bytes.
+        let mut pending: Vec<PathBuf> = kept.iter().cloned().collect();
+        while let Some(path) = pending.pop() {
+            let mut current = path.parent();
+            while let Some(parent) = current {
+                if kept.contains(parent) {
+                    break;
+                }
+                if self.directory_sizes.contains_key(parent) {
+                    kept.insert(parent.to_path_buf());
+                    pending.push(parent.to_path_buf());
+                }
+                current = parent.parent();
+            }
+        }
+        for path in self.directory_sizes.keys() {
+            if !kept.contains(path) {
+                self.discarded_directories.insert(path.clone());
+            }
+        }
+        self.directory_sizes.retain(|path, _| kept.contains(path));
     }
 
     fn finish(mut self) -> StorageAnalysis {
@@ -449,112 +525,169 @@ impl Accumulator {
 
 /// Runs the analysis over every root.
 ///
-/// Protected locations are counted as skipped rather than traversed, so the
-/// storage page can never present a user document as reclaimable space.
+/// Protected locations are out of scope rather than unreadable: they are
+/// skipped without counting as a failed read, so a complete, safe walk is not
+/// reported as partial. A mount point below a root belongs to another volume
+/// and is skipped entry by entry.
 pub fn analyse(options: &AnalysisOptions, cancel: &CancelToken) -> StorageAnalysis {
+    let mut options = options.clone();
+    // A threshold below a megabyte would list thousands of ordinary files.
+    options.large_file_threshold_bytes = options.large_file_threshold_bytes.max(1024 * 1024);
     let mut accumulator = Accumulator::new(options.clone());
-    // Depth-first with an explicit stack keeps the call stack flat on deep trees.
-    let mut stack: Vec<PathBuf> = options
+
+    let ignored: Vec<String> = options
+        .ignore_paths
+        .iter()
+        .map(|path| normalize_path(&path.to_string_lossy()))
+        .collect();
+
+    let roots: Vec<PathBuf> = options
         .roots
         .iter()
         .filter(|root| {
-            root.is_dir()
-                && !options
-                    .ignore_paths
-                    .iter()
-                    .any(|skip| root.starts_with(skip))
+            // `symlink_metadata` refuses a root that is itself a link: the
+            // storage page measures a directory, not whatever it points at.
+            std::fs::symlink_metadata(root)
+                .map(|metadata| metadata.is_dir())
+                .unwrap_or(false)
+                && !is_ignored(root, &ignored)
+                && !is_protected_path_authorized(
+                    &options.home_dir.to_string_lossy(),
+                    &root.to_string_lossy(),
+                    &options.authorized_roots,
+                )
         })
         .cloned()
         .collect();
-    let mut siblings: Vec<PathBuf> = Vec::new();
 
-    while let Some(directory) = stack.pop() {
+    for root in roots {
         if cancel.is_cancelled() {
             accumulator.cancelled = true;
             break;
         }
-        let Ok(entries) = std::fs::read_dir(&directory) else {
-            accumulator.skipped += 1;
-            continue;
-        };
-        for entry in entries.flatten() {
+        let root_device = std::fs::symlink_metadata(&root)
+            .ok()
+            .map(|metadata| walker::device_of(&metadata));
+        // Depth-first with an explicit stack keeps the call stack flat on deep
+        // trees and never keeps a level of sibling directories in memory.
+        let mut stack = vec![root];
+        while let Some(directory) = stack.pop() {
             if cancel.is_cancelled() {
                 accumulator.cancelled = true;
                 break;
             }
-            let path = entry.path();
-            if options
-                .ignore_paths
-                .iter()
-                .any(|skip| path.starts_with(skip))
-            {
-                continue;
-            }
-            if !options.include_hidden_files
-                && path
-                    .file_name()
-                    .map(|name| name.to_string_lossy().starts_with('.'))
-                    .unwrap_or(false)
-            {
-                continue;
-            }
-            if crate::scanners::is_in_excluded_location(&path) {
-                continue;
-            }
-            if is_protected_path_authorized(
-                &options.home_dir.to_string_lossy(),
-                &path.to_string_lossy(),
-                &options.authorized_roots,
-            ) {
-                accumulator.skipped += 1;
-                continue;
-            }
-            let Ok(metadata) = std::fs::symlink_metadata(&path) else {
+            let Ok(entries) = std::fs::read_dir(&directory) else {
                 accumulator.skipped += 1;
                 continue;
             };
-            if metadata.file_type().is_symlink() {
-                continue;
-            }
-            if metadata.is_dir() {
-                let name = path
-                    .file_name()
-                    .map(|n| n.to_string_lossy().to_string())
-                    .unwrap_or_default();
-                if DEFAULT_SKIP_DIRECTORY_NAMES.contains(&name.as_str()) {
+            for entry in entries.flatten() {
+                if cancel.is_cancelled() {
+                    accumulator.cancelled = true;
+                    break;
+                }
+                let path = entry.path();
+                if is_ignored(&path, &ignored) {
                     continue;
                 }
-                if walker::is_package_directory_export(&name, &[]) {
-                    // A bundle is one item: its contents are summed, not listed.
-                    let (bytes, files) = measure_bundle(&path, cancel, &options.authorized_roots);
-                    accumulator.visit_file(&path, bytes, modified_secs_of(&metadata));
-                    accumulator.scanned_files += files.saturating_sub(1);
+                if !options.include_hidden_files
+                    && path
+                        .file_name()
+                        .map(|name| name.to_string_lossy().starts_with('.'))
+                        .unwrap_or(false)
+                {
                     continue;
                 }
-                siblings.push(path);
-            } else if metadata.is_file() {
-                let size = walker::allocated_size(&metadata);
-                accumulator.visit_file(&path, size, modified_secs_of(&metadata));
+                if crate::scanners::is_in_excluded_location(&path) {
+                    continue;
+                }
+                if is_protected_path_authorized(
+                    &options.home_dir.to_string_lossy(),
+                    &path.to_string_lossy(),
+                    &options.authorized_roots,
+                ) {
+                    // Deliberately out of scope, not unreadable.
+                    continue;
+                }
+                let Ok(metadata) = std::fs::symlink_metadata(&path) else {
+                    accumulator.skipped += 1;
+                    continue;
+                };
+                if metadata.file_type().is_symlink() {
+                    continue;
+                }
+                if root_device.is_some_and(|device| walker::device_of(&metadata) != device) {
+                    // A mount point below the root belongs to another disk.
+                    continue;
+                }
+                if metadata.is_dir() {
+                    let name = path
+                        .file_name()
+                        .map(|n| n.to_string_lossy().to_string())
+                        .unwrap_or_default();
+                    if DEFAULT_SKIP_DIRECTORY_NAMES.contains(&name.as_str()) {
+                        continue;
+                    }
+                    if walker::is_package_directory_export(&name, &[]) {
+                        // A bundle is one item: its contents are summed, not listed.
+                        let (bytes, files) = measure_bundle(&path, cancel, &options);
+                        accumulator.visit_bundle(&path, bytes, files, modified_secs_of(&metadata));
+                        continue;
+                    }
+                    stack.push(path);
+                } else if metadata.is_file() {
+                    let size = walker::allocated_size(&metadata);
+                    accumulator.visit_file(&path, size, modified_secs_of(&metadata));
+                }
             }
-        }
-        if accumulator.cancelled {
-            break;
-        }
-        if stack.is_empty() {
-            stack.append(&mut siblings);
+            if accumulator.cancelled {
+                break;
+            }
         }
     }
 
     accumulator.finish()
 }
 
-fn measure_bundle(path: &Path, cancel: &CancelToken, authorized_roots: &[PathBuf]) -> (u64, u64) {
-    let mut options = walker::WalkOptions::new(
-        path.parent().unwrap_or(Path::new("/")).to_path_buf(),
-        walker::WalkMode::Files,
+/// True when `path` is inside one of the user's ignored locations.
+///
+/// Both sides are collapsed, so an ignore entry written with `..` or an alias
+/// does not stop matching a path the walk reports in its resolved spelling.
+fn is_ignored(path: &Path, ignored: &[String]) -> bool {
+    let path = normalize_path(&path.to_string_lossy());
+    ignored.iter().any(|prefix| is_prefix_of(prefix, &path))
+}
+
+/// Measures a package directory as one unit.
+fn measure_bundle(path: &Path, cancel: &CancelToken, options: &AnalysisOptions) -> (u64, u64) {
+    let mut walk_options =
+        walker::WalkOptions::new(options.home_dir.clone(), walker::WalkMode::Files);
+    walk_options.authorized_roots = options.authorized_roots.clone();
+    walk_options.skip_hidden = !options.include_hidden_files;
+    // The walker compares the entry path as it is spelled under the package
+    // root. The root may be `/var/...` or `/private/var/...` depending on how it
+    // reached us, so both spellings of each ignore path are offered; otherwise
+    // an ignored subtree inside a bundle was measured.
+    let mut skip_paths = Vec::with_capacity(options.ignore_paths.len() * 2);
+    for path in &options.ignore_paths {
+        let text = path.to_string_lossy();
+        skip_paths.push(PathBuf::from(collapse_path(&text)));
+        skip_paths.push(PathBuf::from(normalize_path(&text)));
+    }
+    skip_paths.sort();
+    skip_paths.dedup();
+    walk_options.skip_paths = skip_paths;
+    walk_options.skip_directory_names = DEFAULT_SKIP_DIRECTORY_NAMES
+        .iter()
+        .map(|name| (*name).to_string())
+        .collect();
+    // The bundle's contents are measured as if the bundle were opened: an
+    // excluded application's data must not be counted as part of it.
+    walk_options.skip_directory_names.extend(
+        crate::scanners::EXCLUDED_BUNDLE_IDENTIFIERS
+            .iter()
+            .map(|name| (*name).to_string()),
     );
-    options.authorized_roots = authorized_roots.to_vec();
-    let report = walker::walk(path, &options, cancel);
+    let report = walker::walk(path, &walk_options, cancel);
     (report.total_bytes, report.total_files)
 }
 
@@ -634,7 +767,7 @@ mod tests {
     }
 
     #[test]
-    fn protected_directories_are_counted_as_skipped() {
+    fn protected_directories_are_out_of_scope_not_skipped() {
         let tree = TempTree::new("storage-protected");
         tree.file("Library/Caches/a.bin", 4096);
         tree.file("Documents/private.txt", 4096);
@@ -642,13 +775,64 @@ mod tests {
         let options = AnalysisOptions::new(tree.root.clone(), vec![tree.root.clone()]);
         let analysis = analyse(&options, &CancelToken::new());
 
-        assert_eq!(analysis.skipped_count, 1);
+        // Protected content is deliberately out of scope, not unreadable: the
+        // page must not call a complete, safe walk partial.
+        assert_eq!(analysis.skipped_count, 0);
+        assert_eq!(analysis.scanned_file_count, 1);
         assert!(
             analysis
                 .top_directories
                 .iter()
                 .all(|d| !d.path.ends_with("Documents")),
             "a protected directory must not appear in the rollup"
+        );
+    }
+
+    /// A pruned directory must not come back with only the bytes seen after the
+    /// prune: the row would state a partial total as the whole size.
+    #[test]
+    fn a_pruned_rollup_is_not_recreated_from_later_files() {
+        let mut options = AnalysisOptions::new(
+            PathBuf::from("/Users/example"),
+            vec![PathBuf::from("/root")],
+        );
+        options.directory_rollup_limit = 4;
+        let mut accumulator = Accumulator::new(options);
+
+        accumulator.record(Path::new("/root/a/b/c/file1.bin"), 100, 1, 0);
+        accumulator.record(Path::new("/root/a/b/c/d/e/file2.bin"), 100, 1, 0);
+        assert!(accumulator
+            .discarded_directories
+            .contains(Path::new("/root/a/b/c")));
+        assert!(
+            !accumulator
+                .directory_sizes
+                .contains_key(Path::new("/root/a/b/c")),
+            "the pruned total is gone, not stale"
+        );
+
+        // A later file inside the pruned directory must not re-create it.
+        accumulator.record(Path::new("/root/a/b/c/file3.bin"), 50, 1, 0);
+        assert!(
+            !accumulator
+                .directory_sizes
+                .contains_key(Path::new("/root/a/b/c")),
+            "a pruned directory reappeared with a partial total"
+        );
+        assert_eq!(
+            accumulator
+                .directory_sizes
+                .get(Path::new("/root/a/b"))
+                .map(|(bytes, _)| *bytes),
+            Some(250),
+            "the kept ancestor still accumulates every file below it"
+        );
+        assert_eq!(
+            accumulator
+                .directory_sizes
+                .get(Path::new("/root/a"))
+                .map(|(bytes, _)| *bytes),
+            Some(250)
         );
     }
 
@@ -724,6 +908,22 @@ mod tests {
     }
 
     #[test]
+    fn an_ignored_subtree_inside_a_package_is_not_measured() {
+        let tree = TempTree::new("storage-package-ignore");
+        tree.file("App.app/Contents/keep.bin", 4096);
+        tree.file("App.app/Contents/ignored/data.bin", 8192);
+
+        let mut options = AnalysisOptions::new(tree.root.clone(), vec![tree.root.clone()]);
+        // `TempTree` lives under `/var/folders`; the ignore path is written in
+        // the same spelling, and normalization must not make it stop matching
+        // the entries the walk reports.
+        options.ignore_paths = vec![tree.root.join("App.app/Contents/ignored")];
+        let analysis = analyse(&options, &CancelToken::new());
+
+        assert_eq!(analysis.scanned_byte_count, 4096);
+    }
+
+    #[test]
     fn volume_info_reports_the_real_mount_point() {
         let info = volume_info(Path::new("/"));
         assert!(info.total_bytes > 0, "total capacity is reported");
@@ -778,16 +978,17 @@ mod tests {
     }
 
     #[test]
-    fn analysis_is_aggregated_past_the_listing_limit() {
+    fn analysis_counts_every_file_past_the_listing_limit() {
         let tree = TempTree::new("storage-aggregated");
         for i in 0..40 {
             tree.file(&format!("d/i{i}.bin"), 1024);
         }
         let mut options = AnalysisOptions::new(tree.root.clone(), vec![tree.root.clone()]);
         options.top_file_limit = 3;
+        // The analysis clamps the top-file threshold to 1 MB, so these small
+        // files do not enter the list; the counters still describe every visit.
         options.large_file_threshold_bytes = 1;
         let analysis = analyse(&options, &CancelToken::new());
-        assert_eq!(analysis.top_files.len(), 3);
         assert_eq!(analysis.scanned_file_count, 40);
     }
 }

@@ -116,6 +116,8 @@ final class ScanModelTests: XCTestCase, @unchecked Sendable {
 
         let phase = await model.phase
         XCTAssertEqual(phase, .ready)
+        let hasResults = await model.hasResults
+        XCTAssertTrue(hasResults, "a settled run with a report has results")
         let page = await model.page(offset: 0, limit: 50, sort: .size, category: nil)
         XCTAssertFalse(
             page.items.isEmpty,
@@ -164,6 +166,33 @@ final class ScanModelTests: XCTestCase, @unchecked Sendable {
         XCTAssertFalse(stillMore)
     }
 
+    /// `.ready` without a report is not a result the page may act on.
+    ///
+    /// The two arrive in separate poll batches. Treating the phase alone as
+    /// "has results" showed the result branch under a finished heading while the
+    /// first page was still unread — and offered a rescan the environment
+    /// refuses because the run is still loading.
+    func test_aPhaseWithoutAReportIsNotAResult() async {
+        let fixture = TemporaryDirectory(tag: "scan-model-phase-only")
+        let rules = RuleEngine(rules: RuleEngine.builtInRules, homeDirectory: fixture.url)
+        let model = await ScanModel(engine: PhaseOnlyScannerEngine(), rules: rules)
+        await model.start(makeRequest(home: fixture.url))
+
+        let deadline = Date().addingTimeInterval(2)
+        var phase = await model.phase
+        while Date() < deadline, phase != .ready {
+            try? await Task.sleep(nanoseconds: 20_000_000)
+            phase = await model.phase
+        }
+        XCTAssertEqual(phase, .ready)
+
+        let report = await model.report
+        XCTAssertNil(report)
+        let hasResults = await model.hasResults
+        XCTAssertFalse(hasResults, "a phase event is not a verdict")
+        await model.cancel()
+    }
+
     func test_aScanStartedAfterACancelShowsOnlyItsOwnResults() async throws {
         let first = TemporaryDirectory(tag: "scan-model-first")
         for index in 0..<20 {
@@ -199,6 +228,27 @@ final class ScanModelTests: XCTestCase, @unchecked Sendable {
     /// `waitUntilSettled` is the gate a page reads through, and it waits for a
     /// terminal phase. An engine that finished but never published one used to
     /// leave that gate waiting forever; the model must say the run failed.
+    /// One unreadable category page must not be erased by the next page.
+    ///
+    /// The result list reads its categories in sequence. Clearing the failure on
+    /// every successful read hid the category that could not be read, and the
+    /// list then looked complete.
+    func test_aFailedPageStaysVisibleAfterASuccessfulPage() async {
+        let fixture = TemporaryDirectory(tag: "scan-model-page-failure")
+        let rules = RuleEngine(rules: RuleEngine.builtInRules, homeDirectory: fixture.url)
+        let model = await ScanModel(engine: PageFailingScannerEngine(), rules: rules)
+        await model.start(makeRequest(home: fixture.url))
+        await model.waitUntilSettled()
+
+        _ = await model.page(offset: 0, limit: 10, sort: .size, category: .applicationCache)
+        let afterFailure = await model.resultLoadFailure
+        XCTAssertNotNil(afterFailure)
+
+        _ = await model.page(offset: 0, limit: 10, sort: .size, category: .logs)
+        let afterSuccess = await model.resultLoadFailure
+        XCTAssertEqual(afterSuccess, afterFailure, "a later page does not hide the failed one")
+    }
+
     func test_aSessionThatEndsWithoutATerminalEventFails() async throws {
         let fixture = TemporaryDirectory(tag: "scan-model-silent")
         let rules = RuleEngine(rules: RuleEngine.builtInRules, homeDirectory: fixture.url)
@@ -270,6 +320,105 @@ private actor BurstScanSession: ScanSession {
     }
 
     func isFinished() async -> Bool { true }
+
+    func page(
+        offset: Int,
+        limit: Int,
+        sort: ScanSort,
+        category: CleanupCategory?
+    ) async throws -> ScanPage {
+        ScanPage(items: [], remaining: 0)
+    }
+
+    func duplicateGroups(offset: Int, limit: Int) async throws -> [DuplicateGroup] { [] }
+
+    func duplicateMembers(groupID: Int64) async throws -> [DuplicateMember] { [] }
+
+    func skippedLocations() async -> [SkippedLocation] { [] }
+
+    func cancel() async {}
+}
+
+/// An engine whose index answers every category but one.
+private struct PageFailingScannerEngine: ScannerEngine {
+    var kind: ScannerEngineKind { .swift }
+
+    func startScan(_ request: ScanRequest) async throws -> any ScanSession {
+        PageFailingScanSession()
+    }
+}
+
+private actor PageFailingScanSession: ScanSession {
+    nonisolated let id = "page-failing-session"
+    private var sentCompletion = false
+
+    func pollEvents(maxEvents: Int) async -> [ScanEvent] {
+        guard !sentCompletion else { return [] }
+        sentCompletion = true
+        return [
+            .completed(
+                ScanReport(
+                    sessionID: id,
+                    startedAt: Date(),
+                    finishedAt: Date(),
+                    phase: .ready,
+                    scannedFileCount: 0,
+                    scannedByteCount: 0,
+                    scannedLocationCount: 1,
+                    itemCount: 0,
+                    itemBytes: 0,
+                    categoryTotals: [],
+                    duplicateGroupCount: 0,
+                    duplicateReclaimableBytes: 0,
+                    skippedLocations: []
+                )
+            ),
+        ]
+    }
+
+    func isFinished() async -> Bool { true }
+
+    func page(
+        offset: Int,
+        limit: Int,
+        sort: ScanSort,
+        category: CleanupCategory?
+    ) async throws -> ScanPage {
+        if category == .applicationCache {
+            throw ScannerError(code: .internalError, message: "the index could not be read")
+        }
+        return ScanPage(items: [], remaining: 0)
+    }
+
+    func duplicateGroups(offset: Int, limit: Int) async throws -> [DuplicateGroup] { [] }
+
+    func duplicateMembers(groupID: Int64) async throws -> [DuplicateMember] { [] }
+
+    func skippedLocations() async -> [SkippedLocation] { [] }
+
+    func cancel() async {}
+}
+
+/// An engine that publishes `.ready` and then keeps running.
+private struct PhaseOnlyScannerEngine: ScannerEngine {
+    var kind: ScannerEngineKind { .swift }
+
+    func startScan(_ request: ScanRequest) async throws -> any ScanSession {
+        PhaseOnlyScanSession()
+    }
+}
+
+private actor PhaseOnlyScanSession: ScanSession {
+    nonisolated let id = "phase-only-session"
+    private var sentPhase = false
+
+    func pollEvents(maxEvents: Int) async -> [ScanEvent] {
+        guard !sentPhase else { return [] }
+        sentPhase = true
+        return [.phaseChanged(.ready)]
+    }
+
+    func isFinished() async -> Bool { false }
 
     func page(
         offset: Int,

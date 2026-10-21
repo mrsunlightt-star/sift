@@ -543,6 +543,9 @@ fn every_exported_symbol_is_declared_in_the_header() {
         "sift_scan_skipped_json",
         "sift_storage_analyse",
         "sift_storage_analysis_free",
+        "sift_storage_cancel_new",
+        "sift_storage_cancel",
+        "sift_storage_cancel_free",
         "sift_cstr_len",
     ];
     for symbol in symbols {
@@ -594,6 +597,9 @@ fn header_declares_no_symbol_the_library_lacks() {
         "sift_scan_skipped_json",
         "sift_storage_analyse",
         "sift_storage_analysis_free",
+        "sift_storage_cancel_new",
+        "sift_storage_cancel",
+        "sift_storage_cancel_free",
         "sift_cstr_len",
     ];
     for name in declared {

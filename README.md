@@ -94,9 +94,9 @@ Rust Scanner Core  →  Rules · SQLite Index · Duplicate Pipeline
 `project.yml` 里的 app target 只编译入口文件，其余模块来自同一个本地 SwiftPM 包，
 所以 Xcode 与 `swift build` 用的是同一份源码、同一套模块边界。
 
-Mac App Store 变体：把 `CODE_SIGN_ENTITLEMENTS` 换成 `Config/Sift-AppStore.entitlements`
-（启用 App Sandbox 与用户选择文件权限），再按 §12.4 接入 StoreKit。这是一个 target 设置，
-不是 scheme 设置。
+**分发方式只有直接下载。** 本项目不提供 Mac App Store 版本：App Sandbox 无法扫描
+`~/Library/Caches`、`~/Library/Logs`，也无法列出 `/Applications` 做批量卸载。要上架
+App Store 必须另做一个“只清理用户选中文件夹”的 Lite 版本，而不是切换一个 entitlement。
 
 ## 构建要求
 
@@ -241,7 +241,6 @@ Swift（245 项自检 + 219 个 XCTest）：
 - **支付与授权服务供应商**：规格 §19 把这个决定留到正式开发前。`DirectLicenseService` 已定义完整合同（校验闭包、Keychain 存储、离线宽限、恢复），接入时只需提供一个 `verify` 闭包。
 - **Sparkle 自动更新**：需要在签名与发布流程确定后接入；`build-rust-xcframework.sh` 已保证更新包内 Rust 二进制的双架构与部署目标一致。
 - **UI 测试录制**：`UITests/` 已提交并在 `Scripts/verify.sh` 与 CI 中执行（7 个用例）；录制新的交互仍需要 Xcode GUI。
-- **Mac App Store 版本**：`StoreKitChannel` 已按 §12.4 预留接口，尚未启用。
 - **应用图标**：未提供资源，打包脚本保留 `AppIcon` 位置。
 - **发布流水线**：Developer ID 签名、Hardened Runtime、公证、产物校验与 Sparkle 更新。这些需要一个
   真实的签名身份，仓库里只能先留出位置——`Scripts/build-app.sh` 是开发构建脚本，不是发布脚本。
@@ -256,8 +255,7 @@ Swift（245 项自检 + 219 个 XCTest）：
   Developer ID 签名、Hardened Runtime、公证与发布产物校验；仓库里目前没有这些步骤，也没有对应的
   发布配置。**当前的构建产物是开发构建，不是可交付给用户的版本。**
 - **直接下载版本不是 App Sandbox。** 这与「扫描整台机器」的产品定位一致，但也意味着路径边界、
-  最小授权与隐私说明承担了更多责任：`Config/Sift-AppStore.entitlements` 已预留沙盒配置，两条渠道
-  共享同一套规则与风险等级。
+  最小授权与隐私说明承担了更多责任。项目只支持这一条分发渠道，没有 Mac App Store 配置。
 - **未接入真实支付服务。** 许可证校验目前是一个明确的「服务不可用」占位：`AppEnvironment`
   注入的 `verify` 闭包无条件抛 `licenseServiceUnavailable`，所以**当前构建里没有任何路径可以
   解锁付费功能**，免费档是唯一可能的状态——清理与卸载在真机上还没有用户走到过（只有测试走到）。

@@ -286,6 +286,10 @@
 "report.scopeDetail" = "%d Orte, %d Dateien geprüft";
 "report.skipped" = "Übersprungen";
 "report.skippedDetail" = "%d Einträge übersprungen. Die ersten 20 werden gezeigt.";
+"report.status" = "Status";
+"report.status.failed" = "Nicht abgeschlossen";
+"report.status.moved" = "In den Papierkorb verschoben";
+"report.status.skipped" = "Übersprungen";
 "report.title" = "Bereinigungsbericht";
 "risk.protected.detail" = "Sift entfernt das nicht. Nur zur Information.";
 "risk.protected.short" = "Geschützt";
@@ -363,6 +367,8 @@
 "settings.authorized.unavailable" = "In dieser Sitzung nicht verfügbar";
 "settings.clearHistory" = "Scan-Verlauf löschen";
 "settings.days" = "%d Tage";
+"settings.deleteReports" = "Gespeicherte Berichte löschen";
+"settings.deleteReportsConfirm" = "Alle gespeicherten PDF-Berichte löschen? Dies kann nicht rückgängig gemacht werden.";
 "settings.diagnostics.macOS" = "macOS";
 "settings.diagnostics.scannerCore" = "Scan-Kern";
 "settings.diagnostics.version" = "Version";

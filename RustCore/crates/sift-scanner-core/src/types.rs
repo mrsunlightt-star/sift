@@ -18,6 +18,14 @@ pub struct ScanRoot {
     /// `false` for roots the user only wants measured, never cleaned.
     #[serde(default = "default_true")]
     pub is_cleanable: bool,
+    /// Whether the generic large-file and old-file scans may walk this root.
+    ///
+    /// The system log root exists for the `system-logs` rule; marking it
+    /// cleanable made every large or old file under `/Library/Logs` a threshold
+    /// candidate as well. Rules and the threshold scans are separate questions,
+    /// so the root answers them separately.
+    #[serde(default = "default_true")]
+    pub includes_threshold_files: bool,
     /// Optional hard cap on traversal depth below this root.
     #[serde(default)]
     pub max_depth: Option<u32>,
@@ -32,6 +40,7 @@ impl ScanRoot {
             path: path.into(),
             anchor: anchor.into(),
             is_cleanable: true,
+            includes_threshold_files: true,
             max_depth: None,
             volume_id: None,
         }

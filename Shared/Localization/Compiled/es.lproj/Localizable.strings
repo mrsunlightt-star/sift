@@ -286,6 +286,10 @@
 "report.scopeDetail" = "%d ubicaciones, %d archivos examinados";
 "report.skipped" = "Omitidos";
 "report.skippedDetail" = "Se omitieron %d elementos. Se muestran los primeros 20.";
+"report.status" = "Estado";
+"report.status.failed" = "Sin completar";
+"report.status.moved" = "Movido a la papelera";
+"report.status.skipped" = "Omitido";
 "report.title" = "Informe de limpieza";
 "risk.protected.detail" = "Sift no elimina esto. Solo se muestra a modo informativo.";
 "risk.protected.short" = "Protegido";
@@ -363,6 +367,8 @@
 "settings.authorized.unavailable" = "No disponible en esta sesión";
 "settings.clearHistory" = "Borrar historial de análisis";
 "settings.days" = "%d días";
+"settings.deleteReports" = "Eliminar informes guardados";
+"settings.deleteReportsConfirm" = "¿Eliminar todos los informes PDF guardados? Esta acción no se puede deshacer.";
 "settings.diagnostics.macOS" = "macOS";
 "settings.diagnostics.scannerCore" = "Núcleo de análisis";
 "settings.diagnostics.version" = "Versión";

@@ -133,21 +133,26 @@ final class EntitlementTests: XCTestCase, @unchecked Sendable {
         XCTAssertFalse(state.isUnlocked, "an expired window must not keep unlocking")
     }
 
-    func test_aCachedGracePeriodFromTheOtherChannelIsNotReused() async {
-        // Both channels ship the same executable and share one UserDefaults
-        // domain when a build changes distribution. A timestamp the direct build
-        // wrote says nothing about the App Store build, so it must not unlock it.
+    func test_aCachedGracePeriodFromAnotherBuildIsNotReused() async {
+        // The executable and its UserDefaults domain can be reused by a build
+        // whose purchase model is different. A timestamp written under another
+        // channel name must not unlock this one.
         let defaults = UserDefaults(suiteName: suiteName) ?? .standard
         defaults.set(Date(), forKey: "purchase.verifiedAt")
-        defaults.set("direct", forKey: "purchase.channel")
+        defaults.set("appStore", forKey: "purchase.channel")
 
-        let service = EntitlementService(channel: StoreKitChannel(), defaults: defaults)
+        let service = EntitlementService(
+            channel: DirectLicenseService(keychain: InMemoryLicenseStore()) { _ in
+                EntitlementState(channel: .direct, status: .unlocked(verifiedAt: Date()))
+            },
+            defaults: defaults
+        )
         let state = await service.current()
         XCTAssertFalse(
             state.isUnlocked,
-            "a direct-sold licence is not a StoreKit entitlement"
+            "a cache from another channel is not a direct licence"
         )
-        XCTAssertEqual(state.channel, .appStore)
+        XCTAssertEqual(state.channel, .direct)
     }
 
     /// A window that closes while the process is running stops unlocking.

@@ -58,6 +58,20 @@ final class ReportTests: XCTestCase, @unchecked Sendable {
         XCTAssertFalse(stored.isEmpty)
     }
 
+    func test_deletingReportsRemovesEveryLocalCopy() async throws {
+        let service = ReportService(supportDirectory: fixture.url)
+        _ = try await service.storeLocally(makeReport())
+        try await Task.sleep(nanoseconds: 10_000_000)
+        _ = try await service.storeLocally(makeReport())
+        let before = await service.storedReports()
+        XCTAssertEqual(before.count, 2)
+
+        let removed = try await service.deleteAllReports()
+        XCTAssertEqual(removed, 2)
+        let after = await service.storedReports()
+        XCTAssertTrue(after.isEmpty, "the reports directory must be gone")
+    }
+
     func test_localCopyContainsNoDirectoryPaths() async throws {
         let service = ReportService(supportDirectory: fixture.url)
         let report = makeReport()
@@ -109,6 +123,65 @@ final class ReportTests: XCTestCase, @unchecked Sendable {
         let service = ReportService(supportDirectory: fixture.url)
         let pdf = await service.renderPDF(makeReport(entries: 0), title: "Empty report")
         XCTAssertGreaterThan(pdf.count, 500)
+    }
+
+    /// The detail table says what happened to each row.
+    ///
+    /// It used to list category and size only, so a skipped or failed item was
+    /// indistinguishable from one that moved to the Trash.
+    func test_pdfDetailTableStatesEachItemsStatus() async {
+        let service = ReportService(supportDirectory: fixture.url)
+        let entries = [
+            CleanupReport.Entry(
+                displayName: "",
+                category: "applicationCache",
+                sizeInBytes: 1024,
+                status: OperationStatus.movedToTrash.rawValue,
+                errorCode: nil
+            ),
+            CleanupReport.Entry(
+                displayName: "",
+                category: "logs",
+                sizeInBytes: 512,
+                status: OperationStatus.skipped.rawValue,
+                errorCode: ErrorCode.fileInUse.rawValue
+            ),
+            CleanupReport.Entry(
+                displayName: "",
+                category: "installers",
+                sizeInBytes: 256,
+                status: OperationStatus.failed.rawValue,
+                errorCode: ErrorCode.permissionDenied.rawValue
+            ),
+        ]
+        let report = CleanupReport(
+            operation: .junkCleanup,
+            appVersion: "0.1.0",
+            macOSVersion: "15",
+            scannedLocationCount: 1,
+            scannedFileCount: 3,
+            categories: ["applicationCache", "logs", "installers"],
+            movedCount: 1,
+            movedBytes: 1024,
+            skippedCount: 1,
+            failedCount: 1,
+            entries: entries
+        )
+
+        let pdf = await service.renderPDF(report, title: "Status")
+        let text = (PDFDocument(data: pdf)?.string ?? "").filter { !$0.isWhitespace }
+        XCTAssertFalse(text.isEmpty)
+
+        for key in [
+            LocalizationKey.reportStatusMoved,
+            .reportStatusSkipped,
+            .reportStatusFailed,
+        ] {
+            XCTAssertTrue(
+                text.contains(key.localized.filter { !$0.isWhitespace }),
+                "the table states \(key.rawValue)"
+            )
+        }
     }
 
     func test_pdfRendersInEveryShippedLanguage() async {

@@ -29,6 +29,15 @@ use std::time::{Duration, Instant};
 /// How often a progress event is published at most.
 const PROGRESS_INTERVAL: Duration = Duration::from_millis(200);
 
+/// How many live events one session may queue before the oldest detail events
+/// are dropped.
+///
+/// The UI drains batches at its own pace, and a scan of a full disk can produce
+/// item batches far faster than a window redraws. The queue is only the live
+/// view — the SQLite index holds the complete result — so dropping the oldest
+/// batches bounds memory without losing anything the user can page to.
+const EVENT_QUEUE_LIMIT: usize = 4096;
+
 /// Rolling counters and the live phase, shared between the worker and the poller.
 #[derive(Debug)]
 struct SharedState {
@@ -107,6 +116,13 @@ pub struct ScanHandle {
     state: Arc<SharedState>,
     events: Arc<Mutex<VecDeque<Event>>>,
     index: Mutex<FileIndex>,
+    /// Skips kept beside the index.
+    ///
+    /// A skip write is best-effort: it must not fail a scan that is otherwise
+    /// producing results. Keeping the same list here means the completion
+    /// summary, the event stream and a later query answer with one set even
+    /// when the index write did not land.
+    skipped: Mutex<Vec<SkippedLocation>>,
 }
 
 impl ScanHandle {
@@ -182,12 +198,14 @@ impl ScanHandle {
         };
         if let Ok(mut queue) = self.events.lock() {
             queue.push_back(Event::Progress(progress));
+            bound_queue(&mut queue);
         }
     }
 
     fn push(&self, event: Event) {
         if let Ok(mut queue) = self.events.lock() {
             queue.push_back(event);
+            bound_queue(&mut queue);
         }
     }
 
@@ -197,6 +215,7 @@ impl ScanHandle {
         }
         if let Ok(mut queue) = self.events.lock() {
             queue.push_back(Event::ItemBatch { items });
+            bound_queue(&mut queue);
         }
     }
 
@@ -219,6 +238,38 @@ impl ScanHandle {
         self.index
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
+    /// The locations this session could not read.
+    ///
+    /// The in-memory list is authoritative for the current run; the index is
+    /// the durable copy and fills in anything it holds that the list missed.
+    pub fn skipped_locations(&self) -> Vec<SkippedLocation> {
+        let mut locations = self
+            .skipped
+            .lock()
+            .map(|value| value.clone())
+            .unwrap_or_default();
+        if let Ok(index) = self.index.lock() {
+            if let Ok(stored) = index.skipped_locations() {
+                for (path, code, message, byte_count) in stored {
+                    if locations
+                        .iter()
+                        .any(|existing| existing.path == path && existing.code == code)
+                    {
+                        continue;
+                    }
+                    locations.push(SkippedLocation {
+                        code,
+                        path,
+                        message,
+                        byte_count,
+                        needs_full_disk_access: false,
+                    });
+                }
+            }
+        }
+        locations
     }
 
     /// Reads one page of detail rows out of the index.
@@ -275,16 +326,22 @@ impl Engine {
         // blanket volume guard for every disk, and the Swift allowlist cannot
         // protect a caller that never used it. The shape is checked here when
         // the request is read, not only where the UI happens to build one.
+        let home_text = collapse_path(&home.to_string_lossy());
         for root in &request.roots {
-            if !Path::new(&root.path).is_absolute() {
+            let path = collapse_path(&root.path);
+            let inside_home = path == home_text || path.starts_with(&format!("{home_text}/"));
+            let inside_volumes = path.starts_with("/Volumes/");
+            let system_logs = path == "/Library/Logs" || path.starts_with("/Library/Logs/");
+            if !Path::new(&root.path).is_absolute()
+                || !(inside_home || inside_volumes || system_logs)
+            {
                 return Err(EngineError::InvalidRequest(
-                    "scan roots must be absolute paths".to_string(),
+                    "a scan root is outside the allowlist".to_string(),
                 ));
             }
         }
         for grant in &request.authorized_roots {
             let path = collapse_path(grant);
-            let home_text = collapse_path(&home.to_string_lossy());
             let inside_volumes = path.starts_with("/Volumes/");
             let inside_home = path.starts_with(&format!("{home_text}/"));
             if path == "/"
@@ -316,6 +373,7 @@ impl Engine {
             state: Arc::new(SharedState::new()),
             events: Arc::new(Mutex::new(VecDeque::new())),
             index: Mutex::new(index),
+            skipped: Mutex::new(Vec::new()),
         });
 
         if let Ok(mut slot) = self.session.lock() {
@@ -361,7 +419,9 @@ impl Engine {
         if let Some(path) = self.index_path.lock().ok().and_then(|mut p| p.take()) {
             // The index is a scan artifact: removing it on cancel or restart
             // keeps the data directory small and leaves no stale paths behind.
-            let _ = std::fs::remove_file(&path);
+            // SQLite also writes `-wal` and `-shm`; they contain the same rows
+            // (full paths) and outlive the database when only it is removed.
+            remove_index_files(&path);
         }
         previous
     }
@@ -377,6 +437,17 @@ impl Engine {
             Some(handle) if handle.session_id == session_id => Ok(handle),
             _ => Err(EngineError::SessionNotFound(session_id.to_string())),
         }
+    }
+}
+
+/// Removes the index database and the WAL/SHM files SQLite writes beside it.
+///
+/// The WAL carries the same rows as the database, including full paths, so
+/// deleting only the `.sqlite` file leaves a copy behind.
+fn remove_index_files(path: &Path) {
+    let base = path.to_string_lossy();
+    for suffix in ["", "-wal", "-shm"] {
+        let _ = std::fs::remove_file(format!("{base}{suffix}"));
     }
 }
 
@@ -579,6 +650,35 @@ fn run_scan(handle: &Arc<ScanHandle>, request: &ScanRequest) {
     handle.push(Event::Completed(Box::new(summary)));
 }
 
+/// Drops the oldest live-detail events once the queue exceeds its bound.
+///
+/// Only events whose content the index also holds are eligible. Phase changes,
+/// skipped locations, the completion summary and a failure are never dropped:
+/// they are verdicts and context, not the live list.
+fn bound_queue(queue: &mut VecDeque<Event>) {
+    while queue.len() > EVENT_QUEUE_LIMIT {
+        let index = queue
+            .iter()
+            .position(|event| matches!(event, Event::ItemBatch { .. }))
+            .or_else(|| {
+                queue
+                    .iter()
+                    .position(|event| matches!(event, Event::Progress(_)))
+            })
+            .or_else(|| {
+                queue
+                    .iter()
+                    .position(|event| matches!(event, Event::DuplicateGroup { .. }))
+            });
+        match index {
+            Some(index) => {
+                queue.remove(index);
+            }
+            None => break,
+        }
+    }
+}
+
 fn publish_if_due(handle: &Arc<ScanHandle>) {
     if handle.state.should_publish_progress() {
         handle.publish_progress();
@@ -662,12 +762,19 @@ fn record_skips(
             needs_full_disk_access: skip.needs_full_disk_access,
         };
         if let Ok(index) = handle.index_checked() {
+            // Best effort, not a verdict: the scan may still produce a complete
+            // result, and the same location is carried by the event, the
+            // summary and the in-memory list below. A scan is not failed
+            // because one diagnostic row could not be persisted.
             let _ = index.insert_skipped(
                 &location.path,
                 &location.code,
                 &location.message,
                 location.byte_count,
             );
+        }
+        if let Ok(mut kept) = handle.skipped.lock() {
+            kept.push(location.clone());
         }
         handle.push(Event::LocationSkipped(location.clone()));
         collected.push(location);
@@ -793,6 +900,40 @@ mod tests {
             std::thread::sleep(Duration::from_millis(5));
         }
         panic!("scan did not finish in time");
+    }
+
+    /// The live event queue is bounded, but never at the cost of the verdict.
+    #[test]
+    fn the_event_queue_drops_detail_before_it_drops_the_completion() {
+        let mut queue: VecDeque<Event> = (0..EVENT_QUEUE_LIMIT + 100)
+            .map(|index| Event::ItemBatch {
+                items: vec![ScanItemSummary {
+                    path: format!("/tmp/item-{index}"),
+                    display_name: String::new(),
+                    parent_path: String::new(),
+                    category: "applicationCache".to_string(),
+                    risk: "safe".to_string(),
+                    size_bytes: 1,
+                    file_count: 1,
+                    explanation_key: "cleanup.explanation.cache".to_string(),
+                    rule_id: "test".to_string(),
+                    bundle_id: None,
+                    modified_secs: 0,
+                    is_directory: false,
+                }],
+            })
+            .collect();
+        queue.push_back(Event::Completed(Box::default()));
+
+        bound_queue(&mut queue);
+
+        assert!(queue.len() <= EVENT_QUEUE_LIMIT);
+        assert!(
+            queue
+                .iter()
+                .any(|event| matches!(event, Event::Completed(_))),
+            "the completion summary is never a detail event"
+        );
     }
 
     fn summary_of(events: &[Event]) -> ScanSummary {
@@ -1069,6 +1210,7 @@ mod tests {
             state: StdArc::new(SharedState::new()),
             events: StdArc::new(Mutex::new(VecDeque::new())),
             index: Mutex::new(FileIndex::open_in_memory("queue").unwrap()),
+            skipped: Mutex::new(Vec::new()),
         });
         for i in 0..5 {
             handle.push(Event::Progress(ScanProgress {

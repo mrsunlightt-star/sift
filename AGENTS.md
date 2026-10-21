@@ -276,11 +276,20 @@ These are product promises, not implementation details. Each has tests behind it
     `AppEnvironment.runScan(_:)`. There is one scan page; it runs `.everything`
     and the chips filter the categories it displays, so "smart scan", "junk
     cleanup" and "file cleanup" cannot mean three different runs. A scan is
-    single-flight: a second request is ignored while one is preparing or
-    running, so two runs' phases cannot appear on one page. Authorising a folder
+    single-flight for its whole run — request assembly, scanning and loading the
+    first page — so two runs' phases and selections cannot interleave, and
+    `hasResults` waits for the report, not merely the `.ready` phase. A
+    destructive operation (cleanup or uninstall) claims its slot synchronously
+    before any entitlement check and holds it through pre-flight and execution;
+    the uninstaller and the cleanup flow share that one slot, and the
+    entitlement is checked again at the execution boundary. Authorising a folder
     happens only in Settings, and every page that depends on a grant links there.
     Confirmation and the cleanup result come from the shell, so no page can reach
-    a weaker flow by choosing a different entry point.
+    a weaker flow by choosing a different entry point. Tests:
+    `test_aPhaseWithoutAReportIsNotAResult`,
+    `test_aSecondPrepareDoesNotReplaceTheOpenPlansOperation`,
+    `test_theDestructiveSlotCannotBeClaimedTwice`,
+    `test_aFailedPageStaysVisibleAfterASuccessfulPage`.
 18. **Diagnostics only read.** The only programs the app runs are the two status
     queries in `Core/Diagnostics/SystemQuery.swift`: `mdutil -s` and
     `tmutil listlocalsnapshots`, by absolute path with fixed arguments and no
@@ -384,6 +393,19 @@ These are product promises, not implementation details. Each has tests behind it
     `test_aFailedRunKeepsTheLastGoodResultAndItsTimestamp`,
     `test_cancellationIsItsOwnOutcome`,
     `test_aSessionThatEndsWithoutATerminalEventFails`.
+29. **A scan root states which scans may visit it.** `isCleanable` decides
+    whether a root may produce cleanup candidates at all; `includesThresholdFiles`
+    separately decides whether the generic large-file and old-file scans walk it.
+    `/Library/Logs` is in scope for the `system-logs` rule and out of the
+    threshold scans, because a root added for one rule must not widen the search
+    for files that rule never judged. Both engines read the same flag. Tests:
+    `test_aRulesOnlyRootYieldsNoThresholdItemsInEitherEngine`,
+    `a_root_can_be_excluded_from_the_threshold_scans`.
+30. **A dropped storage rollup is dropped, not restarted.** The directory map is
+    bounded, so a prune loses the tail. A directory whose total was dropped is
+    remembered and never re-created from the files seen after the prune: that
+    entry would state a partial total as the directory's whole size. Tests:
+    `test_aPrunedRollupIsNotRecreatedFromLaterFiles`.
 
 ## Layout notes
 

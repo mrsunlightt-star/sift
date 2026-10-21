@@ -36,7 +36,10 @@ opt-level = 3
 lto = "thin"
 codegen-units = 1
 debug = "line-tables-only"
-panic = "abort"
+# Never abort: `sift-ffi` converts a panic into a SiftResult with `catch_unwind`,
+# and a panic in the scan worker must not take the host application down.
+# `panic = "abort"` makes every catch_unwind a no-op.
+panic = "unwind"
 
 [profile.bench]
 debug = "line-tables-only"

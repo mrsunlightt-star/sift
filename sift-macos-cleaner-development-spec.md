@@ -10,6 +10,8 @@
 
 商业模式：$4.99 一次性买断，永久使用
 
+分发渠道（v0.1 决策）：**仅直接下载**（Developer ID + Hardened Runtime + 公证），不提供 Mac App Store 版本。App Sandbox 无法扫描 `~/Library/Caches`、`~/Library/Logs`，也无法列出 `/Applications` 做批量卸载；§12.4 的 StoreKit 设计不再实施。
+
 ---
 
 ## 1. 文档目的

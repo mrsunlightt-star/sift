@@ -255,10 +255,10 @@ final class AuthorizationTests: XCTestCase, @unchecked Sendable {
             ]
         )
 
-        let volumes = rules.resolvedRoots(for: rule(anchor: .externalVolume, relativePath: ""))
+        let volumes = rules.resolvedRoots(for: rule(anchor: .externalVolume, relativePath: "Caches"))
         XCTAssertEqual(
             volumes.map(\.path),
-            ["/Volumes/Backup"],
+            ["/Volumes/Backup/Caches"],
             "a folder inside a volume, and a folder inside home, are not volumes"
         )
     }
@@ -269,7 +269,7 @@ final class AuthorizationTests: XCTestCase, @unchecked Sendable {
         let engine = makeRules(AuthorizedScope())
 
         XCTAssertTrue(engine.resolvedRoots(for: rule(anchor: .authorized, relativePath: "Caches")).isEmpty)
-        XCTAssertTrue(engine.resolvedRoots(for: rule(anchor: .externalVolume, relativePath: "")).isEmpty)
+        XCTAssertTrue(engine.resolvedRoots(for: rule(anchor: .externalVolume, relativePath: "Caches")).isEmpty)
     }
 
     func test_aRuleUnderAGrantMatchesInsideThatGrantOnly() {

@@ -302,6 +302,71 @@ public struct ApplicationDiscovery: @unchecked Sendable {
         return identifiers
     }
 
+    /// Bundle identifiers LaunchServices can resolve for names that appear in
+    /// the residue locations.
+    ///
+    /// `installedBundleIdentifiers` only searches the fixed application
+    /// directories. An application run from `~/Downloads`, an external disk or
+    /// `/opt` is not there, so its live container, cache and Application
+    /// Support directory would be reported as residue. LaunchServices knows
+    /// where every registered application lives; the names found under the
+    /// residue roots are resolved through it before the scan starts and added
+    /// to the installed set.
+    public func residueBundleIdentifiersStillInstalled() -> [String] {
+        let home = URL(fileURLWithPath: rules.homeDirectory)
+        let locations = [
+            "Library/Application Support",
+            "Library/Caches",
+            "Library/Containers",
+            "Library/Logs",
+            "Library/Saved Application State",
+            "Library/Preferences",
+            "Library/HTTPStorages",
+            "Library/Group Containers",
+        ]
+        var installed = Set<String>()
+        for relative in locations {
+            let directory = home.appendingPathComponent(relative)
+            guard let names = try? fileManager.contentsOfDirectory(atPath: directory.path) else {
+                continue
+            }
+            for name in names {
+                for reading in Self.bundleReadings(Self.bundleStem(name))
+                where rules.looksLikeBundleIdentifier(reading)
+                    && NSWorkspace.shared.urlForApplication(withBundleIdentifier: reading) != nil {
+                    installed.insert(reading)
+                }
+            }
+        }
+        return Array(installed)
+    }
+
+    /// Strips the suffixes macOS puts on per-application files.
+    private static func bundleStem(_ name: String) -> String {
+        if name.hasSuffix(".plist") { return String(name.dropLast(6)) }
+        if name.hasSuffix(".binarycookies") { return String(name.dropLast(14)) }
+        return name
+    }
+
+    /// The bundle identifiers a directory name could stand for.
+    ///
+    /// A group container is `<team-id>.<bundle-id>` or the bundle identifier on
+    /// its own; both readings are checked, in lower case because that is how
+    /// the scanners compare them.
+    private static func bundleReadings(_ name: String) -> [String] {
+        let lowered = name.lowercased()
+        var readings: [String] = []
+        if let dot = lowered.firstIndex(of: ".") {
+            let prefix = lowered[..<dot]
+            let suffix = lowered[lowered.index(after: dot)...]
+            if !prefix.contains("."), !suffix.isEmpty {
+                readings.append(String(suffix))
+            }
+        }
+        readings.append(lowered)
+        return readings
+    }
+
     /// Every `.app` bundle below an application directory.
     ///
     /// Some vendors install one level deeper (`/Applications/Adobe Photoshop

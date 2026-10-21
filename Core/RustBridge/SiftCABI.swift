@@ -66,12 +66,17 @@ func readString(_ value: SiftString) -> String {
 /// build where both languages are present to disagree.
 enum SiftABILayout {
     static func verify() {
+        // `assert` is compiled out of a release build, which is exactly the
+        // build whose layout matters. The ABI version check is the primary
+        // guard; this one is a hard stop if the header changes shape without a
+        // version bump.
         // `SiftString` is a pointer followed by a byte count.
-        assert(
+        precondition(
             MemoryLayout<SiftString>.size
-                == MemoryLayout<UnsafeMutableRawPointer?>.size + MemoryLayout<Int>.size
+                == MemoryLayout<UnsafeMutableRawPointer?>.size + MemoryLayout<Int>.size,
+            "the C header and the Swift side disagree on SiftString"
         )
-        assert(SIFT_FFI_VERSION == 1, "the app and the header must agree on the ABI version")
+        precondition(SIFT_FFI_VERSION == 1, "the app and the header must agree on the ABI version")
     }
 }
 

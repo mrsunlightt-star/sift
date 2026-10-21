@@ -1,4 +1,5 @@
 import CryptoKit
+import Darwin
 import Foundation
 import OSLog
 import Shared
@@ -320,6 +321,9 @@ actor SwiftScanSession: ScanSession {
                     continue
                 }
                 if rules.isExcludedBundleName(entry.displayName) { continue }
+                // A child that is a container (`~/Library` from a home rule) is
+                // never a single item.
+                if rules.isCleanupContainer(entry.url.path) { continue }
                 guard let item = directoryItem(rule: rule, url: entry.url, minimumAgeDays: minimumAgeDays) else {
                     continue
                 }
@@ -400,6 +404,12 @@ actor SwiftScanSession: ScanSession {
         minimumAgeDays: Int?
     ) -> CleanupItemSummary? {
         if rules.protectionReason(for: url.path) != nil { return nil }
+        if rules.isCleanupContainer(url.path) { return nil }
+        // A `directory` rule whose relative path names a file must not become a
+        // zero-byte item labelled as a directory.
+        guard (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true else {
+            return nil
+        }
         let measured: (bytes: Int64, files: Int)
         var newestQualifying: Date?
         if let minimumAgeDays {
@@ -518,8 +528,11 @@ actor SwiftScanSession: ScanSession {
     /// Application residue, matched strictly by bundle identifier (§5.3).
     private func scanApplicationResidue() {
         // Residue is derived from the home directory, so it inherits that root's
-        // policy: a measure-only home contributes no candidates.
-        guard homeIsCleanable else { return }
+        // policy: a measure-only home contributes no candidates. An empty
+        // installed list is not "no applications": every Mac has system bundles,
+        // so it means discovery failed, and without that list every live
+        // container would be reported as belonging to an uninstalled app.
+        guard homeIsCleanable, !request.installedBundleIdentifiers.isEmpty else { return }
         let home = URL(fileURLWithPath: rules.homeDirectory)
         let installed = Set(request.installedBundleIdentifiers.map { $0.lowercased() })
         var found: [CleanupItemSummary] = []
@@ -567,7 +580,10 @@ actor SwiftScanSession: ScanSession {
                 let measured = FileWalker.measure(
                     url: entry.url,
                     rules: rules,
-                    skipHidden: skipsHiddenEntries,
+                    // The container is the item: trashing it takes the dotfiles
+                    // inside as well, so the measurement must count them. This
+                    // matches the Rust residue scanner.
+                    skipHidden: false,
                     skipPaths: request.ignoredPaths,
                     isCancelled: { self.cancelledSync }
                 )
@@ -617,7 +633,10 @@ actor SwiftScanSession: ScanSession {
                 let measured = FileWalker.measure(
                     url: entry.url,
                     rules: rules,
-                    skipHidden: skipsHiddenEntries,
+                    // The container is the item: trashing it takes the dotfiles
+                    // inside as well, so the measurement must count them. This
+                    // matches the Rust residue scanner.
+                    skipHidden: false,
                     skipPaths: request.ignoredPaths,
                     isCancelled: { self.cancelledSync }
                 )
@@ -697,11 +716,20 @@ actor SwiftScanSession: ScanSession {
         // as well. Without this, the same file arrives twice and the list shows
         // one row per traversal rather than one row per file.
         var seenPaths = Set<String>()
-        for root in request.roots where root.isCleanable {
+        // A rules-only root stays out even when the home root contains it.
+        let rulesOnlyRoots = request.roots
+            .filter { !$0.includesThresholdFiles }
+            .map(\.url.path)
+        for root in request.roots where root.isCleanable && root.includesThresholdFiles {
             if cancelled { return }
+            var walkOptions = options(for: .files, maxDepth: root.maxDepth, home: home)
+            // Live databases and device backups are not "large files". The Rust
+            // scanner uses the same list as `WalkOptions.skip_paths`.
+            walkOptions.skipPaths += ThresholdExclusions.paths(home: home)
+            walkOptions.skipPaths += rulesOnlyRoots
             let report = FileWalker.walk(
                 root: root.url,
-                options: options(for: .files, maxDepth: root.maxDepth, home: home),
+                options: walkOptions,
                 rules: rules,
                 isCancelled: { self.cancelledSync },
                 onFile: nil
@@ -820,14 +848,20 @@ actor SwiftScanSession: ScanSession {
         var byDigest: [String: (size: Int64, urls: [URL])] = [:]
         var hashes = 0
         let maxFullHashes = max(request.duplicateMaxFullHashes, 0)
-        for (size, urls) in bySize where urls.count > 1 {
+        // Deterministic traversal. The hash budget can run out before every
+        // candidate is hashed, and a dictionary's order decided which groups a
+        // truncated run happened to include — so two identical scans could
+        // report different partial results.
+        for size in bySize.keys.sorted() where (bySize[size]?.count ?? 0) > 1 {
+            let urls = bySize[size] ?? []
             var bySample: [String: [URL]] = [:]
             for url in urls {
                 if cancelled { return }
                 guard let sample = sampleFingerprint(url: url, size: size) else { continue }
                 bySample[sample, default: []].append(url)
             }
-            for (_, sameSample) in bySample where sameSample.count > 1 {
+            for sample in bySample.keys.sorted() where (bySample[sample]?.count ?? 0) > 1 {
+                let sameSample = bySample[sample] ?? []
                 for url in sameSample {
                     if cancelled { return }
                     guard hashes < maxFullHashes else {
@@ -848,7 +882,8 @@ actor SwiftScanSession: ScanSession {
 
         // Stage 4: groups, with a keeper.
         var built: [DuplicateGroup] = []
-        for (digest, value) in byDigest where value.urls.count > 1 {
+        for digest in byDigest.keys.sorted() where (byDigest[digest]?.urls.count ?? 0) > 1 {
+            let value = byDigest[digest] ?? (0, [])
             let sorted = value.urls.sorted { $0.path < $1.path }
             let keeper = chooseKeeper(sorted)
             let members = sorted.map { url -> DuplicateMember in
@@ -871,7 +906,11 @@ actor SwiftScanSession: ScanSession {
                 )
             )
         }
-        built.sort { $0.reclaimableSizeInBytes > $1.reclaimableSizeInBytes }
+        built.sort {
+            $0.reclaimableSizeInBytes == $1.reclaimableSizeInBytes
+                ? $0.contentHash < $1.contentHash
+                : $0.reclaimableSizeInBytes > $1.reclaimableSizeInBytes
+        }
         groups = built
         for (index, group) in built.enumerated() {
             events.append(
@@ -912,9 +951,20 @@ actor SwiftScanSession: ScanSession {
         return kept
     }
 
+    /// Opens `url` for reading without following a symlink in the final component.
+    ///
+    /// The walker refuses symlinks, but a path can be replaced between the walk
+    /// and the hash. Following it then reads a file the scan never judged and
+    /// can form a duplicate group around the wrong content.
+    private static func openWithoutFollowingSymlink(_ url: URL) -> FileHandle? {
+        let descriptor = open(url.path, O_RDONLY | O_NOFOLLOW)
+        guard descriptor >= 0 else { return nil }
+        return FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
+    }
+
     /// Head/tail/middle fingerprint: cheap rejection of same-sized non-duplicates.
     private func sampleFingerprint(url: URL, size: Int64) -> String? {
-        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
+        guard let handle = Self.openWithoutFollowingSymlink(url) else { return nil }
         defer { try? handle.close() }
         var hasher = SHA256()
         withUnsafeBytes(of: size.littleEndian) { hasher.update(bufferPointer: $0) }
@@ -935,16 +985,22 @@ actor SwiftScanSession: ScanSession {
     /// Full-content digest, streamed and cancellable.
     private func fullDigest(url: URL) -> String? {
         guard let before = FileIdentity(url: url) else { return nil }
-        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
+        guard let handle = Self.openWithoutFollowingSymlink(url) else { return nil }
         defer { try? handle.close() }
         var hasher = SHA256()
+        var total: Int64 = 0
         while true {
             if cancelled { return nil }
             guard let chunk = try? handle.read(upToCount: 256 * 1024), !chunk.isEmpty else { break }
+            total += Int64(chunk.count)
             hasher.update(data: chunk)
         }
-        // A file that changed while hashing is not reported as truth.
-        guard let after = FileIdentity(url: url), after == before else { return nil }
+        // A file that changed while hashing is not reported as truth. The byte
+        // count is checked as well: a read that ended early must not become a
+        // digest of a prefix.
+        guard let after = FileIdentity(url: url), after == before, total == before.size else {
+            return nil
+        }
         return hasher.finalize().map { String(format: "%02x", $0) }.joined()
     }
 

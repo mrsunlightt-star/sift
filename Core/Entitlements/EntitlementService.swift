@@ -5,19 +5,18 @@ import Shared
 /// Purchase and entitlement state (§12).
 ///
 /// The rule this type exists to enforce: **UserDefaults is never the source of
-/// truth for an entitlement**. `isUnlocked` is derived from a verified
-/// credential — a validated license for the direct-sold build, a verified
-/// StoreKit transaction for a Mac App Store build — and the local cache only
-/// reproduces the last verified answer so the app works offline.
+/// truth for an entitlement**. `isUnlocked` is derived from a validated license
+/// key, and the local cache only reproduces the last verified answer so the app
+/// works offline.
 ///
 /// The free tier is fully usable for understanding a Mac: it scans, analyses and
 /// previews. It never performs a cleanup (§12.2).
 public struct EntitlementState: Sendable, Equatable {
     public enum Channel: String, Sendable, Codable, CaseIterable {
-        /// Direct build, activated with a license key.
+        /// The only distribution channel: a direct download activated with a
+        /// license key. There is no Mac App Store build — App Sandbox cannot
+        /// scan the home Library — so no second channel is modelled.
         case direct
-        /// Mac App Store build, activated through StoreKit.
-        case appStore
     }
 
     public enum Status: Sendable, Equatable {
@@ -99,12 +98,10 @@ public enum PurchaseError: Error, Sendable, Equatable {
     }
 }
 
-/// The interface a purchase channel implements.
+/// The interface the direct license channel implements.
 ///
-/// Two implementations exist: `DirectLicenseService` for the direct-sold build
-/// and `StoreKitService` for a Mac App Store build. Keeping both behind one
-/// protocol is what makes §12.5's requirement — identical cleaning rules and
-/// identical risk levels on both channels — structural rather than a promise.
+/// Kept as a protocol so the entitlement logic is testable with an injected
+/// verifier and so a future distribution decision would not touch the gates.
 public protocol PurchaseChannel: Sendable {
     var channel: EntitlementState.Channel { get }
     /// Loads the localised price and any cached credential.
@@ -194,12 +191,11 @@ public actor EntitlementService {
     /// `offlineGrace` window that expires, and the next successful verification
     /// is what refreshes it.
     ///
-    /// The cache belongs to the channel that wrote it. A direct-sold licence key
-    /// proves nothing about a Mac App Store build and a verified StoreKit
-    /// transaction proves nothing about the direct one, so a timestamp left by
-    /// the other channel is ignored rather than carried across: both channels
-    /// ship the same executable and share one `UserDefaults` domain when a build
-    /// changes distribution.
+    /// The cache belongs to the channel that wrote it. A timestamp left under a
+    /// different channel name — an older build, or a distribution decision that
+    /// changed — is ignored rather than carried across: the executable and its
+    /// `UserDefaults` domain can be reused by a build whose purchase model is
+    /// different.
     private static func restoredStatus(
         from defaults: UserDefaults,
         channel: EntitlementState.Channel,
@@ -480,38 +476,5 @@ public actor LicenseKeyStore: LicenseKeyStoring {
             kSecAttrAccount as String: account,
         ]
         SecItemDelete(query as CFDictionary)
-    }
-}
-
-/// The Mac App Store channel.
-///
-/// Present so the app-store build is a configuration switch rather than a
-/// rewrite (§12.4). The StoreKit calls live behind this type; the free/paid
-/// gates above are shared with the direct build, which is what keeps the two
-/// channels' safety behaviour identical.
-public actor StoreKitChannel: PurchaseChannel {
-    public nonisolated let channel: EntitlementState.Channel = .appStore
-
-    /// Product identifier from §12.4.
-    public static let productIdentifier = "com.siftmac.cleaner.lifetime"
-
-    private let logger = SiftLog.purchase
-
-    public init() {}
-
-    public func load() async throws -> EntitlementState {
-        // StoreKit 2's `Transaction.currentEntitlements` is the verification
-        // source. Until the store build is enabled this reports the free tier so
-        // the direct build behaves predictably.
-        EntitlementState(channel: .appStore, status: .free)
-    }
-
-    public func purchase() async throws -> EntitlementState {
-        logger.error("App Store purchase requested but StoreKit is not enabled in this build")
-        throw PurchaseError.storeUnavailable
-    }
-
-    public func restore() async throws -> EntitlementState {
-        throw PurchaseError.storeUnavailable
     }
 }

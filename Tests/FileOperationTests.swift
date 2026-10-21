@@ -273,6 +273,18 @@ final class FileOperationTests: XCTestCase, @unchecked Sendable {
         XCTAssertEqual(verdict.protected.count, 1)
     }
 
+    func test_preflightRefusesAContainerPath() async {
+        // `~/Library` is scannable but is not a cleanup item: moving it would
+        // take every application's data with it.
+        let library = fixture.directory("Library")
+        let verdict = await makeService().preflight([
+            FileOperationService.Candidate(item: item(library, risk: .review)),
+        ])
+        XCTAssertTrue(verdict.ready.isEmpty)
+        XCTAssertEqual(verdict.protected.count, 1)
+        XCTAssertNil(verdict.makeApprovedPlan(operation: .junkCleanup))
+    }
+
     func test_parentAndChildAreNotBothProcessed() async {
         let directory = fixture.directory("Library/Caches/com.example.app")
         let file = fixture.write("Library/Caches/com.example.app/blob.bin", bytes: 4096)

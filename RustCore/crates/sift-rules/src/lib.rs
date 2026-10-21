@@ -755,13 +755,32 @@ pub fn is_prefix_of(prefix: &str, path: &str) -> bool {
     path == prefix || path.starts_with(&format!("{prefix}/"))
 }
 
+/// The protection list's comparison: case-folded, because macOS volumes are
+/// case-insensitive by default.
+///
+/// The protection names are literals (`Documents`, `Library/Keychains`), while
+/// the filesystem resolves `~/documents` and `~/library/keychains` to the same
+/// directories. A byte-exact comparison therefore let a rule file (or any
+/// caller that spelled the path differently) name a protected directory and
+/// have both the scanner and the pre-flight check approve it. The fold is
+/// applied only here: rule matching keeps `is_prefix_of`, so a case-sensitive
+/// volume does not suddenly match a differently-cased sibling.
+pub fn is_protected_prefix(prefix: &str, path: &str) -> bool {
+    let prefix = prefix.trim_end_matches('/').to_lowercase();
+    let path = path.to_lowercase();
+    if prefix.is_empty() {
+        return false;
+    }
+    path == prefix || path.starts_with(&format!("{prefix}/"))
+}
+
 /// Classifies a path that sits inside `~/Library`.
 ///
 /// Secrets, private messages and synced documents live here under names that
 /// look like ordinary application state, so they are listed rather than inferred.
 fn protected_library_reason(home: &str, path: &str) -> Option<ProtectedReason> {
     for child in PROTECTED_LIBRARY_CHILDREN {
-        if is_prefix_of(&format!("{home}/{child}"), path) {
+        if is_protected_prefix(&format!("{home}/{child}"), path) {
             return Some(if PROTECTED_LIBRARY_USER_CONTENT.contains(child) {
                 ProtectedReason::UserContent {
                     child: (*child).to_string(),
@@ -797,7 +816,7 @@ pub fn protection_reason(home: &str, path: &str) -> Option<ProtectedReason> {
 
     for child in PROTECTED_HOME_CHILDREN {
         let candidate = format!("{home}/{child}");
-        if is_prefix_of(&candidate, &path) {
+        if is_protected_prefix(&candidate, &path) {
             return Some(ProtectedReason::UserContent {
                 child: (*child).to_string(),
             });
@@ -805,7 +824,7 @@ pub fn protection_reason(home: &str, path: &str) -> Option<ProtectedReason> {
     }
 
     for prefix in PROTECTED_PREFIXES {
-        if is_prefix_of(prefix, &path) {
+        if is_protected_prefix(prefix, &path) {
             return Some(ProtectedReason::SystemPath {
                 prefix: (*prefix).to_string(),
             });
@@ -866,7 +885,7 @@ pub fn protection_reason_authorized(
 
     // Hard rules first.
     for child in PROTECTED_HOME_CHILDREN {
-        if is_prefix_of(&format!("{home_normalized}/{child}"), &path_normalized) {
+        if is_protected_prefix(&format!("{home_normalized}/{child}"), &path_normalized) {
             return Some(ProtectedReason::UserContent {
                 child: (*child).to_string(),
             });
@@ -879,10 +898,10 @@ pub fn protection_reason_authorized(
     // A grant lifts the blanket `/Volumes` guard for the authorised subtree only.
     // It never lifts a real system prefix: granting `/Library` or `/private/var`
     // would otherwise expose launch daemons and the system database.
-    if is_prefix_of("/Volumes", &path_normalized) {
+    if is_protected_prefix("/Volumes", &path_normalized) {
         for root in authorized_roots {
             let root = normalize_path(&root.to_string_lossy());
-            if is_prefix_of(&root, &path_normalized) {
+            if is_protected_prefix(&root, &path_normalized) {
                 return None;
             }
         }
@@ -895,7 +914,7 @@ pub fn protection_reason_authorized(
         if *prefix == "/Volumes" {
             continue;
         }
-        if is_prefix_of(prefix, &path_normalized) {
+        if is_protected_prefix(prefix, &path_normalized) {
             return Some(ProtectedReason::SystemPath {
                 prefix: (*prefix).to_string(),
             });
@@ -989,6 +1008,54 @@ mod tests {
         assert_eq!(
             normalize_path(&sneaky),
             format!("{HOME}/Documents/secret.txt")
+        );
+    }
+
+    #[test]
+    fn a_case_variant_cannot_reach_a_protected_location() {
+        // macOS volumes are case-insensitive by default, so `~/documents` is the
+        // user's Documents directory. A rule file (or any caller) that spells a
+        // protected name in another case must still be refused, or the whole
+        // protection list is one lower-case letter away from being bypassed.
+        for path in [
+            format!("{HOME}/documents/taxes.pdf"),
+            format!("{HOME}/DESKTOP/notes.txt"),
+            format!("{HOME}/library/keychains/login.keychain-db"),
+            format!("{HOME}/library/mobile documents/com~apple~x/f"),
+            format!("{HOME}/library/mail/inbox"),
+            "/system/library/caches/x".to_string(),
+            "/USR/local/bin/tool".to_string(),
+            "/volumes/External/anything".to_string(),
+            "/private/VAR/db/secret".to_string(),
+        ] {
+            assert!(
+                is_protected_path(HOME, &path),
+                "{path} must be refused despite its spelling"
+            );
+        }
+
+        // A differently-cased sibling is still a different directory on a
+        // case-sensitive volume, so the fold must not turn prefix matching into
+        // a substring match.
+        assert!(!is_protected_path(
+            HOME,
+            &format!("{HOME}/documents-old/a.txt")
+        ));
+        assert!(!is_protected_path(HOME, "/systematic/a.txt"));
+    }
+
+    #[test]
+    fn a_case_variant_is_refused_under_an_authorised_grant_too() {
+        use std::path::PathBuf;
+        let grants = [PathBuf::from("/Volumes/Backup")];
+        assert!(is_protected_path_authorized(
+            HOME,
+            &format!("{HOME}/LIBRARY/KEYCHAINS/login.keychain-db"),
+            &grants
+        ));
+        assert!(
+            !is_protected_path_authorized(HOME, "/volumes/Backup/file.bin", &grants),
+            "the grant is the same volume however it is spelled"
         );
     }
 

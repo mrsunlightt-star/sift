@@ -286,6 +286,10 @@
 "report.scopeDetail" = "Мест: %d, проверено файлов: %d";
 "report.skipped" = "Пропущено";
 "report.skippedDetail" = "Пропущено элементов: %d. Показаны первые 20.";
+"report.status" = "Статус";
+"report.status.failed" = "Не выполнено";
+"report.status.moved" = "Перемещено в Корзину";
+"report.status.skipped" = "Пропущено";
 "report.title" = "Отчёт об очистке";
 "risk.protected.detail" = "Sift это не удаляет. Показано только для информации.";
 "risk.protected.short" = "Защищено";
@@ -363,6 +367,8 @@
 "settings.authorized.unavailable" = "Недоступно в этом сеансе";
 "settings.clearHistory" = "Очистить историю сканирований";
 "settings.days" = "%d дней";
+"settings.deleteReports" = "Удалить сохранённые отчёты";
+"settings.deleteReportsConfirm" = "Удалить все сохранённые PDF-отчёты? Это действие нельзя отменить.";
 "settings.diagnostics.macOS" = "macOS";
 "settings.diagnostics.scannerCore" = "Ядро сканирования";
 "settings.diagnostics.version" = "Версия";

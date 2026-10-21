@@ -286,6 +286,10 @@
 "report.scopeDetail" = "%d locations, %d files examined";
 "report.skipped" = "Skipped";
 "report.skippedDetail" = "Skipped %d items. Showing the first 20.";
+"report.status" = "Status";
+"report.status.failed" = "Failed";
+"report.status.moved" = "Moved to Trash";
+"report.status.skipped" = "Skipped";
 "report.title" = "Cleanup report";
 "risk.protected.detail" = "Sift will not remove this. It is shown for information only.";
 "risk.protected.short" = "Protected";
@@ -363,6 +367,8 @@
 "settings.authorized.unavailable" = "Not available in this session";
 "settings.clearHistory" = "Clear scan history";
 "settings.days" = "%d days";
+"settings.deleteReports" = "Delete saved reports";
+"settings.deleteReportsConfirm" = "Delete all saved PDF reports? This cannot be undone.";
 "settings.diagnostics.macOS" = "macOS";
 "settings.diagnostics.scannerCore" = "Scanner core";
 "settings.diagnostics.version" = "Version";

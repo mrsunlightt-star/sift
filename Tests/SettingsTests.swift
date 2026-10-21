@@ -111,4 +111,31 @@ final class SettingsTests: XCTestCase, @unchecked Sendable {
         XCTAssertEqual(settings.appearance, .system)
         XCTAssertEqual(settings.language, SiftLanguage.preferred)
     }
+
+    /// "Clear history" removes the on-disk history directory; reports are a
+    /// separate action and must survive it.
+    func test_clearHistoryRemovesTheDirectoryButNotReports() async throws {
+        let support = FileManager.default.temporaryDirectory
+            .appendingPathComponent("sift-settings-\(UUID().uuidString)", isDirectory: true)
+        let history = support.appendingPathComponent("History", isDirectory: true)
+        let reports = support.appendingPathComponent("Reports", isDirectory: true)
+        try FileManager.default.createDirectory(at: history, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: reports, withIntermediateDirectories: true)
+        let report = reports.appendingPathComponent("Sift-Report.json")
+        try Data("{}".utf8).write(to: report)
+        defer { try? FileManager.default.removeItem(at: support) }
+
+        let defaults = UserDefaults(suiteName: suiteName) ?? .standard
+        let store = SettingsStore(
+            preferences: StringPreferences(defaults: defaults),
+            supportDirectory: support
+        )
+        await store.clearHistory()
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: history.path))
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: report.path),
+            "clearing history must not delete the user's saved reports"
+        )
+    }
 }

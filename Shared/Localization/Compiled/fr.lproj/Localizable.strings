@@ -286,6 +286,10 @@
 "report.scopeDetail" = "%d emplacements, %d fichiers examinés";
 "report.skipped" = "Ignorés";
 "report.skippedDetail" = "%d éléments ignorés. Les 20 premiers sont affichés.";
+"report.status" = "Statut";
+"report.status.failed" = "Non terminé";
+"report.status.moved" = "Déplacé vers la corbeille";
+"report.status.skipped" = "Ignoré";
 "report.title" = "Rapport de nettoyage";
 "risk.protected.detail" = "Sift ne le supprimera pas. Affiché à titre informatif.";
 "risk.protected.short" = "Protégé";
@@ -363,6 +367,8 @@
 "settings.authorized.unavailable" = "Indisponible pour cette session";
 "settings.clearHistory" = "Effacer l’historique";
 "settings.days" = "%d jours";
+"settings.deleteReports" = "Supprimer les rapports enregistrés";
+"settings.deleteReportsConfirm" = "Supprimer tous les rapports PDF enregistrés ? Cette action est irréversible.";
 "settings.diagnostics.macOS" = "macOS";
 "settings.diagnostics.scannerCore" = "Moteur d’analyse";
 "settings.diagnostics.version" = "Version";

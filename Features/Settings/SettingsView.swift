@@ -14,6 +14,7 @@ public struct SettingsView: View {
     @State private var exportMessage: String?
     @State private var permissionHint = false
     @State private var hasStoredLicense = false
+    @State private var isConfirmingReportDeletion = false
 
     public init() {}
 
@@ -395,13 +396,33 @@ public struct SettingsView: View {
                     .font(SiftFont.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                Button {
-                    RecentHistory.clear()
-                } label: {
-                    Text(LocalizationKey.settingsClearHistory.localized)
-                        .font(SiftFont.caption)
+                HStack(spacing: SiftMetrics.spacingM) {
+                    Button {
+                        Task { await environment.clearHistory() }
+                    } label: {
+                        Text(LocalizationKey.settingsClearHistory.localized)
+                            .font(SiftFont.caption)
+                    }
+                    .buttonStyle(SiftLinkButtonStyle())
+
+                    Button(role: .destructive) {
+                        isConfirmingReportDeletion = true
+                    } label: {
+                        Text(LocalizationKey.settingsDeleteReports.localized)
+                            .font(SiftFont.caption)
+                    }
+                    .buttonStyle(SiftLinkButtonStyle())
                 }
-                .buttonStyle(SiftLinkButtonStyle())
+                .confirmationDialog(
+                    LocalizationKey.settingsDeleteReportsConfirm.localized,
+                    isPresented: $isConfirmingReportDeletion,
+                    titleVisibility: .visible
+                ) {
+                    Button(LocalizationKey.commonRemove.localized, role: .destructive) {
+                        Task { await environment.deleteSavedReports() }
+                    }
+                    Button(LocalizationKey.cleanupConfirmCancel.localized, role: .cancel) {}
+                }
             }
         }
     }
@@ -513,7 +534,11 @@ public struct SettingsView: View {
                         .font(SiftFont.caption)
                 }
                 .buttonStyle(SiftLinkButtonStyle())
-                .disabled(environment.cleanup.isWorking || environment.isPreparingScan)
+                .disabled(
+                    environment.cleanup.isWorking
+                        || environment.cleanup.isPreparingCleanup
+                        || environment.isScanInFlight
+                )
             }
         }
     }

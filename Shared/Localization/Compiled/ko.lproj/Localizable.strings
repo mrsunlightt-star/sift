@@ -286,6 +286,10 @@
 "report.scopeDetail" = "%d개 위치, %d개 파일 검사";
 "report.skipped" = "건너뛴 항목";
 "report.skippedDetail" = "%d개 항목을 건너뛰었습니다. 처음 20개만 표시합니다.";
+"report.status" = "상태";
+"report.status.failed" = "완료되지 않음";
+"report.status.moved" = "휴지통으로 이동됨";
+"report.status.skipped" = "건너뜀";
 "report.title" = "정리 보고서";
 "risk.protected.detail" = "Sift는 이 항목을 삭제하지 않습니다. 정보 제공용입니다.";
 "risk.protected.short" = "보호됨";
@@ -363,6 +367,8 @@
 "settings.authorized.unavailable" = "이번 세션에서 사용할 수 없음";
 "settings.clearHistory" = "검사 기록 지우기";
 "settings.days" = "%d일";
+"settings.deleteReports" = "저장된 보고서 삭제";
+"settings.deleteReportsConfirm" = "저장된 모든 PDF 보고서를 삭제할까요? 이 작업은 되돌릴 수 없습니다.";
 "settings.diagnostics.macOS" = "macOS";
 "settings.diagnostics.scannerCore" = "스캔 코어";
 "settings.diagnostics.version" = "버전";

@@ -55,6 +55,13 @@ pub struct WalkOptions {
     pub skip_hidden: bool,
     /// Report package directories as entries instead of descending into them.
     pub stop_at_packages: bool,
+    /// Never cross into another volume.
+    ///
+    /// A directory can be a mount point of a disk image or a network share
+    /// below the scan root. Walking it would read a tree the user never
+    /// authorised and attribute another disk's bytes to this one. The root's
+    /// device is the boundary; the root itself is always accepted.
+    pub stay_on_device: bool,
 }
 
 impl WalkOptions {
@@ -69,6 +76,7 @@ impl WalkOptions {
             max_entries: None,
             skip_hidden: false,
             stop_at_packages: true,
+            stay_on_device: true,
         }
     }
 
@@ -186,6 +194,7 @@ pub fn walk(root: &Path, options: &WalkOptions, cancel: &CancelToken) -> WalkRep
     }
 
     let mut stack: Vec<(PathBuf, u32)> = vec![(root.to_path_buf(), 0)];
+    let root_device = device_of(&root_metadata);
 
     while let Some((directory, depth)) = stack.pop() {
         if cancel.is_cancelled() {
@@ -241,6 +250,20 @@ pub fn walk(root: &Path, options: &WalkOptions, cancel: &CancelToken) -> WalkRep
             if file_type.is_symlink() {
                 // Skipped silently: symlinks are common and expected, and a
                 // user does not need a warning for each one.
+                continue;
+            }
+
+            if options.stay_on_device && device_of(&metadata) != root_device {
+                // A mount point below the root belongs to another disk. The
+                // user never authorised it, and its bytes are not this
+                // volume's bytes.
+                report.skips.push(WalkSkip {
+                    path: path.clone(),
+                    code: "protectedLocation",
+                    message: "Another volume is mounted here; not scanned without a grant."
+                        .to_string(),
+                    needs_full_disk_access: false,
+                });
                 continue;
             }
 
@@ -381,6 +404,7 @@ fn measure_within(
 ) -> Measured {
     let mut total = Measured { bytes: 0, files: 0 };
     let mut stack = vec![root.to_path_buf()];
+    let root_device = std::fs::symlink_metadata(root).ok().map(|m| device_of(&m));
     while let Some(directory) = stack.pop() {
         if cancel.is_cancelled() {
             report.cancelled = true;
@@ -413,6 +437,9 @@ fn measure_within(
                 Err(_) => continue,
             };
             if metadata.file_type().is_symlink() {
+                continue;
+            }
+            if root_device.is_some_and(|device| device_of(&metadata) != device) {
                 continue;
             }
             if metadata.is_dir() {
@@ -469,12 +496,27 @@ fn timestamps(metadata: &std::fs::Metadata) -> (i64, i64) {
 /// Allocated size when available, logical size otherwise.
 ///
 /// APFS reports allocated size per block; using it is what makes the reported
-/// reclaimable space match what the Finder shows after a cleanup.
+/// reclaimable space match what the Finder shows after a cleanup. A dataless
+/// cloud placeholder is the one exception: its bytes are not on this disk, so
+/// it counts as zero even though it reports a logical size.
 pub fn allocated_size(metadata: &std::fs::Metadata) -> u64 {
+    use std::os::macos::fs::MetadataExt as MacOsMetadataExt;
+    // SF_DATALESS, from sys/stat.h: the file is an object whose content lives
+    // in the cloud and is materialised on first read.
+    const SF_DATALESS: u32 = 0x4000_0000;
+    if metadata.st_flags() & SF_DATALESS != 0 {
+        return 0;
+    }
     match MetadataSizeExt::total_file_allocated_size(metadata) {
         Some(allocated) => allocated,
         None => metadata.len(),
     }
+}
+
+/// The device a directory entry lives on, used to stop at mount points.
+pub(crate) fn device_of(metadata: &std::fs::Metadata) -> u64 {
+    use std::os::unix::fs::MetadataExt;
+    metadata.dev()
 }
 
 /// Wrapper so the fallback stays explicit and testable.
@@ -913,6 +955,19 @@ mod tests {
         // A directory symlink is already covered; this asserts the mode check.
         let report = walk(&tree.root, &options(&tree.root), &CancelToken::new());
         assert!(report.entries.iter().all(|e| !e.is_directory));
+    }
+
+    #[test]
+    fn a_different_device_is_recognised_as_a_mount_boundary() {
+        use std::os::unix::fs::MetadataExt;
+        let root = std::fs::metadata("/").expect("/ is readable");
+        let dev = std::fs::metadata("/dev").expect("/dev is readable");
+        assert_eq!(device_of(&root), root.dev());
+        assert_ne!(
+            root.dev(),
+            dev.dev(),
+            "/ and /dev are different filesystems; the walker must not cross that"
+        );
     }
 
     #[test]

@@ -80,7 +80,9 @@ public actor ReportService {
     public func storeLocally(_ report: CleanupReport) throws -> URL {
         try fileManager.createDirectory(at: reportsDirectory, withIntermediateDirectories: true)
         let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withFullDate, .withTime]
+        // Milliseconds as well: two cleanups can finish inside one second, and
+        // a second-resolution name made the second report overwrite the first.
+        formatter.formatOptions = [.withFullDate, .withTime, .withFractionalSeconds]
         let name = "Sift-Report-\(formatter.string(from: report.generatedAt).replacingOccurrences(of: ":", with: "-")).json"
         let url = reportsDirectory.appendingPathComponent(name)
         let encoder = JSONEncoder()
@@ -105,6 +107,22 @@ public actor ReportService {
         let data = renderPDF(report, title: title)
         try data.write(to: url, options: .atomic)
         logger.info("Exported a report as PDF")
+    }
+
+    /// Deletes every locally stored report and returns how many files were
+    /// removed.
+    ///
+    /// This is separate from "clear scan history": a report is a document the
+    /// user may have kept, while the history is two timestamps. Deleting the
+    /// directory is also what makes the action visible to the user — clearing
+    /// only UserDefaults left the reports in place.
+    @discardableResult
+    public func deleteAllReports() throws -> Int {
+        guard fileManager.fileExists(atPath: reportsDirectory.path) else { return 0 }
+        let entries = (try? fileManager.contentsOfDirectory(atPath: reportsDirectory.path)) ?? []
+        try fileManager.removeItem(at: reportsDirectory)
+        logger.info("Deleted local reports (count=\(entries.count))")
+        return entries.count
     }
 
     /// The local reports, newest first.
@@ -193,6 +211,7 @@ public struct PDFPageRenderer {
             cursor.section(LocalizationKey.cleanupResultDetails.localized)
             cursor.tableHeader([
                 LocalizationKey.reportCategories.localized,
+                LocalizationKey.reportStatus.localized,
                 LocalizationKey.commonSize.localized,
             ])
             for entry in report.entries {
@@ -200,6 +219,7 @@ public struct PDFPageRenderer {
                 // must not describe which files a person cleaned.
                 cursor.tableRow([
                     displayName(forCategory: entry.category),
+                    statusLabel(for: entry.status),
                     entry.formattedSize,
                 ])
             }
@@ -216,6 +236,20 @@ public struct PDFPageRenderer {
     /// A localised label for a raw category identifier from a report file.
     private func displayName(forCategory identifier: String) -> String {
         CleanupCategory(rawValue: identifier)?.titleKey.localized ?? identifier
+    }
+
+    /// What happened to one detail row.
+    ///
+    /// The table used to list refused and failed items under the same heading
+    /// as moved ones, so a row that stayed on disk looked like a row that had
+    /// been removed.
+    private func statusLabel(for raw: String) -> String {
+        switch OperationStatus(rawValue: raw) {
+        case .movedToTrash: LocalizationKey.reportStatusMoved.localized
+        case .skipped: LocalizationKey.reportStatusSkipped.localized
+        case .failed: LocalizationKey.reportStatusFailed.localized
+        case nil: LocalizationKey.commonNotAvailable.localized
+        }
     }
 
     /// Tracks the write position and paginates.
@@ -304,7 +338,9 @@ public struct PDFPageRenderer {
             var x = margin
             for (index, column) in columns.enumerated() {
                 let width = columnWidths[index]
-                let text = index == 0 ? truncated(column, font: font, width: width) : column
+                // Every column is clipped, not only the first: a status label
+                // is wide enough to run into the size column on a narrow page.
+                let text = truncated(column, font: font, width: width - 6)
                 draw(
                     text,
                     font: font,
@@ -319,7 +355,9 @@ public struct PDFPageRenderer {
 
         private func columnWidths(count: Int) -> [CGFloat] {
             guard count > 1 else { return [contentWidth] }
-            let first = contentWidth * 0.72
+            // Two columns (category, size) give the label most of the width;
+            // three add a status column, which needs room of its own.
+            let first = contentWidth * (count == 2 ? 0.72 : 0.50)
             let remaining = (contentWidth - first) / CGFloat(count - 1)
             return [first] + Array(repeating: remaining, count: count - 1)
         }

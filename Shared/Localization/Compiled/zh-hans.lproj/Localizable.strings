@@ -286,6 +286,10 @@
 "report.scopeDetail" = "%d 个位置，检查 %d 个文件";
 "report.skipped" = "跳过项目";
 "report.skippedDetail" = "跳过 %d 个项目，最多列出前 20 个。";
+"report.status" = "状态";
+"report.status.failed" = "未完成";
+"report.status.moved" = "已移入废纸篓";
+"report.status.skipped" = "已跳过";
 "report.title" = "清理报告";
 "risk.protected.detail" = "Sift 不会删除此处内容，仅作说明。";
 "risk.protected.short" = "受保护";
@@ -363,6 +367,8 @@
 "settings.authorized.unavailable" = "本次会话不可用";
 "settings.clearHistory" = "清除扫描历史";
 "settings.days" = "%d 天";
+"settings.deleteReports" = "删除已保存的报告";
+"settings.deleteReportsConfirm" = "删除所有已保存的 PDF 报告？此操作无法撤销。";
 "settings.diagnostics.macOS" = "macOS";
 "settings.diagnostics.scannerCore" = "扫描核心";
 "settings.diagnostics.version" = "版本";

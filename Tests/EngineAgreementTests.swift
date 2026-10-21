@@ -271,6 +271,87 @@ final class EngineAgreementTests: XCTestCase, @unchecked Sendable {
         )
     }
 
+    /// A root can be in scope for its rules without feeding the threshold scans.
+    ///
+    /// The system log root is the production case: it exists so the
+    /// `system-logs` rule can run, and marking it cleanable used to make every
+    /// large or old file under `/Library/Logs` a `.largeFiles` / `.oldFiles`
+    /// candidate as well. Both engines must read the separate flag.
+    func test_aRulesOnlyRootYieldsNoThresholdItemsInEitherEngine() async throws {
+        fixture.write("Downloads/large.bin", bytes: 2 * 1024 * 1024)
+        // The rules-only root lives under the scan's home: the production
+        // engine's request allowlist accepts home descendants, `/Volumes` and
+        // `/Library/Logs`, not an arbitrary temporary directory.
+        let excluded = fixture.directory("RulesOnly")
+        fixture.write("RulesOnly/large.bin", bytes: 2 * 1024 * 1024)
+
+        let request = ScanRequest(
+            homeDirectory: fixture.url,
+            roots: [
+                ScanRoot(url: fixture.url, anchor: .home),
+                ScanRoot(
+                    url: excluded,
+                    anchor: .systemLibrary,
+                    isCleanable: true,
+                    includesThresholdFiles: false
+                ),
+            ],
+            largeFileThresholdBytes: 1024 * 1024,
+            oldFileThresholdDays: 180,
+            staleThresholdDays: 30,
+            includeDuplicates: false
+        )
+
+        XCTAssertTrue(ScannerEngineFactory.hasRustCore)
+        let production = try await scan(
+            ScannerEngineFactory.makeDefault(rules: makeRules()),
+            request
+        )
+        let reference = try await scan(SwiftScannerEngine(rules: makeRules()), request)
+
+        let excludedPath = RuleEngine.normalize(excluded.path)
+        for items in [production, reference] {
+            XCTAssertTrue(
+                items.contains { $0.category == .largeFiles },
+                "the ordinary root still produces large-file items"
+            )
+            XCTAssertFalse(
+                items.contains { RuleEngine.normalize($0.url.path).hasPrefix(excludedPath) },
+                "a rules-only root produced a threshold item: \(items.map(\.url.path))"
+            )
+        }
+    }
+
+    /// A large file inside a device backup or a live database is not a cleanup
+    /// item, and both engines must agree on that.
+    func test_theThresholdScansSkipLiveUserDataInBothEngines() async throws {
+        fixture.write("Library/Application Support/MobileSync/Backup/chunk.bin", bytes: 2 * 1024 * 1024)
+        fixture.write("Library/Application Support/AddressBook/db.bin", bytes: 2 * 1024 * 1024)
+        fixture.write("Library/Group Containers/group.com.example/data.bin", bytes: 2 * 1024 * 1024)
+        fixture.write("Downloads/ordinary.bin", bytes: 2 * 1024 * 1024)
+
+        let request = makeRequest()
+        let production = try await scan(
+            ScannerEngineFactory.makeDefault(rules: makeRules()),
+            request
+        )
+        let reference = try await scan(SwiftScannerEngine(rules: makeRules()), request)
+
+        for items in [production, reference] {
+            XCTAssertTrue(
+                items.contains { $0.displayName == "ordinary.bin" },
+                "the ordinary large file is still reported"
+            )
+            for excluded in ["chunk.bin", "db.bin", "data.bin"] {
+                XCTAssertFalse(
+                    items.contains { $0.displayName == excluded },
+                    "\(excluded) belongs to live user data and must not be a threshold candidate"
+                )
+            }
+        }
+        try await compare(request)
+    }
+
     /// The duplicate pipeline is a second implementation of its own, so it gets
     /// its own comparison: two engines that agree on rules but not on which copy
     /// of a file is the keeper would still show different results.

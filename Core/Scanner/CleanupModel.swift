@@ -23,6 +23,13 @@ public final class CleanupModel: ObservableObject {
     @Published public var isConfirming = false
     /// True while a batch is running.
     @Published public private(set) var isWorking = false
+    /// True while a pre-flight pass is in flight.
+    ///
+    /// Pre-flight awaits the file-operation service. Without a flag claimed
+    /// before that suspension, a second request could enter while the first was
+    /// judging its candidates, and the two verdicts would race to describe what
+    /// the confirmation panel shows.
+    @Published public private(set) var isPreparingCleanup = false
     /// The finished outcome, shown on the result page.
     @Published public private(set) var outcome: CleanupOutcome?
     /// The report written for the last outcome.
@@ -42,6 +49,12 @@ public final class CleanupModel: ObservableObject {
     /// plan after the panel closes, and the report must name the operation the
     /// user actually started rather than a default.
     public private(set) var preparedOperation: CleanupOperationName = .junkCleanup
+    /// Identifies the item list a pre-flight verdict belongs to.
+    ///
+    /// A scan resets the model while a pre-flight pass may still be awaiting the
+    /// file-operation service. The verdict then describes items that no longer
+    /// exist in this list, so it is discarded instead of committed.
+    private var preparationGeneration = 0
 
     public init(rules: RuleEngine, operations: FileOperationService, reports: ReportService) {
         self.rules = rules
@@ -71,8 +84,10 @@ public final class CleanupModel: ObservableObject {
     /// safe item that happened to sort onto page two must start selected for the
     /// same reason a safe item on page one does.
     public func appendItems(_ newItems: [CleanupItem]) {
-        let known = Set(items.map(\.id))
-        let added = newItems.filter { !known.contains($0.id) }
+        // Insert as the batch is filtered. Checking only the pre-existing ids
+        // let a batch that named the same target twice append both rows.
+        var known = Set(items.map(\.id))
+        let added = newItems.filter { known.insert($0.id).inserted }
         items.append(contentsOf: added)
         guard preselectsAppendedItems else { return }
         for item in added where item.isSelectedByDefault && item.risk.isCleanable {
@@ -231,17 +246,30 @@ public final class CleanupModel: ObservableObject {
         requiresConfirmation: Bool = true,
         operation: CleanupOperationName = .junkCleanup
     ) async -> Preparation {
+        // A result already on screen and a confirmation panel are two modal
+        // layers; only one may exist. `isPreparingCleanup` is claimed before the
+        // first suspension, so a rapid second request cannot pass the same
+        // guard while the first pre-flight is still running, and an open panel
+        // keeps the plan it is describing.
+        guard outcome == nil, !isWorking, !isPreparingCleanup,
+              !isConfirming, !selectedItems.isEmpty else { return .nothingToDo }
         failure = nil
         preparedOperation = operation
-        // A result already on screen and a confirmation panel are two modal
-        // layers; only one may exist. The same guard stops a second batch from
-        // being prepared while the first is still moving files.
-        guard outcome == nil, !isWorking, !selectedItems.isEmpty else { return .nothingToDo }
+        isPreparingCleanup = true
+        let generation = preparationGeneration
+        defer { isPreparingCleanup = false }
+
         let candidates = selectedItems.map(FileOperationService.Candidate.init(item:))
         let verdict = await operations.preflight(candidates)
-        preflight = verdict
+        // The list was replaced while pre-flight ran (a new scan, a reset). The
+        // verdict belongs to a selection this model no longer shows.
+        guard generation == preparationGeneration else { return .nothingToDo }
 
-        if verdict.ready.isEmpty || verdict.makeApprovedPlan(operation: .junkCleanup) == nil {
+        // The panel describes exactly what pre-flight approved. The operation
+        // passed in is the one the plan is built for; testing with a default
+        // operation judged a different plan than the one that would run.
+        guard verdict.ready.isEmpty == false,
+              verdict.makeApprovedPlan(operation: operation) != nil else {
             // Nothing executable: report why instead of opening a panel that
             // could not do anything.
             preflight = nil
@@ -253,8 +281,17 @@ public final class CleanupModel: ObservableObject {
             )
             return .nothingToDo
         }
-        isConfirming = requiresConfirmation
-        return requiresConfirmation ? .awaitingConfirmation : .readyToExecute
+        // One commit: the approved set and the panel become visible together.
+        //
+        // "Skip confirmation" is an explicit opt-in for the safe, preselected
+        // set. It must not also skip the panel for a review item: that is
+        // exactly the row the user has to look at. Safe cache directories stay
+        // covered by the setting, or it would never apply to a normal junk run.
+        let needsConfirmation = requiresConfirmation
+            || verdict.ready.contains { $0.risk == .review }
+        preflight = verdict
+        isConfirming = needsConfirmation
+        return needsConfirmation ? .awaitingConfirmation : .readyToExecute
     }
 
     /// Hides the confirmation panel without executing the plan.
@@ -266,8 +303,12 @@ public final class CleanupModel: ObservableObject {
     ///
     /// This method does not check entitlement; the caller is the composition
     /// root, which checks it immediately before calling here.
+    ///
+    /// Internal on purpose: a feature page must go through
+    /// `AppEnvironment.confirmCleanup`, which owns the entitlement gate and the
+    /// destructive slot. Self-test and unit tests reach it with `@testable`.
     @discardableResult
-    public func executePrepared(
+    func executePrepared(
         operation: CleanupOperationName? = nil,
         scanReport: ScanReport? = nil
     ) async -> CleanupOutcome? {
@@ -306,6 +347,7 @@ public final class CleanupModel: ObservableObject {
     /// Clears everything before a new scan, so a stale selection can never
     /// survive into a different result set.
     public func resetForNewScan() {
+        preparationGeneration &+= 1
         items = []
         selection = []
         preflight = nil

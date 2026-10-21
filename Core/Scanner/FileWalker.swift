@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import OSLog
 import Shared
@@ -34,6 +35,12 @@ enum FileWalker {
         /// leave the category totals, the report and the rows disagreeing about
         /// the same run.
         var skipHidden = false
+        /// Never cross into another volume.
+        ///
+        /// A directory can be a mount point of a disk image or a network share
+        /// below the scan root. Walking it would read a tree the user never
+        /// authorised; the root's device is the boundary.
+        var stayOnDevice = true
     }
 
     /// Directory names that never hold cleanup targets and are expensive to walk.
@@ -110,6 +117,7 @@ enum FileWalker {
         }
 
         var stack: [(URL, Int)] = [(root, 0)]
+        let rootDevice = Self.device(of: root)
         while let (directory, depth) = stack.popLast() {
             if isCancelled() {
                 report.cancelled = true
@@ -156,6 +164,19 @@ enum FileWalker {
                 // A symlink is skipped silently: they are common and a warning
                 // per link would drown the real skips.
                 if values?.isSymbolicLink == true { continue }
+
+                if options.stayOnDevice, let rootDevice, Self.device(of: url) != rootDevice {
+                    // A mount point below the root belongs to another disk.
+                    report.skips.append(
+                        Skip(
+                            url: url,
+                            code: .protectedLocation,
+                            message: LocalizationKey.scanSkippedReasonProtectedLocation.localized,
+                            needsFullDiskAccess: false
+                        )
+                    )
+                    continue
+                }
 
                 let isDirectory = values?.isDirectory == true
                 let name = url.lastPathComponent
@@ -251,6 +272,7 @@ enum FileWalker {
         var bytes: Int64 = 0
         var files = 0
         var stack = [url]
+        let rootDevice = device(of: url)
         while let directory = stack.popLast() {
             if isCancelled() { return (bytes, files) }
             guard let contents = try? FileManager.default.contentsOfDirectory(
@@ -261,6 +283,7 @@ enum FileWalker {
             for child in contents {
                 let values = try? child.resourceValues(forKeys: Set(resourceKeys))
                 if values?.isSymbolicLink == true { continue }
+                if let rootDevice, device(of: child) != rootDevice { continue }
                 if skipHidden, child.lastPathComponent.hasPrefix(".") { continue }
                 // The user's "never visit" list applies to a measurement as well
                 // as to a walk: measuring the ignored subtree would report bytes
@@ -282,6 +305,16 @@ enum FileWalker {
         return (bytes, files)
     }
 
+    /// The device a path lives on, used to stop at mount points.
+    ///
+    /// `lstat` rather than `resourceValues`: the device is one syscall, and a
+    /// mount point is exactly the case where the path's own volume differs.
+    static func device(of url: URL) -> dev_t? {
+        var info = stat()
+        guard lstat(url.path, &info) == 0 else { return nil }
+        return info.st_dev
+    }
+
     /// Allocated size when the filesystem reports it, logical size otherwise (§8.3).
     ///
     /// Allocated size is what makes the reported reclaimable space match the free
@@ -294,10 +327,28 @@ enum FileWalker {
             return Int64(allocated)
         }
         if let size = values?.fileSize {
+            // A dataless cloud placeholder reports a logical size but occupies
+            // no local blocks; counting it would offer space a cleanup cannot
+            // free. A fully sparse file is not dataless and keeps its logical
+            // size, which is the existing behaviour.
+            if size > 0,
+               (values?.totalFileAllocatedSize ?? 0) == 0,
+               (values?.fileAllocatedSize ?? 0) == 0,
+               isDataless(url) {
+                return 0
+            }
             return Int64(size)
         }
         let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
         return (attributes?[.size] as? NSNumber)?.int64Value ?? 0
+    }
+
+    /// True for a cloud placeholder whose bytes are not on this disk.
+    private static func isDataless(_ url: URL) -> Bool {
+        var info = stat()
+        guard lstat(url.path, &info) == 0 else { return false }
+        // SF_DATALESS, from sys/stat.h.
+        return info.st_flags & 0x4000_0000 != 0
     }
 
     /// Maps a filesystem error onto the product error table.

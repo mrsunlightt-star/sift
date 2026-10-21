@@ -148,6 +148,22 @@ final class SelectionTests: XCTestCase, @unchecked Sendable {
         }
     }
 
+    func test_aReviewItemRequiresConfirmationEvenWhenTheSettingIsOff() async {
+        let url = fixture.directory("Library/Caches/com.example.review")
+        let item = summary(url: url, risk: .review).asCleanupItem()
+        let model = await MainActor.run { makeModel() }
+        await model.setItems([item], preselect: false)
+        await model.setSelected(true, for: item)
+
+        let result = await model.prepareCleanup(requiresConfirmation: false)
+        let confirming = await model.isConfirming
+        XCTAssertEqual(result, .awaitingConfirmation)
+        XCTAssertTrue(
+            confirming,
+            "a review item must be shown even when the user disabled the panel for safe items"
+        )
+    }
+
     func test_theApprovedPlanDoesNotFollowTheLiveSelection() async {
         let firstURL = fixture.write("Library/Caches/com.first/blob.bin", bytes: 4096)
         let secondURL = fixture.write("Library/Caches/com.second/blob.bin", bytes: 8192)
@@ -190,6 +206,45 @@ final class SelectionTests: XCTestCase, @unchecked Sendable {
             2,
             "the report describes the same batch the move performed"
         )
+    }
+
+    /// One batch must not append the same cleanup target twice.
+    func test_aBatchThatRepeatsATargetAppendsOneRow() async {
+        let model = await MainActor.run { makeModel() }
+        let item = summary(
+            url: fixture.url.appendingPathComponent("Library/Caches/com.example.app")
+        ).asCleanupItem()
+
+        await MainActor.run { model.appendItems([item, item]) }
+
+        let count = await model.items.count
+        XCTAssertEqual(count, 1)
+    }
+
+    /// A pre-flight that is already describing a plan is not replaced by a
+    /// second request while its panel is open.
+    func test_aSecondPrepareDoesNotReplaceTheOpenPlansOperation() async {
+        let file = fixture.write("Library/Caches/com.example.app/blob.bin", bytes: 4096)
+        let model = await MainActor.run { makeModel() }
+        await MainActor.run {
+            model.setItems([summary(url: file).asCleanupItem()])
+        }
+
+        let first = await model.prepareCleanup(
+            requiresConfirmation: true,
+            operation: .junkCleanup
+        )
+        XCTAssertEqual(first, .awaitingConfirmation)
+        let confirming = await model.isConfirming
+        XCTAssertTrue(confirming)
+
+        let second = await model.prepareCleanup(
+            requiresConfirmation: true,
+            operation: .largeFiles
+        )
+        XCTAssertEqual(second, .nothingToDo, "the open panel's plan is not re-prepared")
+        let operation = await model.preparedOperation
+        XCTAssertEqual(operation, .junkCleanup, "the plan still names the operation it was built for")
     }
 
     func test_aMeasureOnlyRootProducesNoCandidates() async throws {

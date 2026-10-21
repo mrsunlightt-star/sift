@@ -63,8 +63,9 @@ typedef enum SiftPhase {
   SIFT_PHASE_FAILED = 7
 } SiftPhase;
 
-/* Result of `sift_path_protection`. */
+/* Result of `sift_path_protection`. `UNKNOWN` must be treated as protected. */
 typedef enum SiftPathProtection {
+  SIFT_PATH_UNKNOWN = -1,
   SIFT_PATH_SCANNABLE = 0,
   SIFT_PATH_USER_CONTENT = 1,
   SIFT_PATH_SYSTEM = 2,
@@ -284,9 +285,23 @@ void sift_scan_free(SiftScanHandle *handle);
 /* Skipped locations for the active session, as a JSON array. Caller frees. */
 SiftString sift_scan_skipped_json(SiftScanHandle *handle);
 
-/* Runs a storage analysis from a JSON options object. Free the result with
- * `sift_storage_analysis_free`. */
-SiftStorageAnalysis *sift_storage_analyse(SiftString options_json);
+/* Opaque cancellation token for a storage analysis. */
+typedef struct SiftStorageCancel SiftStorageCancel;
+
+/* Creates a storage cancellation token. Free it with
+ * `sift_storage_cancel_free`. */
+SiftStorageCancel *sift_storage_cancel_new(void);
+
+/* Requests cancellation. Safe from any thread. */
+void sift_storage_cancel(SiftStorageCancel *cancel);
+
+/* Frees a storage cancellation token. */
+void sift_storage_cancel_free(SiftStorageCancel *cancel);
+
+/* Runs a storage analysis from a JSON options object. `cancel` may be NULL.
+ * Free the result with `sift_storage_analysis_free`. */
+SiftStorageAnalysis *sift_storage_analyse(SiftString options_json,
+                                          SiftStorageCancel *cancel);
 
 /* Frees a storage analysis and every array it owns. */
 void sift_storage_analysis_free(SiftStorageAnalysis *analysis);

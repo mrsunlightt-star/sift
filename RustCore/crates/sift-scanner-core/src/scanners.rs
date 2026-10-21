@@ -126,7 +126,37 @@ pub fn resolve_root(anchor: RootAnchor, relative_path: &str, home: &Path) -> Opt
         RootAnchor::SystemLibrary => PathBuf::from("/Library"),
         RootAnchor::Authorized | RootAnchor::ExternalVolume => return None,
     };
-    join_inside(&base, relative_path)
+    // An anchor is a place to look inside, never a cleanup item. A rule with an
+    // empty relative path used to resolve to the home directory itself, or to
+    // `~/Library`, and one click could move the whole tree to the Trash.
+    if relative_path.trim_matches('/').is_empty() {
+        return None;
+    }
+    let joined = join_inside(&base, relative_path)?;
+    if is_cleanup_container(&joined, home) {
+        return None;
+    }
+    Some(joined)
+}
+
+/// True when `path` is a container rather than a cleanup target.
+///
+/// The home directory, `~/Library`, `~/Applications` and the system containers
+/// hold many independent things; a rule that resolved to one of them would move
+/// the entire tree as a single item. They remain scannable (the product lives
+/// inside `~/Library`), but they are never a candidate themselves.
+fn is_cleanup_container(path: &Path, home: &Path) -> bool {
+    // Case-folded for the same reason the protection list is: `~/library` is
+    // `~/Library` on a default APFS volume, and a rule that spelled it in
+    // another case must not turn the whole library into one item.
+    let path = collapse_path(&path.to_string_lossy()).to_lowercase();
+    let home = collapse_path(&home.to_string_lossy()).to_lowercase();
+    matches!(
+        path.as_str(),
+        "/" | "/volumes" | "/applications" | "/library"
+    ) || path == home
+        || path == format!("{home}/library")
+        || path == format!("{home}/applications")
 }
 
 /// Joins `relative_path` under `base`, or refuses when the result leaves it.
@@ -174,8 +204,19 @@ fn rule_roots(rule: &Rule, home: &Path, grants: &[PathBuf]) -> Vec<PathBuf> {
         .filter(|root| !volumes_only || is_mounted_volume(root))
         // A rule under a grant descends from that grant and from nothing else:
         // `join_inside` drops a root that would leave the location the user
-        // opened, and returns the collapsed form the walk should use.
-        .filter_map(|root| join_inside(root, &rule.relative_path))
+        // opened, and returns the collapsed form the walk should use. An empty
+        // relative path would make the grant itself the item, which is the same
+        // container mistake `resolve_root` refuses.
+        .filter_map(|root| {
+            if rule.relative_path.trim_matches('/').is_empty() {
+                return None;
+            }
+            let joined = join_inside(root, &rule.relative_path)?;
+            if is_cleanup_container(&joined, home) {
+                return None;
+            }
+            Some(joined)
+        })
         .collect();
     roots.sort();
     roots.dedup();
@@ -329,6 +370,11 @@ fn scan_one_rule(
     ) {
         return (Vec::new(), WalkReport::default());
     }
+    // A rule root that is a container is not a cleanup item: `~/Library` is a
+    // container, and moving it would take every application's data with it.
+    if is_cleanup_container(root, &context.home_dir) {
+        return (Vec::new(), WalkReport::default());
+    }
 
     match rule.effective_match_spec() {
         MatchSpec::Directory => (
@@ -364,6 +410,9 @@ fn directory_candidate(
     ) {
         return None;
     }
+    if is_cleanup_container(path, &context.home_dir) {
+        return None;
+    }
     context.progress.note_path(path);
     let (measured, report) = measure_directory(
         path,
@@ -377,7 +426,9 @@ fn directory_candidate(
         .progress
         .note_files(report.total_files, report.total_bytes);
     let metadata = std::fs::symlink_metadata(path).ok()?;
-    if metadata.file_type().is_symlink() {
+    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+        // A `directory` rule whose relative path names a file used to produce a
+        // zero-byte item labelled as a directory.
         return None;
     }
     Some(Candidate {
@@ -439,6 +490,11 @@ fn child_directory_candidates(
             continue;
         }
         if cancelled_or_excluded(entry, rule, root, context) {
+            continue;
+        }
+        // A child that is a container (a `home` rule with an empty relative
+        // path used to report `~/Library`) is never a single item.
+        if is_cleanup_container(&entry.path, &context.home_dir) {
             continue;
         }
 
@@ -640,6 +696,9 @@ pub fn measure_directory_matching(
 ) -> Measured {
     let mut measured = Measured::default();
     let mut stack = vec![path.to_path_buf()];
+    let root_device = std::fs::symlink_metadata(path)
+        .ok()
+        .map(|metadata| walker::device_of(&metadata));
     while let Some(directory) = stack.pop() {
         if cancel.is_cancelled() {
             return measured;
@@ -653,6 +712,10 @@ pub fn measure_directory_matching(
                 continue;
             };
             if metadata.file_type().is_symlink() {
+                continue;
+            }
+            if root_device.is_some_and(|device| walker::device_of(&metadata) != device) {
+                // A mount point below the directory belongs to another volume.
                 continue;
             }
             if skip_hidden && is_hidden_name(&entry_path) {
@@ -698,6 +761,9 @@ fn oldest_matching_modified_secs(
     min_age_days: u32,
 ) -> i64 {
     let mut stack = vec![path.to_path_buf()];
+    let root_device = std::fs::symlink_metadata(path)
+        .ok()
+        .map(|metadata| walker::device_of(&metadata));
     let mut oldest: i64 = 0;
     while let Some(directory) = stack.pop() {
         if cancel.is_cancelled() {
@@ -712,6 +778,10 @@ fn oldest_matching_modified_secs(
                 continue;
             };
             if metadata.file_type().is_symlink() {
+                continue;
+            }
+            if root_device.is_some_and(|device| walker::device_of(&metadata) != device) {
+                // A mount point below the directory belongs to another volume.
                 continue;
             }
             if skip_hidden && is_hidden_name(&entry_path) {
@@ -875,6 +945,35 @@ enum FileThreshold {
     Old { days: u32 },
 }
 
+/// Home-relative subtrees the generic large-file and old-file scans must not
+/// walk.
+///
+/// These hold live user data rather than disposable copies: an iOS backup is a
+/// set of interdependent chunks, a contacts or calendar store is an SQLite
+/// database, and a group container is an application's shared state. Offering
+/// one file from them as a "large file" and moving it silently corrupts the
+/// database even though the Trash makes the bytes recoverable. The rule scan
+/// and the residue scan keep their own targeted access to these locations;
+/// this list only narrows the two threshold scans.
+pub const THRESHOLD_EXCLUDED_HOME_PATHS: &[&str] = &[
+    "Library/Application Support/AddressBook",
+    "Library/Application Support/MobileSync",
+    "Library/Application Support/com.apple.sharedfilelist",
+    "Library/Application Support/Knowledge",
+    "Library/Calendars",
+    "Library/Reminders",
+    "Library/Containers",
+    "Library/Group Containers",
+    "Library/Photos",
+];
+
+fn threshold_excluded_paths(home: &Path) -> Vec<PathBuf> {
+    THRESHOLD_EXCLUDED_HOME_PATHS
+        .iter()
+        .map(|relative| home.join(relative))
+        .collect()
+}
+
 fn file_threshold_scan(
     context: &mut ScanContext<'_>,
     cancel: &CancelToken,
@@ -889,7 +988,7 @@ fn file_threshold_scan(
         .request
         .roots
         .iter()
-        .filter(|root| root.is_cleanable)
+        .filter(|root| root.is_cleanable && root.includes_threshold_files)
         .map(|root| (PathBuf::from(&root.path), root.max_depth))
         .collect();
     // A granted folder inside the home directory is covered by the home root.
@@ -913,6 +1012,16 @@ fn file_threshold_scan(
         collapsed.push((root, max_depth));
     }
     let mut seen_paths: HashSet<PathBuf> = HashSet::new();
+    // A root marked `includesThresholdFiles: false` must stay out even when
+    // another root contains it: collapsing `~/RulesOnly` into `~` would
+    // otherwise walk the very tree the flag excluded.
+    let threshold_excluded_roots: Vec<PathBuf> = context
+        .request
+        .roots
+        .iter()
+        .filter(|root| !root.includes_threshold_files)
+        .map(|root| PathBuf::from(&root.path))
+        .collect();
 
     for (root, max_depth) in collapsed {
         let mut options = WalkOptions::new(context.home_dir.clone(), WalkMode::Files);
@@ -928,6 +1037,12 @@ fn file_threshold_scan(
             .iter()
             .map(PathBuf::from)
             .collect();
+        options
+            .skip_paths
+            .extend(threshold_excluded_roots.iter().cloned());
+        options
+            .skip_paths
+            .extend(threshold_excluded_paths(&context.home_dir));
         options.skip_hidden = skips_hidden(context);
 
         let report = walker::walk(&root, &options, cancel);
@@ -1026,8 +1141,11 @@ pub fn scan_application_residue(
     cancel: &CancelToken,
 ) -> (Vec<Candidate>, WalkReport) {
     // Residue is derived from the home directory, so it inherits that root's
-    // policy: a measure-only home contributes no cleanup candidates.
-    if !home_is_cleanable(context) {
+    // policy: a measure-only home contributes no cleanup candidates. An empty
+    // installed list is not "no applications": every Mac has system bundles, so
+    // it means discovery failed, and without that list every live container
+    // would be reported as belonging to an uninstalled application.
+    if !home_is_cleanable(context) || context.request.installed_bundle_ids.is_empty() {
         return (Vec::new(), WalkReport::default());
     }
     let mut candidates = Vec::new();
@@ -1267,6 +1385,12 @@ pub fn scan_application_residue(
                 .strip_suffix(".plist")
                 .or_else(|| name.strip_suffix(".binarycookies"))
                 .unwrap_or(&name);
+            // The never-clean list applies here as well: a preference file of
+            // an excluded system service is not residue. The Swift engine
+            // already checks it, and both engines must agree on the row.
+            if is_excluded_bundle_name(stem) {
+                continue;
+            }
             if !looks_like_bundle_identifier(stem) {
                 continue;
             }
@@ -1723,6 +1847,18 @@ pub fn duplicate_roots(request: &ScanRequest, home_dir: &Path) -> Vec<PathBuf> {
             .iter()
             .map(|candidate| home_dir.join(candidate))
             .filter(|path| path.is_dir())
+            // The default branch is a fallback, not a policy exemption: a root
+            // the protection list refuses must not be walked just because the
+            // caller omitted `duplicates.roots`. Without this, `~/Documents`
+            // and `~/Desktop` were entered and their children refused one by
+            // one — a protected tree still appeared in the skip records.
+            .filter(|path| {
+                !is_protected_path_authorized(
+                    &home_dir.to_string_lossy(),
+                    &path.to_string_lossy(),
+                    &authorized,
+                )
+            })
             .collect()
     };
     collapse_nested_roots(roots)
@@ -1859,10 +1995,10 @@ mod tests {
             PathBuf::from("/Volumes/Backup/Photos"),
             PathBuf::from("/Users/example/Downloads"),
         ];
-        let rule = anchored_rule(RootAnchor::ExternalVolume, "");
+        let rule = anchored_rule(RootAnchor::ExternalVolume, "Caches");
         assert_eq!(
             rule_roots(&rule, home, &grants),
-            vec![PathBuf::from("/Volumes/Backup")],
+            vec![PathBuf::from("/Volumes/Backup/Caches")],
             "a folder inside a volume and a folder inside home are not volumes"
         );
     }
@@ -1938,6 +2074,88 @@ mod tests {
         assert_eq!(
             resolve_root(RootAnchor::Home, "Library/Logs", home),
             Some(PathBuf::from("/Users/example/Library/Logs"))
+        );
+    }
+
+    #[test]
+    fn a_rule_anchor_is_not_a_cleanup_item() {
+        let home = Path::new("/Users/example");
+        // An empty relative path used to resolve to the anchor itself:
+        // `root: home` offered the whole home directory (or, as
+        // `childDirectories`, `~/Library`) as one item.
+        for anchor in [
+            RootAnchor::Home,
+            RootAnchor::HomeLibrary,
+            RootAnchor::Applications,
+            RootAnchor::SystemLibrary,
+        ] {
+            assert_eq!(resolve_root(anchor, "", home), None, "{anchor:?}");
+            assert_eq!(resolve_root(anchor, "/", home), None, "{anchor:?}");
+        }
+        // A container is refused even when it is named explicitly, and even when
+        // the name arrives in another case (the volume is case-insensitive).
+        for relative in [
+            "Library",
+            "library",
+            "LIBRARY",
+            "Applications",
+            "applications",
+        ] {
+            assert_eq!(resolve_root(RootAnchor::Home, relative, home), None);
+        }
+        assert_eq!(
+            resolve_root(RootAnchor::Home, "Library/Logs", home),
+            Some(PathBuf::from("/Users/example/Library/Logs")),
+            "a descendant of a container is still scannable"
+        );
+        assert_eq!(
+            resolve_root(RootAnchor::Home, "Downloads", home),
+            Some(PathBuf::from("/Users/example/Downloads"))
+        );
+    }
+
+    #[test]
+    fn a_grant_is_not_a_cleanup_item() {
+        let home = Path::new("/Users/example");
+        let grants = vec![PathBuf::from("/Volumes/Backup")];
+        let rule = anchored_rule(RootAnchor::Authorized, "");
+        assert!(
+            rule_roots(&rule, home, &grants).is_empty(),
+            "an authorised rule with an empty relative path must not offer the volume itself"
+        );
+        let inside = anchored_rule(RootAnchor::Authorized, "Caches");
+        assert_eq!(
+            rule_roots(&inside, home, &grants),
+            vec![PathBuf::from("/Volumes/Backup/Caches")]
+        );
+    }
+
+    #[test]
+    fn a_home_rule_cannot_report_the_library_as_one_item() {
+        let harness = Harness::new("container-home-rule");
+        harness
+            .tree
+            .file("Library/Caches/com.example.app/blob.bin", 4096);
+        let rule = anchored_rule(RootAnchor::Home, "");
+        let cancel = CancelToken::new();
+        let mut files = |_: u64, _: u64| {};
+        let mut path = |_: &Path| {};
+        let mut context = ScanContext {
+            request: &harness.request,
+            home_dir: harness.tree.root.clone(),
+            rules: vec![rule],
+            progress: ProgressSink {
+                on_files: &mut files,
+                on_current_path: &mut path,
+            },
+        };
+        let (candidates, _) = scan_rules(&mut context, &cancel);
+        assert!(
+            candidates.iter().all(|candidate| {
+                candidate.path != harness.tree.root
+                    && candidate.path != harness.tree.root.join("Library")
+            }),
+            "a container must never reach the candidate list: {candidates:?}"
         );
     }
 
@@ -2344,6 +2562,80 @@ mod tests {
     }
 
     #[test]
+    fn the_threshold_scan_skips_live_user_databases_and_backups() {
+        // A large or old file inside one of these trees is a shard of a live
+        // database or a device backup. Moving it silently corrupts the store,
+        // so neither threshold scan may offer it even though the bytes are
+        // large enough.
+        let harness = Harness::new("threshold-live-data");
+        harness.tree.file(
+            "Library/Application Support/MobileSync/Backup/chunk.bin",
+            4096,
+        );
+        harness
+            .tree
+            .file("Library/Application Support/AddressBook/db.bin", 4096);
+        harness
+            .tree
+            .file("Library/Group Containers/group.com.example/data.bin", 4096);
+        harness.tree.file("Downloads/ordinary.bin", 4096);
+
+        let cancel = CancelToken::new();
+        let mut files = |_: u64, _: u64| {};
+        let mut path = |_: &Path| {};
+        let mut context = harness.context(&mut files, &mut path);
+        let (candidates, _) = scan_large_files(&mut context, &cancel, 1024);
+
+        let names: Vec<&str> = candidates
+            .iter()
+            .map(|candidate| candidate.display_name.as_str())
+            .collect();
+        assert!(
+            names.contains(&"ordinary.bin"),
+            "an ordinary large file is still reported: {names:?}"
+        );
+        for excluded in ["chunk.bin", "db.bin", "data.bin"] {
+            assert!(
+                !names.contains(&excluded),
+                "{excluded} belongs to live user data and must not be a threshold candidate"
+            );
+        }
+    }
+
+    #[test]
+    fn an_excluded_preference_file_is_not_residue() {
+        let harness = Harness::new("residue-excluded-preference");
+        harness
+            .tree
+            .file("Library/Preferences/com.apple.bird.plist", 100);
+        harness
+            .tree
+            .file("Library/Preferences/com.gone.app.plist", 100);
+        let mut request = harness.request.clone();
+        request.installed_bundle_ids = vec!["com.installed.app".to_string()];
+
+        let cancel = CancelToken::new();
+        let mut files = |_: u64, _: u64| {};
+        let mut path = |_: &Path| {};
+        let mut context = ScanContext {
+            request: &request,
+            home_dir: harness.tree.root.clone(),
+            rules: effective_rules(None).unwrap(),
+            progress: ProgressSink {
+                on_files: &mut files,
+                on_current_path: &mut path,
+            },
+        };
+        let (candidates, _) = scan_application_residue(&mut context, &cancel);
+        let names: Vec<&str> = candidates
+            .iter()
+            .map(|candidate| candidate.display_name.as_str())
+            .collect();
+        assert!(!names.contains(&"com.apple.bird.plist"), "{names:?}");
+        assert!(names.contains(&"com.gone.app.plist"), "{names:?}");
+    }
+
+    #[test]
     fn the_hidden_file_setting_decides_what_a_rule_scan_produces() {
         // The setting is a scope: with it off, a dotfile is not a candidate and
         // the bytes it holds are not reported as reclaimable either.
@@ -2694,6 +2986,53 @@ mod tests {
         );
     }
 
+    /// A root can exist for its rules without feeding the threshold scans.
+    ///
+    /// `/Library/Logs` is added to the scan scope so the `system-logs` rule can
+    /// reach it. Treating that root as a general cleanup root also offered every
+    /// large or old file below it as a separate `.largeFiles` / `.oldFiles`
+    /// candidate, which is a different decision from the rule's.
+    #[test]
+    fn a_root_can_be_excluded_from_the_threshold_scans() {
+        let harness = Harness::new("threshold-scope");
+        harness.tree.file("Downloads/inside.bin", 2 * 1024 * 1024);
+        let outside = TempTree::new("threshold-scope-outside");
+        outside.file("large.bin", 2 * 1024 * 1024);
+
+        let mut request = harness.request.clone();
+        let mut excluded =
+            ScanRoot::new(outside.root.to_string_lossy().to_string(), "systemLibrary");
+        excluded.includes_threshold_files = false;
+        request.roots.push(excluded);
+
+        let cancel = CancelToken::new();
+        let mut files = |_: u64, _: u64| {};
+        let mut path = |_: &Path| {};
+        let mut context = ScanContext {
+            request: &request,
+            home_dir: harness.tree.root.clone(),
+            rules: effective_rules(None).unwrap(),
+            progress: ProgressSink {
+                on_files: &mut files,
+                on_current_path: &mut path,
+            },
+        };
+        let (candidates, _) = scan_large_files(&mut context, &cancel, 1024 * 1024);
+
+        assert!(
+            candidates
+                .iter()
+                .any(|candidate| candidate.display_name == "inside.bin"),
+            "the ordinary root still feeds the large-file scan"
+        );
+        assert!(
+            candidates
+                .iter()
+                .all(|candidate| !candidate.path.starts_with(&outside.root)),
+            "a rules-only root must not produce threshold candidates: {candidates:?}"
+        );
+    }
+
     #[test]
     fn large_file_scan_applies_the_byte_threshold() {
         let harness = Harness::new("large");
@@ -2888,6 +3227,7 @@ mod tests {
         let harness = Harness::new("dup-roots");
         harness.tree.dir("Downloads");
         harness.tree.dir("Desktop");
+        harness.tree.dir("Documents");
         let mut request = harness.request.clone();
         request.duplicates.roots = vec![harness
             .tree
@@ -2905,7 +3245,9 @@ mod tests {
             .iter()
             .map(|p| p.file_name().unwrap().to_string_lossy().to_string())
             .collect();
-        assert_eq!(names, vec!["Downloads", "Desktop"]);
+        // Desktop and Documents are on the protection list, so the fallback
+        // must not enter them even when the caller named no roots.
+        assert_eq!(names, vec!["Downloads"]);
     }
 
     #[test]

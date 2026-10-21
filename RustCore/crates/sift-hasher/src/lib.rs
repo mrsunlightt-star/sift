@@ -139,7 +139,7 @@ pub fn sample_fingerprint(path: &Path, len: u64) -> Result<String, HashError> {
     if len == 0 {
         return Ok(empty_digest());
     }
-    let mut file = File::open(path)?;
+    let mut file = open_without_following_symlink(path)?;
     let mut hasher = blake3::Hasher::new();
     hasher.update(&len.to_le_bytes());
     let mut buffer = vec![0u8; SAMPLE_BYTES as usize];
@@ -173,7 +173,7 @@ pub fn hash_file(path: &Path, cancel: &CancelToken) -> Result<String, HashError>
         return Err(HashError::FileChanged);
     }
 
-    let mut file = File::open(path)?;
+    let mut file = open_without_following_symlink(path)?;
     let mut hasher = blake3::Hasher::new();
     let mut buffer = vec![0u8; HASH_BUFFER_BYTES];
     let mut total: u64 = 0;
@@ -195,6 +195,20 @@ pub fn hash_file(path: &Path, cancel: &CancelToken) -> Result<String, HashError>
         return Err(HashError::FileChanged);
     }
     Ok(hasher.finalize().to_hex().to_string())
+}
+
+/// Opens `path` for reading without following a symlink in the final component.
+///
+/// The walker refuses symlinks, but a path can be replaced between the walk and
+/// the hash. Following it then reads a file the scan never judged, and a
+/// swap-back can even produce a digest under the wrong identity. `O_NOFOLLOW`
+/// makes the open fail instead.
+fn open_without_following_symlink(path: &Path) -> std::io::Result<File> {
+    use std::os::unix::fs::OpenOptionsExt;
+    std::fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NOFOLLOW)
+        .open(path)
 }
 
 fn read_exact_at_most(file: &mut File, buffer: &mut [u8]) -> std::io::Result<usize> {
@@ -377,5 +391,23 @@ mod tests {
             hash_file(&missing, &cancel),
             Err(HashError::Io(_))
         ));
+    }
+
+    #[test]
+    fn a_symlink_is_not_followed_while_hashing() {
+        let dir = TempDir::new("symlink-hash");
+        let target = dir.write("target.bin", b"payload");
+        let link = dir.0.join("link.bin");
+        std::os::unix::fs::symlink(&target, &link).expect("create symlink");
+
+        let cancel = CancelToken::new();
+        assert!(
+            hash_file(&link, &cancel).is_err(),
+            "hashing must not follow a symlink the walker refused"
+        );
+        assert!(
+            sample_fingerprint(&link, 7).is_err(),
+            "sampling must not follow it either"
+        );
     }
 }

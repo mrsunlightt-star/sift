@@ -104,6 +104,14 @@ public struct ScanRoot: Sendable, Hashable {
     public let anchor: RuleEngine.RootAnchor
     /// `false` for a root the user only wants measured, never cleaned.
     public let isCleanable: Bool
+    /// Whether the generic large-file and old-file scans may walk this root.
+    ///
+    /// A root can be worth visiting for the rules it reaches without being a
+    /// place where "anything large or old" is a cleanup candidate. The system
+    /// log root is exactly that case: it exists so the `system-logs` rule can
+    /// run, and a file under `/Library/Logs` that happens to be large belongs to
+    /// that rule's decision, not to the threshold scanner's.
+    public let includesThresholdFiles: Bool
     public let maxDepth: Int?
     /// Volume identifier, used to report an unplugged external disk.
     public let volumeIdentifier: String?
@@ -112,12 +120,14 @@ public struct ScanRoot: Sendable, Hashable {
         url: URL,
         anchor: RuleEngine.RootAnchor = .authorized,
         isCleanable: Bool = true,
+        includesThresholdFiles: Bool = true,
         maxDepth: Int? = nil,
         volumeIdentifier: String? = nil
     ) {
         self.url = url
         self.anchor = anchor
         self.isCleanable = isCleanable
+        self.includesThresholdFiles = includesThresholdFiles
         self.maxDepth = maxDepth
         self.volumeIdentifier = volumeIdentifier
     }
@@ -137,6 +147,37 @@ public enum ScanDefaults {
     /// Caps for the analysis lists (§5.4).
     public static let topFileLimit = 500
     public static let topDirectoryLimit = 100
+}
+
+/// Home-relative subtrees the generic large-file and old-file scans must not
+/// walk.
+///
+/// These hold live user data rather than disposable copies: an iOS backup is a
+/// set of interdependent chunks, a contacts or calendar store is an SQLite
+/// database, and a group container is an application's shared state. Offering
+/// one file from them as a "large file" and moving it silently corrupts the
+/// store even though the bytes are recoverable from the Trash. The rule scan and
+/// the residue scan keep their own targeted access; this list only narrows the
+/// two threshold scans.
+///
+/// The Rust constant `THRESHOLD_EXCLUDED_HOME_PATHS` carries the same list; both
+/// engines are tested against it.
+public enum ThresholdExclusions {
+    public static let homeRelativePaths: [String] = [
+        "Library/Application Support/AddressBook",
+        "Library/Application Support/MobileSync",
+        "Library/Application Support/com.apple.sharedfilelist",
+        "Library/Application Support/Knowledge",
+        "Library/Calendars",
+        "Library/Reminders",
+        "Library/Containers",
+        "Library/Group Containers",
+        "Library/Photos",
+    ]
+
+    public static func paths(home: URL) -> [String] {
+        homeRelativePaths.map { home.appendingPathComponent($0).path }
+    }
 }
 
 /// A running scan.

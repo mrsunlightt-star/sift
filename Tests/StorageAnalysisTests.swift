@@ -127,6 +127,12 @@ final class StorageAnalysisTests: XCTestCase, @unchecked Sendable {
         XCTAssertEqual(analysis.skippedCount, 0, "a protected folder is not a read failure")
     }
 
+    /// A pruned directory must not come back with only the bytes seen after the
+    /// prune. The accumulator lives in Rust now; the invariant is asserted by
+    /// `a_pruned_rollup_is_not_recreated_from_later_files` in
+    /// `sift-scanner-core/src/storage.rs`, so this suite exercises the public
+    /// analysis path instead of the removed Swift helper.
+
     private func analysis(
         scannedFiles: Int,
         skippedCount: Int = 0,

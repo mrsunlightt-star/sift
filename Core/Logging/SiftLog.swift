@@ -54,10 +54,7 @@ public struct RedactedPath: CustomStringConvertible, Sendable {
             if text == "~" { return text }
             return "<dir>"
         }
-        lastComponentName = (path as NSString).lastPathComponent
     }
-
-    private let lastComponentName: String
 
     public var description: String {
         components.joined(separator: "/")

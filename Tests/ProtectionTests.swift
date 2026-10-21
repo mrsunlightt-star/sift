@@ -192,6 +192,93 @@ final class ProtectionTests: XCTestCase, @unchecked Sendable {
         XCTAssertNotNil(engine.protectionReason(for: sneaky))
     }
 
+    func test_aCaseVariantCannotReachAProtectedLocation() {
+        // APFS is case-insensitive by default: `~/documents` is `~/Documents`,
+        // and `~/library/keychains` is the real keychain directory. A rule file
+        // that spells the protection list in another case must not bypass it.
+        for path in [
+            "/Users/example/documents/taxes.pdf",
+            "/Users/example/DESKTOP/notes.txt",
+            "/Users/example/library/keychains/login.keychain-db",
+            "/Users/example/library/mail/inbox",
+            "/Users/example/library/mobile documents/com~apple~x/f",
+            "/system/library/caches/x",
+            "/USR/local/bin/tool",
+            "/volumes/External/anything",
+            "/private/VAR/db/secret",
+        ] {
+            XCTAssertNotNil(
+                engine.protectionReason(for: path),
+                "\(path) must be refused despite its spelling"
+            )
+        }
+        // The fold must not turn component matching into a substring match.
+        XCTAssertNil(engine.protectionReason(for: "/Users/example/documents-old/a.txt"))
+        XCTAssertNil(engine.protectionReason(for: "/systematic/a.txt"))
+    }
+
+    func test_aRuleAnchorIsNotACleanupItem() {
+        // An empty relative path used to resolve to the anchor itself, and a
+        // `home` rule could therefore offer `~/Library` as one cleanup item.
+        let rules = [
+            RuleEngine.Rule(
+                id: "whole-home",
+                category: .temporaryFiles,
+                risk: .safe,
+                root: .home,
+                relativePath: "",
+                matchSpec: .childDirectories,
+                excludes: [],
+                minAgeDays: nil,
+                requiresFullDiskAccess: false,
+                explanationKey: "cleanup.explanation.temporary",
+                isEnabled: true
+            ),
+            RuleEngine.Rule(
+                id: "whole-library",
+                category: .temporaryFiles,
+                risk: .safe,
+                root: .homeLibrary,
+                relativePath: "",
+                matchSpec: .directory,
+                excludes: [],
+                minAgeDays: nil,
+                requiresFullDiskAccess: false,
+                explanationKey: "cleanup.explanation.temporary",
+                isEnabled: true
+            ),
+        ]
+        let engine = RuleEngine(rules: rules, homeDirectory: home)
+        for rule in rules {
+            XCTAssertTrue(
+                engine.resolvedRoots(for: rule).isEmpty,
+                "\(rule.id) must not resolve to its anchor"
+            )
+        }
+        let explicit = RuleEngine.Rule(
+            id: "named-library",
+            category: .temporaryFiles,
+            risk: .safe,
+            root: .home,
+            relativePath: "Library",
+            matchSpec: .directory,
+            excludes: [],
+            minAgeDays: nil,
+            requiresFullDiskAccess: false,
+            explanationKey: "cleanup.explanation.temporary",
+            isEnabled: true
+        )
+        let explicitEngine = RuleEngine(rules: [explicit], homeDirectory: home)
+        XCTAssertTrue(explicitEngine.resolvedRoots(for: explicit).isEmpty)
+        XCTAssertTrue(explicitEngine.isCleanupContainer("/Users/example/Library"))
+        XCTAssertTrue(
+            explicitEngine.isCleanupContainer("/Users/example/library"),
+            "the volume is case-insensitive"
+        )
+        XCTAssertTrue(explicitEngine.isCleanupContainer("/Users/example"))
+        XCTAssertFalse(explicitEngine.isCleanupContainer("/Users/example/Library/Logs"))
+    }
+
     func test_symlinkedVariantOfASystemPathIsStillProtected() {
         // `/var` is a symlink to `/private/var`, so the same directory arrives
         // under two spellings; both must be refused. The Rust core asserts the

@@ -38,38 +38,56 @@ enum SystemQuery {
         process.standardOutput = pipe
         process.standardError = FileHandle.nullDevice
 
+        // Both halves of the query are bounded: reading the output *and*
+        // waiting for the process to exit. Waiting only on the read left
+        // `waitUntilExit()` blocking forever when the tool closed its output
+        // and kept running, so the caller never got a verdict.
+        let exited = DispatchSemaphore(value: 0)
+        process.terminationHandler = { _ in exited.signal() }
+
         do {
             try process.run()
         } catch {
             return Outcome(output: "", succeeded: false)
         }
 
-        // The caller waits on the *read*, with a deadline. A watchdog that only
-        // calls `terminate()` left the synchronous read and `waitUntilExit()`
-        // blocked when the tool ignored SIGTERM or kept the pipe open — the
-        // page then sat in "analyzing" with no verdict at all.
         let box = OutputBox()
-        let finished = DispatchSemaphore(value: 0)
+        let readFinished = DispatchSemaphore(value: 0)
         DispatchQueue.global().async {
             box.set(pipe.fileHandleForReading.readDataToEndOfFile())
-            finished.signal()
+            readFinished.signal()
         }
 
-        if finished.wait(timeout: .now() + timeout) == .timedOut {
-            process.terminate()
-            if finished.wait(timeout: .now() + 1) == .timedOut {
-                kill(process.processIdentifier, SIGKILL)
-                _ = finished.wait(timeout: .now() + 1)
-            }
-            process.waitUntilExit()
+        guard readFinished.wait(timeout: .now() + timeout) == .success else {
+            // The tool is holding its output open. Ask it to stop, then insist;
+            // the read thread is given a bounded chance to observe the closed
+            // pipe, but its result no longer decides when this call returns.
+            stop(process, exited: exited)
+            _ = readFinished.wait(timeout: .now() + 1)
             return Outcome(output: "", succeeded: false)
         }
 
-        process.waitUntilExit()
+        // The output is complete. The process is allowed a short exit window;
+        // one that stays alive after closing its output is not a successful
+        // query, even if it would eventually exit.
+        guard exited.wait(timeout: .now() + 1) == .success else {
+            stop(process, exited: exited)
+            return Outcome(output: "", succeeded: false)
+        }
+
         return Outcome(
             output: String(data: box.value, encoding: .utf8) ?? "",
             succeeded: process.terminationStatus == 0
         )
+    }
+
+    /// Terminates a query and waits a bounded time for it to go away.
+    private static func stop(_ process: Process, exited: DispatchSemaphore) {
+        process.terminate()
+        if exited.wait(timeout: .now() + 1) == .success { return }
+        guard process.isRunning else { return }
+        kill(process.processIdentifier, SIGKILL)
+        _ = exited.wait(timeout: .now() + 1)
     }
 
     /// A small locked box for the bytes read on the background queue.

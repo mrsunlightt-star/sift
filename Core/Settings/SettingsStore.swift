@@ -197,7 +197,12 @@ public actor SettingsStore {
         logger.notice("Settings restored to defaults")
     }
 
-    /// Clears the scan history directory.
+    /// Clears the on-disk history directory.
+    ///
+    /// The last scan/cleanup timestamps live in `UserDefaults` and are cleared
+    /// by `AppEnvironment.clearHistory()`, which is the one path the settings
+    /// page calls. Saved reports are a separate document the user may want to
+    /// keep and are deleted by `ReportService.deleteAllReports()`.
     public func clearHistory() {
         let historyDirectory = supportDirectory.appendingPathComponent("History", isDirectory: true)
         try? FileManager.default.removeItem(at: historyDirectory)

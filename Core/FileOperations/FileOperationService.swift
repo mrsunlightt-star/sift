@@ -132,6 +132,16 @@ public actor FileOperationService {
                 continue
             }
 
+            // `~/Library`, `~/Applications` and the system containers are places
+            // to scan inside, never a single cleanup target. A rule with an empty
+            // relative path used to produce exactly such an item; this is the
+            // last boundary that refuses one however it was assembled.
+            if rules.isCleanupContainer(path) {
+                protected.append(candidate)
+                logger.notice("Refused a container path at pre-flight")
+                continue
+            }
+
             // A symlink is never followed and never moved: its target may be
             // outside the authorised scope.
             let attributes = try? fileManager.attributesOfItem(atPath: path)
@@ -158,7 +168,7 @@ public actor FileOperationService {
                 continue
             }
 
-            if await isInUse(candidate, attributes: attributes) {
+            if await isInUse(candidate.url) {
                 skipped.append((candidate, .fileInUse, LocalizationKey.cleanupFailureFileInUse.localized))
                 continue
             }
@@ -237,13 +247,14 @@ public actor FileOperationService {
     /// it while it runs produces an opaque failure, so it is reported as
     /// `fileInUse` up front. The check runs on the main actor because only
     /// AppKit knows which applications are running.
-    private func isInUse(_ candidate: Candidate, attributes: [FileAttributeKey: Any]?) async -> Bool {
-        _ = attributes
-        guard candidate.url.pathExtension == "app" else { return false }
-        let running = await cachedRunningBundlePaths()
-        return running.contains(
-            candidate.url.standardizedFileURL.resolvingSymlinksInPath().path
-        )
+    /// `fresh` bypasses the one-second cache. Pre-flight can tolerate a cached
+    /// answer because it is only deciding what to offer; the move cannot,
+    /// because the confirmation panel may have been open long enough for the
+    /// user to launch the application it is about to remove.
+    private func isInUse(_ url: URL, fresh: Bool = false) async -> Bool {
+        guard url.pathExtension.lowercased() == "app" else { return false }
+        let running = await cachedRunningBundlePaths(fresh: fresh)
+        return running.contains(url.standardizedFileURL.resolvingSymlinksInPath().path)
     }
 
     /// Why the path no longer names the item that was selected, if it does not.
@@ -282,9 +293,9 @@ public actor FileOperationService {
     /// gave up returned an empty set — "nothing is running" about a question that
     /// was never answered — and the main thread went on to write its answer into
     /// the same box the reader had already walked away from.
-    private func cachedRunningBundlePaths() async -> Set<String> {
+    private func cachedRunningBundlePaths(fresh: Bool = false) async -> Set<String> {
         let now = Date()
-        if let cached = runningPathsCache, now.timeIntervalSince(cached.0) < 1 {
+        if !fresh, let cached = runningPathsCache, now.timeIntervalSince(cached.0) < 1 {
             return cached.1
         }
         let paths = Set(await NSWorkspaceWorker.shared.runningApplicationBundlePaths())
@@ -385,6 +396,23 @@ public actor FileOperationService {
                 continue
             }
 
+            // A container is never executable, even if a plan was assembled by
+            // hand: moving `~/Library` is not a cleanup.
+            if rules.isCleanupContainer(item.url.path) {
+                logger.error("Blocked a container path at execution time")
+                results.append(
+                    FileOperationResult(
+                        sourceURL: item.url,
+                        status: .failed,
+                        errorCode: ErrorCode.protectedLocation.rawValue,
+                        message: LocalizationKey.cleanupFailureProtectedLocation.localized,
+                        sizeInBytes: item.sizeInBytes,
+                        category: item.category
+                    )
+                )
+                continue
+            }
+
             // The last word before the move, and the reason it exists: between
             // the pre-flight check and this line the path can be re-pointed.
             if let refusal = Self.refusalForARelocatedPath(item.url) {
@@ -430,6 +458,24 @@ public actor FileOperationService {
                         status: .skipped,
                         errorCode: ErrorCode.itemChanged.rawValue,
                         message: LocalizationKey.cleanupFailureItemChanged.localized,
+                        sizeInBytes: item.sizeInBytes,
+                        category: item.category
+                    )
+                )
+                continue
+            }
+
+            // The state that can change while the panel is open, and that the
+            // identity check cannot see: the object is the same, but its
+            // application is now running. Moving it then would either fail
+            // opaquely or pull a bundle out from under a live process.
+            if await isInUse(item.url, fresh: true) {
+                results.append(
+                    FileOperationResult(
+                        sourceURL: item.url,
+                        status: .skipped,
+                        errorCode: ErrorCode.fileInUse.rawValue,
+                        message: LocalizationKey.cleanupFailureFileInUse.localized,
                         sizeInBytes: item.sizeInBytes,
                         category: item.category
                     )

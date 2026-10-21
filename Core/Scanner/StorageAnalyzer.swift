@@ -2,27 +2,45 @@ import Foundation
 import OSLog
 import Shared
 
+#if canImport(SiftScanner)
+import SiftScanner
+#endif
+
 /// Storage analysis for the storage page (§5.4).
 ///
-/// It answers the three questions the specification names — which category uses
-/// the most space, which folders are largest, and which files to handle first —
-/// from plain aggregates. The accumulator keeps bounded memory: at most
-/// `topFileLimit` files and `topDirectoryLimit` directories, regardless of how
-/// many files the volume holds.
+/// The walk, the byte accounting, the category rollup and the bounded top-file
+/// and directory lists are implemented once, in the Rust scanner core. This type
+/// owns the product policy around that engine: which roots may be measured, how
+/// the result maps onto the page's model, and how cancellation reaches the
+/// blocking FFI call.
 public struct StorageAnalyzer {
     let rules: RuleEngine
+    /// How many directory rollups the Rust accumulator may retain before it
+    /// prunes the smallest. The page renders only the top list, so this is a
+    /// memory bound rather than a display choice.
+    let directoryRollupLimit: Int
     private let logger = SiftLog.storage
 
     public init(rules: RuleEngine) {
-        self.rules = rules
+        self.init(rules: rules, directoryRollupLimit: Self.defaultDirectoryRollupLimit)
     }
+
+    /// Test seam: a small limit makes the pruning path reachable in a fixture.
+    init(rules: RuleEngine, directoryRollupLimit: Int) {
+        self.rules = rules
+        self.directoryRollupLimit = max(directoryRollupLimit, 2)
+    }
+
+    /// The default cap on retained directory rollups. The Rust constant
+    /// `DEFAULT_DIRECTORY_ROLLUP_LIMIT` carries the same number.
+    static let defaultDirectoryRollupLimit = 20_000
 
     /// Runs the analysis over `roots`.
     ///
-    /// `ignoredPaths` is the user's "never visit" list. It is applied here rather
-    /// than only in the UI: a directory the user excluded must not be traversed,
-    /// counted or listed, or the storage page would still read what the setting
-    /// says Sift never touches.
+    /// `ignoredPaths` is the user's "never visit" list. It is applied inside the
+    /// Rust walk rather than only in the UI: a directory the user excluded must
+    /// not be traversed, counted or listed, or the storage page would still read
+    /// what the setting says Sift never touches.
     public func analyze(
         roots: [ScanRoot],
         ignoredPaths: [String] = [],
@@ -34,165 +52,85 @@ public struct StorageAnalyzer {
         let home = URL(fileURLWithPath: rules.homeDirectory)
         // A root only reaches here because the user added it to the scan scope,
         // which is itself the authorisation. The protection list still applies to
-        // every entry inside it, checked per file below.
+        // every entry inside it, and the Rust analysis consults the same grants.
         let searchable = Self.measurementRoots(roots: roots, ignoredPaths: ignoredPaths)
-        guard let first = searchable.first else {
+        guard !searchable.isEmpty else {
             return Self.volumeOnlyAnalysis(for: home)
         }
 
-        // A directory below the root can be another disk's mount point. Walking
-        // into it would attribute that disk's bytes to this volume and read a
-        // location the user did not authorise for a measurement.
-        let mountPoints = Set(
-            (FileManager.default.mountedVolumeURLs(
-                includingResourceValuesForKeys: nil,
-                options: [.skipHiddenVolumes]
-            ) ?? []).map { $0.resolvingSymlinksInPath().path }
+        #if canImport(SiftScanner)
+        let request = RustStorageRequest(
+            homeDir: rules.homeDirectory,
+            roots: searchable.map(\.path),
+            ignorePaths: ignoredPaths,
+            topFileLimit: UInt32(ScanDefaults.topFileLimit),
+            topDirectoryLimit: UInt32(ScanDefaults.topDirectoryLimit),
+            directoryRollupLimit: UInt32(directoryRollupLimit),
+            largeFileThresholdBytes: UInt64(max(largeFileThresholdBytes, 0)),
+            authorizedRoots: rules.authorizedRoots,
+            includeHiddenFiles: includeHiddenFiles
         )
+        let json = try JSONEncoder().encode(request)
+        let options = String(decoding: json, as: UTF8.self)
 
-        var categories: [String: (bytes: Int64, files: Int)] = [:]
-        var directories: [String: (bytes: Int64, files: Int)] = [:]
-        var topFiles: [StorageAnalysis.FileEntry] = []
-        var scannedFiles = 0
-        var scannedBytes: Int64 = 0
-        var skipped = 0
-
-        // A threshold below a megabyte would list thousands of ordinary
-        // files, so it is clamped rather than trusted.
-        let fileThreshold = max(largeFileThresholdBytes, 1024 * 1024)
-
-        for root in searchable {
-            let rootPath = root.path
-            var stack = [root]
-            while let directory = stack.popLast() {
-                if cancelled() { break }
-                let keys: [URLResourceKey] = [
-                    .isDirectoryKey, .isSymbolicLinkKey, .totalFileAllocatedSizeKey,
-                    .contentModificationDateKey,
-                ]
-                guard let contents = try? FileManager.default.contentsOfDirectory(
-                    at: directory,
-                    includingPropertiesForKeys: keys,
-                    options: []
-                ) else {
-                    skipped += 1
-                    continue
+        let token = StorageCancelToken()
+        if cancelled() { token.cancel() }
+        // The FFI call is blocking; the watcher is what turns Sift's cancel flag
+        // into the Rust atomic while the walk is in progress.
+        let watcher = Task.detached(priority: .utility) { [cancelled] in
+            while !Task.isCancelled {
+                if cancelled() {
+                    token.cancel()
+                    return
                 }
-                for child in contents {
-                    let values = try? child.resourceValues(forKeys: Set(keys))
-                    if values?.isSymbolicLink == true { continue }
-                    // The hidden-file preference is a scope, not a display
-                    // filter: the storage page must describe the same tree a
-                    // cleanup scan would produce.
-                    if !includeHiddenFiles, child.lastPathComponent.hasPrefix(".") {
-                        continue
-                    }
-                    if ignoredPaths.contains(where: { RuleEngine.isPrefix($0, child.path) }) {
-                        continue
-                    }
-                    if rules.isInExcludedLocation(child.path) { continue }
-                    if rules.protectionReason(for: child.path) != nil {
-                        // Protected user content is deliberately out of scope,
-                        // not unreadable. Counting it as a failed read made the
-                        // totals look incomplete for a complete, safe walk.
-                        continue
-                    }
-                    if values?.isDirectory == true {
-                        if mountPoints.contains(child.resolvingSymlinksInPath().path) {
-                            continue
-                        }
-                        let name = child.lastPathComponent
-                        if FileWalker.defaultSkipDirectoryNames.contains(name) { continue }
-                        if rules.isPackageDirectory(name: name) {
-                            // A bundle is one item: its contents are summed, not listed.
-                            let measured = FileWalker.measure(
-                                url: child,
-                                rules: rules,
-                                skipHidden: !includeHiddenFiles,
-                                skipPaths: ignoredPaths,
-                                isCancelled: cancelled
-                            )
-                            record(
-                                path: child,
-                                size: measured.bytes,
-                                files: measured.files,
-                                modified: values?.contentModificationDate,
-                                threshold: fileThreshold,
-                                categories: &categories,
-                                directories: &directories,
-                                topFiles: &topFiles,
-                                rootPath: rootPath
-                            )
-                            scannedFiles += measured.files
-                            scannedBytes += measured.bytes
-                            continue
-                        }
-                        stack.append(child)
-                        continue
-                    }
-
-                    let size = FileWalker.allocatedSize(values: values, url: child)
-                    scannedFiles += 1
-                    scannedBytes += size
-                    record(
-                        path: child,
-                        size: size,
-                        files: 1,
-                        modified: values?.contentModificationDate,
-                        threshold: fileThreshold,
-                        categories: &categories,
-                        directories: &directories,
-                        topFiles: &topFiles,
-                        rootPath: rootPath
-                    )
-                }
+                try? await Task.sleep(nanoseconds: 50_000_000)
             }
         }
 
-        topFiles.sort { $0.sizeInBytes > $1.sizeInBytes }
-        topFiles = Array(topFiles.prefix(ScanDefaults.topFileLimit))
+        let box: StorageResultBox = await Task.detached(
+            priority: .userInitiated
+        ) {
+            let buffer = CStringBuffer(options)
+            defer { buffer.release() }
+            return StorageResultBox(sift_storage_analyse(buffer.value, token.raw))
+        }.value
+        watcher.cancel()
+        _ = await watcher.value
 
-        let directoryEntries = directories
-            .map { key, value in
-                StorageAnalysis.DirectoryEntry(
-                    url: URL(fileURLWithPath: key),
-                    sizeInBytes: value.bytes,
-                    fileCount: value.files
-                )
-            }
-            .sorted { $0.sizeInBytes > $1.sizeInBytes }
-            .prefix(ScanDefaults.topDirectoryLimit)
+        guard let result = box.pointer else {
+            throw ScannerError(
+                code: .internalError,
+                message: LocalizationKey.commonUnknownError.localized
+            )
+        }
+        defer { sift_storage_analysis_free(result) }
+        guard result.pointee.version == UInt32(SIFT_FFI_VERSION) else {
+            throw ScannerError(
+                code: .internalError,
+                message: "The storage core returned an incompatible result."
+            )
+        }
+        guard result.pointee.ok else {
+            let message = readString(result.pointee.error)
+            throw ScannerError(
+                code: .internalError,
+                message: message.isEmpty
+                    ? LocalizationKey.commonUnknownError.localized
+                    : message
+            )
+        }
 
-        let categoryEntries = categories
-            .map { key, value in
-                StorageAnalysis.Category(
-                    id: key,
-                    title: Self.title(for: key),
-                    sizeInBytes: value.bytes,
-                    fileCount: value.files
-                )
-            }
-            .sorted { $0.sizeInBytes > $1.sizeInBytes }
-
-        let volume = try volumeInfo(for: first)
-        let analysis = StorageAnalysis(
-            mountPoint: volume.mountPoint.path,
-            volumeName: volume.name,
-            totalBytes: volume.totalBytes,
-            freeBytes: volume.freeBytes,
-            usedBytes: volume.usedBytes,
-            categories: categoryEntries,
-            topFiles: topFiles,
-            topDirectories: Array(directoryEntries),
-            scannedFileCount: scannedFiles,
-            scannedByteCount: scannedBytes,
-            skippedCount: skipped,
-            isAggregated: scannedFiles > 10_000
-        )
+        let analysis = Self.convert(result.pointee)
         logger.info(
-            "Storage analysed (files=\(scannedFiles) categories=\(categoryEntries.count) skipped=\(skipped))"
+            "Storage analysed (files=\(analysis.scannedFileCount) categories=\(analysis.categories.count) skipped=\(analysis.skippedCount))"
         )
         return analysis
+        #else
+        throw ScannerError(
+            code: .internalError,
+            message: "The Rust scanner core is required for storage analysis."
+        )
+        #endif
     }
 
     /// The roots whose bytes may be added to this analysis.
@@ -226,76 +164,6 @@ public struct StorageAnalyzer {
         }
         return kept
     }
-
-    /// Adds one file to the category total, the folder rollup and the top list.
-    private func record(
-        path: URL,
-        size: Int64,
-        files: Int,
-        modified: Date?,
-        threshold: Int64,
-        categories: inout [String: (bytes: Int64, files: Int)],
-        directories: inout [String: (bytes: Int64, files: Int)],
-        topFiles: inout [StorageAnalysis.FileEntry],
-        rootPath: String
-    ) {
-        let category = Self.category(for: path)
-        var entry = categories[category] ?? (0, 0)
-        entry.bytes += size
-        entry.files += files
-        categories[category] = entry
-
-        if size >= threshold, size > 0 {
-            Self.insertTopFile(
-                StorageAnalysis.FileEntry(url: path, sizeInBytes: size, modifiedAt: modified),
-                into: &topFiles
-            )
-        }
-
-        // Roll the size up through the ancestors, stopping at the scan root so
-        // the folder list stays meaningful.
-        var current = path.deletingLastPathComponent()
-        while current.path != rootPath, current.path.count > 1 {
-            let key = current.path
-            var rollup = directories[key] ?? (0, 0)
-            rollup.bytes += size
-            rollup.files += files
-            directories[key] = rollup
-            let parent = current.deletingLastPathComponent()
-            if parent.path == current.path { break }
-            current = parent
-        }
-        // The rollup map is the one structure whose key count grows with the
-        // tree. Keep the largest ancestors and drop the tail: the page only
-        // ever renders the top directory limit, and an unbounded map was the
-        // opposite of the bounded accumulator this file promises.
-        if directories.count > Self.directoryRollupLimit {
-            let kept = directories
-                .sorted { $0.value.bytes > $1.value.bytes }
-                .prefix(Self.directoryRollupLimit / 2)
-            directories = Dictionary(uniqueKeysWithValues: kept.map { ($0.key, $0.value) })
-        }
-    }
-
-    /// Keeps the largest entries in a bounded, descending list.
-    private static func insertTopFile(
-        _ entry: StorageAnalysis.FileEntry,
-        into list: inout [StorageAnalysis.FileEntry]
-    ) {
-        if list.count >= ScanDefaults.topFileLimit,
-           let smallest = list.last,
-           entry.sizeInBytes <= smallest.sizeInBytes {
-            return
-        }
-        list.append(entry)
-        list.sort { $0.sizeInBytes > $1.sizeInBytes }
-        if list.count > ScanDefaults.topFileLimit {
-            list.removeLast(list.count - ScanDefaults.topFileLimit)
-        }
-    }
-
-    /// How many directory rollups one analysis may retain before pruning.
-    private static let directoryRollupLimit = 20_000
 
     /// Maps a file onto a display category by its extension.
     public static func category(for url: URL) -> String {
@@ -390,6 +258,120 @@ public struct StorageAnalyzer {
         )
         return analysis
     }
+
+    #if canImport(SiftScanner)
+    /// Maps the C result onto the page model.
+    private static func convert(_ raw: SiftStorageAnalysis) -> StorageAnalysis {
+        var categories: [StorageAnalysis.Category] = []
+        if let pointer = raw.categories {
+            categories.reserveCapacity(raw.category_count)
+            for index in 0..<raw.category_count {
+                let row = pointer[index]
+                let identifier = readString(row.category)
+                categories.append(
+                    StorageAnalysis.Category(
+                        id: identifier,
+                        title: title(for: identifier),
+                        sizeInBytes: row.total_bytes,
+                        fileCount: Int(row.item_count)
+                    )
+                )
+            }
+        }
+
+        var files: [StorageAnalysis.FileEntry] = []
+        if let pointer = raw.files {
+            files.reserveCapacity(raw.file_count)
+            for index in 0..<raw.file_count {
+                let row = pointer[index]
+                files.append(
+                    StorageAnalysis.FileEntry(
+                        url: URL(fileURLWithPath: readString(row.path)),
+                        sizeInBytes: Int64(row.size_bytes),
+                        modifiedAt: row.modified_secs > 0
+                            ? Date(timeIntervalSince1970: TimeInterval(row.modified_secs))
+                            : nil
+                    )
+                )
+            }
+        }
+
+        var directories: [StorageAnalysis.DirectoryEntry] = []
+        if let pointer = raw.directories {
+            directories.reserveCapacity(raw.directory_count)
+            for index in 0..<raw.directory_count {
+                let row = pointer[index]
+                directories.append(
+                    StorageAnalysis.DirectoryEntry(
+                        url: URL(fileURLWithPath: readString(row.path)),
+                        sizeInBytes: Int64(row.size_bytes),
+                        fileCount: Int(row.file_count)
+                    )
+                )
+            }
+        }
+
+        return StorageAnalysis(
+            mountPoint: readString(raw.mount_point),
+            volumeName: readString(raw.volume_name),
+            totalBytes: Int64(raw.total_bytes),
+            freeBytes: Int64(raw.free_bytes),
+            usedBytes: Int64(raw.used_bytes),
+            categories: categories,
+            topFiles: files,
+            topDirectories: directories,
+            scannedFileCount: Int(raw.scanned_file_count),
+            scannedByteCount: Int64(raw.scanned_byte_count),
+            skippedCount: Int(raw.skipped_count),
+            isAggregated: raw.aggregated
+        )
+    }
+    #endif
+
+    /// The JSON shape the Rust `Options` struct parses.
+    private struct RustStorageRequest: Encodable {
+        let homeDir: String
+        let roots: [String]
+        let ignorePaths: [String]
+        let topFileLimit: UInt32
+        let topDirectoryLimit: UInt32
+        let directoryRollupLimit: UInt32
+        let largeFileThresholdBytes: UInt64
+        let authorizedRoots: [String]
+        let includeHiddenFiles: Bool
+    }
+
+    #if canImport(SiftScanner)
+    /// Owns the Rust cancellation token for one analysis.
+    ///
+    /// The token is freed by `deinit`: the Rust call borrows it for the length
+    /// of the analysis, and the watcher holds this object until it observes the
+    /// cancellation or exits.
+    private final class StorageCancelToken: @unchecked Sendable {
+        fileprivate let raw = sift_storage_cancel_new()
+
+        func cancel() {
+            if let raw { sift_storage_cancel(raw) }
+        }
+
+        deinit {
+            if let raw { sift_storage_cancel_free(raw) }
+        }
+    }
+
+    /// Carries the result pointer across the task boundary.
+    ///
+    /// `UnsafeMutablePointer` is not `Sendable`; the box is the explicit escape
+    /// hatch for a pointer that is created on the worker and consumed once by
+    /// the caller.
+    private final class StorageResultBox: @unchecked Sendable {
+        let pointer: UnsafeMutablePointer<SiftStorageAnalysis>?
+
+        init(_ pointer: UnsafeMutablePointer<SiftStorageAnalysis>?) {
+            self.pointer = pointer
+        }
+    }
+    #endif
 }
 
 extension URL {

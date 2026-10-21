@@ -86,6 +86,29 @@ final class AppEnvironmentTests: XCTestCase, @unchecked Sendable {
         )
     }
 
+    /// The destructive slot is synchronous and exclusive.
+    ///
+    /// Both `confirmCleanup` and `performUninstall` claim it before the
+    /// entitlement check, which is their first suspension. The previous order
+    /// awaited the licence answer first, so two callers could both pass the
+    /// guard while neither had set the flag.
+    func test_theDestructiveSlotCannotBeClaimedTwice() async {
+        let environment = await MainActor.run { makeEnvironment() }
+        await MainActor.run {
+            XCTAssertTrue(environment.beginDestructiveOperation())
+            XCTAssertFalse(
+                environment.beginDestructiveOperation(),
+                "a second destructive operation must be refused while the first owns the slot"
+            )
+            environment.endDestructiveOperation()
+            XCTAssertTrue(
+                environment.beginDestructiveOperation(),
+                "releasing the slot makes it available again"
+            )
+            environment.endDestructiveOperation()
+        }
+    }
+
     /// Resetting settings must release the grants as well as forget them in the
     /// settings store; otherwise the scan scope keeps reading an old volume.
     func test_resetSettingsReleasesAuthorizedLocations() async throws {

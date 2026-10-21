@@ -286,6 +286,10 @@
 "report.scopeDetail" = "%d 箇所、%d ファイルを確認";
 "report.skipped" = "スキップ";
 "report.skippedDetail" = "%d 項目をスキップしました。最初の 20 件を表示します。";
+"report.status" = "状態";
+"report.status.failed" = "未完了";
+"report.status.moved" = "ゴミ箱へ移動済み";
+"report.status.skipped" = "スキップ";
 "report.title" = "クリーンアップレポート";
 "risk.protected.detail" = "Sift は削除しません。情報としてのみ表示します。";
 "risk.protected.short" = "保護";
@@ -363,6 +367,8 @@
 "settings.authorized.unavailable" = "このセッションでは利用できません";
 "settings.clearHistory" = "スキャン履歴を消去";
 "settings.days" = "%d 日";
+"settings.deleteReports" = "保存されたレポートを削除";
+"settings.deleteReportsConfirm" = "保存されているすべての PDF レポートを削除しますか？この操作は取り消せません。";
 "settings.diagnostics.macOS" = "macOS";
 "settings.diagnostics.scannerCore" = "スキャンコア";
 "settings.diagnostics.version" = "バージョン";
