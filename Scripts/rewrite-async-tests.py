@@ -100,9 +100,9 @@ def main() -> int:
         for method, parameters in TEST_PATTERN.findall(text):
             if parameters.strip():
                 print(
-                    "  ERROR: test %s(%s) takes parameters; the shim runner cannot call it. "
+                    "  ERROR: %s: test %s(%s) takes parameters; the shim runner cannot call it. "
                     "Give it concrete test functions instead of a data-driven set."
-                    % (method, parameters.strip())
+                    % (source, method, parameters.strip())
                 )
                 return 1
         result = rewrite(text)

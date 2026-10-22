@@ -307,8 +307,12 @@ public final class ScanModel: ObservableObject {
     private func recordLoadFailure(_ error: Error) {
         let scannerError = error as? ScannerError
         let code = scannerError?.code ?? .internalError
+        // A non-ScannerError path still owes its description to the log: the
+        // banner shows the error code's sentence, so this is the only place
+        // the underlying read failure is recorded.
+        let detail = scannerError?.message ?? String(describing: error)
         SiftLog.scan.error(
-            "A result read failed (code=\(code.rawValue, privacy: .public) detail=\(scannerError?.message ?? "", privacy: .public))"
+            "A result read failed (code=\(code.rawValue, privacy: .public) detail=\(detail, privacy: .public))"
         )
         resultLoadFailure = code.localizedTitle.localized
     }

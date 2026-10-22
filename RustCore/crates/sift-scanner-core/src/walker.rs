@@ -162,6 +162,19 @@ pub const DEFAULT_SKIP_DIRECTORY_NAMES: &[&str] = &[
     ".Trash",
 ];
 
+/// The walk's skip locations, normalised once for the whole walk.
+///
+/// The skip check runs for every entry; a skip list is a loop invariant, so
+/// normalising it once per walk call and comparing entries against
+/// [`is_skipped_normalized`] keeps walk cost O(entries) rather than
+/// O(entries × skips) allocations.
+pub(crate) fn normalize_skip_paths(skip_paths: &[PathBuf]) -> Vec<String> {
+    skip_paths
+        .iter()
+        .map(|skip| normalize_path(&skip.to_string_lossy()))
+        .collect()
+}
+
 /// True when `path` is inside one of the walk's skip locations.
 ///
 /// Both sides are normalised with the product's path rules and compared
@@ -172,11 +185,18 @@ pub const DEFAULT_SKIP_DIRECTORY_NAMES: &[&str] = &[
 /// with the ignored name as ignored too. The Swift walker answers this question
 /// through `RuleEngine.isPrefix`, which resolves the same things, so the two
 /// engines decide the same ignored set.
-pub(crate) fn is_skipped(path: &Path, skip_paths: &[PathBuf]) -> bool {
+///
+/// The emptiness check runs before any normalisation, so the common walk
+/// without an ignored path pays nothing, and the entry's own path is the only
+/// allocation per entry.
+pub(crate) fn is_skipped_normalized(path: &Path, normalized_skips: &[String]) -> bool {
+    if normalized_skips.is_empty() {
+        return false;
+    }
     let candidate = normalize_path(&path.to_string_lossy());
-    skip_paths
+    normalized_skips
         .iter()
-        .any(|skip| is_prefix_of(&normalize_path(&skip.to_string_lossy()), &candidate))
+        .any(|skip| is_prefix_of(skip, &candidate))
 }
 
 /// Walks `root` according to `options`, honouring `cancel`.
@@ -212,6 +232,7 @@ pub fn walk(root: &Path, options: &WalkOptions, cancel: &CancelToken) -> WalkRep
         return report;
     }
 
+    let normalized_skips = normalize_skip_paths(&options.skip_paths);
     let mut stack: Vec<(PathBuf, u32)> = vec![(root.to_path_buf(), 0)];
     let root_device = device_of(&root_metadata);
 
@@ -243,7 +264,7 @@ pub fn walk(root: &Path, options: &WalkOptions, cancel: &CancelToken) -> WalkRep
             };
             let path = entry.path();
 
-            if is_skipped(&path, &options.skip_paths) {
+            if is_skipped_normalized(&path, &normalized_skips) {
                 continue;
             }
             if is_protected_by_policy(options, &path) {
@@ -422,6 +443,7 @@ fn measure_within(
     report: &mut WalkReport,
 ) -> Measured {
     let mut total = Measured { bytes: 0, files: 0 };
+    let normalized_skips = normalize_skip_paths(&options.skip_paths);
     let mut stack = vec![root.to_path_buf()];
     let root_device = std::fs::symlink_metadata(root).ok().map(|m| device_of(&m));
     while let Some(directory) = stack.pop() {
@@ -442,7 +464,7 @@ fn measure_within(
                 .file_name()
                 .map(|n| n.to_string_lossy().to_string())
                 .unwrap_or_default();
-            if is_skipped(&path, &options.skip_paths) {
+            if is_skipped_normalized(&path, &normalized_skips) {
                 continue;
             }
             if options.skip_hidden && name.starts_with('.') {

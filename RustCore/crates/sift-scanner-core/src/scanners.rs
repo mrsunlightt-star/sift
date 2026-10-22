@@ -695,6 +695,8 @@ pub fn measure_directory_matching(
     accept_file: &dyn Fn(i64) -> bool,
 ) -> Measured {
     let mut measured = Measured::default();
+    // The skip list is a loop invariant; normalise it once for the whole walk.
+    let normalized_skips = walker::normalize_skip_paths(skip_paths);
     let mut stack = vec![path.to_path_buf()];
     let root_device = std::fs::symlink_metadata(path)
         .ok()
@@ -721,7 +723,7 @@ pub fn measure_directory_matching(
             if skip_hidden && is_hidden_name(&entry_path) {
                 continue;
             }
-            if walker::is_skipped(&entry_path, skip_paths) {
+            if walker::is_skipped_normalized(&entry_path, &normalized_skips) {
                 continue;
             }
             if is_in_excluded_location(&entry_path) {

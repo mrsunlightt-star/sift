@@ -721,8 +721,13 @@ fn publish_if_due(handle: &Arc<ScanHandle>) {
 /// cautious risk wins, and an equal risk keeps the lexicographically greater
 /// rule id, so two runs over the same tree produce the same row.
 ///
-/// Losing candidates are neither written nor emitted, so the event stream and
-/// the pages describe the same set.
+/// Losing candidates are neither written nor emitted. A candidate that
+/// replaces an earlier winner is written, but not counted and not emitted: an
+/// earlier batch already showed that path, so counting and emitting it again
+/// would raise `items_found` above the number of distinct rows and carry the
+/// path twice in the event stream — both of which the Swift engine's `add`
+/// avoids by emitting only net-new items. The pages read the index, which
+/// already holds the upgraded row.
 fn persist_candidates(
     handle: &Arc<ScanHandle>,
     candidates: Vec<Candidate>,
@@ -733,8 +738,11 @@ fn persist_candidates(
     if candidates.is_empty() {
         return Ok(());
     }
-    let mut winners: Vec<&Candidate> = Vec::with_capacity(candidates.len());
-    for candidate in &candidates {
+    // Rows the index should hold, with a flag saying whether the path is new
+    // to the run: the comparison above rewrote `merged`'s entry, and the
+    // summaries below are emitted for the net-new rows only.
+    let mut winners: Vec<(Candidate, bool)> = Vec::with_capacity(candidates.len());
+    for candidate in candidates {
         let keeper = merged
             .get(&candidate.path)
             .map(|(risk, rule)| (*risk, rule.as_str()));
@@ -745,16 +753,20 @@ fn persist_candidates(
             None => true,
         };
         if replaces {
-            merged.insert(
-                candidate.path.clone(),
-                (candidate.risk, candidate.rule_id.clone()),
-            );
-            winners.push(candidate);
+            let is_new = merged
+                .insert(
+                    candidate.path.clone(),
+                    (candidate.risk, candidate.rule_id.clone()),
+                )
+                .is_none();
+            winners.push((candidate, is_new));
         }
     }
+    // `to_item_row` borrows, so the rows are built before the summaries below
+    // move the diagnostics out of `winners`.
     let rows: Vec<_> = winners
         .iter()
-        .map(|candidate| candidate.to_item_row())
+        .map(|(candidate, _)| candidate.to_item_row())
         .collect();
     {
         let mut index = handle.index_checked()?;
@@ -766,23 +778,27 @@ fn persist_candidates(
             })?;
         }
     }
+    let net_new = winners.iter().filter(|(_, is_new)| *is_new).count();
     handle
         .state
         .items_found
-        .fetch_add(winners.len() as i64, Ordering::Relaxed);
+        .fetch_add(net_new as i64, Ordering::Relaxed);
 
-    for candidate in &winners {
+    for (candidate, is_new) in winners {
+        if !is_new {
+            continue;
+        }
         pending_batch.push(ScanItemSummary {
             path: candidate.path.to_string_lossy().to_string(),
-            display_name: candidate.display_name.clone(),
-            parent_path: candidate.parent_path.clone(),
+            display_name: candidate.display_name,
+            parent_path: candidate.parent_path,
             category: candidate.category.as_str().to_string(),
             risk: candidate.risk.as_str().to_string(),
             size_bytes: candidate.size_bytes as i64,
             file_count: candidate.file_count as i64,
-            explanation_key: candidate.explanation_key.clone(),
-            rule_id: candidate.rule_id.clone(),
-            bundle_id: candidate.bundle_id.clone(),
+            explanation_key: candidate.explanation_key,
+            rule_id: candidate.rule_id,
+            bundle_id: candidate.bundle_id,
             modified_secs: candidate.modified_secs,
             is_directory: candidate.is_directory,
         });
@@ -1418,23 +1434,48 @@ mod tests {
         let handle = engine.start_scan(fixture.request("large")).unwrap();
         wait_for_completion(&handle);
 
-        let categories: Vec<String> = drain(&handle)
+        // The index holds one row per path, so both categories appear there:
+        // `old-huge.bin` matches both threshold scans, and with the risks equal
+        // the lexicographically greater rule id (`old-files`) wins the tie.
+        let page = handle.page_results(0, 100, "size", None).unwrap();
+        let categories: Vec<&str> = page.iter().map(|row| row.category.as_str()).collect();
+        assert!(categories.contains(&"largeFiles"), "{categories:?}");
+        assert!(categories.contains(&"oldFiles"), "{categories:?}");
+
+        // The event stream shows each path once: the old-files phase replaced
+        // the `old-huge.bin` row in place and neither emitted nor counted it
+        // again, which is what the Swift engine's `add` does with a replaced
+        // row. The two engines' streams and totals therefore say the same
+        // thing, and `item_count` names the distinct rows.
+        let events = drain(&handle);
+        let streamed_paths: Vec<String> = events
             .iter()
             .filter_map(|event| match event {
-                Event::ItemBatch { items } => {
-                    Some(items.iter().map(|i| i.category.clone()).collect::<Vec<_>>())
-                }
+                Event::ItemBatch { items } => Some(
+                    items
+                        .iter()
+                        .map(|item| item.path.clone())
+                        .collect::<Vec<_>>(),
+                ),
                 _ => None,
             })
             .flatten()
             .collect();
+        let item_count = events
+            .iter()
+            .find_map(|event| match event {
+                Event::Completed(summary) => Some(summary.item_count),
+                _ => None,
+            })
+            .unwrap_or_default();
+        let mut sorted_paths = streamed_paths.clone();
+        sorted_paths.sort();
         assert!(
-            categories.contains(&"largeFiles".to_string()),
-            "{categories:?}"
+            sorted_paths.windows(2).all(|pair| pair[0] != pair[1]),
+            "a path was streamed twice: {sorted_paths:?}"
         );
-        assert!(
-            categories.contains(&"oldFiles".to_string()),
-            "{categories:?}"
-        );
+        assert_eq!(streamed_paths.len(), 2, "{sorted_paths:?}");
+        assert_eq!(streamed_paths.len() as i64, item_count, "{sorted_paths:?}");
+        assert_eq!(streamed_paths.len(), page.len(), "{sorted_paths:?}");
     }
 }
