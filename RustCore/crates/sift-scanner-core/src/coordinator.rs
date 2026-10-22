@@ -19,8 +19,8 @@ use crate::types::{
 use crate::walker;
 use sift_file_index::{FileIndex, ItemRecord, ScanSort};
 use sift_hasher::CancelToken;
-use sift_rules::collapse_path;
-use std::collections::VecDeque;
+use sift_rules::{collapse_path, Risk};
+use std::collections::{HashMap, VecDeque};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -458,6 +458,15 @@ fn run_scan(handle: &Arc<ScanHandle>, request: &ScanRequest) {
     let cancel = &handle.cancel;
     let home = PathBuf::from(&request.home_dir);
 
+    // The winner per path, carried across the strategies. The strategies run in
+    // order within one session and can each name one path — a stale log
+    // directory of an uninstalled application matches both the log rule and the
+    // residue scan — so the row the user sees must be merged here rather than
+    // left to which phase happened to run last. The Swift engine keeps the same
+    // merge over its item index; holding `(risk, rule_id)` per path is all the
+    // comparison needs.
+    let mut merged: HashMap<PathBuf, (Risk, String)> = HashMap::new();
+
     handle.state.set_phase(PhaseName::Preparing);
     handle.push(Event::PhaseChanged {
         phase: PhaseName::Preparing.as_str().to_string(),
@@ -515,8 +524,13 @@ fn run_scan(handle: &Arc<ScanHandle>, request: &ScanRequest) {
             finish_cancelled(handle);
             return;
         }
-        if let Err(error) = persist_candidates(handle, candidates, &batch_size, &mut pending_batch)
-        {
+        if let Err(error) = persist_candidates(
+            handle,
+            candidates,
+            &batch_size,
+            &mut pending_batch,
+            &mut merged,
+        ) {
             handle.state.set_phase(PhaseName::Failed);
             handle.push_failed(error.code().as_str(), &error.user_message());
             return;
@@ -528,8 +542,13 @@ fn run_scan(handle: &Arc<ScanHandle>, request: &ScanRequest) {
         if !cancel.is_cancelled() {
             let (residue, report) = scanners::scan_application_residue(&mut context, cancel);
             record_skips(handle, &report.skips, &mut skipped);
-            if let Err(error) = persist_candidates(handle, residue, &batch_size, &mut pending_batch)
-            {
+            if let Err(error) = persist_candidates(
+                handle,
+                residue,
+                &batch_size,
+                &mut pending_batch,
+                &mut merged,
+            ) {
                 handle.state.set_phase(PhaseName::Failed);
                 handle.push_failed(error.code().as_str(), &error.user_message());
                 return;
@@ -546,7 +565,9 @@ fn run_scan(handle: &Arc<ScanHandle>, request: &ScanRequest) {
                 request.large_file_threshold_bytes,
             );
             record_skips(handle, &report.skips, &mut skipped);
-            if let Err(error) = persist_candidates(handle, large, &batch_size, &mut pending_batch) {
+            if let Err(error) =
+                persist_candidates(handle, large, &batch_size, &mut pending_batch, &mut merged)
+            {
                 handle.state.set_phase(PhaseName::Failed);
                 handle.push_failed(error.code().as_str(), &error.user_message());
                 return;
@@ -556,7 +577,9 @@ fn run_scan(handle: &Arc<ScanHandle>, request: &ScanRequest) {
             let (old, report) =
                 scanners::scan_old_files(&mut context, cancel, request.old_file_threshold_days);
             record_skips(handle, &report.skips, &mut skipped);
-            if let Err(error) = persist_candidates(handle, old, &batch_size, &mut pending_batch) {
+            if let Err(error) =
+                persist_candidates(handle, old, &batch_size, &mut pending_batch, &mut merged)
+            {
                 handle.state.set_phase(PhaseName::Failed);
                 handle.push_failed(error.code().as_str(), &error.user_message());
                 return;
@@ -685,17 +708,54 @@ fn publish_if_due(handle: &Arc<ScanHandle>) {
     }
 }
 
-/// Writes candidates into the index and emits summaries in batches.
+/// Writes the winning candidates into the index and emits summaries in batches.
+///
+/// `merged` decides which of two rows that name one path the user sees. Two
+/// strategies can report the same directory — a stale log directory of an
+/// uninstalled application matches both the `user-logs` rule and the residue
+/// scan — and the upsert in the index otherwise lets the *last* write decide
+/// the row's category, risk, rule id, explanation and preselection flag. That
+/// made the row depend on strategy ordering, and in the ties the produced
+/// preselection differed from the Swift engine, which compares the two rows
+/// instead. The comparison is the one the Swift engine runs in `add`: the more
+/// cautious risk wins, and an equal risk keeps the lexicographically greater
+/// rule id, so two runs over the same tree produce the same row.
+///
+/// Losing candidates are neither written nor emitted, so the event stream and
+/// the pages describe the same set.
 fn persist_candidates(
     handle: &Arc<ScanHandle>,
     candidates: Vec<Candidate>,
     batch_size: &usize,
     pending_batch: &mut Vec<ScanItemSummary>,
+    merged: &mut HashMap<PathBuf, (Risk, String)>,
 ) -> Result<(), EngineError> {
     if candidates.is_empty() {
         return Ok(());
     }
-    let rows: Vec<_> = candidates.iter().map(Candidate::to_item_row).collect();
+    let mut winners: Vec<&Candidate> = Vec::with_capacity(candidates.len());
+    for candidate in &candidates {
+        let keeper = merged
+            .get(&candidate.path)
+            .map(|(risk, rule)| (*risk, rule.as_str()));
+        let replaces = match keeper {
+            Some((kept_risk, kept_rule)) => {
+                (candidate.risk, candidate.rule_id.as_str()) > (kept_risk, kept_rule)
+            }
+            None => true,
+        };
+        if replaces {
+            merged.insert(
+                candidate.path.clone(),
+                (candidate.risk, candidate.rule_id.clone()),
+            );
+            winners.push(candidate);
+        }
+    }
+    let rows: Vec<_> = winners
+        .iter()
+        .map(|candidate| candidate.to_item_row())
+        .collect();
     {
         let mut index = handle.index_checked()?;
         // Chunked transactions stay responsive while still amortising the WAL
@@ -709,20 +769,20 @@ fn persist_candidates(
     handle
         .state
         .items_found
-        .fetch_add(candidates.len() as i64, Ordering::Relaxed);
+        .fetch_add(winners.len() as i64, Ordering::Relaxed);
 
-    for candidate in candidates {
+    for candidate in &winners {
         pending_batch.push(ScanItemSummary {
             path: candidate.path.to_string_lossy().to_string(),
-            display_name: candidate.display_name,
-            parent_path: candidate.parent_path,
+            display_name: candidate.display_name.clone(),
+            parent_path: candidate.parent_path.clone(),
             category: candidate.category.as_str().to_string(),
             risk: candidate.risk.as_str().to_string(),
             size_bytes: candidate.size_bytes as i64,
             file_count: candidate.file_count as i64,
-            explanation_key: candidate.explanation_key,
-            rule_id: candidate.rule_id,
-            bundle_id: candidate.bundle_id,
+            explanation_key: candidate.explanation_key.clone(),
+            rule_id: candidate.rule_id.clone(),
+            bundle_id: candidate.bundle_id.clone(),
             modified_secs: candidate.modified_secs,
             is_directory: candidate.is_directory,
         });
@@ -1284,6 +1344,65 @@ mod tests {
             page.iter().all(|row| !row.path.contains("/Documents/")),
             "user documents must never appear as cleanup items"
         );
+    }
+
+    /// The rules and the residue scan can name one directory: a stale log
+    /// directory of an uninstalled application matches both. The row the user
+    /// sees is decided by the comparison, not by which strategy ran last — the
+    /// rule row carries the preselection and the log explanation, and both
+    /// engines must end there.
+    #[test]
+    fn a_stale_uninstalled_log_directory_keeps_the_rule_row() {
+        let fixture = Fixture::new("engine-merge-stale-log");
+        let stale = fixture.tree.file("Library/Logs/com.gone.app/old.log", 2048);
+        fixture.tree.age(&stale, 60);
+
+        let mut request = fixture.request("merge-stale-log");
+        request.installed_bundle_ids = vec!["com.installed.app".to_string()];
+        let engine = StdArc::new(Engine::new());
+        let handle = engine.start_scan(request).unwrap();
+        wait_for_completion(&handle);
+
+        let page = handle.page_results(0, 100, "size", None).unwrap();
+        let rows: Vec<_> = page
+            .iter()
+            .filter(|row| row.path.ends_with("Library/Logs/com.gone.app"))
+            .collect();
+        assert_eq!(rows.len(), 1, "one row for the met path: {rows:?}");
+        let row = rows[0];
+        assert_eq!(row.rule_id, "user-logs", "the rule row wins the tie");
+        assert_eq!(row.explanation_key, "cleanup.explanation.logsItem");
+        assert!(
+            row.is_selected_by_default,
+            "a safe rule row stays preselected"
+        );
+    }
+
+    /// The mirror case: where the strategy rows differ in risk, the more
+    /// cautious one wins even though the rule wrote first.
+    #[test]
+    fn a_cache_child_of_an_uninstalled_app_stays_the_residue_row() {
+        let fixture = Fixture::new("engine-merge-residue-caches");
+        fixture
+            .tree
+            .file("Library/Caches/com.gone.app/blob.bin", 4096);
+
+        let mut request = fixture.request("merge-residue-caches");
+        request.installed_bundle_ids = vec!["com.installed.app".to_string()];
+        let engine = StdArc::new(Engine::new());
+        let handle = engine.start_scan(request).unwrap();
+        wait_for_completion(&handle);
+
+        let page = handle.page_results(0, 100, "size", None).unwrap();
+        let rows: Vec<_> = page
+            .iter()
+            .filter(|row| row.path.ends_with("Library/Caches/com.gone.app"))
+            .collect();
+        assert_eq!(rows.len(), 1, "one row for the met path: {rows:?}");
+        let row = rows[0];
+        assert_eq!(row.rule_id, "app-residue");
+        assert_eq!(row.risk, "review", "the more cautious row wins");
+        assert!(!row.is_selected_by_default);
     }
 
     #[test]

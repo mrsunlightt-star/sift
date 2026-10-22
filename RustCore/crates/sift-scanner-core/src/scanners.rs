@@ -721,7 +721,7 @@ pub fn measure_directory_matching(
             if skip_hidden && is_hidden_name(&entry_path) {
                 continue;
             }
-            if skip_paths.iter().any(|skip| entry_path.starts_with(skip)) {
+            if walker::is_skipped(&entry_path, skip_paths) {
                 continue;
             }
             if is_in_excluded_location(&entry_path) {

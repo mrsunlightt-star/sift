@@ -37,11 +37,17 @@ final class EngineAgreementTests: XCTestCase, @unchecked Sendable {
         let isDirectory: Bool
         let explanationKey: String
         let relatedBundleID: String?
+        let sourceRuleID: String
+        /// Compared at second granularity, which is what the index stores.
+        let modifiedAtSeconds: Int?
 
         var description: String {
             "\(path) [\(category)/\(risk), \(sizeInBytes)B, \(fileCount) files"
-                + ", dir=\(isDirectory), \(explanationKey)"
-                + (relatedBundleID.map { ", bundle=\($0)" } ?? "") + "]"
+            + ", dir=\(isDirectory), \(explanationKey)"
+            + (relatedBundleID.map { ", bundle=\($0)" } ?? "")
+            + ", rule=\(sourceRuleID)"
+            + (modifiedAtSeconds.map { ", modified=\($0)" } ?? "")
+            + "]"
         }
     }
 
@@ -121,7 +127,9 @@ final class EngineAgreementTests: XCTestCase, @unchecked Sendable {
             fileCount: item.fileCount,
             isDirectory: item.isDirectory,
             explanationKey: item.explanationKey,
-            relatedBundleID: item.relatedBundleID
+            relatedBundleID: item.relatedBundleID,
+            sourceRuleID: item.sourceRuleID,
+            modifiedAtSeconds: item.modifiedAt.map { Int($0.timeIntervalSince1970) }
         )
     }
 
@@ -203,6 +211,13 @@ final class EngineAgreementTests: XCTestCase, @unchecked Sendable {
         fixture.write("Library/Caches/.hidden-blob", bytes: 1024)
         fixture.age(fixture.write("Library/Logs/com.example.app/old.log", bytes: 2048), days: 60)
         fixture.write("Library/Logs/com.example.app/new.log", bytes: 1024)
+        // A directory the rules and the residue scan both report: the log rule
+        // only offers one whose every file is stale, and that case is where the
+        // two strategies' rows overlapped and the last-written row used to win.
+        fixture.age(
+            fixture.write("Library/Logs/com.stalegone.app/ancient.log", bytes: 1024),
+            days: 90
+        )
         fixture.age(fixture.write("Downloads/Old.dmg", bytes: 4096), days: 60)
         fixture.write("Downloads/New.dmg", bytes: 4096)
 

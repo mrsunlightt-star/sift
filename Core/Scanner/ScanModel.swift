@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import Shared
 
 /// The scanner's observable state.
@@ -149,7 +150,13 @@ public final class ScanModel: ObservableObject {
             phase = .preparing
             beginPolling(session, run: run)
         } catch let error as ScannerError {
-            failure = (error.code, error.message)
+            // The engine's sentence is diagnostic text; the banner shows the
+            // sentence the code owns, so both engines' failures read the same
+            // in every language and the detail stays here.
+            SiftLog.scan.error(
+                "Scan start failed (code=\(error.code.rawValue, privacy: .public) detail=\(error.message, privacy: .public))"
+            )
+            failure = (error.code, error.code.localizedTitle.localized)
             phase = .failed
             terminalReceived = true
         } catch {
@@ -225,8 +232,7 @@ public final class ScanModel: ObservableObject {
             // An index that cannot be read is not an empty result. Keep the
             // failure so the page can say what happened instead of rendering
             // "nothing found".
-            resultLoadFailure = (error as? ScannerError)?.message
-                ?? LocalizationKey.commonUnknownError.localized
+            recordLoadFailure(error)
             return ScanPage(items: [], remaining: 0)
         }
     }
@@ -292,9 +298,19 @@ public final class ScanModel: ObservableObject {
         }
     }
 
+    /// Records a failed read for the page, and the specific reason for the log.
+    ///
+    /// The engines' sentences are diagnostic text the core writes in its own
+    /// language. The banner shows the sentence the error code owns, so the
+    /// failed read reads the same in all eight languages and the technical
+    /// detail stays in the log.
     private func recordLoadFailure(_ error: Error) {
-        resultLoadFailure = (error as? ScannerError)?.message
-            ?? LocalizationKey.commonUnknownError.localized
+        let scannerError = error as? ScannerError
+        let code = scannerError?.code ?? .internalError
+        SiftLog.scan.error(
+            "A result read failed (code=\(code.rawValue, privacy: .public) detail=\(scannerError?.message ?? "", privacy: .public))"
+        )
+        resultLoadFailure = code.localizedTitle.localized
     }
 
     /// Reads the risk split from the finished index.
@@ -493,7 +509,13 @@ public final class ScanModel: ObservableObject {
                 self.duplicateReclaimableBytes = report.duplicateReclaimableBytes
 
             case let .failed(code, message):
-                self.failure = (code, message)
+                // The engine's own sentence is diagnostic text, written in the
+                // core's language; the page shows the sentence the code owns,
+                // and the detail is kept in the log.
+                SiftLog.scan.error(
+                    "Scan failed (code=\(code.rawValue, privacy: .public) detail=\(message, privacy: .public))"
+                )
+                self.failure = (code, code.localizedTitle.localized)
                 self.phase = .failed
                 self.terminalReceived = true
             }

@@ -227,6 +227,13 @@ public struct DiagnosticSkip: Sendable, Hashable, Identifiable {
     public var id: String { "\(reason.rawValue):\(path.path)" }
     public var displayName: String { path.lastPathComponent }
 
+    /// The path as shown to the user: home-relative, like every other path row
+    /// in the product, so the row neither repeats the account name nor spells
+    /// out the directory layout one line at a time.
+    public var displayPath: String {
+        CleanupItem.abbreviate(path.path)
+    }
+
     public init(path: URL, reason: DiagnosticSkipReason) {
         self.path = path
         self.reason = reason

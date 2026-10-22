@@ -350,7 +350,16 @@ public final class AppEnvironment: ObservableObject {
         // already uses; a filesystem error from the volume lookup keeps the
         // NSError classification.
         if let scannerError = error as? ScannerError {
-            return StorageAnalysisFailure(code: scannerError.code, message: scannerError.message)
+            // The core's own sentence is diagnostic text; the page shows the
+            // sentence the code owns, so the failed run reads the same in all
+            // eight languages and the detail stays in the log.
+            SiftLog.storage.error(
+                "Storage analysis failed (code=\(scannerError.code.rawValue, privacy: .public) detail=\(scannerError.message, privacy: .public))"
+            )
+            return StorageAnalysisFailure(
+                code: scannerError.code,
+                message: scannerError.code.localizedTitle.localized
+            )
         }
         let code = FileOperationService.classify(error)
         let message: LocalizationKey
@@ -1006,6 +1015,15 @@ public final class AppEnvironment: ObservableObject {
     /// True when the user may perform a destructive action.
     public func canClean() async -> Bool {
         await entitlements.allows(.cleanJunk)
+    }
+
+    /// True when the user may uninstall an application.
+    ///
+    /// Named for the capability it checks rather than reusing `canClean()`: the
+    /// uninstaller asks this answer with its own capability, so a future
+    /// entitlement split between the two checks the gate the page exercises.
+    public func canUninstall() async -> Bool {
+        await entitlements.allows(.uninstallApplications)
     }
 
     /// Clears the last scan/cleanup timestamps. Saved reports are untouched.

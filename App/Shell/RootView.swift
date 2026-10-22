@@ -1,6 +1,5 @@
 import Core
 import FeatureDashboard
-import FeatureFileCleanup
 import FeatureJunkCleanup
 import FeaturePurchase
 import FeatureScan
@@ -140,7 +139,7 @@ private struct ConfirmationHost: View {
                         }
                     }
                 },
-                onCancel: { environment.cleanup.isConfirming = false },
+                onCancel: { environment.cleanup.cancelConfirmation() },
                 onToggleSkipConfirmation: { value in
                     Task { await environment.updateSettings { $0.skipConfirmation = value } }
                 }
@@ -375,13 +374,5 @@ extension PaywallReason {
         case .cleanFiles: .cleanFiles
         case .exportReport: .exportReport
         }
-    }
-}
-
-/// Records a finished cleanup in the dashboard's local history.
-enum RecentHistoryBridge {
-    static func record(_ outcome: CleanupOutcome?) {
-        guard let outcome else { return }
-        RecentHistory.recordCleanup(outcome)
     }
 }

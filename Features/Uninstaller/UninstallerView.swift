@@ -615,7 +615,9 @@ public struct UninstallerView: View {
     }
 
     private func requestUninstall(_ plan: UninstallPlan) async {
-        guard await environment.canClean() else {
+        // The uninstaller asks with the capability the operation itself is
+        // gated on, not the generic cleanup one.
+        guard await environment.canUninstall() else {
             onRequestPurchase()
             return
         }

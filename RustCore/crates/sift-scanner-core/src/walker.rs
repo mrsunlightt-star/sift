@@ -14,7 +14,9 @@
 //! * sizes prefer allocated size and fall back to logical size.
 
 use sift_hasher::CancelToken;
-use sift_rules::{is_package_directory, is_protected_path_authorized};
+use sift_rules::{
+    is_package_directory, is_prefix_of, is_protected_path_authorized, normalize_path,
+};
 
 pub use sift_rules::is_package_directory as is_package_directory_export;
 use std::collections::HashSet;
@@ -160,6 +162,23 @@ pub const DEFAULT_SKIP_DIRECTORY_NAMES: &[&str] = &[
     ".Trash",
 ];
 
+/// True when `path` is inside one of the walk's skip locations.
+///
+/// Both sides are normalised with the product's path rules and compared
+/// component-wise: `.`, `..`, duplicate separators and the macOS symlink aliases
+/// are resolved first, and `/skip` does not shade `/skip2/a`. The raw
+/// `starts_with` comparison this replaces matched an ignored spelling only when
+/// it arrived exactly as written, and treated a sibling whose name merely began
+/// with the ignored name as ignored too. The Swift walker answers this question
+/// through `RuleEngine.isPrefix`, which resolves the same things, so the two
+/// engines decide the same ignored set.
+pub(crate) fn is_skipped(path: &Path, skip_paths: &[PathBuf]) -> bool {
+    let candidate = normalize_path(&path.to_string_lossy());
+    skip_paths
+        .iter()
+        .any(|skip| is_prefix_of(&normalize_path(&skip.to_string_lossy()), &candidate))
+}
+
 /// Walks `root` according to `options`, honouring `cancel`.
 ///
 /// Returns a [`WalkReport`] rather than `Result`: the only hard failures are
@@ -224,7 +243,7 @@ pub fn walk(root: &Path, options: &WalkOptions, cancel: &CancelToken) -> WalkRep
             };
             let path = entry.path();
 
-            if options.skip_paths.iter().any(|skip| path.starts_with(skip)) {
+            if is_skipped(&path, &options.skip_paths) {
                 continue;
             }
             if is_protected_by_policy(options, &path) {
@@ -423,7 +442,7 @@ fn measure_within(
                 .file_name()
                 .map(|n| n.to_string_lossy().to_string())
                 .unwrap_or_default();
-            if options.skip_paths.iter().any(|skip| path.starts_with(skip)) {
+            if is_skipped(&path, &options.skip_paths) {
                 continue;
             }
             if options.skip_hidden && name.starts_with('.') {
@@ -750,6 +769,47 @@ mod tests {
         let report = walk(&tree.root, &opts, &CancelToken::new());
         assert_eq!(report.entries.len(), 1);
         assert!(report.skips.is_empty(), "ignored paths are silent");
+    }
+
+    /// The ignore list is compared the way the protection rules are: through the
+    /// alias mapping, so a location handed over in its `/private/var` spelling
+    /// still ignores the subtree the walk visits as `/var`.
+    #[test]
+    fn an_ignored_path_spelled_with_the_alias_still_matches() {
+        let tree = TempTree::new("walk-ignore-alias");
+        tree.file("keep/a.bin", 10);
+        tree.file("skip/b.bin", 10);
+
+        // `TempTree` lives under `/var/folders`; canonical spelling is the
+        // `/private/var` form the filesystem actually resolves to.
+        let resolved = std::fs::canonicalize(&tree.root)
+            .expect("temp dir resolves")
+            .join("skip");
+        let opts = options(&tree.root).with_skip_paths(vec![resolved]);
+        let report = walk(&tree.root, &opts, &CancelToken::new());
+        assert_eq!(
+            report.entries.len(),
+            1,
+            "the ignored subtree is still kept out"
+        );
+        assert!(report.skips.is_empty());
+    }
+
+    /// And a prefix is applied per component: an ignored name does not shade a
+    /// sibling whose name merely begins with it.
+    #[test]
+    fn an_ignored_name_does_not_shade_a_sibling_with_a_longer_name() {
+        let tree = TempTree::new("walk-ignore-sibling");
+        tree.file("keep/a.bin", 10);
+        tree.file("ignoreX/b.bin", 10);
+
+        let opts = options(&tree.root).with_skip_paths(vec![tree.root.join("ignore")]);
+        let report = walk(&tree.root, &opts, &CancelToken::new());
+        assert_eq!(
+            report.entries.len(),
+            2,
+            "ignoreX is not inside ignore: {report:?}"
+        );
     }
 
     #[test]

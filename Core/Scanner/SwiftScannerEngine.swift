@@ -411,12 +411,12 @@ actor SwiftScanSession: ScanSession {
             return nil
         }
         let measured: (bytes: Int64, files: Int)
-        var newestQualifying: Date?
+        var oldestQualifying: Date?
         if let minimumAgeDays {
             let matching = measureMatching(
                 url: url,
                 days: minimumAgeDays,
-                newest: &newestQualifying,
+                oldest: &oldestQualifying,
                 skipPaths: request.ignoredPaths
             )
             // The item is the directory, so the move takes every file in it.
@@ -434,6 +434,11 @@ actor SwiftScanSession: ScanSession {
                   matching.bytes == whole.bytes,
                   matching.files == whole.files
             else { return nil }
+            // The threshold rule reports the oldest surviving file's date; a
+            // directory whose none of its files carry a readable timestamp has
+            // no date to report, which the Rust core treats as "not a
+            // candidate" rather than falling back to the folder's own mtime.
+            guard oldestQualifying != nil else { return nil }
             measured = whole
         } else {
             measured = FileWalker.measure(
@@ -446,7 +451,7 @@ actor SwiftScanSession: ScanSession {
             guard measured.bytes > 0 else { return nil }
         }
         let values = try? url.resourceValues(forKeys: [.contentModificationDateKey, .creationDateKey])
-        let modified = newestQualifying ?? values?.contentModificationDate
+        let modified = oldestQualifying ?? values?.contentModificationDate
         return CleanupItemSummary(
             id: nextIdentifier(),
             url: url,
@@ -467,10 +472,12 @@ actor SwiftScanSession: ScanSession {
     ///
     /// An age threshold belongs to files, not to the folder: `~/Library/Logs/<app>`
     /// may hold a week-old and a year-old log, and only the stale one counts.
+    /// `oldest` receives the *oldest* surviving file's modification time, which
+    /// is what the Rust core reports for the row.
     private func measureMatching(
         url: URL,
         days: Int,
-        newest: inout Date?,
+        oldest: inout Date?,
         skipPaths: [String]
     ) -> (bytes: Int64, files: Int) {
         var bytes: Int64 = 0
@@ -500,8 +507,8 @@ actor SwiftScanSession: ScanSession {
                 guard olderThanDays(modified, days: days) else { continue }
                 bytes += FileWalker.allocatedSize(values: values, url: child)
                 files += 1
-                if let modified, newest == nil || modified > newest! {
-                    newest = modified
+                if let modified, oldest == nil || modified < oldest! {
+                    oldest = modified
                 }
             }
         }

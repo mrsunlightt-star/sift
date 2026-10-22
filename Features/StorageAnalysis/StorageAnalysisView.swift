@@ -557,7 +557,7 @@ public struct StorageAnalysisView: View {
                                     : "questionmark.circle")
                                     .foregroundStyle(.secondary)
                                     .accessibilityHidden(true)
-                                Text(skip.path.path)
+                                Text(skip.displayPath)
                                     .font(SiftFont.caption)
                                     .lineLimit(1)
                                     .truncationMode(.middle)

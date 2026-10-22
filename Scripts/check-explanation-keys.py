@@ -56,7 +56,10 @@ SUFFIXES = (".rs", ".swift")
 # through unnoticed.
 KEY_ASSIGNMENT = re.compile(r'(?:explanation_key|explanationKey):\s*"(cleanup\.[A-Za-z0-9._-]+)"')
 KEY_LITERAL = re.compile(r'"(cleanup\.[A-Za-z0-9._-]+)"')
-PLACEHOLDER_HOLDERS = re.compile(r"%.?[a-zA-Z@]")
+# `%@`, `%d`, `%.2f` and the positional forms `%1$@` / `%2$d`: a positional
+# placeholder still takes an argument, so an attached key carrying one is as
+# wrong as a plain `%@` and must not pass the check.
+PLACEHOLDER_HOLDERS = re.compile(r"%(?:\d+\$)?\.?\d*[a-zA-Z@]")
 
 # Test code builds rules and candidates with made-up keys on purpose, so only the
 # shipped half of each file is scanned: a `#[cfg(test)]` module is the last thing

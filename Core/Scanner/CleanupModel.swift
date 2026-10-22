@@ -20,7 +20,11 @@ public final class CleanupModel: ObservableObject {
     /// The pre-flight verdict, populated when the user asks to clean.
     @Published public private(set) var preflight: PreflightReport?
     /// The confirmation panel's visibility.
-    @Published public var isConfirming = false
+    ///
+    /// Opening and closing it is the model's decision (`prepareCleanup` and
+    /// `cancelConfirmation`); the page observes but does not write, so a view
+    /// cannot open the panel without a verdict behind it.
+    @Published public private(set) var isConfirming = false
     /// True while a batch is running.
     @Published public private(set) var isWorking = false
     /// True while a pre-flight pass is in flight.

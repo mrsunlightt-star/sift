@@ -22,7 +22,12 @@ import re
 import sys
 
 CLASS_PATTERN = re.compile(r"^(?:final )?class (\w+Tests)\s*:\s*XCTestCase", re.MULTILINE)
-TEST_PATTERN = re.compile(r"^\s*func (test\w+)\(\)", re.MULTILINE)
+# A test method with or without parameters. Parameters are matched so the
+# registry can refuse them loudly: the shim runner calls each test with no
+# argument, so a parameterised test would be silently dropped from the suite
+# here while `swift test` still runs it — the two runners would disagree
+# without anything noticing.
+TEST_PATTERN = re.compile(r"^\s*func (test\w+)\(([^)]*)\)", re.MULTILINE)
 
 
 def add_throws(text: str) -> str:
@@ -52,9 +57,12 @@ def registry_entry(name: str, text: str) -> str:
     on the main actor. Calling through a closure rather than a selector keeps the
     tests out of the Objective-C runtime entirely.
     """
-    methods = TEST_PATTERN.findall(text)
     lines = []
-    for method in methods:
+    for method, parameters in TEST_PATTERN.findall(text):
+        if parameters.strip():
+            # Detected in `main` before this point; guarded again so a caller
+            # cannot skip that path and generate a broken registry silently.
+            raise SystemExit(f"test {name}.{method} takes parameters; the shim runner cannot call it — split it into concrete test functions")
         lines.append(
             f'        ("{name}", "{method}", {{\n'
             f'            let instance = {name}()\n'
@@ -82,13 +90,29 @@ def main() -> int:
     entries: list[str] = []
     registered = 0
     declared = 0
-    for source in sorted(source_dir.glob("*.swift")):
+    # `rglob` rather than `glob`: a test file in a subdirectory exists — or will
+    # exist one day — and the registry silently missing it would let the shim
+    # runner run fewer tests than `swift test` does. The registry count below
+    # turns that into an error, so the two lists are refused together.
+    sources = sorted(source_dir.rglob("*.swift"))
+    for source in sources:
         text = source.read_text(encoding="utf-8")
+        for method, parameters in TEST_PATTERN.findall(text):
+            if parameters.strip():
+                print(
+                    "  ERROR: test %s(%s) takes parameters; the shim runner cannot call it. "
+                    "Give it concrete test functions instead of a data-driven set."
+                    % (method, parameters.strip())
+                )
+                return 1
         result = rewrite(text)
         declared += len(TEST_PATTERN.findall(result))
         if result != text:
             rewritten += 1
-        (target_dir / source.name).write_text(result, encoding="utf-8")
+        # The output directory is flat, so a subdirectory's name is folded into
+        # the filename to keep two files with the same basename distinct.
+        relative = source.relative_to(source_dir)
+        (target_dir / str(relative).replace("/", "-")).write_text(result, encoding="utf-8")
         # Slice each class's body up to the next class, so a registry entry only
         # names the methods that class declares.
         matches = list(CLASS_PATTERN.finditer(result))
@@ -120,7 +144,7 @@ def main() -> int:
             "a test would not run"
         )
         return 1
-    print(f"  rewrote {rewritten} of {len(list(source_dir.glob('*.swift')))} files, registered {registered} test methods")
+    print(f"  rewrote {rewritten} of {len(sources)} files, registered {registered} test methods")
     return 0
 
 

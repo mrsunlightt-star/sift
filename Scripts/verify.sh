@@ -118,7 +118,9 @@ else
 fi
 
 step "6/9  Swift: build (Rust core linked)"
-"${REPO_ROOT}/Scripts/build-rust-core.sh" >/dev/null
+# Recorded like every other stage: a failure here must reach the summary and
+# the verdict line, not end the script before it prints them.
+run bash -c "cd '${REPO_ROOT}' && ./Scripts/build-rust-core.sh >/dev/null"
 run swift build
 
 step "7/9  Swift: self-test and XCTest suites"
