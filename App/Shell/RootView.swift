@@ -179,7 +179,6 @@ struct IconRailView: View {
 
             if !environment.entitlement.isUnlocked {
                 unlockButton
-                    .padding(.bottom, SiftMetrics.spacingS)
             }
 
             LanguageMenu(
@@ -259,22 +258,22 @@ struct IconRailView: View {
         Button {
             router.requestPurchase(reason: .cleanJunk)
         } label: {
-            VStack(spacing: 4) {
+            // The one accent-tinted entry in the rail, but the same item box,
+            // icon size and label as every other rail entry: the footer reads
+            // as one column, not three controls that arrived separately.
+            VStack(spacing: 5) {
                 Image(systemName: "lock.open")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: 19, weight: .medium))
+                    .frame(height: 22)
                 Text(LocalizationKey.purchaseTitle.localized)
-                    .font(.system(size: 9, weight: .medium))
+                    .font(SiftFont.railLabel)
                     .lineLimit(1)
             }
             .foregroundStyle(SiftColor.accent)
-            .frame(width: SiftMetrics.railItemWidth, height: 46)
+            .frame(width: SiftMetrics.railItemWidth, height: SiftMetrics.railItemHeight)
             .background {
                 RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
-                    .fill(SiftColor.accent.opacity(0.10))
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
-                    .strokeBorder(SiftColor.accent.opacity(0.22), lineWidth: 1)
+                    .fill(SiftColor.selectedFill)
             }
             .contentShape(Rectangle())
         }

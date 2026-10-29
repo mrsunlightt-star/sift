@@ -1421,6 +1421,21 @@ public struct LanguageMenu: View {
     }
 
     public var body: some View {
+        sized
+            .overlay { label.allowsHitTesting(false) }
+            .accessibilityIdentifier(identifier)
+            .accessibilityLabel(Text(LocalizationKey.settingsGroupLanguage.localized))
+            .accessibilityValue(Text(selection.displayName))
+    }
+
+    /// The menu itself, sized to the style's control box.
+    ///
+    /// The label is deliberately empty: macOS re-templates a menu label made of
+    /// an Image and a Text into the pull-down's (image, title) representation —
+    /// the vertical rail item collapsed into a horizontal globe-and-title at
+    /// the rail's leading edge, in the control tint. The styled control is the
+    /// overlay in `body`; the empty label keeps the menu's click target.
+    private var sizedMenu: some View {
         Menu {
             ForEach(SiftLanguage.allCases) { language in
                 Button {
@@ -1436,28 +1451,45 @@ public struct LanguageMenu: View {
                 .accessibilityIdentifier("language.\(language.rawValue)")
             }
         } label: {
-            label
+            Color.clear
+                .contentShape(Rectangle())
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
-        .accessibilityIdentifier(identifier)
-        .accessibilityLabel(Text(LocalizationKey.settingsGroupLanguage.localized))
-        .accessibilityValue(Text(selection.displayName))
+    }
+
+    @ViewBuilder
+    private var sized: some View {
+        switch style {
+        case .rail:
+            sizedMenu
+                .frame(width: SiftMetrics.railItemWidth, height: SiftMetrics.railItemHeight)
+        case .sidebar:
+            sizedMenu
+                .frame(maxWidth: .infinity, minHeight: 30)
+        case .settings:
+            sizedMenu
+                .frame(maxWidth: .infinity)
+        }
     }
 
     @ViewBuilder
     private var label: some View {
         switch style {
         case .rail:
-            VStack(spacing: 4) {
+            // The rail variant is a rail item first: the same box, icon size
+            // and label as the navigation entries above it, so the footer does
+            // not introduce a second scale at the bottom of the rail.
+            VStack(spacing: 5) {
                 Image(systemName: "globe")
-                    .font(.system(size: 15, weight: .medium))
+                    .font(.system(size: 19, weight: .medium))
+                    .frame(height: 22)
                 Text(shortName)
                     .font(SiftFont.railLabel)
                     .lineLimit(1)
             }
             .foregroundStyle(.secondary)
-            .frame(width: SiftMetrics.railItemWidth, height: 48)
+            .frame(width: SiftMetrics.railItemWidth, height: SiftMetrics.railItemHeight)
             .contentShape(Rectangle())
 
         case .sidebar:
