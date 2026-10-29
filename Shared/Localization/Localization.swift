@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 /// Languages shipped with Sift. The display names are endonyms so a user can
 /// recognise their language even before the rest of the interface has switched.
@@ -17,6 +18,10 @@ public enum SiftLanguage: String, CaseIterable, Codable, Sendable, Identifiable 
     case turkish = "tr"
     case polish = "pl"
     case dutch = "nl"
+    case lao = "lo"
+    case arabic = "ar"
+    case hebrew = "he"
+    case persian = "fa"
 
     public var id: String { rawValue }
 
@@ -37,6 +42,10 @@ public enum SiftLanguage: String, CaseIterable, Codable, Sendable, Identifiable 
         case .turkish: "Türkçe"
         case .polish: "Polski"
         case .dutch: "Nederlands"
+        case .lao: "ລາວ"
+        case .arabic: "العربية"
+        case .hebrew: "עברית"
+        case .persian: "فارسی"
         }
     }
 
@@ -56,15 +65,33 @@ public enum SiftLanguage: String, CaseIterable, Codable, Sendable, Identifiable 
         case .turkish: "tr"
         case .polish: "pl"
         case .dutch: "nl"
+        case .lao: "lo"
+        case .arabic: "ar"
+        case .hebrew: "he"
+        case .persian: "fa"
         }
     }
 
     public var locale: Locale { Locale(identifier: localeIdentifier) }
 
+    /// The reading direction the interface lays out in. Arabic, Hebrew and
+    /// Persian are right-to-left; everything else is left-to-right. The shell
+    /// pushes this into the environment, because selecting a language inside the
+    /// app does not move the window's own direction — SwiftUI takes that from
+    /// the system localization, which this preference overrides.
+    public var layoutDirection: LayoutDirection {
+        switch self {
+        case .arabic, .hebrew, .persian: .rightToLeft
+        default: .leftToRight
+        }
+    }
+
     /// The system language is used only before the user makes an explicit choice.
     ///
     /// Chinese needs a region split the other prefixes do not: Taiwan, Hong Kong
-    /// and Macau run Traditional script, everything else Simplified.
+    /// and Macau run Traditional script, everything else Simplified. Hebrew is
+    /// matched under both of its codes — modern "he" and the legacy "iw" that
+    /// some systems still report.
     public static var preferred: SiftLanguage {
         let identifier = Locale.preferredLanguages.first?.lowercased() ?? "en"
         if identifier.hasPrefix("zh-hant")
@@ -85,6 +112,10 @@ public enum SiftLanguage: String, CaseIterable, Codable, Sendable, Identifiable 
         if identifier.hasPrefix("tr") { return .turkish }
         if identifier.hasPrefix("pl") { return .polish }
         if identifier.hasPrefix("nl") { return .dutch }
+        if identifier.hasPrefix("lo") { return .lao }
+        if identifier.hasPrefix("ar") { return .arabic }
+        if identifier.hasPrefix("he") || identifier.hasPrefix("iw") { return .hebrew }
+        if identifier.hasPrefix("fa") { return .persian }
         return .english
     }
 

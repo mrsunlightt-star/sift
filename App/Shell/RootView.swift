@@ -36,6 +36,7 @@ public struct RootShellView: View {
             presentationLayer
         }
         .environment(\.locale, environment.preferences.language.locale)
+        .environment(\.layoutDirection, environment.preferences.language.layoutDirection)
         .environment(
             \.siftReduceMotion,
             accessibilityReduceMotion || environment.preferences.reduceMotion

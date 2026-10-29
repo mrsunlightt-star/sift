@@ -11,7 +11,7 @@ import Shared
 final class LocalizationTests: XCTestCase, @unchecked Sendable {
     private let languages = [
         "en", "zh-hans", "zh-hant", "ko", "ru", "es", "it", "pt-br",
-        "ja", "fr", "de", "tr", "pl", "nl",
+        "ja", "fr", "de", "tr", "pl", "nl", "lo", "ar", "he", "fa",
     ]
 
     func test_everyKeyResolves() {

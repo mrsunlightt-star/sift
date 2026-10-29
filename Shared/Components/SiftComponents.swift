@@ -1545,6 +1545,10 @@ public struct LanguageMenu: View {
         case .turkish: "TR"
         case .polish: "PL"
         case .dutch: "NL"
+        case .lao: "ລາວ"
+        case .arabic: "عربي"
+        case .hebrew: "עברית"
+        case .persian: "فارسی"
         }
     }
 }
