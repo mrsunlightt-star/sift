@@ -122,17 +122,16 @@ public struct SettingsView: View {
                                     .lineLimit(1)
                                     .truncationMode(.middle)
                                 Spacer()
-                                Button {
+                                SiftIconButton(
+                                    symbolName: "minus.circle",
+                                    help: LocalizationKey.commonRemove.localized
+                                ) {
                                     Task {
                                         await environment.updateSettings { settings in
                                             settings.ignoredPaths.removeAll { $0 == path }
                                         }
                                     }
-                                } label: {
-                                    Image(systemName: "minus.circle")
                                 }
-                                .buttonStyle(.borderless)
-                                .accessibilityLabel(Text(LocalizationKey.commonRemove.localized))
                             }
                         }
                     }
@@ -223,13 +222,12 @@ public struct SettingsView: View {
                                 }
                             }
                             Spacer(minLength: SiftMetrics.spacingS)
-                            Button {
+                            SiftIconButton(
+                                symbolName: "minus.circle",
+                                help: LocalizationKey.commonRemove.localized
+                            ) {
                                 Task { await environment.removeAuthorizedLocation(location) }
-                            } label: {
-                                Image(systemName: "minus.circle")
                             }
-                            .buttonStyle(.borderless)
-                            .accessibilityLabel(Text(LocalizationKey.commonRemove.localized))
                         }
                         .accessibilityElement(children: .combine)
                     }

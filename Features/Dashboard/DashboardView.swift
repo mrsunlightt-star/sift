@@ -56,12 +56,14 @@ public struct DashboardView: View {
                         }
                         .frame(width: SiftMetrics.summaryColumnWidth)
                     }
+                    .siftAppear(index: 0)
 
                     HStack(alignment: .top, spacing: SiftMetrics.spacingL) {
                         suggestionCard
                         activityCard
                             .frame(width: SiftMetrics.summaryColumnWidth)
                     }
+                    .siftAppear(index: 1)
                 }
                 .padding(.horizontal, SiftMetrics.pagePadding)
                 .padding(.vertical, SiftMetrics.pageSpacing)
@@ -110,8 +112,8 @@ public struct DashboardView: View {
                             : LocalizationKey.overviewReady).localized
                     )
                     .font(SiftFont.eyebrow)
+                    .tracking(0.8)
                     .textCase(.uppercase)
-                    .tracking(0.7)
                     .foregroundStyle(SiftColor.accent)
 
                     Spacer(minLength: SiftMetrics.spacingM)
@@ -127,9 +129,13 @@ public struct DashboardView: View {
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, SiftMetrics.spacingM)
                         .padding(.vertical, 6)
-                        .background(Capsule().fill(Color.white.opacity(0.05)))
+                        .background(
+                            RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS + 2, style: .continuous)
+                                .fill(SiftColor.subtleFill)
+                        )
                         .overlay {
-                            Capsule().strokeBorder(SiftColor.glassBorder, lineWidth: 1)
+                            RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS + 2, style: .continuous)
+                                .strokeBorder(SiftColor.glassBorder, lineWidth: 1)
                         }
                     }
                 }
@@ -187,6 +193,19 @@ public struct DashboardView: View {
                 }
                 .padding(.top, SiftMetrics.spacingXS)
             }
+        }
+        // The hero is the one card allowed a wash of the accent: it is the page's
+        // subject, and the tint is what separates it from the summary cards.
+        .overlay {
+            RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusXL, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [SiftColor.accent.opacity(0.10), .clear],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .allowsHitTesting(false)
         }
     }
 

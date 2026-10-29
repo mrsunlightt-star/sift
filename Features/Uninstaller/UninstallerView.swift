@@ -177,13 +177,8 @@ public struct UninstallerView: View {
                 .font(SiftFont.body)
         }
         .padding(.horizontal, SiftMetrics.spacingM)
-        .frame(height: 34)
-        .background(
-            Capsule().fill(Color.white.opacity(0.045))
-        )
-        .overlay {
-            Capsule().strokeBorder(SiftColor.glassBorder, lineWidth: 1)
-        }
+        .frame(height: SiftMetrics.fieldHeight)
+        .siftFieldSurface()
     }
 
     private var sortMenu: some View {
@@ -204,11 +199,8 @@ public struct UninstallerView: View {
             .font(SiftFont.caption)
             .foregroundStyle(.secondary)
             .padding(.horizontal, SiftMetrics.spacingM)
-            .frame(height: 34)
-            .background(Capsule().fill(Color.white.opacity(0.045)))
-            .overlay {
-                Capsule().strokeBorder(SiftColor.glassBorder, lineWidth: 1)
-            }
+            .frame(height: SiftMetrics.fieldHeight)
+            .siftFieldSurface()
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
@@ -400,7 +392,7 @@ public struct UninstallerView: View {
             Text(LocalizationKey.appsReclaimable.localized)
                 .font(SiftFont.eyebrow)
                 .textCase(.uppercase)
-                .tracking(0.6)
+                .tracking(0.8)
                 .foregroundStyle(SiftColor.accent)
 
             Text(plan.formattedTotal(includeReviewFiles: includeReviewFiles))
@@ -526,18 +518,18 @@ public struct UninstallerView: View {
             }
             HStack {
                 Spacer()
-                Button { isConfirming = false } label: {
-                    Text(LocalizationKey.cleanupConfirmCancel.localized)
+                SiftSecondaryButton(titleKey: .cleanupConfirmCancel) {
+                    isConfirming = false
                 }
                 .keyboardShortcut(.cancelAction)
-                Button {
+
+                SiftPrimaryButton(
+                    title: LocalizationKey.cleanupConfirmTitle.localized
+                ) {
                     isConfirming = false
                     Task { await performUninstall() }
-                } label: {
-                    Text(LocalizationKey.cleanupConfirmTitle.localized)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(SiftColor.accent)
+                .keyboardShortcut(.defaultAction)
             }
         }
         .padding(SiftMetrics.spacingXL)

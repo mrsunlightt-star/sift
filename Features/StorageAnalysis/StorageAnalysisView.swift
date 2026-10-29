@@ -191,13 +191,9 @@ public struct StorageAnalysisView: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button {
+                SiftSecondaryButton(titleKey: .storageCancelAnalysis) {
                     environment.cancelStorageAnalysis()
-                } label: {
-                    Text(LocalizationKey.storageCancelAnalysis.localized)
                 }
-                .buttonStyle(.bordered)
-                .tint(SiftColor.accent)
                 .keyboardShortcut(.cancelAction)
             }
         }
@@ -367,7 +363,7 @@ public struct StorageAnalysisView: View {
                 Text(LocalizationKey.storageSuggestionTitle.localized)
                     .font(SiftFont.eyebrow)
                     .textCase(.uppercase)
-                    .tracking(0.6)
+                    .tracking(0.8)
                     .foregroundStyle(SiftColor.accent)
                 Text(
                     LocalizationKey.storageCleanableHeading.localized(
@@ -588,7 +584,7 @@ struct StorageTreemap: View {
             let tiles = Self.layout(categories, in: CGRect(origin: .zero, size: geometry.size))
             ZStack(alignment: .topLeading) {
                 ForEach(tiles) { tile in
-                    tileView(tile)
+                    TreemapTileView(tile: tile, tint: tint(for: tile.category.id))
                         .frame(width: max(tile.rect.width - 6, 0), height: max(tile.rect.height - 6, 0))
                         .offset(x: tile.rect.minX + 3, y: tile.rect.minY + 3)
                 }
@@ -597,51 +593,14 @@ struct StorageTreemap: View {
         .accessibilityElement(children: .contain)
     }
 
-    private func tileView(_ tile: StorageTreemapTile) -> some View {
-        let tint = tint(for: tile.category.id)
-        let showsLabel = tile.rect.width > 96 && tile.rect.height > 54
-        let showsName = tile.rect.width > 64 && tile.rect.height > 34
-        return RoundedRectangle(cornerRadius: 14, style: .continuous)
-            .fill(
-                LinearGradient(
-                    colors: [tint.opacity(0.24), tint.opacity(0.12)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .strokeBorder(tint.opacity(0.34), lineWidth: 1)
-            }
-            .overlay(alignment: .topLeading) {
-                if showsName {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(tile.category.title)
-                            .font(SiftFont.caption)
-                            .foregroundStyle(tint)
-                            .lineLimit(2)
-                        if showsLabel {
-                            Text(tile.category.formattedSize)
-                                .font(.system(size: 17, weight: .semibold))
-                                .monospacedDigit()
-                        }
-                    }
-                    .padding(SiftMetrics.spacingM)
-                }
-            }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(Text(tile.category.title))
-            .accessibilityValue(Text(tile.category.formattedSize))
-    }
-
-    private func tint(for id: String) -> Color {
-        StorageCategoryTint.tint(for: id)
-    }
-
     struct StorageTreemapTile: Identifiable {
         let category: StorageAnalysis.Category
         let rect: CGRect
         var id: String { category.id }
+    }
+
+    private func tint(for id: String) -> Color {
+        StorageCategoryTint.tint(for: id)
     }
 
     /// Slice-and-dice along the longer axis. The largest category takes its share
@@ -701,6 +660,56 @@ struct StorageTreemap: View {
     }
 }
 
+/// One tile of the space map, with its own hover state: the tile lifts a step
+/// and its border brightens, so the map answers "which field am I pointing at"
+/// the way every other surface in the app does.
+private struct TreemapTileView: View {
+    let tile: StorageTreemap.StorageTreemapTile
+    let tint: Color
+
+    @State private var isHovering = false
+    @Environment(\.siftReduceMotion) private var reduceMotion
+
+    var body: some View {
+        let showsLabel = tile.rect.width > 96 && tile.rect.height > 54
+        let showsName = tile.rect.width > 64 && tile.rect.height > 34
+        return RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusL, style: .continuous)
+            .fill(
+                LinearGradient(
+                    colors: [tint.opacity(isHovering ? 0.30 : 0.24), tint.opacity(isHovering ? 0.16 : 0.12)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusL, style: .continuous)
+                    .strokeBorder(tint.opacity(isHovering ? 0.55 : 0.34), lineWidth: 1)
+            }
+            .overlay(alignment: .topLeading) {
+                if showsName {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(tile.category.title)
+                            .font(SiftFont.caption)
+                            .foregroundStyle(tint)
+                            .lineLimit(2)
+                        if showsLabel {
+                            Text(tile.category.formattedSize)
+                                .font(.system(size: 17, weight: .semibold))
+                                .monospacedDigit()
+                        }
+                    }
+                    .padding(SiftMetrics.spacingM)
+                }
+            }
+            .scaleEffect(reduceMotion || !isHovering ? 1 : 1.015)
+            .animation(reduceMotion ? nil : SiftMotion.hover, value: isHovering)
+            .onHover { isHovering = $0 }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Text(tile.category.title))
+            .accessibilityValue(Text(tile.category.formattedSize))
+    }
+}
+
 // MARK: - Rows
 
 /// One finding: what it is, how much it holds, and what can be done about it.
@@ -736,11 +745,11 @@ private struct FindingRow: View {
                     .multilineTextAlignment(.trailing)
             }
             if finding.path != nil {
-                Button(action: onReveal) {
-                    Image(systemName: "magnifyingglass.circle")
-                }
-                .buttonStyle(.borderless)
-                .help(LocalizationKey.filesRevealInFinder.localized)
+                SiftIconButton(
+                    symbolName: "magnifyingglass.circle",
+                    help: LocalizationKey.filesRevealInFinder.localized,
+                    action: onReveal
+                )
                 .accessibilityLabel(Text(LocalizationKey.filesRevealInFinder.localized))
             }
         }
@@ -795,11 +804,11 @@ struct PathRow: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            Button(action: onReveal) {
-                Image(systemName: "magnifyingglass.circle")
-            }
-            .buttonStyle(.borderless)
-            .help(LocalizationKey.filesRevealInFinder.localized)
+            SiftIconButton(
+                symbolName: "magnifyingglass.circle",
+                help: LocalizationKey.filesRevealInFinder.localized,
+                action: onReveal
+            )
             .accessibilityLabel(Text(LocalizationKey.filesRevealInFinder.localized))
         }
         .padding(.vertical, SiftMetrics.spacingXS)

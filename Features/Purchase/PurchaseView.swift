@@ -113,8 +113,12 @@ public struct PurchaseView: View {
                 Text(LocalizationKey.purchaseActivateLicense.localized)
                     .font(SiftFont.sectionTitle)
                 TextField(LocalizationKey.purchaseActivateLicense.localized, text: $licenseKey)
-                    .textFieldStyle(.roundedBorder)
+                    .textFieldStyle(.plain)
+                    .font(SiftFont.body)
+                    .padding(.horizontal, SiftMetrics.spacingM)
                     .frame(maxWidth: 320)
+                    .frame(height: SiftMetrics.fieldHeight)
+                    .siftFieldSurface()
                 HStack(spacing: SiftMetrics.spacingM) {
                     SiftPrimaryButton(
                         title: LocalizationKey.purchaseBuyButton.localized(environment.entitlement.formattedPrice),

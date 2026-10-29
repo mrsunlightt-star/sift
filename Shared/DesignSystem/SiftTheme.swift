@@ -3,86 +3,106 @@ import SwiftUI
 
 /// Design tokens for the whole app.
 ///
-/// The redesign describes the interface as layered glass: a translucent base for
-/// the navigation rail, a card material for the content, and a brighter material
-/// for anything that floats above the page. Three things make that read as glass
-/// rather than as a grey box — the background shows through, the material blurs
-/// what is behind it, and a highlight sits on the top edge. The tokens below keep
-/// those three properties consistent across every surface.
+/// The "jade glass" language: a warm porcelain canvas, one deep jade accent that
+/// carries every interactive meaning, and three levels of translucent surface.
+/// Two decisions shape everything downstream. First, colour is assigned by role
+/// — accent, safe, review, danger — never by decoration, so a page cannot grow a
+/// second palette by accident. Second, controls are rounded rectangles at one
+/// radius scale rather than capsules, which is what gives the interface its
+/// drawn, instrument-like character; the capsule survives only where it is the
+/// literal shape of the thing (progress bars, the product mark's lines).
 public enum SiftColor {
-    /// Primary action colour. Violet, fixed rather than the system accent, so a
-    /// user's accent-colour choice cannot make the primary action blend into a
-    /// category tint.
+    /// Primary action colour, used for links, selected states, icons and tints.
+    /// Jade, fixed rather than the system accent, so a user's accent-colour
+    /// choice cannot make the primary action blend into a category tint. The
+    /// dark variant is luminous because text and icons need the brightness; the
+    /// filled-control colour is `accentDeep`, which stays deep enough to carry
+    /// white text in both appearances.
     public static let accent = Color(
-        light: NSColor(srgbRed: 0.42, green: 0.29, blue: 0.95, alpha: 1),
-        dark: NSColor(srgbRed: 0.55, green: 0.43, blue: 1.00, alpha: 1)
+        light: NSColor(srgbRed: 0.043, green: 0.502, blue: 0.439, alpha: 1),
+        dark: NSColor(srgbRed: 0.184, green: 0.831, blue: 0.733, alpha: 1)
     )
-    /// The lighter end of the accent gradient used on primary buttons.
+    /// The bright end of decorative jade gradients (the product mark, hero
+    /// washes, icon tiles). Too light to carry white text; that is `accentDeep`.
     public static let accentBright = Color(
-        light: NSColor(srgbRed: 0.55, green: 0.38, blue: 1.00, alpha: 1),
-        dark: NSColor(srgbRed: 0.64, green: 0.53, blue: 1.00, alpha: 1)
+        light: NSColor(srgbRed: 0.078, green: 0.659, blue: 0.573, alpha: 1),
+        dark: NSColor(srgbRed: 0.137, green: 0.788, blue: 0.686, alpha: 1)
     )
-    /// Completed safely, or a `safe` risk level.
+    /// The fill of a control the user presses: primary buttons and selected
+    /// toggles. Deep enough for white text in both appearances.
+    public static let accentDeep = Color(
+        light: NSColor(srgbRed: 0.047, green: 0.522, blue: 0.455, alpha: 1),
+        dark: NSColor(srgbRed: 0.063, green: 0.596, blue: 0.510, alpha: 1)
+    )
+    /// Completed safely, or a `safe` risk level. A grass green, kept clearly
+    /// yellower than the jade accent so the two never read as the same colour.
     public static let safe = Color(
-        light: NSColor(srgbRed: 0.09, green: 0.64, blue: 0.38, alpha: 1),
-        dark: NSColor(srgbRed: 0.24, green: 0.85, blue: 0.55, alpha: 1)
+        light: NSColor(srgbRed: 0.184, green: 0.561, blue: 0.306, alpha: 1),
+        dark: NSColor(srgbRed: 0.306, green: 0.796, blue: 0.431, alpha: 1)
     )
     /// Needs the user's attention: `review` risk, space pressure.
     public static let review = Color(
-        light: NSColor(srgbRed: 0.85, green: 0.50, blue: 0.08, alpha: 1),
-        dark: NSColor(srgbRed: 0.96, green: 0.70, blue: 0.28, alpha: 1)
+        light: NSColor(srgbRed: 0.761, green: 0.463, blue: 0.039, alpha: 1),
+        dark: NSColor(srgbRed: 0.937, green: 0.698, blue: 0.290, alpha: 1)
     )
     /// Never acted on: `protected` risk.
     public static let danger = Color(
-        light: NSColor(srgbRed: 0.85, green: 0.20, blue: 0.24, alpha: 1),
-        dark: NSColor(srgbRed: 1.00, green: 0.42, blue: 0.45, alpha: 1)
+        light: NSColor(srgbRed: 0.820, green: 0.290, blue: 0.290, alpha: 1),
+        dark: NSColor(srgbRed: 1.00, green: 0.431, blue: 0.439, alpha: 1)
     )
     /// Secondary information, unavailable space, disabled states.
     public static let neutral = Color(nsColor: .secondaryLabelColor)
 
     /// The window canvas the glass sits on.
     ///
-    /// Dark mode is nearly black with a violet cast; light mode is a very pale
-    /// lavender. The ambient glow in `SiftCanvasBackground` supplies the colour
-    /// movement, so the base itself stays quiet.
+    /// Light mode is warm porcelain rather than the cool lavender it replaced;
+    /// dark mode is near-black with the faintest jade cast, so the ambient glow
+    /// has something to breathe against.
     public static let canvas = Color(
-        light: NSColor(srgbRed: 0.955, green: 0.948, blue: 0.975, alpha: 1),
-        dark: NSColor(srgbRed: 0.045, green: 0.045, blue: 0.060, alpha: 1)
+        light: NSColor(srgbRed: 0.961, green: 0.957, blue: 0.937, alpha: 1),
+        dark: NSColor(srgbRed: 0.047, green: 0.059, blue: 0.055, alpha: 1)
     )
     /// The rail's base glass tint.
     public static let baseGlass = Color(
-        light: NSColor(srgbRed: 1.0, green: 1.0, blue: 1.0, alpha: 0.46),
-        dark: NSColor(srgbRed: 0.09, green: 0.09, blue: 0.12, alpha: 0.52)
+        light: NSColor(srgbRed: 1.0, green: 1.0, blue: 1.0, alpha: 0.50),
+        dark: NSColor(srgbRed: 0.11, green: 0.13, blue: 0.125, alpha: 0.55)
     )
     /// The card surface tint, laid over the material.
     public static let cardGlass = Color(
-        light: NSColor(srgbRed: 1.0, green: 1.0, blue: 1.0, alpha: 0.58),
-        dark: NSColor(srgbRed: 0.10, green: 0.10, blue: 0.135, alpha: 0.58)
+        light: NSColor(srgbRed: 1.0, green: 1.0, blue: 1.0, alpha: 0.60),
+        dark: NSColor(srgbRed: 0.13, green: 0.15, blue: 0.145, alpha: 0.62)
     )
     /// The floating surface tint: confirmations, selected rows, popovers.
     public static let floatingGlass = Color(
-        light: NSColor(srgbRed: 1.0, green: 1.0, blue: 1.0, alpha: 0.78),
-        dark: NSColor(srgbRed: 0.13, green: 0.13, blue: 0.17, alpha: 0.86)
+        light: NSColor(srgbRed: 1.0, green: 1.0, blue: 1.0, alpha: 0.82),
+        dark: NSColor(srgbRed: 0.17, green: 0.195, blue: 0.19, alpha: 0.88)
     )
     /// Hairline around a glass surface.
     public static let glassBorder = Color(
-        light: NSColor(srgbRed: 0.10, green: 0.08, blue: 0.22, alpha: 0.10),
+        light: NSColor(srgbRed: 0.05, green: 0.10, blue: 0.08, alpha: 0.10),
         dark: NSColor(srgbRed: 1.0, green: 1.0, blue: 1.0, alpha: 0.10)
     )
     /// The top-edge highlight that makes glass look lit rather than painted.
     public static let glassHighlight = Color(
-        light: NSColor(srgbRed: 1.0, green: 1.0, blue: 1.0, alpha: 0.85),
-        dark: NSColor(srgbRed: 1.0, green: 1.0, blue: 1.0, alpha: 0.16)
+        light: NSColor(srgbRed: 1.0, green: 1.0, blue: 1.0, alpha: 0.90),
+        dark: NSColor(srgbRed: 1.0, green: 1.0, blue: 1.0, alpha: 0.13)
     )
     /// A selected row or navigation item.
     public static let selectedFill = Color(
-        light: NSColor(srgbRed: 0.42, green: 0.29, blue: 0.95, alpha: 0.12),
-        dark: NSColor(srgbRed: 0.55, green: 0.43, blue: 1.00, alpha: 0.16)
+        light: NSColor(srgbRed: 0.043, green: 0.502, blue: 0.439, alpha: 0.11),
+        dark: NSColor(srgbRed: 0.184, green: 0.831, blue: 0.733, alpha: 0.15)
     )
     /// Hover feedback on a row or a plain button.
     public static let hoverFill = Color(
-        light: NSColor(srgbRed: 0.10, green: 0.08, blue: 0.22, alpha: 0.045),
-        dark: NSColor(srgbRed: 1.0, green: 1.0, blue: 1.0, alpha: 0.055)
+        light: NSColor(srgbRed: 0.05, green: 0.10, blue: 0.08, alpha: 0.08),
+        dark: NSColor(srgbRed: 1.0, green: 1.0, blue: 1.0, alpha: 0.09)
+    )
+    /// A quiet well: search fields, sort menus, static capsules that hold text.
+    /// Appearance-adaptive so no call site needs to guess `Color.white.opacity`
+    /// again — that guess is what made dark mode read as frost on glass.
+    public static let subtleFill = Color(
+        light: NSColor(srgbRed: 0.05, green: 0.10, blue: 0.08, alpha: 0.045),
+        dark: NSColor(srgbRed: 1.0, green: 1.0, blue: 1.0, alpha: 0.05)
     )
 
     /// Window background, kept for pages that predate the canvas.
@@ -98,22 +118,25 @@ public enum SiftColor {
     ///
     /// Muted, low-saturation versions of the accent palette: a storage map uses
     /// large fields of colour, and eight fully saturated hues turn the page into
-    /// a warning banner. The category identity stays stable because the order is
-    /// fixed.
+    /// a warning banner. Jade leads, and the order is fixed so a category keeps
+    /// its identity between the map and the list.
     public static let categoryPalette: [Color] = [
-        accent,
-        safe,
-        Color(light: NSColor(srgbRed: 0.20, green: 0.63, blue: 0.72, alpha: 1),
-              dark: NSColor(srgbRed: 0.36, green: 0.78, blue: 0.85, alpha: 1)),
-        Color(light: NSColor(srgbRed: 0.28, green: 0.47, blue: 0.86, alpha: 1),
-              dark: NSColor(srgbRed: 0.46, green: 0.62, blue: 1.00, alpha: 1)),
-        review,
-        Color(light: NSColor(srgbRed: 0.85, green: 0.39, blue: 0.55, alpha: 1),
-              dark: NSColor(srgbRed: 0.98, green: 0.52, blue: 0.66, alpha: 1)),
-        Color(light: NSColor(srgbRed: 0.45, green: 0.36, blue: 0.80, alpha: 1),
-              dark: NSColor(srgbRed: 0.62, green: 0.53, blue: 0.98, alpha: 1)),
-        Color(light: NSColor(srgbRed: 0.55, green: 0.57, blue: 0.64, alpha: 1),
-              dark: NSColor(srgbRed: 0.66, green: 0.68, blue: 0.75, alpha: 1)),
+        Color(light: NSColor(srgbRed: 0.078, green: 0.659, blue: 0.573, alpha: 1),
+              dark: NSColor(srgbRed: 0.137, green: 0.788, blue: 0.686, alpha: 1)),
+        Color(light: NSColor(srgbRed: 0.306, green: 0.620, blue: 0.322, alpha: 1),
+              dark: NSColor(srgbRed: 0.400, green: 0.784, blue: 0.451, alpha: 1)),
+        Color(light: NSColor(srgbRed: 0.122, green: 0.561, blue: 0.647, alpha: 1),
+              dark: NSColor(srgbRed: 0.247, green: 0.714, blue: 0.800, alpha: 1)),
+        Color(light: NSColor(srgbRed: 0.243, green: 0.482, blue: 0.776, alpha: 1),
+              dark: NSColor(srgbRed: 0.435, green: 0.639, blue: 0.910, alpha: 1)),
+        Color(light: NSColor(srgbRed: 0.761, green: 0.463, blue: 0.039, alpha: 1),
+              dark: NSColor(srgbRed: 0.937, green: 0.698, blue: 0.290, alpha: 1)),
+        Color(light: NSColor(srgbRed: 0.761, green: 0.369, blue: 0.494, alpha: 1),
+              dark: NSColor(srgbRed: 0.910, green: 0.518, blue: 0.624, alpha: 1)),
+        Color(light: NSColor(srgbRed: 0.490, green: 0.373, blue: 0.722, alpha: 1),
+              dark: NSColor(srgbRed: 0.643, green: 0.545, blue: 0.878, alpha: 1)),
+        Color(light: NSColor(srgbRed: 0.431, green: 0.463, blue: 0.506, alpha: 1),
+              dark: NSColor(srgbRed: 0.592, green: 0.627, blue: 0.671, alpha: 1)),
     ]
 
     /// Colour for a risk level.
@@ -265,6 +288,9 @@ public enum ScanPhase: String, Sendable, CaseIterable, Codable {
 }
 
 /// Spacing, radius and size tokens.
+///
+/// The radius scale is two steps tighter than the one it replaced: the same
+/// hierarchy (control, group, card, hero) with a crisper, more drawn edge.
 public enum SiftMetrics {
     /// 4 pt base unit.
     public static let unit: CGFloat = 4
@@ -275,13 +301,21 @@ public enum SiftMetrics {
     public static let spacingXL: CGFloat = 24
     public static let spacingXXL: CGFloat = 32
 
-    public static let cornerRadiusS: CGFloat = 8
-    public static let cornerRadiusM: CGFloat = 12
-    public static let cornerRadiusL: CGFloat = 18
-    public static let cornerRadiusXL: CGFloat = 24
+    public static let cornerRadiusS: CGFloat = 6
+    public static let cornerRadiusM: CGFloat = 10
+    public static let cornerRadiusL: CGFloat = 14
+    public static let cornerRadiusXL: CGFloat = 20
+
+    /// The corner radius of a pressed control: buttons, chips, fields.
+    public static let controlCornerRadius: CGFloat = 12
 
     /// Minimum click target (§11.4).
     public static let minimumHitTarget: CGFloat = 44
+
+    /// The standard control heights, so a page never invents its own.
+    public static let buttonHeight: CGFloat = 40
+    public static let chipHeight: CGFloat = 30
+    public static let fieldHeight: CGFloat = 34
 
     /// The icon rail. 112 pt holds a 76 pt item with the glyph and its label.
     public static let railWidth: CGFloat = 112
@@ -309,45 +343,111 @@ public enum SiftMetrics {
 
 /// Typography built on the system font, with no external typefaces (§11.1).
 ///
-/// Numerals use `.monospacedDigit()` at the call site wherever a value can
-/// change, so a scan that is counting up does not make the text jitter.
+/// The scale's character comes from three disciplines. Large sizes pull their
+/// tracking in (-0.6 on display, -1.5 on the hero numeral) so headings read as
+/// composed rather than loud. Weight climbs only one step per role — regular,
+/// medium, semibold, and bold reserved for the numerals that are the page's
+/// subject. Every value that can change is rendered with `.monospacedDigit()` at
+/// the call site so a counting scan does not jitter.
 public enum SiftFont {
-    public static let display = Font.system(size: 30, weight: .semibold)
-    public static let title = Font.system(size: 19, weight: .semibold)
+    public static let display = Font.system(size: 32, weight: .semibold)
+    public static let title = Font.system(size: 20, weight: .semibold)
     public static let sectionTitle = Font.system(size: 15, weight: .semibold)
     public static let body = Font.system(size: 13, weight: .regular)
     public static let bodyEmphasis = Font.system(size: 13, weight: .medium)
     public static let caption = Font.system(size: 11, weight: .regular)
     public static let eyebrow = Font.system(size: 11, weight: .semibold)
-    public static let metric = Font.system(size: 22, weight: .semibold)
-    public static let metricLarge = Font.system(size: 34, weight: .bold)
+    public static let metric = Font.system(size: 24, weight: .semibold)
+    public static let metricLarge = Font.system(size: 32, weight: .bold)
     /// The number on the overview's hero card: large enough to be the subject.
     public static let heroMetric = Font.system(size: 62, weight: .bold)
-    public static let heroUnit = Font.system(size: 20, weight: .semibold)
+    public static let heroUnit = Font.system(size: 18, weight: .semibold)
     public static let badge = Font.system(size: 10, weight: .semibold)
     public static let railLabel = Font.system(size: 10, weight: .medium)
     public static let monospacedNumber = Font.system(size: 13, design: .monospaced)
 }
 
+/// The named text styles, each pairing a font with the tracking that belongs to
+/// it, so a call site cannot set the display size and forget the tracking.
+///
+/// `SiftFont` stays available for the many call sites that apply a font alone;
+/// new code and the components use these so the typographic details travel
+/// together.
+public enum SiftTextStyle {
+    case display, title, sectionTitle
+    case body, bodyEmphasis, caption, eyebrow
+    case metric, metricLarge, heroMetric, heroUnit
+    case badge, railLabel, monospacedNumber
+
+    public var font: Font {
+        switch self {
+        case .display: SiftFont.display
+        case .title: SiftFont.title
+        case .sectionTitle: SiftFont.sectionTitle
+        case .body: SiftFont.body
+        case .bodyEmphasis: SiftFont.bodyEmphasis
+        case .caption: SiftFont.caption
+        case .eyebrow: SiftFont.eyebrow
+        case .metric: SiftFont.metric
+        case .metricLarge: SiftFont.metricLarge
+        case .heroMetric: SiftFont.heroMetric
+        case .heroUnit: SiftFont.heroUnit
+        case .badge: SiftFont.badge
+        case .railLabel: SiftFont.railLabel
+        case .monospacedNumber: SiftFont.monospacedNumber
+        }
+    }
+
+    public var tracking: CGFloat {
+        switch self {
+        case .display: -0.6
+        case .title: -0.3
+        case .sectionTitle: -0.1
+        case .metric: -0.3
+        case .metricLarge: -0.6
+        case .heroMetric: -1.5
+        case .eyebrow: 0.8
+        default: 0
+        }
+    }
+}
+
+public extension View {
+    /// Applies a named text style: font and tracking together.
+    func siftFont(_ style: SiftTextStyle) -> some View {
+        font(style.font).tracking(style.tracking)
+    }
+}
+
 /// Animation curves, all spring-driven and all respectful of Reduce Motion.
+///
+/// The set is small on purpose: one snappy curve for things the user directly
+/// moved, one gentle curve for things the system changed, one settle curve for
+/// layout that re-flows, and the two special cases (press and scan loop). A page
+/// that needs a different-feeling animation is usually describing a different
+/// meaning, not a different duration.
 public enum SiftMotion {
-    /// A view appearing: opacity 0 → 1, scale 0.98 → 1.
-    public static let appear = Animation.spring(response: 0.42, dampingFraction: 0.86)
-    /// A press: scale 0.96.
-    public static let press = Animation.spring(response: 0.18, dampingFraction: 0.72)
-    /// The progress ring's stroke.
-    public static let progress = Animation.spring(response: 0.55, dampingFraction: 0.9)
-    /// A page change: a short crossfade.
-    public static let page = Animation.easeInOut(duration: 0.18)
+    /// A view appearing: opacity 0 → 1, offset 10 → 0.
+    public static let appear = Animation.spring(response: 0.38, dampingFraction: 0.85)
+    /// A press: scale 0.97.
+    public static let press = Animation.spring(response: 0.20, dampingFraction: 0.70)
+    /// The progress ring's stroke and other value changes that report work.
+    public static let progress = Animation.spring(response: 0.50, dampingFraction: 0.90)
+    /// A page change: a short crossfade with a slight rise.
+    public static let page = Animation.easeInOut(duration: 0.20)
     /// A hover highlight.
-    public static let hover = Animation.easeOut(duration: 0.14)
+    public static let hover = Animation.easeOut(duration: 0.15)
     /// The scan progress indicator, which loops while scanning.
     public static let scanning = Animation.easeInOut(duration: 1.1).repeatForever(autoreverses: true)
 
     /// Short transitions used by rows and checkboxes.
     public static let quick = Animation.easeOut(duration: 0.16)
     /// Panel or sheet presentation.
-    public static let panel = Animation.spring(response: 0.35, dampingFraction: 0.85)
+    public static let panel = Animation.spring(response: 0.36, dampingFraction: 0.88)
+    /// Layout that re-flows: bars resizing, groups expanding, the treemap.
+    public static let settle = Animation.spring(response: 0.45, dampingFraction: 0.95)
+    /// A small element celebrating a state change: a checkmark dropping in.
+    public static let springy = Animation.spring(response: 0.30, dampingFraction: 0.60)
 
     /// Returns an animation only when the user has not asked for reduced motion.
     public static func respectingReduceMotion(_ animation: Animation, reduceMotion: Bool) -> Animation? {
@@ -371,9 +471,9 @@ public extension EnvironmentValues {
     }
 }
 
-/// The three glass levels from the redesign.
+/// The three glass levels from the design language.
 public enum SiftSurface: Sendable {
-    /// Navigation rail and dividers: thin, 45% tint, least presence.
+    /// Navigation rail and dividers: thin, tinted, least presence.
     case base
     /// The main content cards.
     case card
@@ -399,16 +499,16 @@ public enum SiftSurface: Sendable {
     var shadowRadius: CGFloat {
         switch self {
         case .base: 0
-        case .card: 18
-        case .floating: 28
+        case .card: 14
+        case .floating: 24
         }
     }
 
     var shadowOpacity: Double {
         switch self {
         case .base: 0
-        case .card: 0.18
-        case .floating: 0.28
+        case .card: 0.10
+        case .floating: 0.18
         }
     }
 }

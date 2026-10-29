@@ -62,7 +62,7 @@ public struct CleanupResultView: View {
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(LocalizationKey.cleanupResultTitle.localized)
-                        .font(SiftFont.display)
+                        .siftFont(.display)
                     Text(LocalizationKey.cleanupResultUndoHint.localized)
                         .font(SiftFont.body)
                         .foregroundStyle(.secondary)
@@ -178,31 +178,30 @@ public struct CleanupResultView: View {
                 NoticeBanner(level: .warning, message: statusMessage)
             }
             HStack(spacing: SiftMetrics.spacingM) {
-                Button {
+                SiftSecondaryButton(
+                    title: LocalizationKey.cleanupResultShowTrash.localized,
+                    symbolName: "trash"
+                ) {
                     onOpenTrash()
-                } label: {
-                    Label(LocalizationKey.cleanupResultShowTrash.localized, systemImage: "trash")
                 }
 
                 // The uninstaller has no stored report, and a failed local write
                 // leaves the cleanup result without one. A button that opens
                 // nothing is worse than no button.
                 if report != nil {
-                    Button {
+                    SiftSecondaryButton(
+                        title: LocalizationKey.cleanupResultExportReport.localized,
+                        symbolName: "doc.text"
+                    ) {
                         onExport()
-                    } label: {
-                        Label(LocalizationKey.cleanupResultExportReport.localized, systemImage: "doc.text")
                     }
                 }
 
                 Spacer()
 
-                Button {
+                SiftPrimaryButton(title: LocalizationKey.commonDone.localized) {
                     onAcknowledge()
-                } label: {
-                    Text(LocalizationKey.commonDone.localized)
                 }
-                .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
             }
             Text(LocalizationKey.reportPrivacyNote.localized)

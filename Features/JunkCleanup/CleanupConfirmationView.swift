@@ -148,20 +148,14 @@ public struct CleanupConfirmationView: View {
             HStack {
                 Spacer()
 
-                Button {
+                SiftSecondaryButton(titleKey: .cleanupConfirmCancel) {
                     onCancel()
-                } label: {
-                    Text(LocalizationKey.cleanupConfirmCancel.localized)
                 }
                 .keyboardShortcut(.cancelAction)
 
-                Button {
+                SiftPrimaryButton(title: cleanup.approvedConfirmActionTitle) {
                     onConfirm()
-                } label: {
-                    Text(cleanup.approvedConfirmActionTitle)
-                        .font(SiftFont.bodyEmphasis)
                 }
-                .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
             }
         }

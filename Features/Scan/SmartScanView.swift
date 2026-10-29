@@ -296,8 +296,10 @@ public struct ScanView: View {
                     Spacer(minLength: 0)
                 }
             }
+            .siftAppear(index: 0)
 
             ScanCategoryPreview(ScanFilter.all.categories ?? CleanupCategory.allCases)
+                .siftAppear(index: 1)
 
             SiftGlassCard(padding: SiftMetrics.spacingL) {
                 HStack(spacing: SiftMetrics.spacingM) {
@@ -319,6 +321,7 @@ public struct ScanView: View {
                     .buttonStyle(SiftLinkButtonStyle())
                 }
             }
+            .siftAppear(index: 2)
         }
     }
 
@@ -515,9 +518,13 @@ public struct ScanView: View {
             .foregroundStyle(.secondary)
             .padding(.horizontal, SiftMetrics.spacingM)
             .padding(.vertical, 5)
-            .background(Capsule().fill(Color.white.opacity(0.05)))
+            .background(
+                RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS + 2, style: .continuous)
+                    .fill(SiftColor.subtleFill)
+            )
             .overlay {
-                Capsule().strokeBorder(SiftColor.glassBorder, lineWidth: 1)
+                RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS + 2, style: .continuous)
+                    .strokeBorder(SiftColor.glassBorder, lineWidth: 1)
             }
         }
         .menuStyle(.borderlessButton)
@@ -545,7 +552,7 @@ public struct ScanView: View {
                 Text(LocalizationKey.scanResultsCleanTitle.localized)
                     .font(SiftFont.eyebrow)
                     .textCase(.uppercase)
-                    .tracking(0.6)
+                    .tracking(0.8)
                     .foregroundStyle(SiftColor.accent)
 
                 Text(cleanup.formattedSelectedBytes)
@@ -925,7 +932,7 @@ struct ScanRunningCard: View {
                         Text(LocalizationKey.scanRunningTarget.localized)
                             .font(SiftFont.eyebrow)
                             .textCase(.uppercase)
-                            .tracking(0.6)
+                            .tracking(0.8)
                             .foregroundStyle(SiftColor.accent)
                         Text(phase.labelKey.localized)
                             .font(SiftFont.title)
@@ -936,9 +943,13 @@ struct ScanRunningCard: View {
                                 .truncationMode(.middle)
                                 .padding(.horizontal, SiftMetrics.spacingM)
                                 .padding(.vertical, 5)
-                                .background(Capsule().fill(Color.white.opacity(0.05)))
+                                .background(
+                                    RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS + 2, style: .continuous)
+                                        .fill(SiftColor.subtleFill)
+                                )
                                 .overlay {
-                                    Capsule().strokeBorder(SiftColor.glassBorder, lineWidth: 1)
+                                    RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS + 2, style: .continuous)
+                                        .strokeBorder(SiftColor.glassBorder, lineWidth: 1)
                                 }
                         }
                         HStack(spacing: SiftMetrics.spacingS) {

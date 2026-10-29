@@ -161,6 +161,7 @@ private struct ConfirmationHost: View {
 struct IconRailView: View {
     @EnvironmentObject private var environment: AppEnvironment
     @EnvironmentObject private var router: AppRouter
+    @Environment(\.siftReduceMotion) private var reduceMotion
     @State private var hovered: AppDestination?
 
     var body: some View {
@@ -235,14 +236,17 @@ struct IconRailView: View {
                 RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
                     .fill(isSelected ? SiftColor.selectedFill : (isHovering ? SiftColor.hoverFill : .clear))
             }
-            .overlay {
-                RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
-                    .strokeBorder(
-                        isSelected ? SiftColor.accent.opacity(0.35) : .clear,
-                        lineWidth: 1
-                    )
+            .overlay(alignment: .leading) {
+                // The selection mark: a jade bar on the item's left edge, so the
+                // selected destination reads without a border boxing it in.
+                Capsule()
+                    .fill(SiftColor.accent)
+                    .frame(width: 3, height: 18)
+                    .padding(.leading, 3)
+                    .opacity(isSelected ? 1 : 0)
             }
             .contentShape(Rectangle())
+            .animation(reduceMotion ? nil : SiftMotion.quick, value: isSelected)
         }
         .buttonStyle(SiftPressButtonStyle())
         .onHover { hovered = $0 ? destination : (hovered == destination ? nil : hovered) }
