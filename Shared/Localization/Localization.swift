@@ -5,12 +5,18 @@ import Foundation
 public enum SiftLanguage: String, CaseIterable, Codable, Sendable, Identifiable {
     case english = "en"
     case simplifiedChinese = "zh-hans"
+    case traditionalChinese = "zh-hant"
     case japanese = "ja"
     case korean = "ko"
     case german = "de"
     case french = "fr"
     case spanish = "es"
+    case italian = "it"
+    case brazilianPortuguese = "pt-br"
     case russian = "ru"
+    case turkish = "tr"
+    case polish = "pl"
+    case dutch = "nl"
 
     public var id: String { rawValue }
 
@@ -19,12 +25,18 @@ public enum SiftLanguage: String, CaseIterable, Codable, Sendable, Identifiable 
         switch self {
         case .english: "English"
         case .simplifiedChinese: "简体中文"
+        case .traditionalChinese: "繁體中文"
         case .japanese: "日本語"
         case .korean: "한국어"
         case .german: "Deutsch"
         case .french: "Français"
         case .spanish: "Español"
+        case .italian: "Italiano"
+        case .brazilianPortuguese: "Português (Brasil)"
         case .russian: "Русский"
+        case .turkish: "Türkçe"
+        case .polish: "Polski"
+        case .dutch: "Nederlands"
         }
     }
 
@@ -32,27 +44,47 @@ public enum SiftLanguage: String, CaseIterable, Codable, Sendable, Identifiable 
         switch self {
         case .english: "en"
         case .simplifiedChinese: "zh-Hans"
+        case .traditionalChinese: "zh-Hant"
         case .japanese: "ja"
         case .korean: "ko"
         case .german: "de"
         case .french: "fr"
         case .spanish: "es"
+        case .italian: "it"
+        case .brazilianPortuguese: "pt-BR"
         case .russian: "ru"
+        case .turkish: "tr"
+        case .polish: "pl"
+        case .dutch: "nl"
         }
     }
 
     public var locale: Locale { Locale(identifier: localeIdentifier) }
 
     /// The system language is used only before the user makes an explicit choice.
+    ///
+    /// Chinese needs a region split the other prefixes do not: Taiwan, Hong Kong
+    /// and Macau run Traditional script, everything else Simplified.
     public static var preferred: SiftLanguage {
         let identifier = Locale.preferredLanguages.first?.lowercased() ?? "en"
+        if identifier.hasPrefix("zh-hant")
+            || identifier.hasPrefix("zh-tw")
+            || identifier.hasPrefix("zh-hk")
+            || identifier.hasPrefix("zh-mo") {
+            return .traditionalChinese
+        }
         if identifier.hasPrefix("zh") { return .simplifiedChinese }
         if identifier.hasPrefix("ja") { return .japanese }
         if identifier.hasPrefix("ko") { return .korean }
         if identifier.hasPrefix("de") { return .german }
         if identifier.hasPrefix("fr") { return .french }
         if identifier.hasPrefix("es") { return .spanish }
+        if identifier.hasPrefix("it") { return .italian }
+        if identifier.hasPrefix("pt") { return .brazilianPortuguese }
         if identifier.hasPrefix("ru") { return .russian }
+        if identifier.hasPrefix("tr") { return .turkish }
+        if identifier.hasPrefix("pl") { return .polish }
+        if identifier.hasPrefix("nl") { return .dutch }
         return .english
     }
 

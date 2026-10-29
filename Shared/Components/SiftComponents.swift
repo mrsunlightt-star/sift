@@ -1533,12 +1533,18 @@ public struct LanguageMenu: View {
         switch selection {
         case .english: "EN"
         case .simplifiedChinese: "中文"
+        case .traditionalChinese: "繁中"
         case .japanese: "日本語"
         case .korean: "한국어"
         case .german: "DE"
         case .french: "FR"
         case .spanish: "ES"
+        case .italian: "IT"
+        case .brazilianPortuguese: "PT"
         case .russian: "RU"
+        case .turkish: "TR"
+        case .polish: "PL"
+        case .dutch: "NL"
         }
     }
 }

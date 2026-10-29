@@ -5,11 +5,14 @@ import Shared
 
 /// Localisation completeness and formatting (§11.5, §16.1).
 ///
-/// The spec requires eight languages with English as the fallback, so the tests
-/// check that every key has a translation in every language rather than trusting
-/// the generator.
+/// The spec requires every shipped language to carry a full translation with
+/// English as the fallback, so the tests check that every key has a translation
+/// in every language rather than trusting the generator.
 final class LocalizationTests: XCTestCase, @unchecked Sendable {
-    private let languages = ["en", "zh-hans", "ko", "ru", "es", "ja", "fr", "de"]
+    private let languages = [
+        "en", "zh-hans", "zh-hant", "ko", "ru", "es", "it", "pt-br",
+        "ja", "fr", "de", "tr", "pl", "nl",
+    ]
 
     func test_everyKeyResolves() {
         let unresolved = LocalizationKey.allCases.filter { $0.localized == $0.rawValue }
