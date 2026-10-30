@@ -94,41 +94,61 @@ public struct ScanView: View {
     /// The results page keeps the summary rail in place while the list scrolls.
     /// The clean action is the reason the page exists, so it must not move out of
     /// sight when a scan found hundreds of rows.
+    ///
+    /// The result list is the first thing in the scroll, not the scan's
+    /// footnotes: a run that could not read a few dozen locations used to open
+    /// on a two-screen "some locations could not be read" card with the whole
+    /// result list below the fold, and a chip click then changed a list the
+    /// user could not see. Failures stay on top — they explain a short list —
+    /// while the skipped locations and the cancelled notice follow the results
+    /// they supplement.
     private var resultsWorkspace: some View {
         HStack(alignment: .top, spacing: SiftMetrics.spacingL) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: SiftMetrics.pageSpacing) {
-                    statusMessages
-                    if filter == .duplicates {
-                        if scan.duplicateGroups.isEmpty {
-                            SiftGlassCard(padding: SiftMetrics.spacingXL) {
-                                SiftEmptyState(
-                                    symbolName: "doc.on.doc",
-                                    titleKey: .filesNoDuplicates,
-                                    detailKey: .filesRequiresAuthorization
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: SiftMetrics.pageSpacing) {
+                        Color.clear
+                            .frame(height: 1)
+                            .accessibilityHidden(true)
+                            .id(Self.listTopID)
+                        failureBanners
+                        if filter == .duplicates {
+                            if scan.duplicateGroups.isEmpty {
+                                SiftGlassCard(padding: SiftMetrics.spacingXL) {
+                                    SiftEmptyState(
+                                        symbolName: "doc.on.doc",
+                                        titleKey: .filesNoDuplicates,
+                                        detailKey: .filesRequiresAuthorization
+                                    )
+                                }
+                            } else {
+                                DuplicateGroupsCard(
+                                    groups: scan.duplicateGroups,
+                                    scan: scan,
+                                    cleanup: cleanup
                                 )
                             }
                         } else {
-                            DuplicateGroupsCard(
-                                groups: scan.duplicateGroups,
-                                scan: scan,
-                                cleanup: cleanup
-                            )
+                            resultsCard
+                            if !scan.duplicateGroups.isEmpty {
+                                DuplicateGroupsCard(
+                                    groups: scan.duplicateGroups,
+                                    scan: scan,
+                                    cleanup: cleanup
+                                )
+                            }
                         }
-                    } else {
-                        resultsCard
-                        if !scan.duplicateGroups.isEmpty {
-                            DuplicateGroupsCard(
-                                groups: scan.duplicateGroups,
-                                scan: scan,
-                                cleanup: cleanup
-                            )
-                        }
+                        supplementalMessages
                     }
+                    .padding(.horizontal, SiftMetrics.pagePadding)
+                    .padding(.bottom, SiftMetrics.spacingXL)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .padding(.horizontal, SiftMetrics.pagePadding)
-                .padding(.bottom, SiftMetrics.spacingXL)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                // A reload replaces the list the user may have scrolled down
+                // past, so the new one is shown from its first row.
+                .task(id: reloadKey) {
+                    proxy.scrollTo(Self.listTopID, anchor: .top)
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
@@ -143,8 +163,11 @@ public struct ScanView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
+    /// The id of the invisible anchor at the top of the result scroll.
+    private static let listTopID = "scan.result.list.top"
+
     @ViewBuilder
-    private var statusMessages: some View {
+    private var failureBanners: some View {
         if let failure = scan.failure {
             NoticeBanner(
                 level: .error,
@@ -161,6 +184,22 @@ public struct ScanView: View {
             // different statement from "the result could not be loaded".
             NoticeBanner(level: .error, message: failure)
         }
+    }
+
+    /// Scan context that supplements the result list rather than replacing it.
+    @ViewBuilder
+    private var supplementalMessages: some View {
+        if !scan.skippedLocations.isEmpty {
+            SkippedLocationsCard(locations: scan.skippedLocations)
+        }
+        if scan.phase == .cancelled {
+            NoticeBanner(level: .information, titleKey: .scanPhaseCancelled)
+        }
+    }
+
+    @ViewBuilder
+    private var statusMessages: some View {
+        failureBanners
         if !scan.skippedLocations.isEmpty {
             SkippedLocationsCard(locations: scan.skippedLocations)
         }
