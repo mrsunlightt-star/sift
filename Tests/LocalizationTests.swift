@@ -9,10 +9,10 @@ import Shared
 /// English as the fallback, so the tests check that every key has a translation
 /// in every language rather than trusting the generator.
 final class LocalizationTests: XCTestCase, @unchecked Sendable {
-    private let languages = [
-        "en", "zh-hans", "zh-hant", "ko", "ru", "es", "it", "pt-br",
-        "ja", "fr", "de", "tr", "pl", "nl", "lo", "ar", "he", "fa",
-    ]
+    /// Every language the app offers must ship a full table, so the list comes
+    /// from the same enum the picker renders rather than a second copy that can
+    /// fall behind it.
+    private let languages = SiftLanguage.allCases.map(\.rawValue)
 
     func test_everyKeyResolves() {
         let unresolved = LocalizationKey.allCases.filter { $0.localized == $0.rawValue }

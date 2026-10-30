@@ -22,6 +22,22 @@ public enum SiftLanguage: String, CaseIterable, Codable, Sendable, Identifiable 
     case arabic = "ar"
     case hebrew = "he"
     case persian = "fa"
+    case bulgarian = "bg"
+    case czech = "cs"
+    case danish = "da"
+    case greek = "el"
+    case latinAmericanSpanish = "es-419"
+    case finnish = "fi"
+    case hungarian = "hu"
+    case indonesian = "id"
+    case malay = "ms"
+    case norwegian = "nb"
+    case europeanPortuguese = "pt-pt"
+    case romanian = "ro"
+    case swedish = "sv"
+    case thai = "th"
+    case ukrainian = "uk"
+    case vietnamese = "vi"
 
     public var id: String { rawValue }
 
@@ -35,7 +51,7 @@ public enum SiftLanguage: String, CaseIterable, Codable, Sendable, Identifiable 
         case .korean: "한국어"
         case .german: "Deutsch"
         case .french: "Français"
-        case .spanish: "Español"
+        case .spanish: "Español (España)"
         case .italian: "Italiano"
         case .brazilianPortuguese: "Português (Brasil)"
         case .russian: "Русский"
@@ -46,6 +62,22 @@ public enum SiftLanguage: String, CaseIterable, Codable, Sendable, Identifiable 
         case .arabic: "العربية"
         case .hebrew: "עברית"
         case .persian: "فارسی"
+        case .bulgarian: "Български"
+        case .czech: "Čeština"
+        case .danish: "Dansk"
+        case .greek: "Ελληνικά"
+        case .latinAmericanSpanish: "Español (Latinoamérica)"
+        case .finnish: "Suomi"
+        case .hungarian: "Magyar"
+        case .indonesian: "Bahasa Indonesia"
+        case .malay: "Bahasa Melayu"
+        case .norwegian: "Norsk"
+        case .europeanPortuguese: "Português (Portugal)"
+        case .romanian: "Română"
+        case .swedish: "Svenska"
+        case .thai: "ไทย"
+        case .ukrainian: "Українська"
+        case .vietnamese: "Tiếng Việt"
         }
     }
 
@@ -69,6 +101,22 @@ public enum SiftLanguage: String, CaseIterable, Codable, Sendable, Identifiable 
         case .arabic: "ar"
         case .hebrew: "he"
         case .persian: "fa"
+        case .bulgarian: "bg"
+        case .czech: "cs"
+        case .danish: "da"
+        case .greek: "el"
+        case .latinAmericanSpanish: "es-419"
+        case .finnish: "fi"
+        case .hungarian: "hu"
+        case .indonesian: "id"
+        case .malay: "ms"
+        case .norwegian: "nb"
+        case .europeanPortuguese: "pt-PT"
+        case .romanian: "ro"
+        case .swedish: "sv"
+        case .thai: "th"
+        case .ukrainian: "uk"
+        case .vietnamese: "vi"
         }
     }
 
@@ -105,9 +153,17 @@ public enum SiftLanguage: String, CaseIterable, Codable, Sendable, Identifiable 
         if identifier.hasPrefix("ko") { return .korean }
         if identifier.hasPrefix("de") { return .german }
         if identifier.hasPrefix("fr") { return .french }
-        if identifier.hasPrefix("es") { return .spanish }
+        // Spanish and Portuguese each ship two variants, so the region decides.
+        // Bare "es" and the Iberian variants are Spain; every other Spanish
+        // region — including Apple's "es-419" — is Latin America. Bare "pt" is
+        // European Portuguese, the base variety; only Brazil is Brazilian.
+        if identifier == "es" || identifier.hasPrefix("es-es") || identifier.hasPrefix("es-ic") {
+            return .spanish
+        }
+        if identifier.hasPrefix("es") { return .latinAmericanSpanish }
         if identifier.hasPrefix("it") { return .italian }
-        if identifier.hasPrefix("pt") { return .brazilianPortuguese }
+        if identifier.hasPrefix("pt-br") { return .brazilianPortuguese }
+        if identifier.hasPrefix("pt") { return .europeanPortuguese }
         if identifier.hasPrefix("ru") { return .russian }
         if identifier.hasPrefix("tr") { return .turkish }
         if identifier.hasPrefix("pl") { return .polish }
@@ -116,6 +172,24 @@ public enum SiftLanguage: String, CaseIterable, Codable, Sendable, Identifiable 
         if identifier.hasPrefix("ar") { return .arabic }
         if identifier.hasPrefix("he") || identifier.hasPrefix("iw") { return .hebrew }
         if identifier.hasPrefix("fa") { return .persian }
+        if identifier.hasPrefix("bg") { return .bulgarian }
+        if identifier.hasPrefix("cs") { return .czech }
+        if identifier.hasPrefix("da") { return .danish }
+        if identifier.hasPrefix("el") { return .greek }
+        if identifier.hasPrefix("fi") { return .finnish }
+        if identifier.hasPrefix("hu") { return .hungarian }
+        if identifier.hasPrefix("id") { return .indonesian }
+        if identifier.hasPrefix("ms") { return .malay }
+        // Norwegian ships as Bokmål under "nb", but macOS also reports "no" and
+        // Nynorsk as "nn"; the shipped translation is Bokmål for all three.
+        if identifier.hasPrefix("nb") || identifier.hasPrefix("no") || identifier.hasPrefix("nn") {
+            return .norwegian
+        }
+        if identifier.hasPrefix("ro") { return .romanian }
+        if identifier.hasPrefix("sv") { return .swedish }
+        if identifier.hasPrefix("th") { return .thai }
+        if identifier.hasPrefix("uk") { return .ukrainian }
+        if identifier.hasPrefix("vi") { return .vietnamese }
         return .english
     }
 

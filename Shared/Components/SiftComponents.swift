@@ -1437,7 +1437,7 @@ public struct LanguageMenu: View {
     /// overlay in `body`; the empty label keeps the menu's click target.
     private var sizedMenu: some View {
         Menu {
-            ForEach(SiftLanguage.allCases) { language in
+            ForEach(orderedLanguages) { language in
                 Button {
                     onSelect(language)
                 } label: {
@@ -1456,6 +1456,17 @@ public struct LanguageMenu: View {
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
+    }
+
+    /// Endonyms in alphabetical order.
+    ///
+    /// With this many languages a declaration order is no longer something a
+    /// reader can scan, and the enum's order is not meaningful: it grew one
+    /// expansion at a time. Sorting here leaves the storage values untouched.
+    private var orderedLanguages: [SiftLanguage] {
+        SiftLanguage.allCases.sorted {
+            $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending
+        }
     }
 
     @ViewBuilder
@@ -1540,7 +1551,7 @@ public struct LanguageMenu: View {
         case .french: "FR"
         case .spanish: "ES"
         case .italian: "IT"
-        case .brazilianPortuguese: "PT"
+        case .brazilianPortuguese: "BR"
         case .russian: "RU"
         case .turkish: "TR"
         case .polish: "PL"
@@ -1549,6 +1560,22 @@ public struct LanguageMenu: View {
         case .arabic: "عربي"
         case .hebrew: "עברית"
         case .persian: "فارسی"
+        case .bulgarian: "БГ"
+        case .czech: "CS"
+        case .danish: "DA"
+        case .greek: "ΕΛ"
+        case .latinAmericanSpanish: "LAT"
+        case .finnish: "FI"
+        case .hungarian: "HU"
+        case .indonesian: "ID"
+        case .malay: "MS"
+        case .norwegian: "NO"
+        case .europeanPortuguese: "PT"
+        case .romanian: "RO"
+        case .swedish: "SV"
+        case .thai: "ไทย"
+        case .ukrainian: "УК"
+        case .vietnamese: "VI"
         }
     }
 }
