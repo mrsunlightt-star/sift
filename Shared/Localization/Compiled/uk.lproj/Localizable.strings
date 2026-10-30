@@ -203,6 +203,8 @@
 "files.threshold.large" = "Більші за %@";
 "files.threshold.old" = "Без змін %d днів";
 "files.title" = "Очищення файлів";
+"language.noResults" = "Немає відповідних мов";
+"language.search" = "Пошук мов";
 "nav.apps" = "Програми";
 "nav.dashboard" = "Огляд";
 "nav.fileCleanup" = "Очищення файлів";

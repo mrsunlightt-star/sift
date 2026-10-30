@@ -203,6 +203,8 @@
 "files.threshold.large" = "Plus de %@";
 "files.threshold.old" = "Non modifiés depuis %d jours";
 "files.title" = "Nettoyage de fichiers";
+"language.noResults" = "Aucune langue correspondante";
+"language.search" = "Rechercher une langue";
 "nav.apps" = "Apps";
 "nav.dashboard" = "Aperçu";
 "nav.fileCleanup" = "Nettoyage de fichiers";

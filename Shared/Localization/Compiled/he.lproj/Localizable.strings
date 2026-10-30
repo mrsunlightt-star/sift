@@ -203,6 +203,8 @@
 "files.threshold.large" = "גדולים מ-%@";
 "files.threshold.old" = "לא השתנו %d ימים";
 "files.title" = "ניקוי קבצים";
+"language.noResults" = "אין שפה מתאימה";
+"language.search" = "חיפוש שפות";
 "nav.apps" = "אפליקציות";
 "nav.dashboard" = "סקירה כללית";
 "nav.fileCleanup" = "ניקוי קבצים";

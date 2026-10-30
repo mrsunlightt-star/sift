@@ -203,6 +203,8 @@
 "files.threshold.large" = "Maiores que %@";
 "files.threshold.old" = "Sem alterações há %d dias";
 "files.title" = "Limpeza de ficheiros";
+"language.noResults" = "Nenhum idioma correspondente";
+"language.search" = "Pesquisar idiomas";
 "nav.apps" = "Aplicações";
 "nav.dashboard" = "Visão geral";
 "nav.fileCleanup" = "Limpeza de ficheiros";

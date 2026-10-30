@@ -203,6 +203,8 @@
 "files.threshold.large" = "Større enn %@";
 "files.threshold.old" = "Ikke endret på %d dager";
 "files.title" = "Filopprydding";
+"language.noResults" = "Ingen samsvarende språk";
+"language.search" = "Søk etter språk";
 "nav.apps" = "Apper";
 "nav.dashboard" = "Oversikt";
 "nav.fileCleanup" = "Filopprydding";

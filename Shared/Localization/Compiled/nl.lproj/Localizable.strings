@@ -203,6 +203,8 @@
 "files.threshold.large" = "Groter dan %@";
 "files.threshold.old" = "%d dagen niet gewijzigd";
 "files.title" = "Bestanden opschonen";
+"language.noResults" = "Geen overeenkomende taal";
+"language.search" = "Talen zoeken";
 "nav.apps" = "Apps";
 "nav.dashboard" = "Overzicht";
 "nav.fileCleanup" = "Bestanden opschonen";

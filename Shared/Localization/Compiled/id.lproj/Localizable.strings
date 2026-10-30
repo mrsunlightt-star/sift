@@ -203,6 +203,8 @@
 "files.threshold.large" = "Lebih besar dari %@";
 "files.threshold.old" = "Tidak berubah selama %d hari";
 "files.title" = "Pembersihan file";
+"language.noResults" = "Tidak ada bahasa yang cocok";
+"language.search" = "Cari bahasa";
 "nav.apps" = "Aplikasi";
 "nav.dashboard" = "Ringkasan";
 "nav.fileCleanup" = "Bersihkan File";

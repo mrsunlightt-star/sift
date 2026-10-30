@@ -203,6 +203,8 @@
 "files.threshold.large" = "大于 %@";
 "files.threshold.old" = "%d 天未修改";
 "files.title" = "文件清理";
+"language.noResults" = "没有匹配的语言";
+"language.search" = "搜索语言";
 "nav.apps" = "应用";
 "nav.dashboard" = "总览";
 "nav.fileCleanup" = "文件清理";

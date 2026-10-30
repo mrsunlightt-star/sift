@@ -1080,6 +1080,8 @@ STRINGS: dict[str, list[str]] = {
 
     "settings.headerStatus": ["Settings · Sift %@", "设置 · Sift %@", "설정 · Sift %@", "Настройки · Sift %@", "Ajustes · Sift %@", "設定 · Sift %@", "Réglages · Sift %@", "Einstellungen · Sift %@"],
     "common.sort": ["Sort", "排序", "정렬", "Сортировка", "Ordenar", "並び替え", "Trier", "Sortieren"],
+    "language.search": ["Search languages", "搜索语言", "언어 검색", "Поиск языков", "Buscar idiomas", "言語を検索", "Rechercher une langue", "Sprachen suchen"],
+    "language.noResults": ["No matching languages", "没有匹配的语言", "일치하는 언어가 없습니다", "Подходящих языков нет", "No hay idiomas coincidentes", "一致する言語がありません", "Aucune langue correspondante", "Keine passende Sprache"],
 }
 
 # Languages added with the 2.0 expansion. They are appended to every row in
@@ -1595,6 +1597,8 @@ STRINGS_EXPANSION: dict[str, list[str]] = {
 
     "settings.headerStatus": ["Impostazioni · Sift %@", "Ajustes · Sift %@", "設定 · Sift %@", "Ayarlar · Sift %@", "Ustawienia · Sift %@", "Instellingen · Sift %@"],
     "common.sort": ["Ordina", "Ordenar", "排序", "Sırala", "Sortuj", "Sorteren"],
+    "language.search": ["Cerca lingue", "Pesquisar idiomas", "搜尋語言", "Dil ara", "Szukaj języków", "Talen zoeken"],
+    "language.noResults": ["Nessuna lingua corrispondente", "Nenhum idioma correspondente", "沒有符合的語言", "Eşleşen dil yok", "Brak pasujących języków", "Geen overeenkomende taal"],
 }
 
 # The two tables are one catalogue: the v1 columns stay first and the expansion
@@ -2126,6 +2130,8 @@ STRINGS_EXPANSION_2: dict[str, list[str]] = {
 
     "settings.headerStatus": ["ການຕັ້ງຄ່າ · Sift %@", "الإعدادات · Sift %@", "הגדרות · Sift %@", "تنظیمات · Sift %@"],
     "common.sort": ["ຈັດລຳດັບ", "ترتيب", "מיין", "مرتب‌سازی"],
+    "language.search": ["ຄົ້ນຫາພາສາ", "البحث عن لغة", "חיפוש שפות", "جستجوی زبان"],
+    "language.noResults": ["ບໍ່ມີພາສາທີ່ກົງກັນ", "لا توجد لغة مطابقة", "אין שפה מתאימה", "زبانی مطابق یافت نشد"],
 }
 
 LANGUAGES = LANGUAGES + EXPANSION_2_LANGUAGES
@@ -2622,6 +2628,8 @@ STRINGS_EXPANSION_3: dict[str, list[str]] = {
     "storage.analyzedSummary": ["Измерени %@ · %@ файла", "Změřeno %@ · soubory: %@", "%@ målt · %@ filer", "Μετρήθηκαν %@ · %@ αρχεία", "%@ medidos · %@ archivos", "%@ mitattu · %@ tiedostoa", "%@ megmérve · %@ fájl", "%@ diukur · %@ file", "%@ diukur · %@ fail", "%@ målt · %@ filer", "%@ medidos · %@ ficheiros", "%@ măsurați · %@ fișiere", "%@ uppmätt · %@ filer", "วัดได้ %@ · %@ ไฟล์", "Виміряно %@ · %@ файлів", "Đo được %@ · %@ tệp"],
     "settings.headerStatus": ["Настройки · Sift %@", "Nastavení · Sift %@", "Indstillinger · Sift %@", "Ρυθμίσεις · Sift %@", "Ajustes · Sift %@", "Asetukset · Sift %@", "Beállítások · Sift %@", "Pengaturan · Sift %@", "Tetapan · Sift %@", "Innstillinger · Sift %@", "Definições · Sift %@", "Configurări · Sift %@", "Inställningar · Sift %@", "การตั้งค่า · Sift %@", "Налаштування · Sift %@", "Cài đặt · Sift %@"],
     "common.sort": ["Сортиране", "Seřadit", "Sortér", "Ταξινόμηση", "Ordenar", "Lajittele", "Rendezés", "Urutkan", "Isih", "Sorter", "Ordenar", "Sortează", "Sortera", "เรียงลำดับ", "Сортування", "Sắp xếp"],
+    "language.search": ["Търсене на езици", "Hledat jazyky", "Søg efter sprog", "Αναζήτηση γλωσσών", "Buscar idiomas", "Hae kieliä", "Nyelvek keresése", "Cari bahasa", "Cari bahasa", "Søk etter språk", "Pesquisar idiomas", "Caută limbi", "Sök språk", "ค้นหาภาษา", "Пошук мов", "Tìm ngôn ngữ"],
+    "language.noResults": ["Няма съвпадащ език", "Žádný odpovídající jazyk", "Ingen matchende sprog", "Δεν βρέθηκε γλώσσα", "No hay idiomas coincidentes", "Ei vastaavaa kieltä", "Nincs egyező nyelv", "Tidak ada bahasa yang cocok", "Tiada bahasa yang sepadan", "Ingen samsvarende språk", "Nenhum idioma correspondente", "Nicio limbă potrivită", "Inget matchande språk", "ไม่พบภาษาที่ตรงกัน", "Немає відповідних мов", "Không có ngôn ngữ phù hợp"],
 }
 
 LANGUAGES = LANGUAGES + EXPANSION_3_LANGUAGES

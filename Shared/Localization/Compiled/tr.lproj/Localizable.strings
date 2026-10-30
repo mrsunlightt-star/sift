@@ -203,6 +203,8 @@
 "files.threshold.large" = "%@ üzeri";
 "files.threshold.old" = "%d gündür değişmedi";
 "files.title" = "Dosya temizliği";
+"language.noResults" = "Eşleşen dil yok";
+"language.search" = "Dil ara";
 "nav.apps" = "Uygulamalar";
 "nav.dashboard" = "Genel Bakış";
 "nav.fileCleanup" = "Dosya Temizliği";

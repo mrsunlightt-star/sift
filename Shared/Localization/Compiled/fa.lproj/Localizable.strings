@@ -203,6 +203,8 @@
 "files.threshold.large" = "بزرگ‌تر از %@";
 "files.threshold.old" = "%d روز تغییر نکرده";
 "files.title" = "پاک‌سازی فایل‌ها";
+"language.noResults" = "زبانی مطابق یافت نشد";
+"language.search" = "جستجوی زبان";
 "nav.apps" = "برنامه‌ها";
 "nav.dashboard" = "نمای کلی";
 "nav.fileCleanup" = "پاک‌سازی فایل‌ها";

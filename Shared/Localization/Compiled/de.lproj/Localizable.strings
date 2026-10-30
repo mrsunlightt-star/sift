@@ -203,6 +203,8 @@
 "files.threshold.large" = "Größer als %@";
 "files.threshold.old" = "Seit %d Tagen unverändert";
 "files.title" = "Dateien bereinigen";
+"language.noResults" = "Keine passende Sprache";
+"language.search" = "Sprachen suchen";
 "nav.apps" = "Apps";
 "nav.dashboard" = "Übersicht";
 "nav.fileCleanup" = "Dateien bereinigen";

@@ -203,6 +203,8 @@
 "files.threshold.large" = "ใหญ่กว่า %@";
 "files.threshold.old" = "ไม่มีการเปลี่ยนแปลงมา %d วัน";
 "files.title" = "ล้างไฟล์";
+"language.noResults" = "ไม่พบภาษาที่ตรงกัน";
+"language.search" = "ค้นหาภาษา";
 "nav.apps" = "แอป";
 "nav.dashboard" = "ภาพรวม";
 "nav.fileCleanup" = "ล้างไฟล์";

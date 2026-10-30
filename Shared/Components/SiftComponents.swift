@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 
 // MARK: - Surfaces
@@ -1407,6 +1408,7 @@ public struct LanguageMenu: View {
     private let style: Style
     private let identifier: String
     private let onSelect: (SiftLanguage) -> Void
+    @State private var isPickerPresented = false
 
     public init(
         selection: SiftLanguage,
@@ -1426,46 +1428,32 @@ public struct LanguageMenu: View {
             .accessibilityIdentifier(identifier)
             .accessibilityLabel(Text(LocalizationKey.settingsGroupLanguage.localized))
             .accessibilityValue(Text(selection.displayName))
+            .popover(isPresented: $isPickerPresented, arrowEdge: popoverEdge) {
+                LanguagePickerView(selection: selection) { language in
+                    onSelect(language)
+                    isPickerPresented = false
+                }
+            }
     }
 
-    /// The menu itself, sized to the style's control box.
-    ///
-    /// The label is deliberately empty: macOS re-templates a menu label made of
-    /// an Image and a Text into the pull-down's (image, title) representation —
-    /// the vertical rail item collapsed into a horizontal globe-and-title at
-    /// the rail's leading edge, in the control tint. The styled control is the
-    /// overlay in `body`; the empty label keeps the menu's click target.
-    private var sizedMenu: some View {
-        Menu {
-            ForEach(orderedLanguages) { language in
-                Button {
-                    onSelect(language)
-                } label: {
-                    HStack {
-                        Text(language.displayName)
-                        if language == selection {
-                            Image(systemName: "checkmark")
-                        }
-                    }
-                }
-                .accessibilityIdentifier("language.\(language.rawValue)")
-            }
+    /// A plain button rather than a `Menu`: 34 languages do not fit in a menu
+    /// that the window has to grow for, and a menu cannot carry a search field.
+    /// The label is empty because the styled control is the overlay above it.
+    private var trigger: some View {
+        Button {
+            isPickerPresented.toggle()
         } label: {
             Color.clear
                 .contentShape(Rectangle())
         }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
+        .buttonStyle(.plain)
     }
 
-    /// Endonyms in alphabetical order.
-    ///
-    /// With this many languages a declaration order is no longer something a
-    /// reader can scan, and the enum's order is not meaningful: it grew one
-    /// expansion at a time. Sorting here leaves the storage values untouched.
-    private var orderedLanguages: [SiftLanguage] {
-        SiftLanguage.allCases.sorted {
-            $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending
+    /// The picker opens toward the window's content, away from the rail edge.
+    private var popoverEdge: Edge {
+        switch style {
+        case .rail: .trailing
+        case .sidebar, .settings: .leading
         }
     }
 
@@ -1473,14 +1461,14 @@ public struct LanguageMenu: View {
     private var sized: some View {
         switch style {
         case .rail:
-            sizedMenu
+            trigger
                 .frame(width: SiftMetrics.railItemWidth, height: SiftMetrics.railItemHeight)
         case .sidebar:
-            sizedMenu
+            trigger
                 .frame(maxWidth: .infinity, minHeight: 30)
         case .settings:
-            sizedMenu
-                .frame(maxWidth: .infinity)
+            trigger
+                .frame(maxWidth: .infinity, minHeight: 30)
         }
     }
 
@@ -1577,5 +1565,151 @@ public struct LanguageMenu: View {
         case .ukrainian: "УК"
         case .vietnamese: "VI"
         }
+    }
+}
+
+/// A fixed-height, searchable list of every shipped language.
+///
+/// The picker is a popover rather than a menu because the list is longer than
+/// the window is tall: a menu would either clip or push the window's edge off
+/// screen. The search field narrows the list by endonym, language code or
+/// locale identifier, and matching ignores case and diacritics so `espana`
+/// finds `Español (España)`.
+private struct LanguagePickerView: View {
+    let selection: SiftLanguage
+    let onSelect: (SiftLanguage) -> Void
+
+    @State private var query = ""
+    @FocusState private var isSearchFocused: Bool
+
+    private static let orderedLanguages = SiftLanguage.allCases.sorted {
+        $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending
+    }
+
+    private var matches: [SiftLanguage] {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return Self.orderedLanguages }
+        return Self.orderedLanguages.filter { language in
+            language.displayName.range(
+                of: trimmed,
+                options: [.caseInsensitive, .diacriticInsensitive]
+            ) != nil
+                || language.rawValue.range(of: trimmed, options: .caseInsensitive) != nil
+                || language.localeIdentifier.range(of: trimmed, options: .caseInsensitive) != nil
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            searchField
+            Divider()
+            if matches.isEmpty {
+                emptyState
+            } else {
+                list
+            }
+        }
+        .frame(width: 272, height: 360)
+        .onAppear {
+            // The field is not in a window until after the popover's first
+            // layout pass, so focusing it synchronously is ignored.
+            DispatchQueue.main.async { isSearchFocused = true }
+        }
+    }
+
+    private var searchField: some View {
+        HStack(spacing: SiftMetrics.spacingS) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+            TextField(LocalizationKey.languageSearch.localized, text: $query)
+                .textFieldStyle(.plain)
+                .font(SiftFont.body)
+                .focused($isSearchFocused)
+                .onSubmit {
+                    if let first = matches.first { choose(first) }
+                }
+        }
+        .padding(.horizontal, SiftMetrics.spacingM)
+        .frame(height: SiftMetrics.fieldHeight + 6)
+    }
+
+    private var list: some View {
+        ScrollView {
+            LazyVStack(spacing: 1) {
+                ForEach(matches) { language in
+                    LanguagePickerRow(
+                        language: language,
+                        isSelected: language == selection
+                    ) {
+                        choose(language)
+                    }
+                }
+            }
+            .padding(.vertical, SiftMetrics.spacingXS)
+            .padding(.horizontal, SiftMetrics.spacingXS)
+        }
+        .scrollIndicators(.visible)
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: SiftMetrics.spacingS) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 20, weight: .medium))
+                .foregroundStyle(.tertiary)
+            Text(LocalizationKey.languageNoResults.localized)
+                .font(SiftFont.body)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(SiftMetrics.spacingL)
+    }
+
+    private func choose(_ language: SiftLanguage) {
+        onSelect(language)
+    }
+}
+
+/// One row of the language picker: a checkmark column, the endonym, and a
+/// hover/selection fill that keeps the current language visible while the list
+/// scrolls.
+private struct LanguagePickerRow: View {
+    let language: SiftLanguage
+    let isSelected: Bool
+    let action: () -> Void
+
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: SiftMetrics.spacingS) {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 10, weight: .bold))
+                    .frame(width: 12)
+                    .opacity(isSelected ? 1 : 0)
+                Text(language.displayName)
+                    .font(SiftFont.body)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+            }
+            .foregroundStyle(isSelected ? SiftColor.accent : .primary)
+            .padding(.horizontal, SiftMetrics.spacingS)
+            .frame(height: 30)
+            .contentShape(Rectangle())
+            .background {
+                RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
+                    .fill(background)
+            }
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovering = $0 }
+        .accessibilityIdentifier("language.\(language.rawValue)")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private var background: Color {
+        if isSelected { return SiftColor.selectedFill }
+        return isHovering ? SiftColor.hoverFill : .clear
     }
 }

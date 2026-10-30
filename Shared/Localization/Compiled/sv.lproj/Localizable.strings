@@ -203,6 +203,8 @@
 "files.threshold.large" = "Större än %@";
 "files.threshold.old" = "Inte ändrad på %d dagar";
 "files.title" = "Filrensning";
+"language.noResults" = "Inget matchande språk";
+"language.search" = "Sök språk";
 "nav.apps" = "Appar";
 "nav.dashboard" = "Översikt";
 "nav.fileCleanup" = "Filrensning";

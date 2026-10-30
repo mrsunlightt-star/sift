@@ -31,6 +31,13 @@ public struct RootShellView: View {
             HStack(spacing: 0) {
                 IconRailView()
                 DetailView(destination: router.destination)
+                    // A language change has to rebuild the page subtree. The
+                    // strings come from `LocalizationKey.localized`, which reads
+                    // UserDefaults directly and is therefore invisible to
+                    // SwiftUI's dependency tracking: without a new identity, a
+                    // leaf view whose inputs did not change (the category grid,
+                    // for one) kept rendering the old language.
+                    .id(environment.preferences.language)
             }
 
             presentationLayer

@@ -210,6 +210,8 @@ public enum LocalizationKey: String, Sendable, CaseIterable {
     case filesThresholdLarge = "files.threshold.large"
     case filesThresholdOld = "files.threshold.old"
     case filesTitle = "files.title"
+    case languageNoResults = "language.noResults"
+    case languageSearch = "language.search"
     case navApps = "nav.apps"
     case navDashboard = "nav.dashboard"
     case navFileCleanup = "nav.fileCleanup"

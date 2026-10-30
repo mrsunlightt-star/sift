@@ -203,6 +203,8 @@
 "files.threshold.large" = "По-големи от %@";
 "files.threshold.old" = "Без промяна от %d дни";
 "files.title" = "Почистване на файлове";
+"language.noResults" = "Няма съвпадащ език";
+"language.search" = "Търсене на езици";
 "nav.apps" = "Приложения";
 "nav.dashboard" = "Преглед";
 "nav.fileCleanup" = "Почистване на файлове";

@@ -203,6 +203,8 @@
 "files.threshold.large" = "Nagyobb, mint %@";
 "files.threshold.old" = "%d napja nem változott";
 "files.title" = "Fájltisztítás";
+"language.noResults" = "Nincs egyező nyelv";
+"language.search" = "Nyelvek keresése";
 "nav.apps" = "Alkalmazások";
 "nav.dashboard" = "Áttekintés";
 "nav.fileCleanup" = "Fájltisztítás";

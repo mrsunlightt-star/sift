@@ -203,6 +203,8 @@
 "files.threshold.large" = "Larger than %@";
 "files.threshold.old" = "Not changed for %d days";
 "files.title" = "File cleanup";
+"language.noResults" = "No matching languages";
+"language.search" = "Search languages";
 "nav.apps" = "Apps";
 "nav.dashboard" = "Overview";
 "nav.fileCleanup" = "File Cleanup";

@@ -203,6 +203,8 @@
 "files.threshold.large" = "Μεγαλύτερα από %@";
 "files.threshold.old" = "Χωρίς αλλαγή για %d ημέρες";
 "files.title" = "Καθαρισμός αρχείων";
+"language.noResults" = "Δεν βρέθηκε γλώσσα";
+"language.search" = "Αναζήτηση γλωσσών";
 "nav.apps" = "Εφαρμογές";
 "nav.dashboard" = "Επισκόπηση";
 "nav.fileCleanup" = "Καθαρισμός αρχείων";

@@ -253,12 +253,15 @@ public final class AppEnvironment: ObservableObject {
 
     /// The one way the interface changes language.
     ///
-    /// The synchronous write is what lets `LocalizationKey.localized` return the
-    /// new language in the same render pass; the settings update is what makes
-    /// the choice survive a relaunch. Every control calls this, so there is no
-    /// second place that could store the preference differently.
+    /// Two writes, for two different readers. `persistSelection` makes
+    /// `LocalizationKey.localized` — which resolves through UserDefaults — return
+    /// the new language in the same render pass. Assigning `preferences` is what
+    /// makes SwiftUI notice: the language is an input to the shell, and a change
+    /// to it invalidates the view hierarchy. The settings update then stores the
+    /// choice under the same key, so the two cannot disagree.
     public func selectLanguage(_ language: SiftLanguage) {
         SiftLanguage.persistSelection(language)
+        preferences.language = language
         Task {
             await updateSettings { $0.language = language }
         }

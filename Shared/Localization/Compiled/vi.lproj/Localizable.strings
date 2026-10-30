@@ -203,6 +203,8 @@
 "files.threshold.large" = "Lớn hơn %@";
 "files.threshold.old" = "Không thay đổi trong %d ngày";
 "files.title" = "Dọn tệp";
+"language.noResults" = "Không có ngôn ngữ phù hợp";
+"language.search" = "Tìm ngôn ngữ";
 "nav.apps" = "Ứng dụng";
 "nav.dashboard" = "Tổng quan";
 "nav.fileCleanup" = "Dọn tệp";

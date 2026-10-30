@@ -203,6 +203,8 @@
 "files.threshold.large" = "Mai mari de %@";
 "files.threshold.old" = "Nemodificate de %d zile";
 "files.title" = "Curățare fișiere";
+"language.noResults" = "Nicio limbă potrivită";
+"language.search" = "Caută limbi";
 "nav.apps" = "Aplicații";
 "nav.dashboard" = "Prezentare generală";
 "nav.fileCleanup" = "Curățare fișiere";

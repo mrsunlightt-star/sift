@@ -203,6 +203,8 @@
 "files.threshold.large" = "أكبر من %@";
 "files.threshold.old" = "لم تُعدَّل منذ %d يومًا";
 "files.title" = "تنظيف الملفات";
+"language.noResults" = "لا توجد لغة مطابقة";
+"language.search" = "البحث عن لغة";
 "nav.apps" = "تطبيقات";
 "nav.dashboard" = "نظرة عامة";
 "nav.fileCleanup" = "تنظيف الملفات";

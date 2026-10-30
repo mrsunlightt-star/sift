@@ -203,6 +203,8 @@
 "files.threshold.large" = "Větší než %@";
 "files.threshold.old" = "Nezměněno %d dní";
 "files.title" = "Čištění souborů";
+"language.noResults" = "Žádný odpovídající jazyk";
+"language.search" = "Hledat jazyky";
 "nav.apps" = "Aplikace";
 "nav.dashboard" = "Přehled";
 "nav.fileCleanup" = "Čištění souborů";

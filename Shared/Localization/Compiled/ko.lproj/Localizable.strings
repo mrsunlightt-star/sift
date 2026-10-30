@@ -203,6 +203,8 @@
 "files.threshold.large" = "%@ 이상";
 "files.threshold.old" = "%d일 미변경";
 "files.title" = "파일 정리";
+"language.noResults" = "일치하는 언어가 없습니다";
+"language.search" = "언어 검색";
 "nav.apps" = "앱";
 "nav.dashboard" = "개요";
 "nav.fileCleanup" = "파일 정리";

@@ -203,6 +203,8 @@
 "files.threshold.large" = "Suurempi kuin %@";
 "files.threshold.old" = "Ei muutettu %d päivään";
 "files.title" = "Tiedostojen siivous";
+"language.noResults" = "Ei vastaavaa kieltä";
+"language.search" = "Hae kieliä";
 "nav.apps" = "Sovellukset";
 "nav.dashboard" = "Yleiskatsaus";
 "nav.fileCleanup" = "Tiedostojen siivous";
