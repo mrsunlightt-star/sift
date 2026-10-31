@@ -509,3 +509,41 @@ public actor LicenseKeyStore: LicenseKeyStoring {
         SecItemDelete(query as CFDictionary)
     }
 }
+
+/// A development-only key store: the licence key lives in the injected
+/// defaults.
+///
+/// The real store is the Keychain, and the Keychain binds its access control to
+/// the app's code signature. A development build is rebuilt constantly, and
+/// each rebuild re-asked for the stored key no matter how many times it had
+/// been allowed through — a prompt in the middle of every verification run.
+/// The development key is not a secret (it is committed to this repository), so
+/// the DEBUG build keeps it in defaults and the prompt disappears entirely.
+/// The release build keeps `LicenseKeyStore` and its protection.
+public actor DefaultsLicenseKeyStore: LicenseKeyStoring {
+    private let keyKey = "purchase.developmentLicenseKey"
+    private let presenceKey = "purchase.hasStoredLicense"
+    private let defaults: UserDefaults
+
+    public init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+    }
+
+    public func hasStoredKey() -> Bool {
+        defaults.bool(forKey: presenceKey)
+    }
+
+    public func save(_ key: String) {
+        defaults.set(true, forKey: presenceKey)
+        defaults.set(key, forKey: keyKey)
+    }
+
+    public func load() -> String? {
+        defaults.string(forKey: keyKey)
+    }
+
+    public func clear() {
+        defaults.removeObject(forKey: presenceKey)
+        defaults.removeObject(forKey: keyKey)
+    }
+}

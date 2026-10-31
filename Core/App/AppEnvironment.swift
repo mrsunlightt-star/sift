@@ -196,8 +196,17 @@ public final class AppEnvironment: ObservableObject {
             // the service that stores bookmarks give the same answer.
             rules.canAuthorize(url: url)
         }
+        // The development build stores the licence key in defaults: the
+        // Keychain re-asked for it after every rebuild, which put a password
+        // prompt in the middle of each verification run. The key it stores is
+        // not a secret. The release build keeps the Keychain store.
+        #if DEBUG
+        let licenseKeyStore: any LicenseKeyStoring = DefaultsLicenseKeyStore()
+        #else
+        let licenseKeyStore: any LicenseKeyStoring = LicenseKeyStore()
+        #endif
         self.entitlements = EntitlementService(
-            channel: DirectLicenseService { key in
+            channel: DirectLicenseService(keychain: licenseKeyStore) { key in
                 try LicenseVerifier.verify(key)
             },
             defaults: entitlementDefaults
