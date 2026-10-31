@@ -364,6 +364,7 @@
 "scan.skippedReason.partialFailure" = "Sebahagian lokasi ini tidak dapat dibaca.";
 "scan.skippedReason.permissionDenied" = "Sift memerlukan kebenaran tambahan untuk lokasi ini.";
 "scan.skippedReason.protectedLocation" = "Sift tidak pernah menyentuh lokasi ini, demi melindungi fail anda.";
+"scan.skippedReason.timedOut" = "Folder ini tidak bertindak balas, jadi dilangkau.";
 "scan.title" = "Imbas pintar";
 "settings.appearance.dark" = "Gelap";
 "settings.appearance.light" = "Cerah";

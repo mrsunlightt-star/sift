@@ -364,6 +364,7 @@
 "scan.skippedReason.partialFailure" = "تعذّرت قراءة جزء من هذا الموقع.";
 "scan.skippedReason.permissionDenied" = "يحتاج هذا الموقع إلى إذن إضافي.";
 "scan.skippedReason.protectedLocation" = "لحماية ملفاتك، لا يلمس Sift هذا الموقع أبدًا.";
+"scan.skippedReason.timedOut" = "لم يستجب هذا المجلد، لذلك تم تخطيه.";
 "scan.title" = "فحص ذكي";
 "settings.appearance.dark" = "داكن";
 "settings.appearance.light" = "فاتح";

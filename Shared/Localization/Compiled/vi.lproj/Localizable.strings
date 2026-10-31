@@ -364,6 +364,7 @@
 "scan.skippedReason.partialFailure" = "Không đọc được một phần của vị trí này.";
 "scan.skippedReason.permissionDenied" = "Sift cần thêm quyền cho vị trí này.";
 "scan.skippedReason.protectedLocation" = "Sift không bao giờ đụng đến vị trí này để bảo vệ tệp của bạn.";
+"scan.skippedReason.timedOut" = "Thư mục này không phản hồi nên đã bị bỏ qua.";
 "scan.title" = "Quét thông minh";
 "settings.appearance.dark" = "Tối";
 "settings.appearance.light" = "Sáng";

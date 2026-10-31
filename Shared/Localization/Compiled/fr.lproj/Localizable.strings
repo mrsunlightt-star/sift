@@ -364,6 +364,7 @@
 "scan.skippedReason.partialFailure" = "Une partie de cet emplacement n’a pas pu être lue.";
 "scan.skippedReason.permissionDenied" = "Cet emplacement nécessite une autorisation supplémentaire.";
 "scan.skippedReason.protectedLocation" = "Sift ne touche pas à cet emplacement pour protéger vos fichiers.";
+"scan.skippedReason.timedOut" = "Ce dossier n’a pas répondu, il a donc été ignoré.";
 "scan.title" = "Analyse intelligente";
 "settings.appearance.dark" = "Sombre";
 "settings.appearance.light" = "Clair";

@@ -364,6 +364,7 @@
 "scan.skippedReason.partialFailure" = "En del av dette stedet kunne ikke leses.";
 "scan.skippedReason.permissionDenied" = "Sift trenger ekstra tillatelse for dette stedet.";
 "scan.skippedReason.protectedLocation" = "Sift berører aldri dette stedet, for å beskytte filene dine.";
+"scan.skippedReason.timedOut" = "Denne mappen svarte ikke og ble hoppet over.";
 "scan.title" = "Smart skanning";
 "settings.appearance.dark" = "Mørk";
 "settings.appearance.light" = "Lys";

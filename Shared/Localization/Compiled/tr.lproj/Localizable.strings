@@ -364,6 +364,7 @@
 "scan.skippedReason.partialFailure" = "Bu konumun bir kısmı okunamadı.";
 "scan.skippedReason.permissionDenied" = "Bu konum için ek izin gerekiyor.";
 "scan.skippedReason.protectedLocation" = "Dosyalarınızı korumak için Sift bu konuma hiç dokunmaz.";
+"scan.skippedReason.timedOut" = "Bu klasör yanıt vermedi, bu yüzden atlandı.";
 "scan.title" = "Akıllı tarama";
 "settings.appearance.dark" = "Koyu";
 "settings.appearance.light" = "Açık";

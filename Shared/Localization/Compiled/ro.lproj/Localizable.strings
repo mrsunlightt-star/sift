@@ -364,6 +364,7 @@
 "scan.skippedReason.partialFailure" = "O parte a acestei locații nu a putut fi citită.";
 "scan.skippedReason.permissionDenied" = "Sift are nevoie de o permisiune suplimentară pentru această locație.";
 "scan.skippedReason.protectedLocation" = "Sift nu atinge niciodată această locație, pentru a-ți proteja fișierele.";
+"scan.skippedReason.timedOut" = "Acest dosar nu a răspuns, deci a fost ignorat.";
 "scan.title" = "Scanare inteligentă";
 "settings.appearance.dark" = "Întunecată";
 "settings.appearance.light" = "Luminoasă";

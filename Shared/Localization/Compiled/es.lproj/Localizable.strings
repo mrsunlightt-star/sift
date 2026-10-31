@@ -364,6 +364,7 @@
 "scan.skippedReason.partialFailure" = "Parte de esta ubicación no se pudo leer.";
 "scan.skippedReason.permissionDenied" = "Esta ubicación necesita permiso adicional.";
 "scan.skippedReason.protectedLocation" = "Sift no toca esta ubicación para proteger tus archivos.";
+"scan.skippedReason.timedOut" = "Esta carpeta no respondió, así que se omitió.";
 "scan.title" = "Análisis inteligente";
 "settings.appearance.dark" = "Oscuro";
 "settings.appearance.light" = "Claro";

@@ -364,6 +364,7 @@
 "scan.skippedReason.partialFailure" = "Parte desta localização não pôde ser lida.";
 "scan.skippedReason.permissionDenied" = "Esta localização precisa de permissão adicional.";
 "scan.skippedReason.protectedLocation" = "O Sift nunca mexe nesta localização, para proteger seus arquivos.";
+"scan.skippedReason.timedOut" = "Esta pasta não respondeu, então foi ignorada.";
 "scan.title" = "Verificação inteligente";
 "settings.appearance.dark" = "Escuro";
 "settings.appearance.light" = "Claro";

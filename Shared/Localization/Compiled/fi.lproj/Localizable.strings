@@ -364,6 +364,7 @@
 "scan.skippedReason.partialFailure" = "Osaa tästä sijainnista ei voitu lukea.";
 "scan.skippedReason.permissionDenied" = "Sift tarvitsee lisäkäyttöoikeuden tähän sijaintiin.";
 "scan.skippedReason.protectedLocation" = "Sift ei koskaan koske tähän sijaintiin tiedostojesi suojaamiseksi.";
+"scan.skippedReason.timedOut" = "Tämä kansio ei vastannut, joten se ohitettiin.";
 "scan.title" = "Älyskannaus";
 "settings.appearance.dark" = "Tumma";
 "settings.appearance.light" = "Vaalea";

@@ -364,6 +364,7 @@
 "scan.skippedReason.partialFailure" = "ບາງສ່ວນຂອງຕຳແໜ່ງນີ້ອ່ານບໍ່ໄດ້.";
 "scan.skippedReason.permissionDenied" = "ຕຳແໜ່ງນີ້ຕ້ອງການສິດເພີ່ມເຕີມ.";
 "scan.skippedReason.protectedLocation" = "ເພື່ອປົກປ້ອງໄຟລ໌ຂອງທ່ານ, Sift ຈະບໍ່ແຕະຕຳແໜ່ງນີ້.";
+"scan.skippedReason.timedOut" = "ໂຟນເດີນີ້ບໍ່ຕອບສະໜອງ, ຈຶ່ງຂ້າມໄປ.";
 "scan.title" = "ສະແກນອັດສະລິຍະ";
 "settings.appearance.dark" = "ມືດ";
 "settings.appearance.light" = "ສະຫວ່າງ";

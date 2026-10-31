@@ -364,6 +364,7 @@
 "scan.skippedReason.partialFailure" = "En del af denne placering kunne ikke læses.";
 "scan.skippedReason.permissionDenied" = "Sift kræver ekstra tilladelse til denne placering.";
 "scan.skippedReason.protectedLocation" = "Sift rører aldrig denne placering for at beskytte dine filer.";
+"scan.skippedReason.timedOut" = "Denne mappe svarede ikke og blev sprunget over.";
 "scan.title" = "Smart scanning";
 "settings.appearance.dark" = "Mørk";
 "settings.appearance.light" = "Lys";

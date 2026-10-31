@@ -378,6 +378,7 @@ public struct SkippedLocation: Identifiable, Hashable, Sendable {
         case "permissionDenied": .scanSkippedReasonPermissionDenied
         case "protectedLocation": .scanSkippedReasonProtectedLocation
         case "fileNotFound": .scanSkippedReasonFileNotFound
+        case "timedOut": .scanSkippedReasonTimedOut
         default: .scanSkippedReasonPartialFailure
         }
     }

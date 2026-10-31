@@ -364,6 +364,7 @@
 "scan.skippedReason.partialFailure" = "อ่านข้อมูลบางส่วนของตำแหน่งนี้ไม่ได้";
 "scan.skippedReason.permissionDenied" = "Sift ต้องได้รับสิทธิ์เพิ่มเติมสำหรับตำแหน่งนี้";
 "scan.skippedReason.protectedLocation" = "Sift จะไม่แตะต้องตำแหน่งนี้เพื่อปกป้องไฟล์ของคุณ";
+"scan.skippedReason.timedOut" = "โฟลเดอร์นี้ไม่ตอบสนอง จึงถูกข้ามไป";
 "scan.title" = "สแกนอัจฉริยะ";
 "settings.appearance.dark" = "มืด";
 "settings.appearance.light" = "สว่าง";

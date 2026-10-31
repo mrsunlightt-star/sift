@@ -10,8 +10,14 @@
 //! * a `protected` risk candidate is dropped rather than downgraded,
 //! * failures inside one rule never abort the scan.
 
+use crate::dir_lister::DirLister;
 use crate::types::{DuplicateOptions, ScanRequest};
 use crate::walker::{self, WalkEntry, WalkMode, WalkOptions, WalkReport};
+
+/// How long one measurement listing may take before the measured directory is
+/// treated as unreadable. Same reasoning as the walk's own deadline: far above
+/// any honest local directory, far below frozen.
+const MEASURE_OPEN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
 use sift_file_index::{GroupMemberRow, ItemRow};
 use sift_hasher::{hash_file, sample_fingerprint, CancelToken, FileIdentity};
 use sift_rules::{
@@ -701,15 +707,19 @@ pub fn measure_directory_matching(
     let root_device = std::fs::symlink_metadata(path)
         .ok()
         .map(|metadata| walker::device_of(&metadata));
+    // One deadline covers the whole measurement: a directory that never
+    // answers contributes nothing instead of stalling the candidate it is
+    // being measured for.
+    let mut lister = DirLister::new();
     while let Some(directory) = stack.pop() {
         if cancel.is_cancelled() {
             return measured;
         }
-        let Ok(entries) = std::fs::read_dir(&directory) else {
-            continue;
+        let entries = match lister.list(&directory, MEASURE_OPEN_TIMEOUT, cancel) {
+            Ok(Some(entries)) => entries,
+            Ok(None) | Err(_) => continue,
         };
-        for entry in entries.flatten() {
-            let entry_path = entry.path();
+        for entry_path in entries {
             let Ok(metadata) = std::fs::symlink_metadata(&entry_path) else {
                 continue;
             };
@@ -767,15 +777,16 @@ fn oldest_matching_modified_secs(
         .ok()
         .map(|metadata| walker::device_of(&metadata));
     let mut oldest: i64 = 0;
+    let mut lister = DirLister::new();
     while let Some(directory) = stack.pop() {
         if cancel.is_cancelled() {
             break;
         }
-        let Ok(entries) = std::fs::read_dir(&directory) else {
-            continue;
+        let entries = match lister.list(&directory, MEASURE_OPEN_TIMEOUT, cancel) {
+            Ok(Some(entries)) => entries,
+            Ok(None) | Err(_) => continue,
         };
-        for entry in entries.flatten() {
-            let entry_path = entry.path();
+        for entry_path in entries {
             let Ok(metadata) = std::fs::symlink_metadata(&entry_path) else {
                 continue;
             };

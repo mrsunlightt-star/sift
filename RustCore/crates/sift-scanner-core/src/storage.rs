@@ -8,7 +8,12 @@
 //! Memory bound: only `top_file_limit` files and `top_directory_limit`
 //! directories are retained, no matter how many files the volume holds.
 
+use crate::dir_lister::DirLister;
 use crate::walker::{self, DEFAULT_SKIP_DIRECTORY_NAMES};
+
+/// How long one storage-rollup listing may take before the directory counts as
+/// skipped. Matches the scanner's deadline.
+const MEASURE_OPEN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
 use sift_hasher::CancelToken;
 use sift_rules::{collapse_path, is_prefix_of, is_protected_path_authorized, normalize_path};
 use std::collections::HashMap;
@@ -571,21 +576,27 @@ pub fn analyse(options: &AnalysisOptions, cancel: &CancelToken) -> StorageAnalys
         // Depth-first with an explicit stack keeps the call stack flat on deep
         // trees and never keeps a level of sibling directories in memory.
         let mut stack = vec![root];
+        // The storage page has the same exposure as the scanner: one directory
+        // whose open never answers would freeze the analysis behind it. The
+        // deadline turns that into one more skipped directory.
+        let mut lister = DirLister::new();
         while let Some(directory) = stack.pop() {
             if cancel.is_cancelled() {
                 accumulator.cancelled = true;
                 break;
             }
-            let Ok(entries) = std::fs::read_dir(&directory) else {
-                accumulator.skipped += 1;
-                continue;
+            let entries = match lister.list(&directory, MEASURE_OPEN_TIMEOUT, cancel) {
+                Ok(Some(entries)) => entries,
+                Ok(None) | Err(_) => {
+                    accumulator.skipped += 1;
+                    continue;
+                }
             };
-            for entry in entries.flatten() {
+            for path in entries {
                 if cancel.is_cancelled() {
                     accumulator.cancelled = true;
                     break;
                 }
-                let path = entry.path();
                 if is_ignored(&path, &ignored) {
                     continue;
                 }

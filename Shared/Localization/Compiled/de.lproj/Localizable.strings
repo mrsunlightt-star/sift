@@ -364,6 +364,7 @@
 "scan.skippedReason.partialFailure" = "Ein Teil dieses Ortes konnte nicht gelesen werden.";
 "scan.skippedReason.permissionDenied" = "Für diesen Ort ist eine zusätzliche Berechtigung nötig.";
 "scan.skippedReason.protectedLocation" = "Sift lässt diesen Ort zum Schutz Ihrer Dateien unberührt.";
+"scan.skippedReason.timedOut" = "Dieses Verzeichnis hat nicht geantwortet und wurde übersprungen.";
 "scan.title" = "Intelligenter Scan";
 "settings.appearance.dark" = "Dunkel";
 "settings.appearance.light" = "Hell";

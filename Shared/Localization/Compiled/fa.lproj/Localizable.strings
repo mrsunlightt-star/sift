@@ -364,6 +364,7 @@
 "scan.skippedReason.partialFailure" = "بخشی از این مکان خوانده نشد.";
 "scan.skippedReason.permissionDenied" = "این مکان به مجوز بیشتری نیاز دارد.";
 "scan.skippedReason.protectedLocation" = "برای محافظت از فایل‌هایتان، Sift هرگز به این مکان دست نمی‌زند.";
+"scan.skippedReason.timedOut" = "این پوشه پاسخ نداد، بنابراین نادیده گرفته شد.";
 "scan.title" = "اسکن هوشمند";
 "settings.appearance.dark" = "تاریک";
 "settings.appearance.light" = "روشن";

@@ -16,6 +16,7 @@
 //! * [`storage`] — volume and per-category rollups for the storage analysis page.
 
 pub mod coordinator;
+mod dir_lister;
 pub mod scanners;
 pub mod storage;
 pub mod types;

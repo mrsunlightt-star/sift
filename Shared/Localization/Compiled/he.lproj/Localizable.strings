@@ -364,6 +364,7 @@
 "scan.skippedReason.partialFailure" = "לא ניתן היה לקרוא חלק ממיקום זה.";
 "scan.skippedReason.permissionDenied" = "מיקום זה דורש הרשאה נוספת.";
 "scan.skippedReason.protectedLocation" = "כדי להגן על הקבצים שלכם, Sift לעולם לא נוגע במיקום זה.";
+"scan.skippedReason.timedOut" = "התיקייה לא הגיבה, ולכן דולגה.";
 "scan.title" = "סריקה חכמה";
 "settings.appearance.dark" = "כהה";
 "settings.appearance.light" = "בהיר";

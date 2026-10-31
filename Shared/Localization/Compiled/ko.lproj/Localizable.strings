@@ -364,6 +364,7 @@
 "scan.skippedReason.partialFailure" = "이 위치의 일부를 읽을 수 없습니다.";
 "scan.skippedReason.permissionDenied" = "이 위치에는 추가 권한이 필요합니다.";
 "scan.skippedReason.protectedLocation" = "파일 보호를 위해 이 위치는 처리하지 않습니다.";
+"scan.skippedReason.timedOut" = "이 디렉터리가 응답하지 않아 건너뛰었습니다.";
 "scan.title" = "스마트 스캔";
 "settings.appearance.dark" = "다크";
 "settings.appearance.light" = "라이트";

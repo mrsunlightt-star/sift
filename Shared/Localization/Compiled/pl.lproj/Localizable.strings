@@ -364,6 +364,7 @@
 "scan.skippedReason.partialFailure" = "Części tej lokalizacji nie udało się odczytać.";
 "scan.skippedReason.permissionDenied" = "Ta lokalizacja wymaga dodatkowych uprawnień.";
 "scan.skippedReason.protectedLocation" = "Sift nigdy nie dotyka tej lokalizacji, aby chronić Twoje pliki.";
+"scan.skippedReason.timedOut" = "Ten folder nie odpowiedział, więc został pominięty.";
 "scan.title" = "Inteligentne skanowanie";
 "settings.appearance.dark" = "Ciemny";
 "settings.appearance.light" = "Jasny";

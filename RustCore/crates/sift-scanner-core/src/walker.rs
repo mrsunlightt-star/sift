@@ -21,6 +21,9 @@ use sift_rules::{
 pub use sift_rules::is_package_directory as is_package_directory_export;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
+
+use crate::dir_lister::DirLister;
 
 /// What a walk should collect for each entry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -57,6 +60,15 @@ pub struct WalkOptions {
     pub skip_hidden: bool,
     /// Report package directories as entries instead of descending into them.
     pub stop_at_packages: bool,
+    /// How long one directory's listing may take before it is skipped.
+    ///
+    /// A directory whose open never answers — a policy check waiting on a
+    /// dialog nobody sees, a wedged mount — used to stall the whole walk
+    /// behind it for as long as the kernel refused. With a deadline the walk
+    /// records the directory as skipped and continues; the timeout covers the
+    /// whole listing, and thirty seconds is far above any honest local
+    /// directory while far below "frozen".
+    pub open_timeout: Duration,
     /// Never cross into another volume.
     ///
     /// A directory can be a mount point of a disk image or a network share
@@ -78,6 +90,7 @@ impl WalkOptions {
             max_entries: None,
             skip_hidden: false,
             stop_at_packages: true,
+            open_timeout: Duration::from_secs(30),
             stay_on_device: true,
         }
     }
@@ -235,6 +248,7 @@ pub fn walk(root: &Path, options: &WalkOptions, cancel: &CancelToken) -> WalkRep
     let normalized_skips = normalize_skip_paths(&options.skip_paths);
     let mut stack: Vec<(PathBuf, u32)> = vec![(root.to_path_buf(), 0)];
     let root_device = device_of(&root_metadata);
+    let mut lister = DirLister::new();
 
     while let Some((directory, depth)) = stack.pop() {
         if cancel.is_cancelled() {
@@ -242,27 +256,33 @@ pub fn walk(root: &Path, options: &WalkOptions, cancel: &CancelToken) -> WalkRep
             return report;
         }
 
-        let read_dir = match std::fs::read_dir(&directory) {
-            Ok(entries) => entries,
+        let entries = match lister.list(&directory, options.open_timeout, cancel) {
+            Ok(Some(entries)) => entries,
+            Ok(None) => {
+                if cancel.is_cancelled() {
+                    report.cancelled = true;
+                    return report;
+                }
+                report.skips.push(WalkSkip {
+                    path: directory,
+                    code: "timedOut",
+                    message: "The directory did not answer in time; skipped rather than waiting."
+                        .to_string(),
+                    needs_full_disk_access: false,
+                });
+                continue;
+            }
             Err(error) => {
                 report.skips.push(skip_for(&directory, &error));
                 continue;
             }
         };
 
-        for entry_result in read_dir {
+        for path in entries {
             if cancel.is_cancelled() {
                 report.cancelled = true;
                 return report;
             }
-            let entry = match entry_result {
-                Ok(entry) => entry,
-                Err(error) => {
-                    report.skips.push(skip_for(&directory, &error));
-                    continue;
-                }
-            };
-            let path = entry.path();
 
             if is_skipped_normalized(&path, &normalized_skips) {
                 continue;
@@ -352,7 +372,7 @@ pub fn walk(root: &Path, options: &WalkOptions, cancel: &CancelToken) -> WalkRep
                     }
                     // A bundle counts as one item: report it and measure it as a
                     // unit rather than descending file by file.
-                    let measured = measure_within(&path, cancel, options, &mut report);
+                    let measured = measure_within(&path, cancel, options, &mut report, &mut lister);
                     report.entries.push(WalkEntry {
                         path: path.clone(),
                         is_directory: true,
@@ -441,6 +461,7 @@ fn measure_within(
     cancel: &CancelToken,
     options: &WalkOptions,
     report: &mut WalkReport,
+    lister: &mut DirLister,
 ) -> Measured {
     let mut total = Measured { bytes: 0, files: 0 };
     let normalized_skips = normalize_skip_paths(&options.skip_paths);
@@ -451,15 +472,14 @@ fn measure_within(
             report.cancelled = true;
             return total;
         }
-        let read_dir = match std::fs::read_dir(&directory) {
-            Ok(entries) => entries,
-            Err(error) => {
-                report.skips.push(skip_for(&directory, &error));
-                continue;
-            }
+        let entries = match lister.list(&directory, options.open_timeout, cancel) {
+            Ok(Some(entries)) => entries,
+            // A timed-out directory contributes nothing to the measurement
+            // rather than stalling the candidate it is being measured for;
+            // the walk's own listing records the skip when it hits it.
+            Ok(None) | Err(_) => continue,
         };
-        for entry in read_dir.flatten() {
-            let path = entry.path();
+        for path in entries {
             let name = path
                 .file_name()
                 .map(|n| n.to_string_lossy().to_string())

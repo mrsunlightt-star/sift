@@ -364,6 +364,7 @@
 "scan.skippedReason.partialFailure" = "Част от това място не можа да бъде прочетена.";
 "scan.skippedReason.permissionDenied" = "Sift се нуждае от допълнително разрешение за това място.";
 "scan.skippedReason.protectedLocation" = "Sift никога не докосва това място, за да защити вашите файлове.";
+"scan.skippedReason.timedOut" = "Тази папка не отговори, затова беше пропусната.";
 "scan.title" = "Интелигентно сканиране";
 "settings.appearance.dark" = "Тъмен";
 "settings.appearance.light" = "Светъл";

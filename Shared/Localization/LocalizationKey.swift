@@ -371,6 +371,7 @@ public enum LocalizationKey: String, Sendable, CaseIterable {
     case scanSkippedReasonPartialFailure = "scan.skippedReason.partialFailure"
     case scanSkippedReasonPermissionDenied = "scan.skippedReason.permissionDenied"
     case scanSkippedReasonProtectedLocation = "scan.skippedReason.protectedLocation"
+    case scanSkippedReasonTimedOut = "scan.skippedReason.timedOut"
     case scanTitle = "scan.title"
     case settingsAppearanceDark = "settings.appearance.dark"
     case settingsAppearanceLight = "settings.appearance.light"

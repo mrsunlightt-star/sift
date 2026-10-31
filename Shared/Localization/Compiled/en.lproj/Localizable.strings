@@ -364,6 +364,7 @@
 "scan.skippedReason.partialFailure" = "Part of this location could not be read.";
 "scan.skippedReason.permissionDenied" = "Sift needs extra permission for this location.";
 "scan.skippedReason.protectedLocation" = "Sift never touches this location, to protect your files.";
+"scan.skippedReason.timedOut" = "This directory stopped responding, so Sift skipped it.";
 "scan.title" = "Smart scan";
 "settings.appearance.dark" = "Dark";
 "settings.appearance.light" = "Light";

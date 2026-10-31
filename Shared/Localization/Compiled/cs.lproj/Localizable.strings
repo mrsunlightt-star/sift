@@ -364,6 +364,7 @@
 "scan.skippedReason.partialFailure" = "Část tohoto místa nebylo možné načíst.";
 "scan.skippedReason.permissionDenied" = "Sift potřebuje pro toto místo zvláštní oprávnění.";
 "scan.skippedReason.protectedLocation" = "Sift toto místo nikdy neupravuje, aby ochránil vaše soubory.";
+"scan.skippedReason.timedOut" = "Tato složka neodpověděla, a byla proto přeskočena.";
 "scan.title" = "Chytré skenování";
 "settings.appearance.dark" = "Tmavý";
 "settings.appearance.light" = "Světlý";

@@ -364,6 +364,7 @@
 "scan.skippedReason.partialFailure" = "Een deel van deze locatie kon niet worden gelezen.";
 "scan.skippedReason.permissionDenied" = "Voor deze locatie is een extra machtiging nodig.";
 "scan.skippedReason.protectedLocation" = "Sift raakt deze locatie nooit aan, om je bestanden te beschermen.";
+"scan.skippedReason.timedOut" = "Deze map reageerde niet en is daarom overgeslagen.";
 "scan.title" = "Slimme scan";
 "settings.appearance.dark" = "Donker";
 "settings.appearance.light" = "Licht";

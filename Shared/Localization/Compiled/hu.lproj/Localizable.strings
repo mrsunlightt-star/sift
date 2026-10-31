@@ -364,6 +364,7 @@
 "scan.skippedReason.partialFailure" = "A hely egy részét nem sikerült beolvasni.";
 "scan.skippedReason.permissionDenied" = "A Siftnek további engedélyre van szüksége ehhez a helyhez.";
 "scan.skippedReason.protectedLocation" = "A Sift soha nem nyúl ehhez a helyhez, hogy védje a fájljait.";
+"scan.skippedReason.timedOut" = "Ez a mappa nem válaszolt, ezért ki lett hagyva.";
 "scan.title" = "Intelligens vizsgálat";
 "settings.appearance.dark" = "Sötét";
 "settings.appearance.light" = "Világos";

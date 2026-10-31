@@ -364,6 +364,7 @@
 "scan.skippedReason.partialFailure" = "この場所の一部を読み取れませんでした。";
 "scan.skippedReason.permissionDenied" = "この場所には追加の権限が必要です。";
 "scan.skippedReason.protectedLocation" = "ファイルを保護するため、この場所は処理しません。";
+"scan.skippedReason.timedOut" = "このディレクトリが応答しないためスキップしました。";
 "scan.title" = "スマートスキャン";
 "settings.appearance.dark" = "ダーク";
 "settings.appearance.light" = "ライト";

@@ -364,6 +364,7 @@
 "scan.skippedReason.partialFailure" = "此位置的一部分無法讀取。";
 "scan.skippedReason.permissionDenied" = "這個位置需要額外權限。";
 "scan.skippedReason.protectedLocation" = "為保護你的檔案，Sift 不會處理此位置。";
+"scan.skippedReason.timedOut" = "此目錄長時間無回應，已跳過。";
 "scan.title" = "智慧掃描";
 "settings.appearance.dark" = "深色";
 "settings.appearance.light" = "淺色";

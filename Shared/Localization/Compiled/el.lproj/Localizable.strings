@@ -364,6 +364,7 @@
 "scan.skippedReason.partialFailure" = "Ένα μέρος αυτής της τοποθεσίας δεν ήταν δυνατό να διαβαστεί.";
 "scan.skippedReason.permissionDenied" = "Το Sift χρειάζεται πρόσθετη άδεια για αυτή την τοποθεσία.";
 "scan.skippedReason.protectedLocation" = "Το Sift δεν αγγίζει ποτέ αυτή την τοποθεσία, για να προστατεύει τα αρχεία σας.";
+"scan.skippedReason.timedOut" = "Αυτός ο φάκελος δεν απάντησε, οπότε παραλείφθηκε.";
 "scan.title" = "Έξυπνη σάρωση";
 "settings.appearance.dark" = "Σκοτεινό";
 "settings.appearance.light" = "Φωτεινό";
