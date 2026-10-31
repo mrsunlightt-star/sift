@@ -160,7 +160,19 @@ public final class AppEnvironment: ObservableObject {
 
     private let logger = SiftLog.make("App")
 
-    public init(settings: SettingsStore = SettingsStore()) {
+    /// - Parameters:
+    ///   - entitlementDefaults: Where the entitlement cache is read and written.
+    ///
+    /// The entitlement cache sits in `UserDefaults.standard` by default, which
+    /// is the app's own domain. A test suite hosted by the app shares that
+    /// domain, so an activation from a previous session would reach in and
+    /// unlock the tier under test — inject an isolated suite instead.
+    public init(settings: SettingsStore = SettingsStore(), entitlementDefaults: UserDefaults = .standard) {
+        // `UserDefaults` is documented thread-safe but is not marked `Sendable`,
+        // and this reference crosses from the main actor into the entitlement
+        // actor's initialiser. The strict checker cannot see the safety, so the
+        // crossing is stated here as the programmer's responsibility.
+        nonisolated(unsafe) let entitlementDefaults = entitlementDefaults
         // The initial engine uses the shipped table. `bootstrap()` reads the
         // injected settings store and rebuilds the rule-dependent services when
         // the user enabled their rule file. Reading `UserDefaults.standard`
@@ -184,9 +196,12 @@ public final class AppEnvironment: ObservableObject {
             // the service that stores bookmarks give the same answer.
             rules.canAuthorize(url: url)
         }
-        self.entitlements = EntitlementService(channel: DirectLicenseService { key in
-            try LicenseVerifier.verify(key)
-        })
+        self.entitlements = EntitlementService(
+            channel: DirectLicenseService { key in
+                try LicenseVerifier.verify(key)
+            },
+            defaults: entitlementDefaults
+        )
         self.applications = ApplicationDiscovery(rules: rules)
         self.volumes = VolumeEnumerator(rules: rules)
         self.diagnostics = StorageDiagnosticEngine()

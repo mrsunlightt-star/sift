@@ -26,7 +26,10 @@ final class AppEnvironmentTests: XCTestCase, @unchecked Sendable {
             supportDirectory: FileManager.default.temporaryDirectory
                 .appendingPathComponent("sift-environment-\(UUID().uuidString)", isDirectory: true)
         )
-        return AppEnvironment(settings: store)
+        // The entitlement cache shares the isolated suite too: hosted by the
+        // app, `.standard` is the app's own domain, and an activation left
+        // there by a session on this machine would unlock the tier under test.
+        return AppEnvironment(settings: store, entitlementDefaults: defaults)
     }
 
     /// The switch is a runtime setting, not a next-launch one.
