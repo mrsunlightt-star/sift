@@ -34,6 +34,33 @@ public enum OperationGateResult: Sendable {
     case busy
 }
 
+/// Verifies a licence key for the direct channel.
+///
+/// No licence vendor is wired yet; the specification leaves the choice open
+/// (§19). Until then a DEBUG build accepts one fixed development key, which is
+/// what lets the paywall's activation flow be exercised end to end — the field,
+/// the Keychain save and the unlocked state — on a development machine. The key
+/// is not a secret and not a licence format; it exists so development does not
+/// depend on a vendor that has not been chosen. A release build verifies
+/// nothing: every activation reports the service as unreachable, which is the
+/// honest answer while there is no licence service, and the free tier keeps
+/// working because a failed check never locks a user out.
+enum LicenseVerifier {
+    /// The key a DEBUG build accepts.
+    static let developmentKey = "SIFT-DEV-K7QM-3XPD-8R2V"
+
+    static func verify(_ key: String) throws -> EntitlementState {
+        #if DEBUG
+        if key == developmentKey {
+            return EntitlementState(channel: .direct, status: .unlocked(verifiedAt: Date()))
+        }
+        throw PurchaseError.invalidLicense
+        #else
+        throw PurchaseError.licenseServiceUnavailable
+        #endif
+    }
+}
+
 @MainActor
 public final class AppEnvironment: ObservableObject {
     // Settings and preferences.
@@ -157,12 +184,8 @@ public final class AppEnvironment: ObservableObject {
             // the service that stores bookmarks give the same answer.
             rules.canAuthorize(url: url)
         }
-        self.entitlements = EntitlementService(channel: DirectLicenseService { _ in
-            // No license vendor is wired yet; the specification leaves the choice
-            // open (§19). Until then every activation reports that the service is
-            // unreachable, which is the honest answer, and the free tier keeps
-            // working because a failed check never locks a user out.
-            throw PurchaseError.licenseServiceUnavailable
+        self.entitlements = EntitlementService(channel: DirectLicenseService { key in
+            try LicenseVerifier.verify(key)
         })
         self.applications = ApplicationDiscovery(rules: rules)
         self.volumes = VolumeEnumerator(rules: rules)
