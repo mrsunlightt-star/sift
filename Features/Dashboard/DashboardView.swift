@@ -199,19 +199,6 @@ public struct DashboardView: View {
                 .padding(.top, SiftMetrics.spacingXS)
             }
         }
-        // The hero is the one card allowed a wash of the accent: it is the page's
-        // subject, and the tint is what separates it from the summary cards.
-        .overlay {
-            RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusXL, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [SiftColor.accent.opacity(0.10), .clear],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .allowsHitTesting(false)
-        }
     }
 
     /// The hero's one explanatory sentence: how much is safe, and how much needs

@@ -185,6 +185,11 @@ struct IconRailView: View {
 
             Spacer(minLength: SiftMetrics.spacingL)
 
+            // The appearance switcher lives in the rail, above the account
+            // entry: it is a window-level control, and the footer is where the
+            // window-level controls sit.
+            appearanceMenu
+
             // The footer item is the purchase state: an accent call to unlock
             // while locked, the account entry once unlocked.
             if !environment.entitlement.isUnlocked {
@@ -292,6 +297,53 @@ struct IconRailView: View {
         .buttonStyle(SiftPressButtonStyle())
         .accessibilityIdentifier("sidebar.purchase")
         .help(LocalizationKey.purchaseTitle.localized)
+    }
+
+    /// The appearance switcher, as a rail footer item in the language menu's
+    /// idiom: the same box, icon size and label as every rail entry, opening a
+    /// small menu with the three modes. The current mode names the item, so the
+    /// state reads without opening it.
+    private var appearanceMenu: some View {
+        Menu {
+            ForEach(AppSettings.Appearance.allCases, id: \.self) { appearance in
+                Button {
+                    Task { await environment.updateSettings { $0.appearance = appearance } }
+                } label: {
+                    if appearance == environment.preferences.appearance {
+                        Label(appearance.titleKey.localized, systemImage: "checkmark")
+                    } else {
+                        Text(appearance.titleKey.localized)
+                    }
+                }
+            }
+        } label: {
+            VStack(spacing: 5) {
+                Image(systemName: appearanceIcon)
+                    .font(.system(size: 19, weight: .medium))
+                    .frame(height: 22)
+                Text(environment.preferences.appearance.titleKey.localized)
+                    .font(SiftFont.railLabel)
+                    .lineLimit(1)
+            }
+            .foregroundStyle(.secondary)
+            .frame(width: SiftMetrics.railItemWidth, height: SiftMetrics.railItemHeight)
+            .contentShape(Rectangle())
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .frame(width: SiftMetrics.railItemWidth, height: SiftMetrics.railItemHeight)
+        .accessibilityIdentifier("sidebar.appearance")
+        .accessibilityLabel(Text(LocalizationKey.settingsGroupAppearance.localized))
+        .accessibilityValue(Text(environment.preferences.appearance.titleKey.localized))
+        .help(LocalizationKey.settingsGroupAppearance.localized)
+    }
+
+    private var appearanceIcon: String {
+        switch environment.preferences.appearance {
+        case .system: "circle.lefthalf.filled"
+        case .light: "sun.max"
+        case .dark: "moon"
+        }
     }
 
     /// The unlocked footer item: the account page, where the purchase state and

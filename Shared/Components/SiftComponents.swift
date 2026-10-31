@@ -97,23 +97,10 @@ public struct SiftPanel<Content: View>: View {
 public struct SiftCanvasBackground: View {
     public init() {}
 
+    /// A flat canvas: one colour, no wash. The glass layers carry the depth.
     public var body: some View {
-        ZStack {
-            SiftColor.canvas
-            RadialGradient(
-                colors: [SiftColor.accent.opacity(0.16), SiftColor.accent.opacity(0)],
-                center: UnitPoint(x: 0.88, y: -0.06),
-                startRadius: 20,
-                endRadius: 700
-            )
-            RadialGradient(
-                colors: [SiftColor.review.opacity(0.07), .clear],
-                center: UnitPoint(x: 0.06, y: 1.06),
-                startRadius: 10,
-                endRadius: 640
-            )
-        }
-        .ignoresSafeArea()
+        SiftColor.canvas
+            .ignoresSafeArea()
     }
 }
 

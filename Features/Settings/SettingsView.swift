@@ -352,16 +352,9 @@ public struct SettingsView: View {
     private var appearanceSection: some View {
         SettingsGroup(titleKey: .settingsGroupAppearance) {
             VStack(alignment: .leading, spacing: SiftMetrics.spacingM) {
-                Picker(LocalizationKey.settingsGroupAppearance.localized, selection: Binding(
-                    get: { environment.preferences.appearance },
-                    set: { value in Task { await environment.updateSettings { $0.appearance = value } } }
-                )) {
-                    ForEach(AppSettings.Appearance.allCases, id: \.self) { appearance in
-                        Text(appearance.titleKey.localized).tag(appearance)
-                    }
-                }
-                .pickerStyle(.segmented)
-
+                // The light/dark/system switcher lives in the rail's footer,
+                // beside the language and account entries; this group keeps the
+                // rest of the appearance settings.
                 LanguageMenu(
                     selection: environment.preferences.language,
                     style: .settings(title: .settingsGroupLanguage),
