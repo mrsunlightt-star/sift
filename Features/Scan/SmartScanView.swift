@@ -1143,9 +1143,19 @@ struct ScanRunningCard: View {
     }
 }
 
-/// The skipped-location list, with the reason and the fix for each entry.
+/// The skipped-location list, rolled up by top-level directory.
+///
+/// A scan that cannot read ~/Library reports two dozen children and the flat
+/// list read like noise; the card now shows one row per directory — "~/Library
+/// · 24 项" — with the location-level detail one click away, because the
+/// summary is what the user can act on and the detail is what they audit.
 struct SkippedLocationsCard: View {
     let locations: [SkippedLocation]
+    @State private var expandedGroups: Set<String> = []
+
+    private var groups: [SkippedLocationGroup] {
+        SkippedLocation.groupedByTopLevelDirectory(locations)
+    }
 
     var body: some View {
         SiftGlassCard(padding: SiftMetrics.spacingL) {
@@ -1165,20 +1175,82 @@ struct SkippedLocationsCard: View {
                     }
                 }
                 Divider()
-                ForEach(locations) { location in
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(location.displayPath)
-                            .font(SiftFont.caption)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                        Text(location.reasonKey.localized)
-                            .font(SiftFont.caption)
-                            .foregroundStyle(.secondary)
+                ForEach(groups) { group in
+                    groupSection(group)
+                    if group.id != groups.last?.id {
+                        Divider()
                     }
-                    .padding(.vertical, 2)
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private func groupSection(_ group: SkippedLocationGroup) -> some View {
+        let isExpanded = expandedGroups.contains(group.id)
+        let isExpandable = group.locations.count > 1
+        VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
+            Button {
+                guard isExpandable else { return }
+                if isExpanded {
+                    expandedGroups.remove(group.id)
+                } else {
+                    expandedGroups.insert(group.id)
+                }
+            } label: {
+                HStack(spacing: SiftMetrics.spacingM) {
+                    Image(systemName: "folder")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.secondary)
+                    Text(group.label)
+                        .font(SiftFont.bodyEmphasis)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    if isExpandable {
+                        Text(LocalizationKey.commonItemCount.localized(group.locations.count))
+                            .font(SiftFont.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: SiftMetrics.spacingS)
+                    if isExpandable {
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(.tertiary)
+                            .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                    }
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(!isExpandable)
+            .accessibilityLabel(Text(group.label))
+            .accessibilityHint(Text(isExpandable ? LocalizationKey.overviewShowAll.localized : ""))
+
+            if let reason = group.sharedReasonKey {
+                Text(reason.localized)
+                    .font(SiftFont.caption)
+                    .foregroundStyle(.secondary)
+            }
+            if isExpanded {
+                ForEach(group.locations) { location in
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(location.displayPath)
+                            .font(SiftFont.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        if group.sharedReasonKey == nil {
+                            Text(location.reasonKey.localized)
+                                .font(SiftFont.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                    .padding(.leading, SiftMetrics.spacingXL)
+                    .padding(.vertical, 1)
+                }
+            }
+        }
+        .padding(.vertical, 2)
     }
 }
 

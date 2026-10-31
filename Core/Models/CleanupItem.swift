@@ -387,6 +387,62 @@ public struct SkippedLocation: Identifiable, Hashable, Sendable {
         guard let url else { return message }
         return CleanupItem.abbreviate(url.path)
     }
+
+    /// The path's top-level directory, e.g. `~/Library` for
+    /// `~/Library/Caches/com.apple.Safari`.
+    ///
+    /// A location the grouping cannot split (no URL, or a path the labels do
+    /// not cover) groups under its own display string.
+    public var topLevelDirectoryLabel: String {
+        guard let url else { return message }
+        let path = displayPath
+        if path.hasPrefix("~/") {
+            let parts = path.dropFirst(2).split(separator: "/", omittingEmptySubsequences: true)
+            return parts.isEmpty ? path : "~/" + parts[0]
+        }
+        if path.hasPrefix("/") {
+            let parts = path.split(separator: "/", omittingEmptySubsequences: true)
+            return parts.count > 1 ? "/" + parts[0] : path
+        }
+        return path
+    }
+
+    /// Locations rolled up by top-level directory, largest group first.
+    ///
+    /// A scan that cannot read ~/Library reports two dozen children, and a
+    /// flat list buries the shape of the problem: one directory the user could
+    /// grant once. The groups answer that shape; the card expands a group for
+    /// the location-level detail.
+    public static func groupedByTopLevelDirectory(
+        _ locations: [SkippedLocation]
+    ) -> [SkippedLocationGroup] {
+        var byLabel: [String: [SkippedLocation]] = [:]
+        for location in locations {
+            byLabel[location.topLevelDirectoryLabel, default: []].append(location)
+        }
+        return byLabel
+            .map { SkippedLocationGroup(label: $0.key, locations: $0.value) }
+            .sorted {
+                $0.locations.count != $1.locations.count
+                    ? $0.locations.count > $1.locations.count
+                    : $0.label < $1.label
+            }
+    }
+}
+
+/// One top-level directory's worth of skipped locations.
+public struct SkippedLocationGroup: Identifiable, Hashable, Sendable {
+    /// The directory the group is named after, e.g. `~/Library`.
+    public let label: String
+    public let locations: [SkippedLocation]
+
+    public var id: String { label }
+
+    /// The reason every member shares, when they share one.
+    public var sharedReasonKey: LocalizationKey? {
+        let keys = Set(locations.map(\.reasonKey))
+        return keys.count == 1 ? keys.first : nil
+    }
 }
 
 /// Live progress while a scan runs.

@@ -59,16 +59,21 @@ final class NSWorkspaceWorker {
     /// Opens the Privacy & Security pane of System Settings, where Full Disk
     /// Access lives (§10.2 step 3).
     func openFullDiskAccessSettings() {
+        // The anchor that lands on the Full Disk Access list itself comes
+        // first. The pane-level URL also opens successfully everywhere, so a
+        // pane-level candidate that "works" hides the precise one behind a page
+        // the user then has to find — exactly the confusion the button exists
+        // to prevent.
         let candidates = [
-            "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension",
             "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles",
+            "x-apple.systempreferences:com.apple.settings.privacy?Privacy_AllFiles",
         ]
         for candidate in candidates {
             if let url = URL(string: candidate), NSWorkspace.shared.open(url) {
                 return
             }
         }
-        if let fallback = URL(string: "x-apple.systempreferences:com.apple.preference.security") {
+        if let fallback = URL(string: "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension") {
             NSWorkspace.shared.open(fallback)
         }
     }
