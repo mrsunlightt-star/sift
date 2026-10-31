@@ -3,8 +3,9 @@ import SwiftUI
 
 /// Design tokens for the whole app.
 ///
-/// The "jade glass" language: a warm porcelain canvas, one deep jade accent that
-/// carries every interactive meaning, and three levels of translucent surface.
+/// The glass language: a pure white canvas (deep neutral in dark mode), one
+/// light-blue accent family that carries every interactive meaning, and three
+/// levels of translucent surface.
 /// Two decisions shape everything downstream. First, colour is assigned by role
 /// — accent, safe, review, danger — never by decoration, so a page cannot grow a
 /// second palette by accident. Second, controls are rounded rectangles at one
@@ -19,21 +20,21 @@ public enum SiftColor {
     /// filled-control colour is `accentDeep`, which stays deep enough to carry
     /// white text in both appearances.
     public static let accent = Color(
-        light: NSColor(srgbRed: 0.043, green: 0.502, blue: 0.439, alpha: 1),
-        dark: NSColor(srgbRed: 0.184, green: 0.831, blue: 0.733, alpha: 1)
+        light: NSColor(srgbRed: 0.0, green: 0.682, blue: 0.925, alpha: 1),
+        dark: NSColor(srgbRed: 0.357, green: 0.776, blue: 0.961, alpha: 1)
     )
     /// The bright end of decorative jade gradients (the product mark, hero
     /// washes, icon tiles). Too light to carry white text; that is `accentDeep`.
     public static let accentBright = Color(
-        light: NSColor(srgbRed: 0.078, green: 0.659, blue: 0.573, alpha: 1),
-        dark: NSColor(srgbRed: 0.137, green: 0.788, blue: 0.686, alpha: 1)
+        light: NSColor(srgbRed: 0.333, green: 0.769, blue: 0.961, alpha: 1),
+        dark: NSColor(srgbRed: 0.494, green: 0.824, blue: 0.973, alpha: 1)
     )
     /// The fill of a control the user presses: primary buttons and selected
     /// toggles. The product's bright blue, #00AEEC — white text on it is the
     /// reference button's own pairing. Other accent roles (links, icons,
     /// selected states) keep the jade `accent`; only the pressed fill moved.
     public static let accentDeep = Color(
-        light: NSColor(srgbRed: 0.0, green: 0.682, blue: 0.925, alpha: 1),
+        light: NSColor(srgbRed: 0.0, green: 0.604, blue: 0.851, alpha: 1),
         dark: NSColor(srgbRed: 0.0, green: 0.682, blue: 0.925, alpha: 1)
     )
     /// Completed safely, or a `safe` risk level. A grass green, kept clearly
@@ -61,27 +62,27 @@ public enum SiftColor {
     /// dark mode is near-black with the faintest jade cast, so the ambient glow
     /// has something to breathe against.
     public static let canvas = Color(
-        light: NSColor(srgbRed: 0.961, green: 0.957, blue: 0.937, alpha: 1),
-        dark: NSColor(srgbRed: 0.047, green: 0.059, blue: 0.055, alpha: 1)
+        light: NSColor(srgbRed: 1.0, green: 1.0, blue: 1.0, alpha: 1),
+        dark: NSColor(srgbRed: 0.055, green: 0.063, blue: 0.075, alpha: 1)
     )
     /// The rail's base glass tint.
     public static let baseGlass = Color(
         light: NSColor(srgbRed: 1.0, green: 1.0, blue: 1.0, alpha: 0.50),
-        dark: NSColor(srgbRed: 0.11, green: 0.13, blue: 0.125, alpha: 0.55)
+        dark: NSColor(srgbRed: 0.10, green: 0.12, blue: 0.14, alpha: 0.55)
     )
     /// The card surface tint, laid over the material.
     public static let cardGlass = Color(
         light: NSColor(srgbRed: 1.0, green: 1.0, blue: 1.0, alpha: 0.60),
-        dark: NSColor(srgbRed: 0.13, green: 0.15, blue: 0.145, alpha: 0.62)
+        dark: NSColor(srgbRed: 0.13, green: 0.15, blue: 0.17, alpha: 0.62)
     )
     /// The floating surface tint: confirmations, selected rows, popovers.
     public static let floatingGlass = Color(
         light: NSColor(srgbRed: 1.0, green: 1.0, blue: 1.0, alpha: 0.82),
-        dark: NSColor(srgbRed: 0.17, green: 0.195, blue: 0.19, alpha: 0.88)
+        dark: NSColor(srgbRed: 0.17, green: 0.19, blue: 0.22, alpha: 0.88)
     )
     /// Hairline around a glass surface.
     public static let glassBorder = Color(
-        light: NSColor(srgbRed: 0.05, green: 0.10, blue: 0.08, alpha: 0.10),
+        light: NSColor(srgbRed: 0.05, green: 0.10, blue: 0.16, alpha: 0.10),
         dark: NSColor(srgbRed: 1.0, green: 1.0, blue: 1.0, alpha: 0.10)
     )
     /// The top-edge highlight that makes glass look lit rather than painted.
@@ -91,19 +92,19 @@ public enum SiftColor {
     )
     /// A selected row or navigation item.
     public static let selectedFill = Color(
-        light: NSColor(srgbRed: 0.043, green: 0.502, blue: 0.439, alpha: 0.11),
-        dark: NSColor(srgbRed: 0.184, green: 0.831, blue: 0.733, alpha: 0.15)
+        light: NSColor(srgbRed: 0.0, green: 0.682, blue: 0.925, alpha: 0.11),
+        dark: NSColor(srgbRed: 0.357, green: 0.776, blue: 0.961, alpha: 0.15)
     )
     /// Hover feedback on a row or a plain button.
     public static let hoverFill = Color(
-        light: NSColor(srgbRed: 0.05, green: 0.10, blue: 0.08, alpha: 0.08),
+        light: NSColor(srgbRed: 0.05, green: 0.10, blue: 0.16, alpha: 0.08),
         dark: NSColor(srgbRed: 1.0, green: 1.0, blue: 1.0, alpha: 0.09)
     )
     /// A quiet well: search fields, sort menus, static capsules that hold text.
     /// Appearance-adaptive so no call site needs to guess `Color.white.opacity`
     /// again — that guess is what made dark mode read as frost on glass.
     public static let subtleFill = Color(
-        light: NSColor(srgbRed: 0.05, green: 0.10, blue: 0.08, alpha: 0.045),
+        light: NSColor(srgbRed: 0.05, green: 0.10, blue: 0.16, alpha: 0.045),
         dark: NSColor(srgbRed: 1.0, green: 1.0, blue: 1.0, alpha: 0.05)
     )
 
@@ -123,8 +124,8 @@ public enum SiftColor {
     /// a warning banner. Jade leads, and the order is fixed so a category keeps
     /// its identity between the map and the list.
     public static let categoryPalette: [Color] = [
-        Color(light: NSColor(srgbRed: 0.078, green: 0.659, blue: 0.573, alpha: 1),
-              dark: NSColor(srgbRed: 0.137, green: 0.788, blue: 0.686, alpha: 1)),
+        Color(light: NSColor(srgbRed: 0.0, green: 0.598, blue: 0.831, alpha: 1),
+              dark: NSColor(srgbRed: 0.357, green: 0.776, blue: 0.961, alpha: 1)),
         Color(light: NSColor(srgbRed: 0.306, green: 0.620, blue: 0.322, alpha: 1),
               dark: NSColor(srgbRed: 0.400, green: 0.784, blue: 0.451, alpha: 1)),
         Color(light: NSColor(srgbRed: 0.122, green: 0.561, blue: 0.647, alpha: 1),
@@ -356,21 +357,22 @@ public enum SiftMetrics {
 /// subject. Every value that can change is rendered with `.monospacedDigit()` at
 /// the call site so a counting scan does not jitter.
 public enum SiftFont {
+    /// The type ladder is four sizes — 13 reading, 15 section, 20 title, 32
+    /// display — and every distinction below them is weight, grey and spacing,
+    /// never a fifth size.
     public static let display = Font.system(size: 32, weight: .semibold)
     public static let title = Font.system(size: 20, weight: .semibold)
     public static let sectionTitle = Font.system(size: 15, weight: .semibold)
     public static let body = Font.system(size: 13, weight: .regular)
     public static let bodyEmphasis = Font.system(size: 13, weight: .medium)
-    // The readability floor is 12: nothing the interface renders sits below it.
-    public static let caption = Font.system(size: 12, weight: .regular)
-    public static let eyebrow = Font.system(size: 12, weight: .semibold)
-    public static let metric = Font.system(size: 24, weight: .semibold)
+    public static let caption = Font.system(size: 13, weight: .regular)
+    public static let eyebrow = Font.system(size: 13, weight: .semibold)
+    public static let metric = Font.system(size: 32, weight: .semibold)
     public static let metricLarge = Font.system(size: 32, weight: .bold)
-    /// The number on the overview's hero card: large enough to be the subject.
-    public static let heroMetric = Font.system(size: 62, weight: .bold)
-    public static let heroUnit = Font.system(size: 18, weight: .semibold)
-    public static let badge = Font.system(size: 12, weight: .semibold)
-    public static let railLabel = Font.system(size: 12, weight: .medium)
+    public static let heroMetric = Font.system(size: 32, weight: .bold)
+    public static let heroUnit = Font.system(size: 20, weight: .semibold)
+    public static let badge = Font.system(size: 13, weight: .semibold)
+    public static let railLabel = Font.system(size: 13, weight: .medium)
     public static let monospacedNumber = Font.system(size: 13, design: .monospaced)
 }
 
