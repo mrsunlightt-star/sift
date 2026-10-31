@@ -185,8 +185,12 @@ struct IconRailView: View {
 
             Spacer(minLength: SiftMetrics.spacingL)
 
+            // The footer item is the purchase state: an accent call to unlock
+            // while locked, the account entry once unlocked.
             if !environment.entitlement.isUnlocked {
                 unlockButton
+            } else {
+                accountButton
             }
 
             LanguageMenu(
@@ -288,6 +292,31 @@ struct IconRailView: View {
         .buttonStyle(SiftPressButtonStyle())
         .accessibilityIdentifier("sidebar.purchase")
         .help(LocalizationKey.purchaseTitle.localized)
+    }
+
+    /// The unlocked footer item: the account page, where the purchase state and
+    /// the stored licence are shown. Same item box, icon size and label as every
+    /// other rail entry — the call to action is gone because there is nothing
+    /// left to sell here.
+    private var accountButton: some View {
+        Button {
+            router.go(to: .purchase)
+        } label: {
+            VStack(spacing: 5) {
+                Image(systemName: "person.crop.circle")
+                    .font(.system(size: 19, weight: .medium))
+                    .frame(height: 22)
+                Text(LocalizationKey.navAccount.localized)
+                    .font(SiftFont.railLabel)
+                    .lineLimit(1)
+            }
+            .foregroundStyle(Color.secondary)
+            .frame(width: SiftMetrics.railItemWidth, height: SiftMetrics.railItemHeight)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(SiftPressButtonStyle())
+        .accessibilityIdentifier("sidebar.account")
+        .help(LocalizationKey.navAccount.localized)
     }
 }
 

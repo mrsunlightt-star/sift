@@ -8,6 +8,8 @@ import SwiftUI
 /// key added there without a case here could never be referenced. Views never
 /// spell a key inline, so a typo cannot reach a user as a raw identifier.
 public enum LocalizationKey: String, Sendable, CaseIterable {
+    case accountActivatedAt = "account.activatedAt"
+    case accountLicenseKey = "account.licenseKey"
     case appName = "app.name"
     case appTagline = "app.tagline"
     case appsAppAndRelated = "apps.appAndRelated"
@@ -212,6 +214,7 @@ public enum LocalizationKey: String, Sendable, CaseIterable {
     case filesTitle = "files.title"
     case languageNoResults = "language.noResults"
     case languageSearch = "language.search"
+    case navAccount = "nav.account"
     case navApps = "nav.apps"
     case navDashboard = "nav.dashboard"
     case navFileCleanup = "nav.fileCleanup"

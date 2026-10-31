@@ -266,6 +266,25 @@ final class EntitlementTests: XCTestCase, @unchecked Sendable {
             "the reference price is $4.99"
         )
     }
+
+    func test_theMaskedKeyKeepsOnlyItsEnds() {
+        let masked = EntitlementService.maskedLicenseKey("SIFT-DEV-K7QM-3XPD-8R2V")
+        // Every masked group is replaced dot for dot, so the display keeps the
+        // key's length and shape.
+        XCTAssertEqual(masked, "SIFT-•••-••••-••••-8R2V")
+        XCTAssertFalse(masked.contains("K7QM"), "no middle group survives the mask")
+        XCTAssertFalse(masked.contains("3XPD"), "no middle group survives the mask")
+    }
+
+    func test_aKeyWithAFewerGroupsKeepsOnlyItsLastFour() {
+        let masked = EntitlementService.maskedLicenseKey("A1B2C3D4E5")
+        XCTAssertEqual(masked, "••••••D4E5")
+    }
+
+    func test_aMaskedKeyNeverEqualsItsInput() {
+        let key = "SIFT-DEV-K7QM-3XPD-8R2V"
+        XCTAssertNotEqual(EntitlementService.maskedLicenseKey(key), key)
+    }
 }
 
 /// A clock a test can move forward.

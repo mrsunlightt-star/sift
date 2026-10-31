@@ -13,44 +13,49 @@ public struct PurchaseView: View {
     let reason: PaywallReasonLink?
     @State private var licenseKey = ""
     @State private var isWorking = false
+    @State private var maskedKey: String?
     @State private var message: (isError: Bool, text: String)?
 
     public init(reason: PaywallReasonLink? = nil) {
         self.reason = reason
     }
 
+    private var isUnlocked: Bool { environment.entitlement.isUnlocked }
+
     public var body: some View {
         VStack(spacing: 0) {
-            SiftPageHeader(title: LocalizationKey.purchaseTitle.localized, status: headerStatus) {
+            SiftPageHeader(title: pageTitle, status: headerStatus) {
                 SiftMetricPill(
-                    symbolName: environment.entitlement.isUnlocked ? "checkmark.seal.fill" : "lock.open",
-                    value: (environment.entitlement.isUnlocked
+                    symbolName: isUnlocked ? "checkmark.seal.fill" : "lock.open",
+                    value: (isUnlocked
                         ? LocalizationKey.purchaseStatusPurchased
                         : LocalizationKey.purchaseStatusFree).localized,
-                    tint: environment.entitlement.isUnlocked ? SiftColor.safe : SiftColor.accent
+                    tint: isUnlocked ? SiftColor.safe : SiftColor.accent
                 )
             }
 
             ScrollView {
                 VStack(alignment: .leading, spacing: SiftMetrics.pageSpacing) {
-                    SiftHeroCard(
-                        symbolName: "lock.open",
-                        title: LocalizationKey.purchasePriceLine.localized,
-                        detail: LocalizationKey.purchaseUpdatesPromise.localized,
-                        tint: SiftColor.accent
-                    ) {
-                        EmptyView()
-                    }
+                    if isUnlocked {
+                        accountSection
+                    } else {
+                        SiftHeroCard(
+                            symbolName: "lock.open",
+                            title: LocalizationKey.purchasePriceLine.localized,
+                            detail: LocalizationKey.purchaseUpdatesPromise.localized,
+                            tint: SiftColor.accent
+                        ) {
+                            EmptyView()
+                        }
 
-                    if let reason {
-                        NoticeBanner(
-                            level: .information,
-                            message: "\(reason.titleKey.localized) · \(LocalizationKey.purchaseLicenseRequiredDetail.localized)"
-                        )
-                    }
+                        if let reason {
+                            NoticeBanner(
+                                level: .information,
+                                message: "\(reason.titleKey.localized) · \(LocalizationKey.purchaseLicenseRequiredDetail.localized)"
+                            )
+                        }
 
-                    comparison
-                    if !environment.entitlement.isUnlocked {
+                        comparison
                         licenseSection
                     }
                     if let message {
@@ -67,17 +72,120 @@ public struct PurchaseView: View {
                 .frame(maxWidth: .infinity, alignment: .top)
             }
         }
-        .task {
+        // The masked key is read after the refresh: reading the stored key is
+        // what fills the channel's in-memory copy on a fresh launch.
+        .task(id: isUnlocked) {
             await environment.refreshEntitlement()
+            maskedKey = await environment.entitlements.maskedLicenseKey()
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("purchase.view")
     }
 
+    /// Locked, the page sells; unlocked, it reports what was bought.
+    private var pageTitle: String {
+        isUnlocked
+            ? LocalizationKey.navAccount.localized
+            : LocalizationKey.purchaseTitle.localized
+    }
+
     private var headerStatus: String {
-        environment.entitlement.isUnlocked
+        isUnlocked
             ? LocalizationKey.purchaseActivated.localized
             : LocalizationKey.purchaseLicenseRequired.localized
+    }
+
+    /// The verified-at timestamp, whichever unlocked status is in force.
+    private var activatedAt: Date? {
+        switch environment.entitlement.status {
+        case let .unlocked(verifiedAt), let .offlineGrace(verifiedAt, _): verifiedAt
+        case .free: nil
+        }
+    }
+
+    // MARK: - Account (unlocked)
+
+    /// The account panel: the plan, the activation date and the stored key with
+    /// only its ends showing, plus the two actions a direct licence has.
+    ///
+    /// The free/paid comparison is paywall material — an unlocked user has
+    /// already decided — so it stays on the locked page only.
+    private var accountSection: some View {
+        SiftPanel {
+            VStack(alignment: .leading, spacing: SiftMetrics.spacingM) {
+                Label {
+                    Text(LocalizationKey.navAccount.localized)
+                        .font(SiftFont.sectionTitle)
+                } icon: {
+                    Image(systemName: "person.crop.circle")
+                        .foregroundStyle(SiftColor.accent)
+                }
+                Text(LocalizationKey.purchasePriceLine.localized)
+                    .font(SiftFont.caption)
+                    .foregroundStyle(.secondary)
+
+                Divider()
+
+                if let activatedAt {
+                    accountRow(
+                        LocalizationKey.accountActivatedAt.localized,
+                        SiftFormat.timestamp(activatedAt)
+                    )
+                }
+                if let maskedKey {
+                    accountRow(
+                        LocalizationKey.accountLicenseKey.localized,
+                        maskedKey
+                    )
+                }
+                if let days = environment.entitlement.status.graceDaysRemaining {
+                    Text(LocalizationKey.purchaseOfflineGrace.localized(days))
+                        .font(SiftFont.caption)
+                        .foregroundStyle(SiftColor.review)
+                }
+
+                Divider()
+
+                HStack(spacing: SiftMetrics.spacingM) {
+                    SiftSecondaryButton(titleKey: .purchaseRestore) {
+                        Task { await restore() }
+                    }
+                    .disabled(isWorking)
+
+                    // The remove action exists where a key exists; it is how a
+                    // stored key leaves the machine short of the terminal.
+                    if maskedKey != nil {
+                        Button {
+                            Task { await removeStoredLicense() }
+                        } label: {
+                            Text(LocalizationKey.settingsRemoveLicense.localized)
+                                .font(SiftFont.caption)
+                        }
+                        .buttonStyle(SiftLinkButtonStyle())
+                        .disabled(isWorking)
+                    }
+
+                    if isWorking {
+                        ProgressView().controlSize(.small)
+                    }
+                }
+            }
+        }
+    }
+
+    private func accountRow(_ label: String, _ value: String) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(label)
+                .font(SiftFont.body)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: SiftMetrics.spacingM)
+            Text(value)
+                .font(SiftFont.bodyEmphasis)
+                .monospacedDigit()
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .textSelection(.enabled)
+        }
     }
 
     private var comparison: some View {
@@ -173,12 +281,22 @@ public struct PurchaseView: View {
         do {
             _ = try await environment.entitlements.restore()
             await environment.refreshEntitlement()
+            maskedKey = await environment.entitlements.maskedLicenseKey()
             message = (false, LocalizationKey.purchaseRestored.localized)
         } catch let error as PurchaseError {
             message = (true, error.message)
         } catch {
             message = (true, LocalizationKey.purchaseFailed.localized)
         }
+    }
+
+    private func removeStoredLicense() async {
+        isWorking = true
+        defer { isWorking = false }
+        _ = await environment.removeStoredLicense()
+        maskedKey = nil
+        // No banner: the page itself flips to the locked layout, which is the
+        // answer the user can see.
     }
 }
 

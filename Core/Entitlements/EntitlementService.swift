@@ -266,6 +266,37 @@ public actor EntitlementService {
         return await direct.hasStoredLicense()
     }
 
+    /// The stored licence key with its middle groups masked, for the account page.
+    ///
+    /// The page shows only enough of the key to tell two keys apart; the whole
+    /// secret never appears in the interface, and therefore never in a
+    /// screenshot a user shares.
+    public func maskedLicenseKey() async -> String? {
+        guard let direct = channel as? DirectLicenseService else { return nil }
+        guard let key = await direct.currentLicenseKey() else { return nil }
+        return Self.maskedLicenseKey(key)
+    }
+
+    /// `SIFT-DEV-K7QM-3XPD-8R2V` → `SIFT-•••-•••-•••-8R2V`.
+    ///
+    /// The first and the last group stay readable and every group in between is
+    /// replaced dot for dot, so the display keeps the key's length and shape
+    /// without carrying its content. A key whose shape is not hyphen-grouped
+    /// keeps only its last four characters.
+    public static func maskedLicenseKey(_ key: String) -> String {
+        let groups = key.split(separator: "-", omittingEmptySubsequences: false)
+        guard groups.count > 2 else {
+            guard key.count > 4 else { return String(repeating: "•", count: key.count) }
+            return String(repeating: "•", count: key.count - 4) + key.suffix(4)
+        }
+        let masked = groups.enumerated().map { index, group in
+            index == 0 || index == groups.count - 1
+                ? String(group)
+                : String(repeating: "•", count: group.count)
+        }
+        return masked.joined(separator: "-")
+    }
+
     /// Removes the stored key and returns to the free tier.
     @discardableResult
     public func removeStoredLicense() async -> EntitlementState {

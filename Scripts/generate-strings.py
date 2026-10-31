@@ -889,6 +889,11 @@ STRINGS: dict[str, list[str]] = {
     "purchase.status.purchased": ["Purchased", "已购买", "구매 완료", "Куплено", "Comprado", "購入済み", "Acheté", "Gekauft"],
     "purchase.status.free": ["Free version", "免费版", "무료 버전", "Бесплатная версия", "Versión gratuita", "無料版", "Version gratuite", "Kostenlose Version"],
 
+    # --- Account ------------------------------------------------------------
+    "nav.account": ["Account", "账户", "계정", "Аккаунт", "Cuenta", "アカウント", "Compte", "Konto"],
+    "account.activatedAt": ["Activated", "激活时间", "활성화 날짜", "Дата активации", "Fecha de activación", "アクティベート日", "Date d’activation", "Aktiviert am"],
+    "account.licenseKey": ["License key", "授权码", "라이선스 키", "Лицензионный ключ", "Clave de licencia", "ライセンスキー", "Clé de licence", "Lizenzschlüssel"],
+
     # --- Report ------------------------------------------------------------
     "report.title": ["Cleanup report", "清理报告", "정리 보고서", "Отчёт об очистке", "Informe de limpieza", "クリーンアップレポート", "Rapport de nettoyage", "Bereinigungsbericht"],
     "report.generatedAt": ["Generated %@", "生成时间 %@", "생성 시각 %@", "Создано %@", "Generado el %@", "作成日時 %@", "Généré le %@", "Erstellt am %@"],
@@ -1443,6 +1448,9 @@ STRINGS_EXPANSION: dict[str, list[str]] = {
     "purchase.offlineGrace": ["Periodo di tolleranza offline: %d giorni rimasti", "Período offline: %d dias restantes", "離線寬限期還剩 %d 天", "Çevrimdışı telafi süresi: %d gün kaldı", "Okres offline: zostało %d dni", "Offline-graceperiode: nog %d dagen"],
     "purchase.status.purchased": ["Acquistato", "Comprado", "已購買", "Satın alındı", "Kupiono", "Gekocht"],
     "purchase.status.free": ["Versione gratuita", "Versão gratuita", "免費版", "Ücretsiz sürüm", "Wersja bezpłatna", "Gratis versie"],
+    "nav.account": ["Account", "Conta", "帳戶", "Hesap", "Konto", "Account"],
+    "account.activatedAt": ["Data di attivazione", "Data de ativação", "啟用時間", "Etkinleştirme tarihi", "Data aktywacji", "Geactiveerd op"],
+    "account.licenseKey": ["Chiave di licenza", "Chave de licença", "授權碼", "Lisans anahtarı", "Klucz licencji", "Licentiesleutel"],
     # --- Report ------------------------------------------------------------
     "report.title": ["Rapporto di pulizia", "Relatório de limpeza", "清理報告", "Temizlik raporu", "Raport czyszczenia", "Opschoonrapport"],
     "report.generatedAt": ["Generato %@", "Gerado em %@", "產生時間 %@", "Oluşturulma: %@", "Wygenerowano %@", "Gegenereerd %@"],
@@ -1976,6 +1984,9 @@ STRINGS_EXPANSION_2: dict[str, list[str]] = {
     "purchase.offlineGrace": ["ໄລຍະໃຫ້ອະໄພແບບອອຟໄລນ໌: ຍັງເຫຼືອ %d ວັນ", "فترة السماح دون اتصال: بقي %d يومًا", "תקופת חסד ללא חיבור: נותרו %d ימים", "مهلت آفلاین: %d روز مانده"],
     "purchase.status.purchased": ["ຊື້ແລ້ວ", "تم الشراء", "נרכש", "خریده شده"],
     "purchase.status.free": ["ເວີຊັນຟຣີ", "النسخة المجانية", "גרסה חינמית", "نسخهٔ رایگان"],
+    "nav.account": ["ບັນຊີ", "الحساب", "חשבון", "حساب"],
+    "account.activatedAt": ["ວັນທີເປີດໃຊ້ງານ", "تاريخ التنشيط", "תאריך ההפעלה", "تاریخ فعال‌سازی"],
+    "account.licenseKey": ["ກະແຈໃບອະນຸຍາດ", "مفتاح الترخيص", "מפתח רישיון", "کلید مجوز"],
     # --- Report ------------------------------------------------------------
     "report.title": ["ລາຍງານການລ້າງ", "تقرير التنظيف", "דוח ניקוי", "گزارش پاک‌سازی"],
     "report.generatedAt": ["ສ້າງເມື່ອ %@", "أُنشئ في %@", "נוצר ב-%@", "ایجادشده در %@"],
@@ -2485,6 +2496,9 @@ STRINGS_EXPANSION_3: dict[str, list[str]] = {
     "purchase.offlineGrace": ["Офлайн период: остават %d дни", "Období offline: zbývá %d dní", "Offline-frist: %d dage tilbage", "Περίοδος χάριτος εκτός σύνδεσης: απομένουν %d ημέρες", "Período sin conexión: quedan %d días", "Offline-ajanjakso: %d päivää jäljellä", "Offline türelmi idő: %d nap van hátra", "Masa tenggang offline: %d hari lagi", "Tempoh tangguh luar talian: %d hari lagi", "Offline-frist: %d dager igjen", "Período de tolerância sem ligação: faltam %d dias", "Zile de grație offline rămase: %d", "Offlineperiod: %d dagar kvar", "ช่วงผ่อนผันออฟไลน์: เหลือ %d วัน", "Офлайн-період: залишилося %d днів", "Thời gian gia hạn ngoại tuyến: còn %d ngày"],
     "purchase.status.purchased": ["Закупено", "Zakoupeno", "Købt", "Αγορασμένο", "Comprado", "Ostettu", "Megvásárolva", "Dibeli", "Dibeli", "Kjøpt", "Comprado", "Achiziționat", "Köpt", "ซื้อแล้ว", "Придбано", "Đã mua"],
     "purchase.status.free": ["Безплатна версия", "Bezplatná verze", "Gratisversion", "Δωρεάν έκδοση", "Versión gratuita", "Ilmainen versio", "Ingyenes verzió", "Versi gratis", "Versi percuma", "Gratisversjon", "Versão gratuita", "Versiune gratuită", "Gratisversion", "เวอร์ชันฟรี", "Безкоштовна версія", "Bản miễn phí"],
+    "nav.account": ["Акаунт", "Účet", "Konto", "Λογαριασμός", "Cuenta", "Tili", "Fiók", "Akun", "Akaun", "Konto", "Conta", "Cont", "Konto", "บัญชี", "Акаунт", "Tài khoản"],
+    "account.activatedAt": ["Дата на активиране", "Datum aktivace", "Aktiveret den", "Ημερομηνία ενεργοποίησης", "Fecha de activación", "Aktivoitu", "Aktiválás dátuma", "Tanggal aktivasi", "Tarikh pengaktifan", "Aktivert den", "Data de ativação", "Data activării", "Aktiverad den", "วันที่เปิดใช้งาน", "Дата активації", "Ngày kích hoạt"],
+    "account.licenseKey": ["Лицензионен ключ", "Licenční klíč", "Licensnøgle", "Κλειδί άδειας", "Clave de licencia", "Lisenssiavain", "Licenckulcs", "Kunci lisensi", "Kunci lesen", "Lisensnøkkel", "Chave de licença", "Cheie de licență", "Licensnyckel", "คีย์ลิขสิทธิ์", "Ліцензійний ключ", "Khóa giấy phép"],
     "report.title": ["Отчет за почистването", "Zpráva o čištění", "Oprydningsrapport", "Αναφορά καθαρισμού", "Informe de limpieza", "Siivousraportti", "Tisztítási jelentés", "Laporan pembersihan", "Laporan pembersihan", "Oppryddingsrapport", "Relatório de limpeza", "Raport de curățare", "Rensningsrapport", "รายงานการทำความสะอาด", "Звіт про очищення", "Báo cáo dọn dẹp"],
     "report.generatedAt": ["Създаден на %@", "Vytvořeno %@", "Oprettet %@", "Δημιουργήθηκε %@", "Generado el %@", "Luotu %@", "Létrehozva: %@", "Dibuat %@", "Dijana %@", "Generert %@", "Gerado em %@", "Generat %@", "Skapad %@", "สร้างเมื่อ %@", "Створено %@", "Được tạo %@"],
     "report.appVersion": ["Sift %@ на macOS %@", "Sift %@ na macOS %@", "Sift %@ på macOS %@", "Sift %@ σε macOS %@", "Sift %@ en macOS %@", "Sift %@, macOS %@", "Sift %@ – macOS %@", "Sift %@ di macOS %@", "Sift %@ pada macOS %@", "Sift %@ på macOS %@", "Sift %@ no macOS %@", "Sift %@ pe macOS %@", "Sift %@ på macOS %@", "Sift %@ บน macOS %@", "Sift %@ на macOS %@", "Sift %@ trên macOS %@"],
