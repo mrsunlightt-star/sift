@@ -3,15 +3,14 @@ import SwiftUI
 
 /// Design tokens for the whole app.
 ///
-/// The glass language: a bright blue canvas (#00AEEC) that every surface sits
-/// on, one deep jade accent that carries every interactive meaning, and three
-/// levels of translucent surface. Two decisions shape everything downstream.
-/// First, colour is assigned by role — accent, safe, review, danger — never by
-/// decoration, so a page cannot grow a second palette by accident. Second,
-/// controls are rounded rectangles at one radius scale rather than capsules,
-/// which is what gives the interface its drawn, instrument-like character; the
-/// capsule survives only where it is the literal shape of the thing (progress
-/// bars, the product mark's lines).
+/// The "jade glass" language: a warm porcelain canvas, one deep jade accent that
+/// carries every interactive meaning, and three levels of translucent surface.
+/// Two decisions shape everything downstream. First, colour is assigned by role
+/// — accent, safe, review, danger — never by decoration, so a page cannot grow a
+/// second palette by accident. Second, controls are rounded rectangles at one
+/// radius scale rather than capsules, which is what gives the interface its
+/// drawn, instrument-like character; the capsule survives only where it is the
+/// literal shape of the thing (progress bars, the product mark's lines).
 public enum SiftColor {
     /// Primary action colour, used for links, selected states, icons and tints.
     /// Jade, fixed rather than the system accent, so a user's accent-colour
@@ -56,13 +55,12 @@ public enum SiftColor {
 
     /// The window canvas the glass sits on.
     ///
-    /// Light mode is the product's bright blue, #00AEEC, set as the background
-    /// the whole interface shares. Dark mode holds the same hue deep — the
-    /// exact value under near-black glass would read as mud, so the glass
-    /// keeps its legibility and the hue keeps the identity.
+    /// Light mode is warm porcelain rather than the cool lavender it replaced;
+    /// dark mode is near-black with the faintest jade cast, so the ambient glow
+    /// has something to breathe against.
     public static let canvas = Color(
-        light: NSColor(srgbRed: 0.0, green: 0.682, blue: 0.925, alpha: 1),
-        dark: NSColor(srgbRed: 0.0, green: 0.216, blue: 0.302, alpha: 1)
+        light: NSColor(srgbRed: 0.961, green: 0.957, blue: 0.937, alpha: 1),
+        dark: NSColor(srgbRed: 0.047, green: 0.059, blue: 0.055, alpha: 1)
     )
     /// The rail's base glass tint.
     public static let baseGlass = Color(
