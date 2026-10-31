@@ -75,7 +75,7 @@ public struct DeveloperIndexDiagnosticProvider: StorageDiagnosticProvider {
                     StorageFinding(
                         providerID: identifier,
                         path: index,
-                        displayName: "\(project.lastPathComponent) · \(name)",
+                        displayName: "\(project.lastPathComponent), \(name)",
                         category: .developerIndex,
                         status: .rebuildable,
                         allocatedBytes: measured.allocatedBytes,

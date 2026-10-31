@@ -848,205 +848,205 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "App %@ · related files %@"
+            "value": "App %@, related files %@"
           }
         },
         "zh-hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "应用本体 %@ · 关联文件 %@"
+            "value": "应用本体 %@，关联文件 %@"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "앱 %@ · 관련 파일 %@"
+            "value": "앱 %@, 관련 파일 %@"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Приложение %@ · связанные файлы %@"
+            "value": "Приложение %@, связанные файлы %@"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "App %@ · archivos relacionados %@"
+            "value": "App %@, archivos relacionados %@"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "アプリ %@ · 関連ファイル %@"
+            "value": "アプリ %@，関連ファイル %@"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "App %@ · fichiers associés %@"
+            "value": "App %@, fichiers associés %@"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "App %@ · zugehörige Dateien %@"
+            "value": "App %@, zugehörige Dateien %@"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "App %@ · file correlati %@"
+            "value": "App %@, file correlati %@"
           }
         },
         "pt-br": {
           "stringUnit": {
             "state": "translated",
-            "value": "App %@ · arquivos relacionados %@"
+            "value": "App %@, arquivos relacionados %@"
           }
         },
         "zh-hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "應用程式本體 %@ · 相關檔案 %@"
+            "value": "應用程式本體 %@，相關檔案 %@"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Uygulama %@ · ilgili dosyalar %@"
+            "value": "Uygulama %@, ilgili dosyalar %@"
           }
         },
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Aplikacja %@ · pliki powiązane %@"
+            "value": "Aplikacja %@, pliki powiązane %@"
           }
         },
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "App %@ · gerelateerde bestanden %@"
+            "value": "App %@, gerelateerde bestanden %@"
           }
         },
         "lo": {
           "stringUnit": {
             "state": "translated",
-            "value": "ແອັບ %@ · ໄຟລ໌ທີ່ກ່ຽວຂ້ອງ %@"
+            "value": "ແອັບ %@, ໄຟລ໌ທີ່ກ່ຽວຂ້ອງ %@"
           }
         },
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "التطبيق %@ · ملفات مرتبطة %@"
+            "value": "التطبيق %@, ملفات مرتبطة %@"
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "אפליקציה %@ · קבצים קשורים %@"
+            "value": "אפליקציה %@, קבצים קשורים %@"
           }
         },
         "fa": {
           "stringUnit": {
             "state": "translated",
-            "value": "برنامه %@ · فایل‌های مرتبط %@"
+            "value": "برنامه %@, فایل‌های مرتبط %@"
           }
         },
         "bg": {
           "stringUnit": {
             "state": "translated",
-            "value": "Приложение %@ · свързани файлове %@"
+            "value": "Приложение %@, свързани файлове %@"
           }
         },
         "cs": {
           "stringUnit": {
             "state": "translated",
-            "value": "Aplikace %@ · související soubory %@"
+            "value": "Aplikace %@, související soubory %@"
           }
         },
         "da": {
           "stringUnit": {
             "state": "translated",
-            "value": "App %@ · relaterede filer %@"
+            "value": "App %@, relaterede filer %@"
           }
         },
         "el": {
           "stringUnit": {
             "state": "translated",
-            "value": "Εφαρμογή %@ · σχετικά αρχεία %@"
+            "value": "Εφαρμογή %@, σχετικά αρχεία %@"
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "translated",
-            "value": "Aplicación %@ · archivos relacionados %@"
+            "value": "Aplicación %@, archivos relacionados %@"
           }
         },
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sovellus %@ · liittyvät tiedostot %@"
+            "value": "Sovellus %@, liittyvät tiedostot %@"
           }
         },
         "hu": {
           "stringUnit": {
             "state": "translated",
-            "value": "Alkalmazás: %@ · kapcsolódó fájlok: %@"
+            "value": "Alkalmazás: %@, kapcsolódó fájlok: %@"
           }
         },
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "Aplikasi %@ · file terkait %@"
+            "value": "Aplikasi %@, file terkait %@"
           }
         },
         "ms": {
           "stringUnit": {
             "state": "translated",
-            "value": "Apl %@ · fail berkaitan %@"
+            "value": "Apl %@, fail berkaitan %@"
           }
         },
         "nb": {
           "stringUnit": {
             "state": "translated",
-            "value": "App %@ · tilknyttede filer %@"
+            "value": "App %@, tilknyttede filer %@"
           }
         },
         "pt-pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "Aplicação %@ · ficheiros relacionados %@"
+            "value": "Aplicação %@, ficheiros relacionados %@"
           }
         },
         "ro": {
           "stringUnit": {
             "state": "translated",
-            "value": "Aplicație %@ · fișiere asociate %@"
+            "value": "Aplicație %@, fișiere asociate %@"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "App %@ · relaterade filer %@"
+            "value": "App %@, relaterade filer %@"
           }
         },
         "th": {
           "stringUnit": {
             "state": "translated",
-            "value": "แอป %@ · ไฟล์ที่เกี่ยวข้อง %@"
+            "value": "แอป %@, ไฟล์ที่เกี่ยวข้อง %@"
           }
         },
         "uk": {
           "stringUnit": {
             "state": "translated",
-            "value": "Програма %@ · пов'язані файли %@"
+            "value": "Програма %@, пов'язані файли %@"
           }
         },
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ứng dụng %@ · tệp liên quan %@"
+            "value": "Ứng dụng %@, tệp liên quan %@"
           }
         }
       }
@@ -1058,85 +1058,85 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Showing apps over 200 MB · %d total"
+            "value": "Showing apps over 200 MB, %d total"
           }
         },
         "zh-hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "仅显示超过 200 MB 的应用 · 共 %d 个"
+            "value": "仅显示超过 200 MB 的应用，共 %d 个"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "200MB 초과 앱만 표시 · 총 %d개"
+            "value": "200MB 초과 앱만 표시, 총 %d개"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Показаны приложения больше 200 МБ · всего %d"
+            "value": "Показаны приложения больше 200 МБ, всего %d"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Apps de más de 200 MB · %d en total"
+            "value": "Apps de más de 200 MB, %d en total"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "200 MB 超のアプリのみ表示 · 全 %d 件"
+            "value": "200 MB 超のアプリのみ表示，全 %d 件"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Apps de plus de 200 Mo · %d au total"
+            "value": "Apps de plus de 200 Mo, %d au total"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Apps über 200 MB · %d gesamt"
+            "value": "Apps über 200 MB, %d gesamt"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mostra le app oltre 200 MB · %d in totale"
+            "value": "Mostra le app oltre 200 MB, %d in totale"
           }
         },
         "pt-br": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mostra apps acima de 200 MB · %d no total"
+            "value": "Mostra apps acima de 200 MB, %d no total"
           }
         },
         "zh-hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "僅顯示超過 200 MB 的應用程式 · 共 %d 個"
+            "value": "僅顯示超過 200 MB 的應用程式，共 %d 個"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Yalnızca 200 MB üzeri uygulamalar · toplam %d"
+            "value": "Yalnızca 200 MB üzeri uygulamalar, toplam %d"
           }
         },
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pokazano aplikacje ponad 200 MB · łącznie %d"
+            "value": "Pokazano aplikacje ponad 200 MB, łącznie %d"
           }
         },
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Toont apps boven 200 MB · %d totaal"
+            "value": "Toont apps boven 200 MB, %d totaal"
           }
         },
         "lo": {
@@ -2528,109 +2528,109 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sorted by size · %@ in total"
+            "value": "Sorted by size, %@ in total"
           }
         },
         "zh-hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "按体积排序 · 共 %@"
+            "value": "按体积排序，共 %@"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "크기순 · 총 %@"
+            "value": "크기순, 총 %@"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "По размеру · всего %@"
+            "value": "По размеру, всего %@"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Por tamaño · %@ en total"
+            "value": "Por tamaño, %@ en total"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "サイズ順 · 合計 %@"
+            "value": "サイズ順，合計 %@"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Par taille · %@ au total"
+            "value": "Par taille, %@ au total"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Nach Größe · %@ gesamt"
+            "value": "Nach Größe, %@ gesamt"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ordinate per dimensione · %@ in totale"
+            "value": "Ordinate per dimensione, %@ in totale"
           }
         },
         "pt-br": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ordenados por tamanho · %@ no total"
+            "value": "Ordenados por tamanho, %@ no total"
           }
         },
         "zh-hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "按體積排序 · 共 %@"
+            "value": "按體積排序，共 %@"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Boyuta göre sıralandı · toplam %@"
+            "value": "Boyuta göre sıralandı, toplam %@"
           }
         },
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sortowane według rozmiaru · łącznie %@"
+            "value": "Sortowane według rozmiaru, łącznie %@"
           }
         },
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Op grootte gesorteerd · totaal %@"
+            "value": "Op grootte gesorteerd, totaal %@"
           }
         },
         "lo": {
           "stringUnit": {
             "state": "translated",
-            "value": "ຈັດລຳດັບຕາມຂະໜາດ · ລວມ %@"
+            "value": "ຈັດລຳດັບຕາມຂະໜາດ, ລວມ %@"
           }
         },
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "مرتّبة حسب الحجم · %@ إجمالًا"
+            "value": "مرتّبة حسب الحجم, %@ إجمالًا"
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "ממוינות לפי גודל · %@ בסך הכול"
+            "value": "ממוינות לפי גודל, %@ בסך הכול"
           }
         },
         "fa": {
           "stringUnit": {
             "state": "translated",
-            "value": "مرتب بر اساس اندازه · در مجموع %@"
+            "value": "مرتب بر اساس اندازه, در مجموع %@"
           }
         },
         "bg": {
@@ -2738,85 +2738,85 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Installed %d · %d not opened in 6 months"
+            "value": "Installed %d, %d not opened in 6 months"
           }
         },
         "zh-hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "已安装 %d 个 · %d 个超过 6 个月未打开"
+            "value": "已安装 %d 个，%d 个超过 6 个月未打开"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "설치 %d개 · 6개월 이상 미실행 %d개"
+            "value": "설치 %d개, 6개월 이상 미실행 %d개"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Установлено: %d · не открывались 6 месяцев: %d"
+            "value": "Установлено: %d, не открывались 6 месяцев: %d"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d instaladas · %d sin abrir en 6 meses"
+            "value": "%d instaladas, %d sin abrir en 6 meses"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "インストール %d 件 · 6 か月以上未使用 %d 件"
+            "value": "インストール %d 件，6 か月以上未使用 %d 件"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d installées · %d non ouvertes depuis 6 mois"
+            "value": "%d installées, %d non ouvertes depuis 6 mois"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d installiert · %d seit 6 Monaten nicht geöffnet"
+            "value": "%d installiert, %d seit 6 Monaten nicht geöffnet"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Installate %d · %d non aperte da 6 mesi"
+            "value": "Installate %d, %d non aperte da 6 mesi"
           }
         },
         "pt-br": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d instalados · %d sem abrir há 6 meses"
+            "value": "%d instalados, %d sem abrir há 6 meses"
           }
         },
         "zh-hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "已安裝 %d 個 · %d 個超過 6 個月未開啟"
+            "value": "已安裝 %d 個，%d 個超過 6 個月未開啟"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d yüklü · %d altı 6 aydır açılmadı"
+            "value": "%d yüklü, %d altı 6 aydır açılmadı"
           }
         },
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Zainstalowane: %d · %d nieotwierane od 6 miesięcy"
+            "value": "Zainstalowane: %d, %d nieotwierane od 6 miesięcy"
           }
         },
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d geïnstalleerd · %d niet geopend in 6 maanden"
+            "value": "%d geïnstalleerd, %d niet geopend in 6 maanden"
           }
         },
         "lo": {
@@ -32264,7 +32264,7 @@
         "el": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ένα ευρετήριο που δημιούργησε εργαλείο ανάπτυξης για αυτό το έργο. Το εργαλείο το δημιουργεί ξανά κατόπιν αιτήματος· μέχρι τότε, η αυτόματη συμπλήρωση κώδικα και η αναζήτηση συμβόλων είναι πιο αργές."
+            "value": "Ένα ευρετήριο που δημιούργησε εργαλείο ανάπτυξης για αυτό το έργο. Το εργαλείο το δημιουργεί ξανά κατόπιν αιτήματος, μέχρι τότε, η αυτόματη συμπλήρωση κώδικα και η αναζήτηση συμβόλων είναι πιο αργές."
           }
         },
         "es-419": {
@@ -32684,7 +32684,7 @@
         "el": {
           "stringUnit": {
             "state": "translated",
-            "value": "Το ευρετήριο του Spotlight για αυτόν τον τόμο· η ευρετηρίαση είναι προς το παρόν ενεργή. Το macOS το δημιουργεί ξανά με mdutil -E — η μετακίνησή του στον Κάδο κάνει απλώς την αναζήτηση μη διαθέσιμη μέχρι να δημιουργηθεί ξανά."
+            "value": "Το ευρετήριο του Spotlight για αυτόν τον τόμο, η ευρετηρίαση είναι προς το παρόν ενεργή. Το macOS το δημιουργεί ξανά με mdutil -E — η μετακίνησή του στον Κάδο κάνει απλώς την αναζήτηση μη διαθέσιμη μέχρι να δημιουργηθεί ξανά."
           }
         },
         "es-419": {
@@ -32894,7 +32894,7 @@
         "el": {
           "stringUnit": {
             "state": "translated",
-            "value": "Το ευρετήριο του Spotlight για αυτόν τον τόμο· η ευρετηρίαση αναφέρεται προς το παρόν ως ανενεργή. Το macOS διαχειρίζεται αυτόν τον κατάλογο."
+            "value": "Το ευρετήριο του Spotlight για αυτόν τον τόμο, η ευρετηρίαση αναφέρεται προς το παρόν ως ανενεργή. Το macOS διαχειρίζεται αυτόν τον κατάλογο."
           }
         },
         "es-419": {
@@ -46628,205 +46628,205 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Scan completed · %d items"
+            "value": "Scan completed, %d items"
           }
         },
         "zh-hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "智能扫描完成 · 发现 %d 项"
+            "value": "智能扫描完成，发现 %d 项"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "검사 완료 · %d개 발견"
+            "value": "검사 완료, %d개 발견"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Сканирование завершено · найдено %d"
+            "value": "Сканирование завершено, найдено %d"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Análisis completado · %d elementos"
+            "value": "Análisis completado, %d elementos"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "スキャン完了 · %d 項目"
+            "value": "スキャン完了，%d 項目"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Analyse terminée · %d éléments"
+            "value": "Analyse terminée, %d éléments"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Scan abgeschlossen · %d Einträge"
+            "value": "Scan abgeschlossen, %d Einträge"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Scansione completata · %d elementi"
+            "value": "Scansione completata, %d elementi"
           }
         },
         "pt-br": {
           "stringUnit": {
             "state": "translated",
-            "value": "Verificação concluída · %d itens"
+            "value": "Verificação concluída, %d itens"
           }
         },
         "zh-hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "智慧掃描完成 · 發現 %d 項"
+            "value": "智慧掃描完成，發現 %d 項"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tarama tamamlandı · %d öğe"
+            "value": "Tarama tamamlandı, %d öğe"
           }
         },
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Skanowanie ukończone · %d elementów"
+            "value": "Skanowanie ukończone, %d elementów"
           }
         },
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Scan voltooid · %d items"
+            "value": "Scan voltooid, %d items"
           }
         },
         "lo": {
           "stringUnit": {
             "state": "translated",
-            "value": "ສະແກນສຳເລັດ · ພົບ %d ລາຍການ"
+            "value": "ສະແກນສຳເລັດ, ພົບ %d ລາຍການ"
           }
         },
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "اكتمل الفحص · %d عناصر"
+            "value": "اكتمل الفحص, %d عناصر"
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "הסריקה הושלמה · %d פריטים"
+            "value": "הסריקה הושלמה, %d פריטים"
           }
         },
         "fa": {
           "stringUnit": {
             "state": "translated",
-            "value": "اسکن کامل شد · %d مورد"
+            "value": "اسکن کامل شد, %d مورد"
           }
         },
         "bg": {
           "stringUnit": {
             "state": "translated",
-            "value": "Сканирането е завършено · %d елемента"
+            "value": "Сканирането е завършено, %d елемента"
           }
         },
         "cs": {
           "stringUnit": {
             "state": "translated",
-            "value": "Skenování dokončeno · položky: %d"
+            "value": "Skenování dokončeno, položky: %d"
           }
         },
         "da": {
           "stringUnit": {
             "state": "translated",
-            "value": "Scanning fuldført · %d elementer"
+            "value": "Scanning fuldført, %d elementer"
           }
         },
         "el": {
           "stringUnit": {
             "state": "translated",
-            "value": "Η σάρωση ολοκληρώθηκε · %d στοιχεία"
+            "value": "Η σάρωση ολοκληρώθηκε, %d στοιχεία"
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "translated",
-            "value": "Análisis completado · %d elementos"
+            "value": "Análisis completado, %d elementos"
           }
         },
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Skannaus valmis · %d kohdetta"
+            "value": "Skannaus valmis, %d kohdetta"
           }
         },
         "hu": {
           "stringUnit": {
             "state": "translated",
-            "value": "Vizsgálat befejezve · %d elem"
+            "value": "Vizsgálat befejezve, %d elem"
           }
         },
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pemindaian selesai · %d item"
+            "value": "Pemindaian selesai, %d item"
           }
         },
         "ms": {
           "stringUnit": {
             "state": "translated",
-            "value": "Imbasan selesai · %d item"
+            "value": "Imbasan selesai, %d item"
           }
         },
         "nb": {
           "stringUnit": {
             "state": "translated",
-            "value": "Skanning fullført · %d elementer"
+            "value": "Skanning fullført, %d elementer"
           }
         },
         "pt-pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "Verificação concluída · %d itens"
+            "value": "Verificação concluída, %d itens"
           }
         },
         "ro": {
           "stringUnit": {
             "state": "translated",
-            "value": "Scanare finalizată · %d elemente"
+            "value": "Scanare finalizată, %d elemente"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Skanning klar · %d objekt"
+            "value": "Skanning klar, %d objekt"
           }
         },
         "th": {
           "stringUnit": {
             "state": "translated",
-            "value": "สแกนเสร็จแล้ว · %d รายการ"
+            "value": "สแกนเสร็จแล้ว, %d รายการ"
           }
         },
         "uk": {
           "stringUnit": {
             "state": "translated",
-            "value": "Сканування завершено · %d елементів"
+            "value": "Сканування завершено, %d елементів"
           }
         },
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Đã quét xong · %d mục"
+            "value": "Đã quét xong, %d mục"
           }
         }
       }
@@ -46838,205 +46838,205 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Storage analysed · %@ measured"
+            "value": "Storage analysed, %@ measured"
           }
         },
         "zh-hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "存储分析完成 · 已分析 %@"
+            "value": "存储分析完成，已分析 %@"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "저장 공간 분석 완료 · %@ 분석"
+            "value": "저장 공간 분석 완료, %@ 분석"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Хранилище проанализировано · измерено %@"
+            "value": "Хранилище проанализировано, измерено %@"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Almacenamiento analizado · %@ medidos"
+            "value": "Almacenamiento analizado, %@ medidos"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "ストレージ分析完了 · %@ を計測"
+            "value": "ストレージ分析完了，%@ を計測"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Stockage analysé · %@ mesurés"
+            "value": "Stockage analysé, %@ mesurés"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Speicher analysiert · %@ gemessen"
+            "value": "Speicher analysiert, %@ gemessen"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Archiviazione analizzata · misurati %@"
+            "value": "Archiviazione analizzata, misurati %@"
           }
         },
         "pt-br": {
           "stringUnit": {
             "state": "translated",
-            "value": "Armazenamento analisado · %@ medidos"
+            "value": "Armazenamento analisado, %@ medidos"
           }
         },
         "zh-hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "儲存空間分析完成 · 已分析 %@"
+            "value": "儲存空間分析完成，已分析 %@"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Depolama analiz edildi · %@ ölçüldü"
+            "value": "Depolama analiz edildi, %@ ölçüldü"
           }
         },
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pamięć przeanalizowana · zmierzono %@"
+            "value": "Pamięć przeanalizowana, zmierzono %@"
           }
         },
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Opslag geanalyseerd · %@ gemeten"
+            "value": "Opslag geanalyseerd, %@ gemeten"
           }
         },
         "lo": {
           "stringUnit": {
             "state": "translated",
-            "value": "ວິເຄາະພື້ນທີ່ຈັດເກັບແລ້ວ · ວັດແທກໄດ້ %@"
+            "value": "ວິເຄາະພື້ນທີ່ຈັດເກັບແລ້ວ, ວັດແທກໄດ້ %@"
           }
         },
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "تم تحليل التخزين · قياس %@"
+            "value": "تم تحليل التخزين, قياس %@"
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "האחסון נותח · נמדדו %@"
+            "value": "האחסון נותח, נמדדו %@"
           }
         },
         "fa": {
           "stringUnit": {
             "state": "translated",
-            "value": "حافظه تحلیل شد · %@ اندازه‌گیری شد"
+            "value": "حافظه تحلیل شد, %@ اندازه‌گیری شد"
           }
         },
         "bg": {
           "stringUnit": {
             "state": "translated",
-            "value": "Хранилището е анализирано · измерени %@"
+            "value": "Хранилището е анализирано, измерени %@"
           }
         },
         "cs": {
           "stringUnit": {
             "state": "translated",
-            "value": "Úložiště analyzováno · změřeno %@"
+            "value": "Úložiště analyzováno, změřeno %@"
           }
         },
         "da": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lagerplads analyseret · %@ målt"
+            "value": "Lagerplads analyseret, %@ målt"
           }
         },
         "el": {
           "stringUnit": {
             "state": "translated",
-            "value": "Η αποθήκευση αναλύθηκε · μετρήθηκαν %@"
+            "value": "Η αποθήκευση αναλύθηκε, μετρήθηκαν %@"
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "translated",
-            "value": "Almacenamiento analizado · %@ medidos"
+            "value": "Almacenamiento analizado, %@ medidos"
           }
         },
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tallennustila analysoitu · %@ mitattu"
+            "value": "Tallennustila analysoitu, %@ mitattu"
           }
         },
         "hu": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tárhely elemezve · %@ megmérve"
+            "value": "Tárhely elemezve, %@ megmérve"
           }
         },
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "Penyimpanan dianalisis · %@ diukur"
+            "value": "Penyimpanan dianalisis, %@ diukur"
           }
         },
         "ms": {
           "stringUnit": {
             "state": "translated",
-            "value": "Storan dianalisis · %@ diukur"
+            "value": "Storan dianalisis, %@ diukur"
           }
         },
         "nb": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lagring analysert · %@ målt"
+            "value": "Lagring analysert, %@ målt"
           }
         },
         "pt-pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "Armazenamento analisado · %@ medidos"
+            "value": "Armazenamento analisado, %@ medidos"
           }
         },
         "ro": {
           "stringUnit": {
             "state": "translated",
-            "value": "Stocare analizată · %@ măsurați"
+            "value": "Stocare analizată, %@ măsurați"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lagring analyserad · %@ uppmätt"
+            "value": "Lagring analyserad, %@ uppmätt"
           }
         },
         "th": {
           "stringUnit": {
             "state": "translated",
-            "value": "วิเคราะห์พื้นที่เก็บข้อมูลแล้ว · วัดได้ %@"
+            "value": "วิเคราะห์พื้นที่เก็บข้อมูลแล้ว, วัดได้ %@"
           }
         },
         "uk": {
           "stringUnit": {
             "state": "translated",
-            "value": "Сховище проаналізовано · виміряно %@"
+            "value": "Сховище проаналізовано, виміряно %@"
           }
         },
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Đã phân tích dung lượng · đo được %@"
+            "value": "Đã phân tích dung lượng, đo được %@"
           }
         }
       }
@@ -47048,205 +47048,205 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Uninstall advice · %d apps not opened recently"
+            "value": "Uninstall advice, %d apps not opened recently"
           }
         },
         "zh-hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "卸载建议 · %d 个应用长期未打开"
+            "value": "卸载建议，%d 个应用长期未打开"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "제거 제안 · 최근 미실행 앱 %d개"
+            "value": "제거 제안, 최근 미실행 앱 %d개"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Совет по удалению · приложений без запуска: %d"
+            "value": "Совет по удалению, приложений без запуска: %d"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sugerencia de desinstalación · %d apps sin abrir"
+            "value": "Sugerencia de desinstalación, %d apps sin abrir"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "アンインストール提案 · 長期間未使用 %d アプリ"
+            "value": "アンインストール提案，長期間未使用 %d アプリ"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Conseil de désinstallation · %d apps inutilisées"
+            "value": "Conseil de désinstallation, %d apps inutilisées"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Deinstallationshinweis · %d Apps lange nicht geöffnet"
+            "value": "Deinstallationshinweis, %d Apps lange nicht geöffnet"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Suggerimenti di disinstallazione · %d app non aperte da tempo"
+            "value": "Suggerimenti di disinstallazione, %d app non aperte da tempo"
           }
         },
         "pt-br": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sugestão de desinstalação · %d apps não abertos recentemente"
+            "value": "Sugestão de desinstalação, %d apps não abertos recentemente"
           }
         },
         "zh-hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "解除安裝建議 · %d 個應用程式長期未開啟"
+            "value": "解除安裝建議，%d 個應用程式長期未開啟"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kaldırma önerisi · uzun süredir açılmayan %d uygulama"
+            "value": "Kaldırma önerisi, uzun süredir açılmayan %d uygulama"
           }
         },
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sugestie odinstalowania · %d aplikacji nieużywanych od dawna"
+            "value": "Sugestie odinstalowania, %d aplikacji nieużywanych od dawna"
           }
         },
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Verwijderadvies · %d apps al lang niet geopend"
+            "value": "Verwijderadvies, %d apps al lang niet geopend"
           }
         },
         "lo": {
           "stringUnit": {
             "state": "translated",
-            "value": "ຄຳແນະນຳຖອນການຕິດຕັ້ງ · %d ແອັບທີ່ບໍ່ໄດ້ເປີດດົນນານ"
+            "value": "ຄຳແນະນຳຖອນການຕິດຕັ້ງ, %d ແອັບທີ່ບໍ່ໄດ້ເປີດດົນນານ"
           }
         },
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "اقتراح إزالة · %d تطبيقات لم تُفتح مؤخرًا"
+            "value": "اقتراح إزالة, %d تطبيقات لم تُفتح مؤخرًا"
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "עצת הסרה · %d אפליקציות שלא נפתחו זמן רב"
+            "value": "עצת הסרה, %d אפליקציות שלא נפתחו זמן רב"
           }
         },
         "fa": {
           "stringUnit": {
             "state": "translated",
-            "value": "پیشنهاد حذف · %d برنامه که مدتی است باز نشده"
+            "value": "پیشنهاد حذف, %d برنامه که مدتی است باز نشده"
           }
         },
         "bg": {
           "stringUnit": {
             "state": "translated",
-            "value": "Съвет за деинсталиране · %d приложения не са отваряни скоро"
+            "value": "Съвет за деинсталиране, %d приложения не са отваряни скоро"
           }
         },
         "cs": {
           "stringUnit": {
             "state": "translated",
-            "value": "Doporučení k odinstalaci · aplikace nedávno neotevřené: %d"
+            "value": "Doporučení k odinstalaci, aplikace nedávno neotevřené: %d"
           }
         },
         "da": {
           "stringUnit": {
             "state": "translated",
-            "value": "Afinstallationsforslag · %d apps ikke åbnet for nylig"
+            "value": "Afinstallationsforslag, %d apps ikke åbnet for nylig"
           }
         },
         "el": {
           "stringUnit": {
             "state": "translated",
-            "value": "Συμβουλή απεγκατάστασης · %d εφαρμογές δεν άνοιξαν πρόσφατα"
+            "value": "Συμβουλή απεγκατάστασης, %d εφαρμογές δεν άνοιξαν πρόσφατα"
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sugerencia de desinstalación · %d aplicaciones sin abrir recientemente"
+            "value": "Sugerencia de desinstalación, %d aplicaciones sin abrir recientemente"
           }
         },
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Poistoehdotus · %d sovellusta ei avattu äskettäin"
+            "value": "Poistoehdotus, %d sovellusta ei avattu äskettäin"
           }
         },
         "hu": {
           "stringUnit": {
             "state": "translated",
-            "value": "Eltávolítási javaslat · %d alkalmazás nem nyílt meg nemrég"
+            "value": "Eltávolítási javaslat, %d alkalmazás nem nyílt meg nemrég"
           }
         },
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "Saran penghapusan · %d aplikasi tidak dibuka baru-baru ini"
+            "value": "Saran penghapusan, %d aplikasi tidak dibuka baru-baru ini"
           }
         },
         "ms": {
           "stringUnit": {
             "state": "translated",
-            "value": "Nasihat nyahpasang · %d apl tidak dibuka baru-baru ini"
+            "value": "Nasihat nyahpasang, %d apl tidak dibuka baru-baru ini"
           }
         },
         "nb": {
           "stringUnit": {
             "state": "translated",
-            "value": "Avinstalleringsråd · %d apper ikke åpnet nylig"
+            "value": "Avinstalleringsråd, %d apper ikke åpnet nylig"
           }
         },
         "pt-pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sugestão de desinstalação · %d aplicações não abertas recentemente"
+            "value": "Sugestão de desinstalação, %d aplicações não abertas recentemente"
           }
         },
         "ro": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sfat de dezinstalare · %d aplicații nedeschise recent"
+            "value": "Sfat de dezinstalare, %d aplicații nedeschise recent"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Avinstallationsråd · %d appar har inte öppnats nyligen"
+            "value": "Avinstallationsråd, %d appar har inte öppnats nyligen"
           }
         },
         "th": {
           "stringUnit": {
             "state": "translated",
-            "value": "คำแนะนำการถอนการติดตั้ง · %d แอปที่ไม่ได้เปิดล่าสุด"
+            "value": "คำแนะนำการถอนการติดตั้ง, %d แอปที่ไม่ได้เปิดล่าสุด"
           }
         },
         "uk": {
           "stringUnit": {
             "state": "translated",
-            "value": "Порада щодо видалення · %d програм не відкривали нещодавно"
+            "value": "Порада щодо видалення, %d програм не відкривали нещодавно"
           }
         },
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Gợi ý gỡ cài đặt · %d ứng dụng không mở gần đây"
+            "value": "Gợi ý gỡ cài đặt, %d ứng dụng không mở gần đây"
           }
         }
       }
@@ -47678,205 +47678,205 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ free · %@ total"
+            "value": "%@ free, %@ total"
           }
         },
         "zh-hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "剩余 %@ · 共 %@"
+            "value": "剩余 %@，共 %@"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ 사용 가능 · 총 %@"
+            "value": "%@ 사용 가능, 총 %@"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ свободно · всего %@"
+            "value": "%@ свободно, всего %@"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ libres · %@ en total"
+            "value": "%@ libres, %@ en total"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "空き %@ · 合計 %@"
+            "value": "空き %@，合計 %@"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ libres · %@ au total"
+            "value": "%@ libres, %@ au total"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ frei · %@ gesamt"
+            "value": "%@ frei, %@ gesamt"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ liberi · %@ totali"
+            "value": "%@ liberi, %@ totali"
           }
         },
         "pt-br": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ livres · %@ no total"
+            "value": "%@ livres, %@ no total"
           }
         },
         "zh-hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "剩餘 %@ · 共 %@"
+            "value": "剩餘 %@，共 %@"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ boş · toplam %@"
+            "value": "%@ boş, toplam %@"
           }
         },
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ wolne · łącznie %@"
+            "value": "%@ wolne, łącznie %@"
           }
         },
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ vrij · %@ totaal"
+            "value": "%@ vrij, %@ totaal"
           }
         },
         "lo": {
           "stringUnit": {
             "state": "translated",
-            "value": "ຫວ່າງ %@ · ລວມ %@"
+            "value": "ຫວ່າງ %@, ລວມ %@"
           }
         },
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ حر · %@ إجمالًا"
+            "value": "%@ حر, %@ إجمالًا"
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ פנוי · %@ בסך הכול"
+            "value": "%@ פנוי, %@ בסך הכול"
           }
         },
         "fa": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ آزاد · در مجموع %@"
+            "value": "%@ آزاد, در مجموع %@"
           }
         },
         "bg": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ свободни · общо %@"
+            "value": "%@ свободни, общо %@"
           }
         },
         "cs": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ volných · %@ celkem"
+            "value": "%@ volných, %@ celkem"
           }
         },
         "da": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ ledig · %@ i alt"
+            "value": "%@ ledig, %@ i alt"
           }
         },
         "el": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ ελεύθερα · %@ συνολικά"
+            "value": "%@ ελεύθερα, %@ συνολικά"
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ libres · %@ en total"
+            "value": "%@ libres, %@ en total"
           }
         },
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ vapaana · %@ yhteensä"
+            "value": "%@ vapaana, %@ yhteensä"
           }
         },
         "hu": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ szabad · %@ összesen"
+            "value": "%@ szabad, %@ összesen"
           }
         },
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ tersedia · %@ total"
+            "value": "%@ tersedia, %@ total"
           }
         },
         "ms": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ kosong · %@ jumlah"
+            "value": "%@ kosong, %@ jumlah"
           }
         },
         "nb": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ ledig · %@ totalt"
+            "value": "%@ ledig, %@ totalt"
           }
         },
         "pt-pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ livres · %@ no total"
+            "value": "%@ livres, %@ no total"
           }
         },
         "ro": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ liberi · %@ în total"
+            "value": "%@ liberi, %@ în total"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ ledigt · %@ totalt"
+            "value": "%@ ledigt, %@ totalt"
           }
         },
         "th": {
           "stringUnit": {
             "state": "translated",
-            "value": "ว่าง %@ · รวม %@"
+            "value": "ว่าง %@, รวม %@"
           }
         },
         "uk": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ вільно · усього %@"
+            "value": "%@ вільно, усього %@"
           }
         },
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Trống %@ · tổng %@"
+            "value": "Trống %@, tổng %@"
           }
         }
       }
@@ -48014,7 +48014,7 @@
         "el": {
           "stringUnit": {
             "state": "translated",
-            "value": "Το ιστορικό παραμένει σε αυτό το Mac· τίποτα δεν συγχρονίζεται ή μεταφορτώνεται."
+            "value": "Το ιστορικό παραμένει σε αυτό το Mac, τίποτα δεν συγχρονίζεται ή μεταφορτώνεται."
           }
         },
         "es-419": {
@@ -48098,85 +48098,85 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · %d items · moved to Trash"
+            "value": "%@, %d items, moved to Trash"
           }
         },
         "zh-hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · %d 项 · 全部移至废纸篓"
+            "value": "%@，%d 项，全部移至废纸篓"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · %d개 항목 · 휴지통으로 이동"
+            "value": "%@, %d개 항목, 휴지통으로 이동"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · элементов: %d · в Корзину"
+            "value": "%@, элементов: %d, в Корзину"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · %d elementos · a la papelera"
+            "value": "%@, %d elementos, a la papelera"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · %d 項目 · ゴミ箱へ移動"
+            "value": "%@，%d 項目，ゴミ箱へ移動"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · %d éléments · à la corbeille"
+            "value": "%@, %d éléments, à la corbeille"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · %d Einträge · in den Papierkorb"
+            "value": "%@, %d Einträge, in den Papierkorb"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · %d elementi · nel Cestino"
+            "value": "%@, %d elementi, nel Cestino"
           }
         },
         "pt-br": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · %d itens · para a Lixeira"
+            "value": "%@, %d itens, para a Lixeira"
           }
         },
         "zh-hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · %d 項 · 全部移至垃圾桶"
+            "value": "%@，%d 項，全部移至垃圾桶"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · %d öğe · Çöp Sepeti’ne"
+            "value": "%@, %d öğe, Çöp Sepeti’ne"
           }
         },
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · %d elementów · do Kosza"
+            "value": "%@, %d elementów, do Kosza"
           }
         },
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · %d items · naar de Prullenbak"
+            "value": "%@, %d items, naar de Prullenbak"
           }
         },
         "lo": {
@@ -48728,205 +48728,205 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d smaller items · %@ in total"
+            "value": "%d smaller items, %@ in total"
           }
         },
         "zh-hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "还有 %d 项较小内容 · 合计 %@"
+            "value": "还有 %d 项较小内容，合计 %@"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "작은 항목 %d개 · 합계 %@"
+            "value": "작은 항목 %d개, 합계 %@"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Мелких элементов: %d · всего %@"
+            "value": "Мелких элементов: %d, всего %@"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d elementos menores · %@ en total"
+            "value": "%d elementos menores, %@ en total"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "小さい項目 %d 件 · 合計 %@"
+            "value": "小さい項目 %d 件，合計 %@"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d éléments plus petits · %@ au total"
+            "value": "%d éléments plus petits, %@ au total"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d kleinere Einträge · %@ gesamt"
+            "value": "%d kleinere Einträge, %@ gesamt"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Altri %d elementi minori · %@ in totale"
+            "value": "Altri %d elementi minori, %@ in totale"
           }
         },
         "pt-br": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d itens menores · %@ no total"
+            "value": "%d itens menores, %@ no total"
           }
         },
         "zh-hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "還有 %d 項較小內容 · 合計 %@"
+            "value": "還有 %d 項較小內容，合計 %@"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d küçük öğe daha · toplam %@"
+            "value": "%d küçük öğe daha, toplam %@"
           }
         },
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Jeszcze %d mniejszych elementów · łącznie %@"
+            "value": "Jeszcze %d mniejszych elementów, łącznie %@"
           }
         },
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Nog %d kleinere items · totaal %@"
+            "value": "Nog %d kleinere items, totaal %@"
           }
         },
         "lo": {
           "stringUnit": {
             "state": "translated",
-            "value": "ຍັງມີ %d ລາຍການຂະໜາດນ້ອຍ · ລວມ %@"
+            "value": "ຍັງມີ %d ລາຍການຂະໜາດນ້ອຍ, ລວມ %@"
           }
         },
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d عناصر أصغر · %@ إجمالًا"
+            "value": "%d عناصر أصغر, %@ إجمالًا"
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "עוד %d פריטים קטנים · %@ בסך הכול"
+            "value": "עוד %d פריטים קטנים, %@ בסך הכול"
           }
         },
         "fa": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d مورد کوچک‌تر دیگر · در مجموع %@"
+            "value": "%d مورد کوچک‌تر دیگر, در مجموع %@"
           }
         },
         "bg": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d по-малки елемента · общо %@"
+            "value": "%d по-малки елемента, общо %@"
           }
         },
         "cs": {
           "stringUnit": {
             "state": "translated",
-            "value": "Menší položky: %d · celkem %@"
+            "value": "Menší položky: %d, celkem %@"
           }
         },
         "da": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d mindre elementer · %@ i alt"
+            "value": "%d mindre elementer, %@ i alt"
           }
         },
         "el": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d μικρότερα στοιχεία · %@ συνολικά"
+            "value": "%d μικρότερα στοιχεία, %@ συνολικά"
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d elementos más pequeños · %@ en total"
+            "value": "%d elementos más pequeños, %@ en total"
           }
         },
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d pienempää kohdetta · %@ yhteensä"
+            "value": "%d pienempää kohdetta, %@ yhteensä"
           }
         },
         "hu": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d kisebb elem · összesen %@"
+            "value": "%d kisebb elem, összesen %@"
           }
         },
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d item lebih kecil · %@ total"
+            "value": "%d item lebih kecil, %@ total"
           }
         },
         "ms": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d item lebih kecil · %@ jumlah"
+            "value": "%d item lebih kecil, %@ jumlah"
           }
         },
         "nb": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d mindre elementer · %@ totalt"
+            "value": "%d mindre elementer, %@ totalt"
           }
         },
         "pt-pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d itens mais pequenos · %@ no total"
+            "value": "%d itens mais pequenos, %@ no total"
           }
         },
         "ro": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d elemente mai mici · %@ în total"
+            "value": "%d elemente mai mici, %@ în total"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d mindre objekt · %@ totalt"
+            "value": "%d mindre objekt, %@ totalt"
           }
         },
         "th": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d รายการที่เล็กกว่า · รวม %@"
+            "value": "%d รายการที่เล็กกว่า, รวม %@"
           }
         },
         "uk": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d менших елементів · усього %@"
+            "value": "%d менших елементів, усього %@"
           }
         },
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d mục nhỏ hơn · tổng %@"
+            "value": "%d mục nhỏ hơn, tổng %@"
           }
         }
       }
@@ -49778,205 +49778,205 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d categories · %d items"
+            "value": "%d categories, %d items"
           }
         },
         "zh-hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d 类 · %d 项"
+            "value": "%d 类，%d 项"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d개 카테고리 · %d개 항목"
+            "value": "%d개 카테고리, %d개 항목"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Категорий: %d · элементов: %d"
+            "value": "Категорий: %d, элементов: %d"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d categorías · %d elementos"
+            "value": "%d categorías, %d elementos"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d カテゴリ · %d 項目"
+            "value": "%d カテゴリ，%d 項目"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d catégories · %d éléments"
+            "value": "%d catégories, %d éléments"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d Kategorien · %d Einträge"
+            "value": "%d Kategorien, %d Einträge"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d categorie · %d elementi"
+            "value": "%d categorie, %d elementi"
           }
         },
         "pt-br": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d categorias · %d itens"
+            "value": "%d categorias, %d itens"
           }
         },
         "zh-hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d 類 · %d 項"
+            "value": "%d 類，%d 項"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d kategori · %d öğe"
+            "value": "%d kategori, %d öğe"
           }
         },
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d kategorie · %d elementów"
+            "value": "%d kategorie, %d elementów"
           }
         },
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d categorieën · %d items"
+            "value": "%d categorieën, %d items"
           }
         },
         "lo": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d ປະເພດ · %d ລາຍການ"
+            "value": "%d ປະເພດ, %d ລາຍການ"
           }
         },
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d فئات · %d عناصر"
+            "value": "%d فئات, %d عناصر"
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d קטגוריות · %d פריטים"
+            "value": "%d קטגוריות, %d פריטים"
           }
         },
         "fa": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d دسته · %d مورد"
+            "value": "%d دسته, %d مورد"
           }
         },
         "bg": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d категории · %d елемента"
+            "value": "%d категории, %d елемента"
           }
         },
         "cs": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kategorie: %d · položky: %d"
+            "value": "Kategorie: %d, položky: %d"
           }
         },
         "da": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d kategorier · %d elementer"
+            "value": "%d kategorier, %d elementer"
           }
         },
         "el": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d κατηγορίες · %d στοιχεία"
+            "value": "%d κατηγορίες, %d στοιχεία"
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d categorías · %d elementos"
+            "value": "%d categorías, %d elementos"
           }
         },
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d kategoriaa · %d kohdetta"
+            "value": "%d kategoriaa, %d kohdetta"
           }
         },
         "hu": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d kategória · %d elem"
+            "value": "%d kategória, %d elem"
           }
         },
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d kategori · %d item"
+            "value": "%d kategori, %d item"
           }
         },
         "ms": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d kategori · %d item"
+            "value": "%d kategori, %d item"
           }
         },
         "nb": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d kategorier · %d elementer"
+            "value": "%d kategorier, %d elementer"
           }
         },
         "pt-pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d categorias · %d itens"
+            "value": "%d categorias, %d itens"
           }
         },
         "ro": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d categorii · %d elemente"
+            "value": "%d categorii, %d elemente"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d kategorier · %d objekt"
+            "value": "%d kategorier, %d objekt"
           }
         },
         "th": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d หมวดหมู่ · %d รายการ"
+            "value": "%d หมวดหมู่, %d รายการ"
           }
         },
         "uk": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d категорій · %d елементів"
+            "value": "%d категорій, %d елементів"
           }
         },
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d danh mục · %d mục"
+            "value": "%d danh mục, %d mục"
           }
         }
       }
@@ -50618,205 +50618,205 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d selected · %@"
+            "value": "%d selected, %@"
           }
         },
         "zh-hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "已选 %d 项 · %@"
+            "value": "已选 %d 项，%@"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d개 선택 · %@"
+            "value": "%d개 선택, %@"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Выбрано: %d · %@"
+            "value": "Выбрано: %d, %@"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d seleccionados · %@"
+            "value": "%d seleccionados, %@"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d 件選択 · %@"
+            "value": "%d 件選択，%@"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d sélectionnés · %@"
+            "value": "%d sélectionnés, %@"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d ausgewählt · %@"
+            "value": "%d ausgewählt, %@"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d selezionati · %@"
+            "value": "%d selezionati, %@"
           }
         },
         "pt-br": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d selecionados · %@"
+            "value": "%d selecionados, %@"
           }
         },
         "zh-hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "已選 %d 項 · %@"
+            "value": "已選 %d 項，%@"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d seçildi · %@"
+            "value": "%d seçildi, %@"
           }
         },
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Wybrano: %d · %@"
+            "value": "Wybrano: %d, %@"
           }
         },
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d geselecteerd · %@"
+            "value": "%d geselecteerd, %@"
           }
         },
         "lo": {
           "stringUnit": {
             "state": "translated",
-            "value": "ເລືອກແລ້ວ %d ລາຍການ · %@"
+            "value": "ເລືອກແລ້ວ %d ລາຍການ, %@"
           }
         },
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "تم تحديد %d · %@"
+            "value": "تم تحديد %d, %@"
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "נבחרו %d · %@"
+            "value": "נבחרו %d, %@"
           }
         },
         "fa": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d مورد انتخاب شد · %@"
+            "value": "%d مورد انتخاب شد, %@"
           }
         },
         "bg": {
           "stringUnit": {
             "state": "translated",
-            "value": "Избрани: %d · %@"
+            "value": "Избрани: %d, %@"
           }
         },
         "cs": {
           "stringUnit": {
             "state": "translated",
-            "value": "Vybráno: %d · %@"
+            "value": "Vybráno: %d, %@"
           }
         },
         "da": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d valgt · %@"
+            "value": "%d valgt, %@"
           }
         },
         "el": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d επιλεγμένα · %@"
+            "value": "%d επιλεγμένα, %@"
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d seleccionados · %@"
+            "value": "%d seleccionados, %@"
           }
         },
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d valittu · %@"
+            "value": "%d valittu, %@"
           }
         },
         "hu": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d kijelölve · %@"
+            "value": "%d kijelölve, %@"
           }
         },
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d dipilih · %@"
+            "value": "%d dipilih, %@"
           }
         },
         "ms": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d dipilih · %@"
+            "value": "%d dipilih, %@"
           }
         },
         "nb": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d valgt · %@"
+            "value": "%d valgt, %@"
           }
         },
         "pt-pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d selecionados · %@"
+            "value": "%d selecionados, %@"
           }
         },
         "ro": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d selectate · %@"
+            "value": "%d selectate, %@"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d markerade · %@"
+            "value": "%d markerade, %@"
           }
         },
         "th": {
           "stringUnit": {
             "state": "translated",
-            "value": "เลือกแล้ว %d รายการ · %@"
+            "value": "เลือกแล้ว %d รายการ, %@"
           }
         },
         "uk": {
           "stringUnit": {
             "state": "translated",
-            "value": "Вибрано: %d · %@"
+            "value": "Вибрано: %d, %@"
           }
         },
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Đã chọn %d · %@"
+            "value": "Đã chọn %d, %@"
           }
         }
       }
@@ -51038,109 +51038,109 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Workbench · %@"
+            "value": "Workbench, %@"
           }
         },
         "zh-hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "工作台 · %@"
+            "value": "工作台，%@"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "워크벤치 · %@"
+            "value": "워크벤치, %@"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Рабочая область · %@"
+            "value": "Рабочая область, %@"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Área de trabajo · %@"
+            "value": "Área de trabajo, %@"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "ワークベンチ · %@"
+            "value": "ワークベンチ，%@"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Espace de travail · %@"
+            "value": "Espace de travail, %@"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Arbeitsbereich · %@"
+            "value": "Arbeitsbereich, %@"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Banco di lavoro · %@"
+            "value": "Banco di lavoro, %@"
           }
         },
         "pt-br": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bancada · %@"
+            "value": "Bancada, %@"
           }
         },
         "zh-hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "工作台 · %@"
+            "value": "工作台，%@"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Çalışma Alanı · %@"
+            "value": "Çalışma Alanı, %@"
           }
         },
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Warsztat · %@"
+            "value": "Warsztat, %@"
           }
         },
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Werkbank · %@"
+            "value": "Werkbank, %@"
           }
         },
         "lo": {
           "stringUnit": {
             "state": "translated",
-            "value": "ພື້ນທີ່ເຮັດວຽກ · %@"
+            "value": "ພື້ນທີ່ເຮັດວຽກ, %@"
           }
         },
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "مساحة العمل · %@"
+            "value": "مساحة العمل, %@"
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "סביבת עבודה · %@"
+            "value": "סביבת עבודה, %@"
           }
         },
         "fa": {
           "stringUnit": {
             "state": "translated",
-            "value": "میز کار · %@"
+            "value": "میز کار, %@"
           }
         },
         "bg": {
@@ -65738,85 +65738,85 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Scan · results from %@ · %d items"
+            "value": "Scan, results from %@, %d items"
           }
         },
         "zh-hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "扫描 · 结果来自 %@ · 共 %d 项"
+            "value": "扫描，结果来自 %@，共 %d 项"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "스캔 · %@ 결과 · %d개 항목"
+            "value": "스캔, %@ 결과, %d개 항목"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Сканирование · результат от %@ · элементов: %d"
+            "value": "Сканирование, результат от %@, элементов: %d"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Análisis · resultados de %@ · %d elementos"
+            "value": "Análisis, resultados de %@, %d elementos"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "スキャン · %@ の結果 · %d 項目"
+            "value": "スキャン，%@ の結果，%d 項目"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Analyse · résultats du %@ · %d éléments"
+            "value": "Analyse, résultats du %@, %d éléments"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Scan · Ergebnisse vom %@ · %d Einträge"
+            "value": "Scan, Ergebnisse vom %@, %d Einträge"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Scansione · risultati del %@ · %d elementi"
+            "value": "Scansione, risultati del %@, %d elementi"
           }
         },
         "pt-br": {
           "stringUnit": {
             "state": "translated",
-            "value": "Verificação · resultados de %@ · %d itens"
+            "value": "Verificação, resultados de %@, %d itens"
           }
         },
         "zh-hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "掃描 · 結果來自 %@ · 共 %d 項"
+            "value": "掃描，結果來自 %@，共 %d 項"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tarama · %@ tarihli sonuçlar · %d öğe"
+            "value": "Tarama, %@ tarihli sonuçlar, %d öğe"
           }
         },
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Skanowanie · wyniki z %@ · %d elementów"
+            "value": "Skanowanie, wyniki z %@, %d elementów"
           }
         },
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Scan · resultaten van %@ · %d items"
+            "value": "Scan, resultaten van %@, %d items"
           }
         },
         "lo": {
@@ -65948,205 +65948,205 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Scan · nothing scanned yet"
+            "value": "Scan, nothing scanned yet"
           }
         },
         "zh-hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "扫描 · 尚未扫描"
+            "value": "扫描，尚未扫描"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "스캔 · 아직 검사하지 않음"
+            "value": "스캔, 아직 검사하지 않음"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Сканирование · ещё не выполнялось"
+            "value": "Сканирование, ещё не выполнялось"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Análisis · aún sin analizar"
+            "value": "Análisis, aún sin analizar"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "スキャン · 未実行"
+            "value": "スキャン，未実行"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Analyse · pas encore lancée"
+            "value": "Analyse, pas encore lancée"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Scan · noch nicht gescannt"
+            "value": "Scan, noch nicht gescannt"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Scansione · non hai ancora scansionato"
+            "value": "Scansione, non hai ancora scansionato"
           }
         },
         "pt-br": {
           "stringUnit": {
             "state": "translated",
-            "value": "Verificação · ainda não verificou"
+            "value": "Verificação, ainda não verificou"
           }
         },
         "zh-hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "掃描 · 尚未掃描"
+            "value": "掃描，尚未掃描"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tarama · henüz taranmadı"
+            "value": "Tarama, henüz taranmadı"
           }
         },
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Skanowanie · jeszcze nie skanowano"
+            "value": "Skanowanie, jeszcze nie skanowano"
           }
         },
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Scan · nog niet gescand"
+            "value": "Scan, nog niet gescand"
           }
         },
         "lo": {
           "stringUnit": {
             "state": "translated",
-            "value": "ສະແກນ · ຍັງບໍ່ໄດ້ສະແກນ"
+            "value": "ສະແກນ, ຍັງບໍ່ໄດ້ສະແກນ"
           }
         },
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "فحص · لم يُفحص بعد"
+            "value": "فحص, لم يُفحص بعد"
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "סריקה · עדיין לא נסרק"
+            "value": "סריקה, עדיין לא נסרק"
           }
         },
         "fa": {
           "stringUnit": {
             "state": "translated",
-            "value": "اسکن · هنوز اسکن نشده"
+            "value": "اسکن, هنوز اسکن نشده"
           }
         },
         "bg": {
           "stringUnit": {
             "state": "translated",
-            "value": "Сканиране · все още нищо не е сканирано"
+            "value": "Сканиране, все още нищо не е сканирано"
           }
         },
         "cs": {
           "stringUnit": {
             "state": "translated",
-            "value": "Skenování · zatím nic neskenováno"
+            "value": "Skenování, zatím nic neskenováno"
           }
         },
         "da": {
           "stringUnit": {
             "state": "translated",
-            "value": "Scanning · intet scannet endnu"
+            "value": "Scanning, intet scannet endnu"
           }
         },
         "el": {
           "stringUnit": {
             "state": "translated",
-            "value": "Σάρωση · δεν έχει γίνει σάρωση ακόμη"
+            "value": "Σάρωση, δεν έχει γίνει σάρωση ακόμη"
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "translated",
-            "value": "Análisis · aún sin analizar"
+            "value": "Análisis, aún sin analizar"
           }
         },
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Skannaus · ei vielä skannattu"
+            "value": "Skannaus, ei vielä skannattu"
           }
         },
         "hu": {
           "stringUnit": {
             "state": "translated",
-            "value": "Vizsgálat · még semmi nincs vizsgálva"
+            "value": "Vizsgálat, még semmi nincs vizsgálva"
           }
         },
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pindai · belum ada yang dipindai"
+            "value": "Pindai, belum ada yang dipindai"
           }
         },
         "ms": {
           "stringUnit": {
             "state": "translated",
-            "value": "Imbas · belum ada yang diimbas"
+            "value": "Imbas, belum ada yang diimbas"
           }
         },
         "nb": {
           "stringUnit": {
             "state": "translated",
-            "value": "Skanning · ingenting skannet ennå"
+            "value": "Skanning, ingenting skannet ennå"
           }
         },
         "pt-pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "Verificação · ainda nada verificado"
+            "value": "Verificação, ainda nada verificado"
           }
         },
         "ro": {
           "stringUnit": {
             "state": "translated",
-            "value": "Scanare · încă nimic scanat"
+            "value": "Scanare, încă nimic scanat"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Skanning · inget skannat än"
+            "value": "Skanning, inget skannat än"
           }
         },
         "th": {
           "stringUnit": {
             "state": "translated",
-            "value": "สแกน · ยังไม่ได้สแกน"
+            "value": "สแกน, ยังไม่ได้สแกน"
           }
         },
         "uk": {
           "stringUnit": {
             "state": "translated",
-            "value": "Сканування · ще нічого не скановано"
+            "value": "Сканування, ще нічого не скановано"
           }
         },
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Quét · chưa quét lần nào"
+            "value": "Quét, chưa quét lần nào"
           }
         }
       }
@@ -72164,7 +72164,7 @@
         "el": {
           "stringUnit": {
             "state": "translated",
-            "value": "Μετακινούνται στον Κάδο από προεπιλογή· ανακτήσιμα μέχρι να τον αδειάσετε."
+            "value": "Μετακινούνται στον Κάδο από προεπιλογή, ανακτήσιμα μέχρι να τον αδειάσετε."
           }
         },
         "es-419": {
@@ -73928,205 +73928,205 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Scanning · step %d of %d"
+            "value": "Scanning, step %d of %d"
           }
         },
         "zh-hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "扫描进行中 · 第 %d 步，共 %d 步"
+            "value": "扫描进行中，第 %d 步，共 %d 步"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "검사 중 · %d단계 / 총 %d단계"
+            "value": "검사 중, %d단계 / 총 %d단계"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Сканирование · шаг %d из %d"
+            "value": "Сканирование, шаг %d из %d"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Analizando · paso %d de %d"
+            "value": "Analizando, paso %d de %d"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "スキャン中 · %d / %d ステップ"
+            "value": "スキャン中，%d / %d ステップ"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Analyse · étape %d sur %d"
+            "value": "Analyse, étape %d sur %d"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Scan · Schritt %d von %d"
+            "value": "Scan, Schritt %d von %d"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Scansione · passo %d di %d"
+            "value": "Scansione, passo %d di %d"
           }
         },
         "pt-br": {
           "stringUnit": {
             "state": "translated",
-            "value": "Verificando · etapa %d de %d"
+            "value": "Verificando, etapa %d de %d"
           }
         },
         "zh-hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "掃描進行中 · 第 %d 步，共 %d 步"
+            "value": "掃描進行中，第 %d 步，共 %d 步"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Taranıyor · adım %d / %d"
+            "value": "Taranıyor, adım %d / %d"
           }
         },
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Skanowanie · krok %d z %d"
+            "value": "Skanowanie, krok %d z %d"
           }
         },
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Scannen · stap %d van %d"
+            "value": "Scannen, stap %d van %d"
           }
         },
         "lo": {
           "stringUnit": {
             "state": "translated",
-            "value": "ກຳລັງສະແກນ · ຂັ້ນຕອນ %d ຈາກ %d"
+            "value": "ກຳລັງສະແກນ, ຂັ້ນຕອນ %d ຈາກ %d"
           }
         },
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "جارٍ الفحص · الخطوة %d من %d"
+            "value": "جارٍ الفحص, الخطوة %d من %d"
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "סורק · שלב %d מתוך %d"
+            "value": "סורק, שלב %d מתוך %d"
           }
         },
         "fa": {
           "stringUnit": {
             "state": "translated",
-            "value": "در حال اسکن · گام %d از %d"
+            "value": "در حال اسکن, گام %d از %d"
           }
         },
         "bg": {
           "stringUnit": {
             "state": "translated",
-            "value": "Сканиране · стъпка %d от %d"
+            "value": "Сканиране, стъпка %d от %d"
           }
         },
         "cs": {
           "stringUnit": {
             "state": "translated",
-            "value": "Skenování · krok %d z %d"
+            "value": "Skenování, krok %d z %d"
           }
         },
         "da": {
           "stringUnit": {
             "state": "translated",
-            "value": "Scanner · trin %d af %d"
+            "value": "Scanner, trin %d af %d"
           }
         },
         "el": {
           "stringUnit": {
             "state": "translated",
-            "value": "Σάρωση · βήμα %d από %d"
+            "value": "Σάρωση, βήμα %d από %d"
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "translated",
-            "value": "Analizando · paso %d de %d"
+            "value": "Analizando, paso %d de %d"
           }
         },
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Skannataan · vaihe %d / %d"
+            "value": "Skannataan, vaihe %d / %d"
           }
         },
         "hu": {
           "stringUnit": {
             "state": "translated",
-            "value": "Vizsgálat · %d. lépés / %d"
+            "value": "Vizsgálat, %d. lépés / %d"
           }
         },
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "Memindai · langkah %d dari %d"
+            "value": "Memindai, langkah %d dari %d"
           }
         },
         "ms": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mengimbas · langkah %d daripada %d"
+            "value": "Mengimbas, langkah %d daripada %d"
           }
         },
         "nb": {
           "stringUnit": {
             "state": "translated",
-            "value": "Skanner · trinn %d av %d"
+            "value": "Skanner, trinn %d av %d"
           }
         },
         "pt-pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "A verificar · passo %d de %d"
+            "value": "A verificar, passo %d de %d"
           }
         },
         "ro": {
           "stringUnit": {
             "state": "translated",
-            "value": "Se scanează · pasul %d din %d"
+            "value": "Se scanează, pasul %d din %d"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Skannar · steg %d av %d"
+            "value": "Skannar, steg %d av %d"
           }
         },
         "th": {
           "stringUnit": {
             "state": "translated",
-            "value": "กำลังสแกน · ขั้นตอน %d จาก %d"
+            "value": "กำลังสแกน, ขั้นตอน %d จาก %d"
           }
         },
         "uk": {
           "stringUnit": {
             "state": "translated",
-            "value": "Сканування · крок %d із %d"
+            "value": "Сканування, крок %d із %d"
           }
         },
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Đang quét · bước %d trên %d"
+            "value": "Đang quét, bước %d trên %d"
           }
         }
       }
@@ -81698,205 +81698,205 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Settings · Sift %@"
+            "value": "Settings, Sift %@"
           }
         },
         "zh-hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "设置 · Sift %@"
+            "value": "设置，Sift %@"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "설정 · Sift %@"
+            "value": "설정, Sift %@"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Настройки · Sift %@"
+            "value": "Настройки, Sift %@"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ajustes · Sift %@"
+            "value": "Ajustes, Sift %@"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "設定 · Sift %@"
+            "value": "設定，Sift %@"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Réglages · Sift %@"
+            "value": "Réglages, Sift %@"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Einstellungen · Sift %@"
+            "value": "Einstellungen, Sift %@"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Impostazioni · Sift %@"
+            "value": "Impostazioni, Sift %@"
           }
         },
         "pt-br": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ajustes · Sift %@"
+            "value": "Ajustes, Sift %@"
           }
         },
         "zh-hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "設定 · Sift %@"
+            "value": "設定，Sift %@"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ayarlar · Sift %@"
+            "value": "Ayarlar, Sift %@"
           }
         },
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ustawienia · Sift %@"
+            "value": "Ustawienia, Sift %@"
           }
         },
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Instellingen · Sift %@"
+            "value": "Instellingen, Sift %@"
           }
         },
         "lo": {
           "stringUnit": {
             "state": "translated",
-            "value": "ການຕັ້ງຄ່າ · Sift %@"
+            "value": "ການຕັ້ງຄ່າ, Sift %@"
           }
         },
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "الإعدادات · Sift %@"
+            "value": "الإعدادات, Sift %@"
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "הגדרות · Sift %@"
+            "value": "הגדרות, Sift %@"
           }
         },
         "fa": {
           "stringUnit": {
             "state": "translated",
-            "value": "تنظیمات · Sift %@"
+            "value": "تنظیمات, Sift %@"
           }
         },
         "bg": {
           "stringUnit": {
             "state": "translated",
-            "value": "Настройки · Sift %@"
+            "value": "Настройки, Sift %@"
           }
         },
         "cs": {
           "stringUnit": {
             "state": "translated",
-            "value": "Nastavení · Sift %@"
+            "value": "Nastavení, Sift %@"
           }
         },
         "da": {
           "stringUnit": {
             "state": "translated",
-            "value": "Indstillinger · Sift %@"
+            "value": "Indstillinger, Sift %@"
           }
         },
         "el": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ρυθμίσεις · Sift %@"
+            "value": "Ρυθμίσεις, Sift %@"
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ajustes · Sift %@"
+            "value": "Ajustes, Sift %@"
           }
         },
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Asetukset · Sift %@"
+            "value": "Asetukset, Sift %@"
           }
         },
         "hu": {
           "stringUnit": {
             "state": "translated",
-            "value": "Beállítások · Sift %@"
+            "value": "Beállítások, Sift %@"
           }
         },
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pengaturan · Sift %@"
+            "value": "Pengaturan, Sift %@"
           }
         },
         "ms": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tetapan · Sift %@"
+            "value": "Tetapan, Sift %@"
           }
         },
         "nb": {
           "stringUnit": {
             "state": "translated",
-            "value": "Innstillinger · Sift %@"
+            "value": "Innstillinger, Sift %@"
           }
         },
         "pt-pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "Definições · Sift %@"
+            "value": "Definições, Sift %@"
           }
         },
         "ro": {
           "stringUnit": {
             "state": "translated",
-            "value": "Configurări · Sift %@"
+            "value": "Configurări, Sift %@"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Inställningar · Sift %@"
+            "value": "Inställningar, Sift %@"
           }
         },
         "th": {
           "stringUnit": {
             "state": "translated",
-            "value": "การตั้งค่า · Sift %@"
+            "value": "การตั้งค่า, Sift %@"
           }
         },
         "uk": {
           "stringUnit": {
             "state": "translated",
-            "value": "Налаштування · Sift %@"
+            "value": "Налаштування, Sift %@"
           }
         },
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Cài đặt · Sift %@"
+            "value": "Cài đặt, Sift %@"
           }
         }
       }
@@ -85898,205 +85898,205 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ measured · %@ files"
+            "value": "%@ measured, %@ files"
           }
         },
         "zh-hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "已分析 %@ · %@ 个文件"
+            "value": "已分析 %@，%@ 个文件"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ 분석 · %@개 파일"
+            "value": "%@ 분석, %@개 파일"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Измерено %@ · файлов: %@"
+            "value": "Измерено %@, файлов: %@"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ medidos · %@ archivos"
+            "value": "%@ medidos, %@ archivos"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ を計測 · %@ ファイル"
+            "value": "%@ を計測，%@ ファイル"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ mesurés · %@ fichiers"
+            "value": "%@ mesurés, %@ fichiers"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ gemessen · %@ Dateien"
+            "value": "%@ gemessen, %@ Dateien"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Misurati %@ · %@ file"
+            "value": "Misurati %@, %@ file"
           }
         },
         "pt-br": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ medidos · %@ arquivos"
+            "value": "%@ medidos, %@ arquivos"
           }
         },
         "zh-hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "已分析 %@ · %@ 個檔案"
+            "value": "已分析 %@，%@ 個檔案"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ ölçüldü · %@ dosya"
+            "value": "%@ ölçüldü, %@ dosya"
           }
         },
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Zmierzono %@ · %@ plików"
+            "value": "Zmierzono %@, %@ plików"
           }
         },
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ gemeten · %@ bestanden"
+            "value": "%@ gemeten, %@ bestanden"
           }
         },
         "lo": {
           "stringUnit": {
             "state": "translated",
-            "value": "ວັດແທກໄດ້ %@ · %@ ໄຟລ໌"
+            "value": "ວັດແທກໄດ້ %@, %@ ໄຟລ໌"
           }
         },
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "قِياس %@ · %@ ملفات"
+            "value": "قِياس %@, %@ ملفات"
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "נמדדו %@ · %@ קבצים"
+            "value": "נמדדו %@, %@ קבצים"
           }
         },
         "fa": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ اندازه‌گیری شد · %@ فایل"
+            "value": "%@ اندازه‌گیری شد, %@ فایل"
           }
         },
         "bg": {
           "stringUnit": {
             "state": "translated",
-            "value": "Измерени %@ · %@ файла"
+            "value": "Измерени %@, %@ файла"
           }
         },
         "cs": {
           "stringUnit": {
             "state": "translated",
-            "value": "Změřeno %@ · soubory: %@"
+            "value": "Změřeno %@, soubory: %@"
           }
         },
         "da": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ målt · %@ filer"
+            "value": "%@ målt, %@ filer"
           }
         },
         "el": {
           "stringUnit": {
             "state": "translated",
-            "value": "Μετρήθηκαν %@ · %@ αρχεία"
+            "value": "Μετρήθηκαν %@, %@ αρχεία"
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ medidos · %@ archivos"
+            "value": "%@ medidos, %@ archivos"
           }
         },
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ mitattu · %@ tiedostoa"
+            "value": "%@ mitattu, %@ tiedostoa"
           }
         },
         "hu": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ megmérve · %@ fájl"
+            "value": "%@ megmérve, %@ fájl"
           }
         },
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ diukur · %@ file"
+            "value": "%@ diukur, %@ file"
           }
         },
         "ms": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ diukur · %@ fail"
+            "value": "%@ diukur, %@ fail"
           }
         },
         "nb": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ målt · %@ filer"
+            "value": "%@ målt, %@ filer"
           }
         },
         "pt-pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ medidos · %@ ficheiros"
+            "value": "%@ medidos, %@ ficheiros"
           }
         },
         "ro": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ măsurați · %@ fișiere"
+            "value": "%@ măsurați, %@ fișiere"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ uppmätt · %@ filer"
+            "value": "%@ uppmätt, %@ filer"
           }
         },
         "th": {
           "stringUnit": {
             "state": "translated",
-            "value": "วัดได้ %@ · %@ ไฟล์"
+            "value": "วัดได้ %@, %@ ไฟล์"
           }
         },
         "uk": {
           "stringUnit": {
             "state": "translated",
-            "value": "Виміряно %@ · %@ файлів"
+            "value": "Виміряно %@, %@ файлів"
           }
         },
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Đo được %@ · %@ tệp"
+            "value": "Đo được %@, %@ tệp"
           }
         }
       }
@@ -88208,205 +88208,205 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Storage · %@"
+            "value": "Storage, %@"
           }
         },
         "zh-hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "存储 · %@"
+            "value": "存储，%@"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "저장 공간 · %@"
+            "value": "저장 공간, %@"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Хранилище · %@"
+            "value": "Хранилище, %@"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Almacenamiento · %@"
+            "value": "Almacenamiento, %@"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "ストレージ · %@"
+            "value": "ストレージ，%@"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Stockage · %@"
+            "value": "Stockage, %@"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Speicher · %@"
+            "value": "Speicher, %@"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Archiviazione · %@"
+            "value": "Archiviazione, %@"
           }
         },
         "pt-br": {
           "stringUnit": {
             "state": "translated",
-            "value": "Armazenamento · %@"
+            "value": "Armazenamento, %@"
           }
         },
         "zh-hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "儲存空間 · %@"
+            "value": "儲存空間，%@"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Depolama · %@"
+            "value": "Depolama, %@"
           }
         },
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pamięć masowa · %@"
+            "value": "Pamięć masowa, %@"
           }
         },
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Opslag · %@"
+            "value": "Opslag, %@"
           }
         },
         "lo": {
           "stringUnit": {
             "state": "translated",
-            "value": "ພື້ນທີ່ຈັດເກັບ · %@"
+            "value": "ພື້ນທີ່ຈັດເກັບ, %@"
           }
         },
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "التخزين · %@"
+            "value": "التخزين, %@"
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "אחסון · %@"
+            "value": "אחסון, %@"
           }
         },
         "fa": {
           "stringUnit": {
             "state": "translated",
-            "value": "حافظه · %@"
+            "value": "حافظه, %@"
           }
         },
         "bg": {
           "stringUnit": {
             "state": "translated",
-            "value": "Хранилище · %@"
+            "value": "Хранилище, %@"
           }
         },
         "cs": {
           "stringUnit": {
             "state": "translated",
-            "value": "Úložiště · %@"
+            "value": "Úložiště, %@"
           }
         },
         "da": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lagerplads · %@"
+            "value": "Lagerplads, %@"
           }
         },
         "el": {
           "stringUnit": {
             "state": "translated",
-            "value": "Αποθήκευση · %@"
+            "value": "Αποθήκευση, %@"
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "translated",
-            "value": "Almacenamiento · %@"
+            "value": "Almacenamiento, %@"
           }
         },
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tallennustila · %@"
+            "value": "Tallennustila, %@"
           }
         },
         "hu": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tárhely · %@"
+            "value": "Tárhely, %@"
           }
         },
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "Penyimpanan · %@"
+            "value": "Penyimpanan, %@"
           }
         },
         "ms": {
           "stringUnit": {
             "state": "translated",
-            "value": "Storan · %@"
+            "value": "Storan, %@"
           }
         },
         "nb": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lagring · %@"
+            "value": "Lagring, %@"
           }
         },
         "pt-pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "Armazenamento · %@"
+            "value": "Armazenamento, %@"
           }
         },
         "ro": {
           "stringUnit": {
             "state": "translated",
-            "value": "Stocare · %@"
+            "value": "Stocare, %@"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lagring · %@"
+            "value": "Lagring, %@"
           }
         },
         "th": {
           "stringUnit": {
             "state": "translated",
-            "value": "พื้นที่เก็บข้อมูล · %@"
+            "value": "พื้นที่เก็บข้อมูล, %@"
           }
         },
         "uk": {
           "stringUnit": {
             "state": "translated",
-            "value": "Сховище · %@"
+            "value": "Сховище, %@"
           }
         },
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dung lượng · %@"
+            "value": "Dung lượng, %@"
           }
         }
       }
@@ -90938,109 +90938,109 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · %@ used of %@"
+            "value": "%@, %@ used of %@"
           }
         },
         "zh-hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · 已用 %@，共 %@"
+            "value": "%@，已用 %@，共 %@"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · %@ 사용 / 총 %@"
+            "value": "%@, %@ 사용 / 총 %@"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · занято %@ из %@"
+            "value": "%@, занято %@ из %@"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · %@ usado de %@"
+            "value": "%@, %@ usado de %@"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · %@ / %@ 使用"
+            "value": "%@，%@ / %@ 使用"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · %@ utilisé sur %@"
+            "value": "%@, %@ utilisé sur %@"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · %@ von %@ belegt"
+            "value": "%@, %@ von %@ belegt"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · %@ usati su %@"
+            "value": "%@, %@ usati su %@"
           }
         },
         "pt-br": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · %@ usados de %@"
+            "value": "%@, %@ usados de %@"
           }
         },
         "zh-hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · 已用 %@，共 %@"
+            "value": "%@，已用 %@，共 %@"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · %@ / %@ kullanıldı"
+            "value": "%@, %@ / %@ kullanıldı"
           }
         },
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · zajęte %@ z %@"
+            "value": "%@, zajęte %@ z %@"
           }
         },
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · %@ gebruikt van %@"
+            "value": "%@, %@ gebruikt van %@"
           }
         },
         "lo": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · ໃຊ້ໄປ %@ ຈາກ %@"
+            "value": "%@, ໃຊ້ໄປ %@ ຈາກ %@"
           }
         },
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · %@ مستخدم من %@"
+            "value": "%@, %@ مستخدم من %@"
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · %@ בשימוש מתוך %@"
+            "value": "%@, %@ בשימוש מתוך %@"
           }
         },
         "fa": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · %@ از %@ استفاده شده"
+            "value": "%@, %@ از %@ استفاده شده"
           }
         },
         "bg": {

@@ -319,6 +319,10 @@ public enum SiftMetrics {
     public static let chipHeight: CGFloat = 30
     public static let fieldHeight: CGFloat = 34
 
+    /// The hairline stroke: half a point, so a border reads as glass edge
+    /// rather than a drawn frame.
+    public static let hairline: CGFloat = 0.5
+
     /// The icon rail. 112 pt holds a 76 pt item with the glyph and its label.
     public static let railWidth: CGFloat = 112
     public static let railItemWidth: CGFloat = 76
@@ -357,15 +361,16 @@ public enum SiftFont {
     public static let sectionTitle = Font.system(size: 15, weight: .semibold)
     public static let body = Font.system(size: 13, weight: .regular)
     public static let bodyEmphasis = Font.system(size: 13, weight: .medium)
-    public static let caption = Font.system(size: 11, weight: .regular)
-    public static let eyebrow = Font.system(size: 11, weight: .semibold)
+    // The readability floor is 12: nothing the interface renders sits below it.
+    public static let caption = Font.system(size: 12, weight: .regular)
+    public static let eyebrow = Font.system(size: 12, weight: .semibold)
     public static let metric = Font.system(size: 24, weight: .semibold)
     public static let metricLarge = Font.system(size: 32, weight: .bold)
     /// The number on the overview's hero card: large enough to be the subject.
     public static let heroMetric = Font.system(size: 62, weight: .bold)
     public static let heroUnit = Font.system(size: 18, weight: .semibold)
-    public static let badge = Font.system(size: 10, weight: .semibold)
-    public static let railLabel = Font.system(size: 10, weight: .medium)
+    public static let badge = Font.system(size: 12, weight: .semibold)
+    public static let railLabel = Font.system(size: 12, weight: .medium)
     public static let monospacedNumber = Font.system(size: 13, design: .monospaced)
 }
 

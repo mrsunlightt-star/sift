@@ -259,7 +259,7 @@ public struct UninstallerView: View {
         } else {
             lastUsed = LocalizationKey.appsNeverOpened.localized
         }
-        return "\(version) · \(lastUsed)"
+        return "\(version), \(lastUsed)"
     }
 
     private var filteredApplications: [InstalledApplication] {
@@ -511,7 +511,7 @@ public struct UninstallerView: View {
                     LocalizationKey.appsUninstallAndClean.localized(
                         plan.formattedTotal(includeReviewFiles: includeReviewFiles)
                     )
-                    + " · " + plan.application.name
+                    + ", " + plan.application.name
                 )
                 .font(SiftFont.bodyEmphasis)
                 NoticeBanner(level: .information, titleKey: .cleanupConfirmUndoNotice)

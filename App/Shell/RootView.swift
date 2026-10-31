@@ -340,7 +340,7 @@ struct SiftMark: View {
         }
         .overlay {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(.white.opacity(0.22), lineWidth: 1)
+                .strokeBorder(.white.opacity(0.22), lineWidth: SiftMetrics.hairline)
         }
         .shadow(color: SiftColor.accent.opacity(0.35), radius: 10, y: 4)
         .accessibilityHidden(true)

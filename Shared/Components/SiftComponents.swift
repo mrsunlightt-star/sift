@@ -368,7 +368,7 @@ public struct SiftPrimaryButton: View {
             }
             .overlay {
                 RoundedRectangle(cornerRadius: SiftMetrics.controlCornerRadius, style: .continuous)
-                    .strokeBorder(.black.opacity(0.14), lineWidth: 1)
+                    .strokeBorder(.black.opacity(0.14), lineWidth: SiftMetrics.hairline)
             }
             .shadow(
                 color: SiftColor.accent.opacity(isHovering ? 0.40 : 0.26),
@@ -425,7 +425,7 @@ public struct SiftSecondaryButton: View {
             }
             .overlay {
                 RoundedRectangle(cornerRadius: SiftMetrics.controlCornerRadius, style: .continuous)
-                    .strokeBorder(SiftColor.glassBorder, lineWidth: 1)
+                    .strokeBorder(SiftColor.glassBorder, lineWidth: SiftMetrics.hairline)
             }
         }
         .buttonStyle(SiftPressButtonStyle())
@@ -683,7 +683,7 @@ public struct RiskBadge: View {
         )
         .overlay {
             RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
-                .strokeBorder(SiftColor.color(for: risk).opacity(0.18), lineWidth: 1)
+                .strokeBorder(SiftColor.color(for: risk).opacity(0.18), lineWidth: SiftMetrics.hairline)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Text(risk.labelKey.localized))
@@ -1039,7 +1039,7 @@ public struct SiftSelectableRow<Content: View>: View {
                 )
                 .overlay {
                     RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
-                        .strokeBorder(isSelected ? SiftColor.accent.opacity(0.30) : .clear, lineWidth: 1)
+                        .strokeBorder(isSelected ? SiftColor.accent.opacity(0.30) : .clear, lineWidth: SiftMetrics.hairline)
                 }
                 .contentShape(Rectangle())
         }
@@ -1078,7 +1078,7 @@ public struct SiftEmptyState: View {
                 .foregroundStyle(.secondary)
                 .frame(width: 56, height: 56)
                 .background(Circle().fill(SiftColor.subtleFill))
-                .overlay(Circle().strokeBorder(SiftColor.glassBorder, lineWidth: 1))
+                .overlay(Circle().strokeBorder(SiftColor.glassBorder, lineWidth: SiftMetrics.hairline))
             Text(titleKey.localized)
                 .siftFont(.sectionTitle)
             if let detailKey {
@@ -1174,7 +1174,7 @@ public struct NoticeBanner: View {
         .clipShape(RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
-                .strokeBorder(level.tint.opacity(0.18), lineWidth: 1)
+                .strokeBorder(level.tint.opacity(0.18), lineWidth: SiftMetrics.hairline)
         }
         .accessibilityElement(children: .contain)
     }
@@ -1348,7 +1348,7 @@ public struct SiftHeroCard<Actions: View>: View {
             }
         }
         .overlay {
-            shape.strokeBorder(tint.opacity(0.22), lineWidth: 1)
+            shape.strokeBorder(tint.opacity(0.22), lineWidth: SiftMetrics.hairline)
         }
         .clipShape(shape)
         .shadow(color: .black.opacity(0.12), radius: 14, y: 6)
@@ -1384,7 +1384,7 @@ public struct SiftMetricPill: View {
         )
         .overlay {
             RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS + 2, style: .continuous)
-                .strokeBorder(tint.opacity(0.16), lineWidth: 1)
+                .strokeBorder(tint.opacity(0.16), lineWidth: SiftMetrics.hairline)
         }
     }
 }

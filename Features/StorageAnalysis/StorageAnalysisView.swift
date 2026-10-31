@@ -683,7 +683,7 @@ private struct TreemapTileView: View {
             )
             .overlay {
                 RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusL, style: .continuous)
-                    .strokeBorder(tint.opacity(isHovering ? 0.55 : 0.34), lineWidth: 1)
+                    .strokeBorder(tint.opacity(isHovering ? 0.55 : 0.34), lineWidth: SiftMetrics.hairline)
             }
             .overlay(alignment: .topLeading) {
                 if showsName {

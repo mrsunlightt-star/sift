@@ -135,7 +135,7 @@ public struct DashboardView: View {
                         )
                         .overlay {
                             RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS + 2, style: .continuous)
-                                .strokeBorder(SiftColor.glassBorder, lineWidth: 1)
+                                .strokeBorder(SiftColor.glassBorder, lineWidth: SiftMetrics.hairline)
                         }
                     }
                 }
@@ -437,7 +437,7 @@ public struct DashboardView: View {
 
     private func suggestedDetail(_ item: CleanupItem) -> String {
         if item.fileCount > 1 {
-            return "\(item.displayPath) · \(LocalizationKey.commonFileCount.localized(item.fileCount))"
+            return "\(item.displayPath), \(LocalizationKey.commonFileCount.localized(item.fileCount))"
         }
         return item.displayPath
     }
@@ -482,8 +482,8 @@ public struct DashboardView: View {
                     if let outcome = lastOutcome {
                         activityRow(
                             tint: SiftColor.safe,
-                            title: "\(LocalizationKey.dashboardCleanupCompleted.localized) · \(outcome.formattedReleased)",
-                            detail: "\(SiftFormat.relativeDate(outcome.finishedAt)) · \(LocalizationKey.cleanupResultMoved.localized(outcome.movedCount))"
+                            title: "\(LocalizationKey.dashboardCleanupCompleted.localized), \(outcome.formattedReleased)",
+                            detail: "\(SiftFormat.relativeDate(outcome.finishedAt)), \(LocalizationKey.cleanupResultMoved.localized(outcome.movedCount))"
                         )
                     }
 

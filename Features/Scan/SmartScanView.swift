@@ -563,7 +563,7 @@ public struct ScanView: View {
             )
             .overlay {
                 RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS + 2, style: .continuous)
-                    .strokeBorder(SiftColor.glassBorder, lineWidth: 1)
+                    .strokeBorder(SiftColor.glassBorder, lineWidth: SiftMetrics.hairline)
             }
         }
         .menuStyle(.borderlessButton)
@@ -573,14 +573,14 @@ public struct ScanView: View {
 
     private var resultSummary: String {
         if filter == .duplicates {
-            return "\(SiftFormat.bytes(scan.duplicateReclaimableBytes)) · \(LocalizationKey.commonItemCount.localized(scan.duplicateGroupsTotal))"
+            return "\(SiftFormat.bytes(scan.duplicateReclaimableBytes)), \(LocalizationKey.commonItemCount.localized(scan.duplicateGroupsTotal))"
         }
         let totals = scan.categoryTotals.limited(to: filter.categories)
         let bytes = totals.reduce(Int64(0)) { $0 + $1.totalBytes }
         let count = filter == .all
             ? (scan.report?.itemCount ?? 0)
             : totals.reduce(0) { $0 + $1.itemCount }
-        return "\(SiftFormat.bytes(bytes)) · \(LocalizationKey.commonItemCount.localized(count))"
+        return "\(SiftFormat.bytes(bytes)), \(LocalizationKey.commonItemCount.localized(count))"
     }
 
     // MARK: - Summary rail
@@ -600,7 +600,7 @@ public struct ScanView: View {
                     .contentTransition(.numericText())
 
                 Text(
-                    "\(LocalizationKey.commonItemCount.localized(cleanup.selectedCount)) · \(LocalizationKey.cleanupConfirmMethodValue.localized)"
+                    "\(LocalizationKey.commonItemCount.localized(cleanup.selectedCount)), \(LocalizationKey.cleanupConfirmMethodValue.localized)"
                 )
                 .font(SiftFont.caption)
                 .foregroundStyle(.secondary)
@@ -611,7 +611,7 @@ public struct ScanView: View {
                         LocalizationKey.scanResultsCategoryTotals.localized(
                             cleanup.selectedByCategory
                                 .map { "\($0.category.titleKey.localized) \($0.formattedSize)" }
-                                .joined(separator: " · ")
+                                .joined(separator: ", ")
                         )
                     )
                     .font(SiftFont.caption)
@@ -927,7 +927,7 @@ struct ScanItemRow: View {
     }
 
     private var itemDetail: String {
-        "\(item.displayPath) · \(item.category.titleKey.localized)"
+        "\(item.displayPath), \(item.category.titleKey.localized)"
     }
 }
 
@@ -988,7 +988,7 @@ struct ScanRunningCard: View {
                                 )
                                 .overlay {
                                     RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS + 2, style: .continuous)
-                                        .strokeBorder(SiftColor.glassBorder, lineWidth: 1)
+                                        .strokeBorder(SiftColor.glassBorder, lineWidth: SiftMetrics.hairline)
                                 }
                         }
                         HStack(spacing: SiftMetrics.spacingS) {
@@ -1147,7 +1147,7 @@ struct ScanRunningCard: View {
 ///
 /// A scan that cannot read ~/Library reports two dozen children and the flat
 /// list read like noise; the card now shows one row per directory — "~/Library
-/// · 24 项" — with the location-level detail one click away, because the
+/// 24 项" — with the location-level detail one click away, because the
 /// summary is what the user can act on and the detail is what they audit.
 struct SkippedLocationsCard: View {
     let locations: [SkippedLocation]

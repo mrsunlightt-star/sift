@@ -51,7 +51,7 @@ public struct PurchaseView: View {
                         if let reason {
                             NoticeBanner(
                                 level: .information,
-                                message: "\(reason.titleKey.localized) · \(LocalizationKey.purchaseLicenseRequiredDetail.localized)"
+                                message: "\(reason.titleKey.localized), \(LocalizationKey.purchaseLicenseRequiredDetail.localized)"
                             )
                         }
 
