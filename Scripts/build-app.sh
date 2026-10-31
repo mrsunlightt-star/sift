@@ -172,7 +172,22 @@ echo "==> Signing (ad-hoc, development only)"
 # `--options runtime` enables the Hardened Runtime, which the release checklist
 # also requires. There is no nested code in the bundle, so `--deep` is not
 # needed (and Apple discourages it for signing).
-codesign --force --options runtime --sign - "${APP_DIR}" 2>&1 | grep -v "replacing existing signature" || true
+#
+# The designated requirement is pinned to the bundle identifier. The default
+# for ad-hoc code is the build's own cdhash, and the keychain ACL on the stored
+# licence key and every TCC permission grant bind to the designated requirement
+# the app had when it was granted — so with the default, each rebuild
+# invalidated them all, and the licence-key password prompt and the folder
+# access grants re-appeared after every build. A requirement that only names
+# the identifier is stable across rebuilds: one "Always Allow", and one
+# re-grant of each permission, is the last one this machine asks for. It is
+# also weaker — any app claiming this identifier satisfies it — which is an
+# acceptable trade for a build that runs on this machine only. A release build
+# signs with a Developer ID identity, whose requirement anchors to the
+# certificate: stable across builds and strong.
+codesign --force --options runtime \
+  --requirements '=designated => identifier "com.siftmac.cleaner"' \
+  --sign - "${APP_DIR}" 2>&1 | grep -v "replacing existing signature" || true
 codesign --verify --deep --strict "${APP_DIR}" && echo "    signature verified"
 
 if [[ "${INSTALL}" == "1" ]]; then
