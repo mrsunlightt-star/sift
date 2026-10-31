@@ -173,6 +173,11 @@ public struct DashboardView: View {
                             symbolName: "viewfinder",
                             isEnabled: !environment.isScanInFlight
                         ) {
+                            // Starting a scan is also the navigation: the scan
+                            // page is where the run's progress lives, so the
+                            // hero hands the user straight to it instead of
+                            // offering a second button to click.
+                            onOpenScan()
                             Task { await environment.runScan(.everything) }
                         }
                     }
