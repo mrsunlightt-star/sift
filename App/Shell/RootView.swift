@@ -188,7 +188,11 @@ struct IconRailView: View {
             // The appearance switcher lives in the rail, above the account
             // entry: it is a window-level control, and the footer is where the
             // window-level controls sit.
-            appearanceMenu
+            AppearanceRailMenu(
+                selection: environment.preferences.appearance
+            ) { appearance in
+                Task { await environment.updateSettings { $0.appearance = appearance } }
+            }
 
             // The footer item is the purchase state: an accent call to unlock
             // while locked, the account entry once unlocked.
@@ -297,53 +301,6 @@ struct IconRailView: View {
         .buttonStyle(SiftPressButtonStyle())
         .accessibilityIdentifier("sidebar.purchase")
         .help(LocalizationKey.purchaseTitle.localized)
-    }
-
-    /// The appearance switcher, as a rail footer item in the language menu's
-    /// idiom: the same box, icon size and label as every rail entry, opening a
-    /// small menu with the three modes. The current mode names the item, so the
-    /// state reads without opening it.
-    private var appearanceMenu: some View {
-        Menu {
-            ForEach(AppSettings.Appearance.allCases, id: \.self) { appearance in
-                Button {
-                    Task { await environment.updateSettings { $0.appearance = appearance } }
-                } label: {
-                    if appearance == environment.preferences.appearance {
-                        Label(appearance.titleKey.localized, systemImage: "checkmark")
-                    } else {
-                        Text(appearance.titleKey.localized)
-                    }
-                }
-            }
-        } label: {
-            VStack(spacing: 5) {
-                Image(systemName: appearanceIcon)
-                    .font(.system(size: 19, weight: .medium))
-                    .frame(height: 22)
-                Text(environment.preferences.appearance.titleKey.localized)
-                    .font(SiftFont.railLabel)
-                    .lineLimit(1)
-            }
-            .foregroundStyle(.secondary)
-            .frame(width: SiftMetrics.railItemWidth, height: SiftMetrics.railItemHeight)
-            .contentShape(Rectangle())
-        }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
-        .frame(width: SiftMetrics.railItemWidth, height: SiftMetrics.railItemHeight)
-        .accessibilityIdentifier("sidebar.appearance")
-        .accessibilityLabel(Text(LocalizationKey.settingsGroupAppearance.localized))
-        .accessibilityValue(Text(environment.preferences.appearance.titleKey.localized))
-        .help(LocalizationKey.settingsGroupAppearance.localized)
-    }
-
-    private var appearanceIcon: String {
-        switch environment.preferences.appearance {
-        case .system: "circle.lefthalf.filled"
-        case .light: "sun.max"
-        case .dark: "moon"
-        }
     }
 
     /// The unlocked footer item: the account page, where the purchase state and
@@ -466,5 +423,102 @@ extension PaywallReason {
         case .cleanFiles: .cleanFiles
         case .exportReport: .exportReport
         }
+    }
+}
+
+/// The appearance switcher, as a rail footer item in the language menu's exact
+/// idiom — a plain button with an overlaid label opening a popover — so the
+/// footer reads as one column of identically-styled items and no control
+/// carries the system menu's accent tint. The current mode names the item, so
+/// the state reads without opening it.
+struct AppearanceRailMenu: View {
+    let selection: AppSettings.Appearance
+    let onSelect: (AppSettings.Appearance) -> Void
+
+    @State private var isPresented = false
+
+    var body: some View {
+        Button {
+            isPresented.toggle()
+        } label: {
+            Color.clear
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .overlay { label.allowsHitTesting(false) }
+        .frame(width: SiftMetrics.railItemWidth, height: SiftMetrics.railItemHeight)
+        .popover(isPresented: $isPresented, arrowEdge: .trailing) {
+            picker
+        }
+        .accessibilityIdentifier("sidebar.appearance")
+        .accessibilityLabel(Text(LocalizationKey.settingsGroupAppearance.localized))
+        .accessibilityValue(Text(selection.titleKey.localized))
+        .help(LocalizationKey.settingsGroupAppearance.localized)
+    }
+
+    private var label: some View {
+        VStack(spacing: 5) {
+            Image(systemName: icon)
+                .font(.system(size: 19, weight: .medium))
+                .frame(height: 22)
+            Text(selection.titleKey.localized)
+                .font(SiftFont.railLabel)
+                .lineLimit(1)
+        }
+        .foregroundStyle(.secondary)
+        .frame(width: SiftMetrics.railItemWidth, height: SiftMetrics.railItemHeight)
+        .contentShape(Rectangle())
+    }
+
+    private var icon: String {
+        switch selection {
+        case .system: "circle.lefthalf.filled"
+        case .light: "sun.max"
+        case .dark: "moon"
+        }
+    }
+
+    private var picker: some View {
+        VStack(spacing: 1) {
+            ForEach(AppSettings.Appearance.allCases, id: \.self) { appearance in
+                pickerRow(appearance)
+            }
+        }
+        .padding(.vertical, SiftMetrics.spacingXS)
+        .padding(.horizontal, SiftMetrics.spacingXS)
+        .frame(width: 150)
+    }
+
+    private func pickerRow(_ appearance: AppSettings.Appearance) -> some View {
+        let isSelected = appearance == selection
+        return Button {
+            onSelect(appearance)
+            isPresented = false
+        } label: {
+            HStack(spacing: SiftMetrics.spacingS) {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 10, weight: .bold))
+                    .frame(width: 12)
+                    .opacity(isSelected ? 1 : 0)
+                Text(appearance.titleKey.localized)
+                    .font(SiftFont.body)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+            }
+            .foregroundStyle(isSelected ? SiftColor.accent : .primary)
+            .padding(.horizontal, SiftMetrics.spacingS)
+            .frame(height: 30)
+            .contentShape(Rectangle())
+            .background {
+                RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
+                    .fill(rowBackground(isSelected))
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private func rowBackground(_ isSelected: Bool) -> Color {
+        isSelected ? SiftColor.selectedFill : .clear
     }
 }
