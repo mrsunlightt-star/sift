@@ -99,6 +99,8 @@ public struct RootShellView: View {
                                 }
                             },
                             onOpenTrash: { Task { await environment.openTrash() } },
+                            loadTrash: { await environment.trashSnapshot() },
+                            onEmptyTrash: { snapshot in await environment.emptyTrash(snapshot) },
                             onRevealFailed: { url in Task { await environment.reveal(url) } },
                             onRequestPurchase: { router.requestPurchase(reason: .exportReport) },
                             statusMessage: environment.reportExportMessage
@@ -308,7 +310,8 @@ struct IconRailView: View {
     /// other rail entry — the call to action is gone because there is nothing
     /// left to sell here.
     private var accountButton: some View {
-        Button {
+        let isSelected = router.destination == .purchase
+        return Button {
             router.go(to: .purchase)
         } label: {
             VStack(spacing: 5) {
@@ -319,13 +322,14 @@ struct IconRailView: View {
                     .font(SiftFont.railLabel)
                     .lineLimit(1)
             }
-            .foregroundStyle(Color.secondary)
+            .foregroundStyle(isSelected ? SiftColor.accent : Color.secondary)
             .frame(width: SiftMetrics.railItemWidth, height: SiftMetrics.railItemHeight)
             .contentShape(Rectangle())
         }
         .buttonStyle(SiftPressButtonStyle())
-        .siftRailItemChrome(isSelected: false)
+        .siftRailItemChrome(isSelected: isSelected)
         .accessibilityIdentifier("sidebar.account")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
         .help(LocalizationKey.navAccount.localized)
     }
 }
