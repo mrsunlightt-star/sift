@@ -12,3 +12,4 @@ Bridge/macos-universal/
 
 # macOS
 .DS_Store
+.workbuddy/
