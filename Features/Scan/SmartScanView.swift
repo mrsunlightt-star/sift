@@ -998,9 +998,12 @@ struct ScanRunningCard: View {
                                 )
                             )
                             Circle().fill(SiftColor.neutral.opacity(0.4)).frame(width: 3, height: 3)
+                            // The found figure is the candidate bytes the item
+                            // events actually delivered, not the volume the
+                            // walk has looked at — those are different facts.
                             Text(
                                 LocalizationKey.scanRunningFound.localized(
-                                    SiftFormat.bytes(scan.progress.bytesSeen)
+                                    SiftFormat.bytes(scan.liveFoundBytes)
                                 )
                             )
                             .foregroundStyle(SiftColor.safe)
@@ -1085,13 +1088,16 @@ struct ScanRunningCard: View {
         CleanupCategory.junkCategories + [.largeFiles, .oldFiles]
     }
 
+    /// Bytes discovered for the category so far in this run.
+    ///
+    /// The per-category bar is a share, not a progress: it reads `bytes ÷
+    /// largest category`, so the largest category is always full and the rest
+    /// are proportionally shorter. The figures come from the accumulator that
+    /// folds every item event, so a strategy whose items were pushed out of the
+    /// recent window by a later one keeps its bar instead of collapsing to
+    /// zero.
     private func liveBytes(_ category: CleanupCategory) -> Int64 {
-        if let total = scan.categoryTotals.first(where: { $0.category == category }) {
-            return total.totalBytes
-        }
-        return scan.recentItems
-            .filter { $0.category == category }
-            .reduce(0) { $0 + $1.sizeInBytes }
+        scan.liveBytes(for: category)
     }
 
     private func categoryRow(_ category: CleanupCategory) -> some View {

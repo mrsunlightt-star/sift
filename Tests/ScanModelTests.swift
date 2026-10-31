@@ -262,6 +262,29 @@ final class ScanModelTests: XCTestCase, @unchecked Sendable {
         let failure = await model.failure
         XCTAssertEqual(failure?.code, .internalError)
     }
+
+    /// The running per-category totals fold every item event, not the bounded
+    /// recent window: a strategy whose items were pushed out of the window by a
+    /// later one must keep its running total, or the running page reads a
+    /// finished strategy as if it had found nothing.
+    func test_runningCategoryTotalsSurviveTheRecentWindow() async throws {
+        let fixture = TemporaryDirectory(tag: "scan-model-live-totals")
+        let rules = RuleEngine(rules: RuleEngine.builtInRules, homeDirectory: fixture.url)
+        let model = await ScanModel(engine: ItemBurstScannerEngine(), rules: rules)
+
+        await model.start(makeRequest(home: fixture.url))
+        await model.waitUntilSettled()
+
+        let cacheBytes = await model.liveBytes(for: .applicationCache)
+        let largeBytes = await model.liveBytes(for: .largeFiles)
+        let foundBytes = await model.liveFoundBytes
+        let recentCount = await model.recentItems.count
+
+        XCTAssertEqual(cacheBytes, 380_000, "all cache items count, not just the ones still in the window")
+        XCTAssertEqual(largeBytes, 80_000)
+        XCTAssertEqual(foundBytes, 460_000)
+        XCTAssertEqual(recentCount, 400, "the recent window stays bounded")
+    }
 }
 
 
@@ -452,6 +475,95 @@ private actor SilentScanSession: ScanSession {
     nonisolated let id = "silent-session"
 
     func pollEvents(maxEvents: Int) async -> [ScanEvent] { [] }
+
+    func isFinished() async -> Bool { true }
+
+    func page(
+        offset: Int,
+        limit: Int,
+        sort: ScanSort,
+        category: CleanupCategory?
+    ) async throws -> ScanPage {
+        ScanPage(items: [], remaining: 0)
+    }
+
+    func duplicateGroups(offset: Int, limit: Int) async throws -> [DuplicateGroup] { [] }
+
+    func duplicateMembers(groupID: Int64) async throws -> [DuplicateMember] { [] }
+
+    func skippedLocations() async -> [SkippedLocation] { [] }
+
+    func cancel() async {}
+}
+
+/// A deterministic session that streams two categories of items, enough of the
+/// first to push its early rows out of the model's recent window once the
+/// second arrives.
+private struct ItemBurstScannerEngine: ScannerEngine {
+    var kind: ScannerEngineKind { .swift }
+
+    func startScan(_ request: ScanRequest) async throws -> any ScanSession {
+        ItemBurstScanSession()
+    }
+}
+
+private actor ItemBurstScanSession: ScanSession {
+    nonisolated let id = "item-burst-session"
+    private var events: [ScanEvent]
+
+    init() {
+        func items(_ count: Int, _ category: CleanupCategory, _ bytes: Int64) -> ScanEvent {
+            .itemsFound(
+                (1...count).map { index in
+                    CleanupItemSummary(
+                        id: Int64(index),
+                        url: URL(fileURLWithPath: "/tmp/\(category.rawValue)-\(index)"),
+                        displayName: "\(category.rawValue)-\(index)",
+                        parentPath: "/tmp",
+                        category: category,
+                        risk: .safe,
+                        sizeInBytes: bytes,
+                        fileCount: 1,
+                        explanationKey: "cleanup.explanation.cache",
+                        sourceRuleID: "tests",
+                        relatedBundleID: nil,
+                        modifiedAt: nil,
+                        isDirectory: true
+                    )
+                }
+            )
+        }
+        events = [
+            .phaseChanged(.preparing),
+            items(380, .applicationCache, 1_000),
+            items(40, .largeFiles, 2_000),
+            .phaseChanged(.ready),
+            .completed(
+                ScanReport(
+                    sessionID: "item-burst-session",
+                    startedAt: Date(),
+                    finishedAt: Date(),
+                    phase: .ready,
+                    scannedFileCount: 0,
+                    scannedByteCount: 0,
+                    scannedLocationCount: 1,
+                    itemCount: 420,
+                    itemBytes: 460_000,
+                    categoryTotals: [],
+                    duplicateGroupCount: 0,
+                    duplicateReclaimableBytes: 0,
+                    skippedLocations: []
+                )
+            ),
+        ]
+    }
+
+    func pollEvents(maxEvents: Int) async -> [ScanEvent] {
+        let count = min(max(maxEvents, 1), events.count)
+        let result = Array(events.prefix(count))
+        events.removeFirst(count)
+        return result
+    }
 
     func isFinished() async -> Bool { true }
 

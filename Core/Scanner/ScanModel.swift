@@ -17,6 +17,15 @@ public final class ScanModel: ObservableObject {
     @Published public private(set) var recentItems: [CleanupItemSummary] = []
     /// Per-category totals, refreshed when the scan completes.
     @Published public private(set) var categoryTotals: [CategoryTotal] = []
+    /// Per-category totals folded from the live item stream while the run
+    /// works.
+    ///
+    /// The running page needs a per-category answer before the finished report
+    /// exists, and `recentItems` cannot provide one: it is a bounded window
+    /// kept for the overview's recent list, so a strategy whose items were
+    /// pushed out by a later one reads as if it had found nothing. This total
+    /// only ever grows, which is the fact a running page can state.
+    @Published public private(set) var liveCategoryTotals: [CategoryTotal] = []
     /// Locations the scan could not read.
     @Published public private(set) var skippedLocations: [SkippedLocation] = []
     @Published public private(set) var report: ScanReport?
@@ -65,6 +74,9 @@ public final class ScanModel: ObservableObject {
     /// The full set stays in the engine's index and is paged on demand; this is
     /// only what the running scan shows while it works.
     private let liveItemLimit = 400
+
+    /// The accumulator behind `liveCategoryTotals`, keyed by category.
+    private var liveTotalsByCategory: [CleanupCategory: (count: Int, bytes: Int64)] = [:]
 
     private let engine: any ScannerEngine
     private let rules: RuleEngine
@@ -191,6 +203,8 @@ public final class ScanModel: ObservableObject {
         phase = .idle
         progress = ScanProgress()
         recentItems = []
+        liveCategoryTotals = []
+        liveTotalsByCategory = [:]
         categoryTotals = []
         skippedLocations = []
         duplicateGroups = []
@@ -412,6 +426,35 @@ public final class ScanModel: ObservableObject {
         }
     }
 
+    // MARK: - Running totals
+
+    /// Bytes discovered for one category so far in this run.
+    ///
+    /// The finished report's totals win once they exist; before that, the live
+    /// accumulator answers.
+    public func liveBytes(for category: CleanupCategory) -> Int64 {
+        if let total = categoryTotals.first(where: { $0.category == category }) {
+            return total.totalBytes
+        }
+        return liveTotalsByCategory[category]?.bytes ?? 0
+    }
+
+    /// Bytes discovered across every category so far.
+    public var liveFoundBytes: Int64 {
+        liveTotalsByCategory.values.reduce(0) { $0 + $1.bytes }
+    }
+
+    private func recordLiveTotals(_ items: [CleanupItemSummary]) {
+        for item in items {
+            var entry = liveTotalsByCategory[item.category] ?? (0, 0)
+            entry.count += 1
+            entry.bytes += item.sizeInBytes
+            liveTotalsByCategory[item.category] = entry
+        }
+        liveCategoryTotals = liveTotalsByCategory
+            .map { CategoryTotal(category: $0.key, itemCount: $0.value.count, totalBytes: $0.value.bytes) }
+    }
+
     // MARK: - Event pump
 
     /// Drains the event stream until the scan reports completion.
@@ -486,6 +529,7 @@ public final class ScanModel: ObservableObject {
                 if recentItems.count > liveItemLimit {
                     recentItems.removeFirst(recentItems.count - liveItemLimit)
                 }
+                recordLiveTotals(items)
             case let .duplicateGroupFound(_, memberCount, reclaimableBytes):
                 // The group list is loaded in full once the scan finishes; this
                 // keeps a running count without holding every member.
