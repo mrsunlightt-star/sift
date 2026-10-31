@@ -29,10 +29,12 @@ public enum SiftColor {
         dark: NSColor(srgbRed: 0.137, green: 0.788, blue: 0.686, alpha: 1)
     )
     /// The fill of a control the user presses: primary buttons and selected
-    /// toggles. Deep enough for white text in both appearances.
+    /// toggles. The product's bright blue, #00AEEC — white text on it is the
+    /// reference button's own pairing. Other accent roles (links, icons,
+    /// selected states) keep the jade `accent`; only the pressed fill moved.
     public static let accentDeep = Color(
-        light: NSColor(srgbRed: 0.047, green: 0.522, blue: 0.455, alpha: 1),
-        dark: NSColor(srgbRed: 0.063, green: 0.596, blue: 0.510, alpha: 1)
+        light: NSColor(srgbRed: 0.0, green: 0.682, blue: 0.925, alpha: 1),
+        dark: NSColor(srgbRed: 0.0, green: 0.682, blue: 0.925, alpha: 1)
     )
     /// Completed safely, or a `safe` risk level. A grass green, kept clearly
     /// yellower than the jade accent so the two never read as the same colour.
