@@ -1381,6 +1381,36 @@ public struct SiftMetricPill: View {
 /// The rail footer and the settings page both render this view and both call the
 /// same selection closure, so the choice is written by one function and the two
 /// locations cannot disagree about how it is stored.
+/// The rail item's background chrome: selection fill, hover fill and hover
+/// tracking. The footer controls (language, appearance, account) wear it so
+/// pressing them reads exactly like the navigation items above — the hover
+/// fill is adaptive, so light and dark modes both get it.
+public struct SiftRailItemChrome: ViewModifier {
+    public let isSelected: Bool
+    @State private var isHovering = false
+    @Environment(\.siftReduceMotion) private var reduceMotion
+
+    public init(isSelected: Bool) {
+        self.isSelected = isSelected
+    }
+
+    public func body(content: Content) -> some View {
+        content
+            .background {
+                RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
+                    .fill(isSelected ? SiftColor.selectedFill : (isHovering ? SiftColor.hoverFill : .clear))
+                    .animation(reduceMotion ? nil : SiftMotion.quick, value: isHovering)
+            }
+            .onHover { isHovering = $0 }
+    }
+}
+
+public extension View {
+    func siftRailItemChrome(isSelected: Bool) -> some View {
+        modifier(SiftRailItemChrome(isSelected: isSelected))
+    }
+}
+
 public struct LanguageMenu: View {
     public enum Style: Sendable {
         /// The icon rail: a globe with the language's short name beside it.
@@ -1410,9 +1440,16 @@ public struct LanguageMenu: View {
     }
 
     public var body: some View {
-        sized
+        let base = sized
             .overlay { label.allowsHitTesting(false) }
-            .accessibilityIdentifier(identifier)
+        Group {
+            if case .rail = style {
+                base.siftRailItemChrome(isSelected: false)
+            } else {
+                base
+            }
+        }
+        .accessibilityIdentifier(identifier)
             .accessibilityLabel(Text(LocalizationKey.settingsGroupLanguage.localized))
             .accessibilityValue(Text(selection.displayName))
             .popover(isPresented: $isPickerPresented, arrowEdge: popoverEdge) {
@@ -1425,15 +1462,17 @@ public struct LanguageMenu: View {
 
     /// A plain button rather than a `Menu`: 34 languages do not fit in a menu
     /// that the window has to grow for, and a menu cannot carry a search field.
-    /// The label is empty because the styled control is the overlay above it.
+    /// The label lives inside the button so the press style scales what the
+    /// user sees; it opts out of hit testing because the button handles the
+    /// events for the whole frame.
     private var trigger: some View {
         Button {
             isPickerPresented.toggle()
         } label: {
-            Color.clear
-                .contentShape(Rectangle())
+            label
+                .allowsHitTesting(false)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(SiftPressButtonStyle())
     }
 
     /// The picker opens toward the window's content, away from the rail edge.

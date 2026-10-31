@@ -324,6 +324,7 @@ struct IconRailView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(SiftPressButtonStyle())
+        .siftRailItemChrome(isSelected: false)
         .accessibilityIdentifier("sidebar.account")
         .help(LocalizationKey.navAccount.localized)
     }
@@ -441,11 +442,10 @@ struct AppearanceRailMenu: View {
         Button {
             isPresented.toggle()
         } label: {
-            Color.clear
-                .contentShape(Rectangle())
+            label
+                .allowsHitTesting(false)
         }
-        .buttonStyle(.plain)
-        .overlay { label.allowsHitTesting(false) }
+        .buttonStyle(SiftPressButtonStyle())
         .frame(width: SiftMetrics.railItemWidth, height: SiftMetrics.railItemHeight)
         .popover(isPresented: $isPresented, arrowEdge: .trailing) {
             picker
