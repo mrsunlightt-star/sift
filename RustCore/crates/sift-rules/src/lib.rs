@@ -662,6 +662,17 @@ pub const PROTECTED_LIBRARY_CHILDREN: &[&str] = &[
     "Library/Mail",
     "Library/Safari",
     "Library/Cookies",
+    // Another security product's quarantine is not this product's junk, and the
+    // failure is irreversible: a removed quarantine cannot be re-scanned, and an
+    // antivirus that loses its history silently stops protecting. A rule can see
+    // a name or an age and nothing about what is inside, which is exactly the
+    // judgement call a cleaner must not make. CleanMyMac's knowledge base carries
+    // the same three vendors as a hard-protect list (`Sophos`, `Bitdefender`,
+    // `Tresorit`); these are the locations they actually write.
+    "Library/Application Support/Sophos",
+    "Library/Application Support/Sophos Anti-Virus",
+    "Library/Application Support/Bitdefender",
+    "Library/Application Support/Tresorit",
 ];
 
 /// The [`PROTECTED_LIBRARY_CHILDREN`] that hold user data rather than
@@ -1444,6 +1455,44 @@ pub fn default_rules() -> Vec<Rule> {
         ),
         MatchSpec::AnyFile,
     ));
+    // --- Agent tool logs ----------------------------------------------------
+    //
+    // The command-line coding agents keep one log (and one trace) per run under
+    // their own dot-directory and never clear the directory. The shape here is
+    // deliberately `anyFile` rather than the directory-as-item shape the rest of
+    // the log rules use: an agent that is still in use keeps at least one fresh
+    // file in that directory, and the directory rule only offers a directory
+    // whose *every* file is past the threshold — so on an active machine it
+    // would never fire. One file per run is also what makes a stale entry
+    // harmless to remove: the others are untouched.
+    //
+    // Nothing else in these trees is a rule. `packages`, `blobs`, `binaries`,
+    // `cli`, `plugins`, `projects` and `sessions` are the tool and its state, and
+    // a rule can only match a name or an age, not "this is still in use".
+    //
+    // The measured case that shaped it: `~/.qoder/logs` holds 275 MB in 500 files,
+    // 73 of them untouched for more than a month, next to files written by the
+    // run that started a minute ago.
+    for (id, relative_path) in [
+        ("agent-tool-logs", ".workbuddy/logs"),
+        ("agent-tool-traces", ".workbuddy/traces"),
+        ("agent-tool-logs-qoder", ".qoder/logs"),
+    ] {
+        rules.push(following_stale_threshold(with_spec(
+            with_min_age(
+                rule(
+                    id,
+                    Logs,
+                    Review,
+                    Home,
+                    relative_path,
+                    "cleanup.explanation.logsItem",
+                ),
+                30,
+            ),
+            MatchSpec::AnyFile,
+        )));
+    }
     // The Android SDK is installed software, not junk: `emulator` and
     // `platform-tools` are running binaries, and `avd` (next to it) is the user's
     // own virtual devices, which no rule touches. What *is* reclaimable is a
@@ -1479,6 +1528,58 @@ pub fn default_rules() -> Vec<Rule> {
             "sources",
             "skins",
             "cmdline-tools",
+        ],
+    ));
+
+    // The same shape for the two SDKs the HarmonyOS toolchain installs: a vendor
+    // directory holding downloaded device images and per-version components, laid
+    // out the way Android's is. What is reclaimable is a component nobody has read
+    // in a quarter, and the download is repeatable from DevEco Studio.
+    //
+    // Measured, and these are the numbers the thresholds come from:
+    // `~/Library/Huawei/Sdk/system-image` held 4.5 GB (one `HarmonyOS-6.1.1` phone
+    // image) and `~/Library/OpenHarmony/Sdk/26.0.0` 1.2 GB across `previewer`,
+    // `toolchains`, `js` and `ets` — both untouched since June on a machine scanned
+    // in November. `licenses` and `productConfig.json` are deliberately not named:
+    // they are a few kilobytes, and accepting a licence again is the cost of a
+    // mistake, which is exactly the trade a rule should not make for 24 KB.
+    rules.push(with_names(
+        with_min_age(
+            rule(
+                "harmonyos-sdk-idle-images",
+                TemporaryFiles,
+                Review,
+                HomeLibrary,
+                "Huawei/Sdk",
+                "cleanup.explanation.temporary",
+            ),
+            90,
+        ),
+        &["system-image"],
+    ));
+    // OpenHarmony keeps the version as the component's parent, so the wildcard
+    // names the version and the names name what is inside it — the multi-wildcard
+    // shape the Chromium profile rule uses, bounded by `MAX_RULE_ROOTS` like every
+    // other expansion.
+    rules.push(with_names(
+        with_min_age(
+            rule(
+                "openharmony-sdk-idle-components",
+                TemporaryFiles,
+                Review,
+                HomeLibrary,
+                "OpenHarmony/Sdk/*",
+                "cleanup.explanation.temporary",
+            ),
+            90,
+        ),
+        &[
+            "previewer",
+            "toolchains",
+            "js",
+            "ets",
+            "native",
+            "system-image",
         ],
     ));
 

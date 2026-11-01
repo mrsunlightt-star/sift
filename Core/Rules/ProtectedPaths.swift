@@ -67,6 +67,10 @@ public enum ProtectedPaths {
         ("Library/Mail", .secrets),
         ("Library/Safari", .secrets),
         ("Library/Cookies", .secrets),
+        ("Library/Application Support/Sophos", .secrets),
+        ("Library/Application Support/Sophos Anti-Virus", .secrets),
+        ("Library/Application Support/Bitdefender", .secrets),
+        ("Library/Application Support/Tresorit", .secrets),
     ]
 
     /// Suffix of a photo library package, protected as one unit.
