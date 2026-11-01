@@ -125,24 +125,36 @@ actor SwiftScanSession: ScanSession {
     func pollEvents(maxEvents: Int) -> [ScanEvent] {
         guard !events.isEmpty else { return [] }
         var drained: [ScanEvent] = []
-        var progressEmitted = false
+        drained.reserveCapacity(min(maxEvents, events.count))
+        // One index walk over the queue, then the consumed prefix is dropped in a
+        // single step. Removing the head once per event and scanning the tail for
+        // a newer progress event made one drain quadratic in the queue length,
+        // and a drain runs on every poll of a scan that is publishing events.
+        //
         // Progress is coalesced: a slow poller should see current numbers, not a
-        // backlog. Item batches and lifecycle events are never dropped.
-        while drained.count < maxEvents, !events.isEmpty {
-            let event = events[0]
+        // backlog. Everything before the last progress event in the queue is
+        // stale, including an earlier progress event of this window; item
+        // batches and lifecycle events are never dropped.
+        let lastProgressIndex = events.lastIndex { event in
+            if case .progress = event { return true }
+            return false
+        }
+        var progressEmitted = false
+        var consumed = 0
+        for index in events.indices {
+            if drained.count >= maxEvents { break }
+            let event = events[index]
             if case .progress = event {
-                let hasNewerProgress = events.dropFirst().contains { candidate in
-                    if case .progress = candidate { return true }
-                    return false
-                }
-                if progressEmitted || hasNewerProgress {
-                    events.removeFirst()
+                guard !progressEmitted, index == lastProgressIndex else {
+                    consumed = index + 1
                     continue
                 }
                 progressEmitted = true
             }
-            drained.append(events.removeFirst())
+            drained.append(event)
+            consumed = index + 1
         }
+        events.removeFirst(consumed)
         return drained
     }
 
@@ -204,7 +216,19 @@ actor SwiftScanSession: ScanSession {
             // anchor, so each is scanned rather than only the first.
             for root in rules.resolvedRoots(for: rule) {
                 if cancelled { break }
-                guard directoryExists(root), isAuthorised(root) else { continue }
+                // A rule root is refused before it is opened, which is what the
+                // Rust core does in `scan_one_rule`. A user rule with
+                // `relativePath: "Documents"` was walked: every child became a
+                // skip record carrying its full path, so the report held a list
+                // of the user's Documents — the one thing invariant 7 forbids —
+                // and the tree was read for nothing. `isCleanupContainer` asks a
+                // different question (whether one item would be a whole tree);
+                // this one is protection, and it is asked of the shared list
+                // rather than restated here.
+                guard directoryExists(root),
+                      isAuthorised(root),
+                      rules.protectionReason(for: root.path) == nil
+                else { continue }
                 scanRule(rule, root: root)
             }
         }
@@ -597,7 +621,18 @@ actor SwiftScanSession: ScanSession {
         // installed list is not "no applications": every Mac has system bundles,
         // so it means discovery failed, and without that list every live
         // container would be reported as belonging to an uninstalled app.
-        guard homeIsCleanable, !request.installedBundleIdentifiers.isEmpty else { return }
+        //
+        // An incomplete list is the same failure in a quieter shape. Every
+        // location below answers "is this name still someone's" from that set, so
+        // a read that stopped early leaves some installed application unnamed and
+        // its live data reads as the leftover of something removed. The whole run
+        // reports no residue rather than the part it could check — nothing found
+        // is recoverable, an offered live container is not — which is what the
+        // Rust core does at the head of its own residue scan.
+        guard homeIsCleanable,
+              request.installedBundleIdentifiersComplete,
+              !request.installedBundleIdentifiers.isEmpty
+        else { return }
         let home = URL(fileURLWithPath: rules.homeDirectory)
         let installed = Set(request.installedBundleIdentifiers.map { $0.lowercased() })
         // The app groups installed applications declare. A group container is

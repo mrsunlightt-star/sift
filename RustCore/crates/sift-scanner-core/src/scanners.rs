@@ -18,10 +18,36 @@ use crate::walker::{self, WalkEntry, WalkMode, WalkOptions, WalkReport};
 /// treated as unreadable. Same reasoning as the walk's own deadline: far above
 /// any honest local directory, far below frozen.
 const MEASURE_OPEN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+
+/// Entries one full-root walk in this module may produce.
+///
+/// `WalkOptions::new` sets a default so a caller that forgets is bounded, and a
+/// strategy states its own anyway: the budget is a decision of the strategy, and
+/// it must not move because the walker's default moved. Half a million entries is
+/// more than the result pages can reach through and small enough that the vector
+/// of paths does not dominate the scan's memory. A walk that reaches it reports
+/// `truncated`, which the summary turns into `partial` — a budget is an estimate,
+/// never a total.
+const SCAN_ENTRY_BUDGET: u64 = 500_000;
+
+/// Skip records one full-root walk in this module may keep.
+///
+/// Diagnostics, not results: the walk continues after the budget and only stops
+/// collecting, because stopping the walk would lose every item behind an
+/// unreadable folder.
+const SCAN_SKIP_BUDGET: u64 = 2_000;
+
+/// Entries a measurement walk may produce before it answers with the part it saw.
+///
+/// A measurement reads only `total_files` and `total_bytes`; its budget is larger
+/// because a directory whose measurement stops early reports less space than it
+/// occupies, and this number is high enough that the tree would have to be
+/// pathological.
+const MEASURE_ENTRY_BUDGET: u64 = 2_000_000;
 use sift_file_index::{GroupMemberRow, ItemRow};
 use sift_hasher::{hash_file, sample_fingerprint, CancelToken, FileIdentity};
 use sift_rules::{
-    collapse_path, default_rules, is_prefix_of, is_protected_path_authorized,
+    collapse_path, default_rules, is_prefix_of, is_protected_path_authorized, normalize_path,
     running_app_owns_path, Category, MatchSpec, Risk, RootAnchor, Rule, RuleSet,
 };
 use std::collections::{HashMap, HashSet};
@@ -245,6 +271,12 @@ fn rule_roots(
     }
     roots.sort();
     roots.dedup();
+    // The cap applies to what the rule expands to, not to one anchor's share of
+    // it: a rule under the `authorized` anchor has one base per granted location,
+    // and each base is capped on its own. Truncating the finished list keeps the
+    // two engines agreeing on the bound for that shape as well, and the sort is
+    // already here so which roots are kept does not depend on the request order.
+    roots.truncate(sift_rules::MAX_RULE_ROOTS);
     roots
 }
 
@@ -261,6 +293,20 @@ fn rule_roots(
 /// a container, and following one would put a root outside the tree the rule
 /// named. Names are yielded in sorted order so one scan of one tree produces the
 /// same roots twice.
+///
+/// The expansion is bounded by exactly [`sift_rules::MAX_RULE_ROOTS`] roots: the
+/// loop stops after pushing the last one it may keep, so a directory with one
+/// more child than the cap yields the cap and not one more. The Swift engine
+/// truncates to the same number, because a rule that expands to a different set
+/// of roots in each engine is two rules.
+///
+/// Containment is re-checked on the finished list as well as on the literal join.
+/// A `relativePath` carrying `..` is refused where the file is read, so the check
+/// here cannot be the only one — but a table assembled in code never passed that
+/// decoder, a wildcard's children were never checked against the anchor at all,
+/// and `Logs/../../Shared` collapses out of the anchor while still reading as
+/// though it sits inside it. The retained list is what the walk is given, so this
+/// is the last place the escape can be caught.
 fn expand_relative_path(
     base: &Path,
     relative_path: &str,
@@ -311,6 +357,10 @@ fn expand_relative_path(
         }
     }
 
+    // Collapsed, so `/Users/alice/Library/../Caches` is judged as `/Users/alice/Caches`
+    // whichever anchor spelling arrived.
+    let anchor = collapse_path(&base.to_string_lossy());
+    current.retain(|root| is_prefix_of(&anchor, &collapse_path(&root.to_string_lossy())));
     current
 }
 
@@ -367,6 +417,11 @@ fn ignored_paths(context: &ScanContext<'_>) -> Vec<PathBuf> {
         .collect()
 }
 
+/// Applies the result budget a full-root walk uses.
+fn with_scan_budget(options: WalkOptions) -> WalkOptions {
+    options.with_budgets(SCAN_ENTRY_BUDGET, SCAN_SKIP_BUDGET)
+}
+
 /// Measured size of a directory tree, without producing per-file entries.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct Measured {
@@ -383,8 +438,12 @@ pub fn measure_directory(
     skip_hidden: bool,
     skip_paths: &[PathBuf],
 ) -> (Measured, WalkReport) {
+    // Only the totals are read from this walk, so the entry budget bounds the
+    // vector it builds rather than the answer; a measurement that hits it reports
+    // the bytes it saw instead of waiting for a tree it cannot hold.
     let mut options = WalkOptions::new(home.to_path_buf(), WalkMode::Files)
-        .with_ignores(walker::DEFAULT_SKIP_DIRECTORY_NAMES);
+        .with_ignores(walker::DEFAULT_SKIP_DIRECTORY_NAMES)
+        .with_budgets(MEASURE_ENTRY_BUDGET, SCAN_SKIP_BUDGET);
     options.authorized_roots = authorized_roots.to_vec();
     options.skip_hidden = skip_hidden;
     options.skip_paths = skip_paths.to_vec();
@@ -438,6 +497,10 @@ pub fn scan_rules(
             skips.skips.append(&mut report.skips);
             skips.total_files += report.total_files;
             skips.total_bytes += report.total_bytes;
+            // A rule root whose walk hit its budget did not see the whole tree.
+            // The candidates are real; the run is not complete, and the summary
+            // says so rather than presenting a partial list as the result.
+            skips.truncated |= report.truncated;
             if report.cancelled || cancel.is_cancelled() {
                 break;
             }
@@ -485,6 +548,19 @@ fn user_temp_root(request: &ScanRequest) -> Option<PathBuf> {
         .map(|root| PathBuf::from(&root.path))
 }
 
+/// True when a rule root sits inside a root the request allowed to be cleaned.
+///
+/// Both sides are normalised before they are compared, through the same function
+/// the walk uses for its ignore list and the protection check uses for its
+/// prefixes: `normalize_path` collapses `.`, `..` and duplicate separators and
+/// then applies the macOS alias table, so two spellings of one directory compare
+/// equal. The raw comparison this replaces compared the strings as they arrived:
+/// a request that named `/var/folders/x/y` refused a rule root the filesystem
+/// reports as `/private/var/folders/x/y`, so a rule silently found nothing, and a
+/// trailing separator made the same question answer differently.
+///
+/// The comparison is `is_prefix_of`, a whole-component test, so `/a/bc` is still
+/// not inside `/a/b`.
 fn root_is_authorised(root: &Path, request: &ScanRequest) -> bool {
     if !root.is_absolute() {
         return false;
@@ -493,10 +569,10 @@ fn root_is_authorised(root: &Path, request: &ScanRequest) -> bool {
         // No explicit roots means the caller wants the standard home rules only.
         return true;
     }
-    request
-        .roots
-        .iter()
-        .any(|candidate| candidate.is_cleanable && root.starts_with(&candidate.path))
+    let root_text = normalize_path(&root.to_string_lossy());
+    request.roots.iter().any(|candidate| {
+        candidate.is_cleanable && is_prefix_of(&normalize_path(&candidate.path), &root_text)
+    })
 }
 
 fn scan_one_rule(
@@ -689,7 +765,10 @@ fn child_directory_candidates(
     context: &mut ScanContext<'_>,
     cancel: &CancelToken,
 ) -> (Vec<Candidate>, WalkReport) {
-    let mut options = WalkOptions::new(context.home_dir.clone(), WalkMode::ImmediateChildren);
+    let mut options = with_scan_budget(WalkOptions::new(
+        context.home_dir.clone(),
+        WalkMode::ImmediateChildren,
+    ));
     options.max_depth = Some(1);
     options.authorized_roots = authorized_paths(context);
     options.skip_directory_names = walker::DEFAULT_SKIP_DIRECTORY_NAMES
@@ -857,7 +936,7 @@ fn file_candidates(
     context: &mut ScanContext<'_>,
     cancel: &CancelToken,
 ) -> (Vec<Candidate>, WalkReport) {
-    let mut options = WalkOptions::new(context.home_dir.clone(), WalkMode::Files);
+    let mut options = with_scan_budget(WalkOptions::new(context.home_dir.clone(), WalkMode::Files));
     options.authorized_roots = authorized_paths(context);
     options.skip_directory_names = walker::DEFAULT_SKIP_DIRECTORY_NAMES
         .iter()
@@ -1277,7 +1356,8 @@ fn file_threshold_scan(
         .collect();
 
     for (root, max_depth) in collapsed {
-        let mut options = WalkOptions::new(context.home_dir.clone(), WalkMode::Files);
+        let mut options =
+            with_scan_budget(WalkOptions::new(context.home_dir.clone(), WalkMode::Files));
         options.max_depth = max_depth;
         options.authorized_roots = authorized_paths(context);
         options.skip_directory_names = walker::DEFAULT_SKIP_DIRECTORY_NAMES
@@ -1398,7 +1478,19 @@ pub fn scan_application_residue(
     // installed list is not "no applications": every Mac has system bundles, so
     // it means discovery failed, and without that list every live container
     // would be reported as belonging to an uninstalled application.
-    if !home_is_cleanable(context) || context.request.installed_bundle_ids.is_empty() {
+    //
+    // An incomplete list is the same failure in a quieter shape. Every location
+    // below answers "is this name still someone's" from the installed set, so a
+    // read that stopped early leaves some installed application unnamed and its
+    // live data reads as the leftover of something removed — one unreadable
+    // bundle is enough to offer a container in use. The whole run therefore
+    // reports no residue rather than the part it could check: nothing found is
+    // recoverable, an offered live container is not. The group containers are
+    // covered here as well, because the same set cannot name their owners either.
+    if !home_is_cleanable(context)
+        || context.request.installed_bundle_ids.is_empty()
+        || !context.request.installed_bundle_ids_complete
+    {
         return (Vec::new(), WalkReport::default());
     }
     let mut candidates = Vec::new();
@@ -1448,12 +1540,16 @@ pub fn scan_application_residue(
         if !directory.is_dir() {
             continue;
         }
-        let mut options = WalkOptions::new(context.home_dir.clone(), WalkMode::ImmediateChildren)
-            .with_max_depth(1);
+        let mut options = with_scan_budget(WalkOptions::new(
+            context.home_dir.clone(),
+            WalkMode::ImmediateChildren,
+        ))
+        .with_max_depth(1);
         options.authorized_roots = authorized_paths(context);
         options.skip_hidden = skips_hidden(context);
         let report = walker::walk(&directory, &options, cancel);
         combined.skips.extend(report.skips.iter().cloned());
+        combined.truncated |= report.truncated;
 
         for entry in &report.entries {
             if !entry.is_directory {
@@ -1558,11 +1654,15 @@ pub fn scan_application_residue(
     // "no" for every container whose owner was not read — which is how a live
     // container becomes a cleanup row.
     if group_containers.is_dir() && context.request.app_group_ids_complete {
-        let mut options = WalkOptions::new(context.home_dir.clone(), WalkMode::ImmediateChildren)
-            .with_max_depth(1);
+        let mut options = with_scan_budget(WalkOptions::new(
+            context.home_dir.clone(),
+            WalkMode::ImmediateChildren,
+        ))
+        .with_max_depth(1);
         options.authorized_roots = authorized_paths(context);
         options.skip_hidden = skips_hidden(context);
         let report = walker::walk(&group_containers, &options, cancel);
+        combined.truncated |= report.truncated;
         for entry in &report.entries {
             if !entry.is_directory {
                 continue;
@@ -1663,10 +1763,12 @@ pub fn scan_application_residue(
             )
         };
         let mut options =
-            WalkOptions::new(context.home_dir.clone(), WalkMode::Files).with_max_depth(1);
+            with_scan_budget(WalkOptions::new(context.home_dir.clone(), WalkMode::Files))
+                .with_max_depth(1);
         options.authorized_roots = authorized_paths(context);
         options.skip_hidden = skips_hidden(context);
         let report = walker::walk(&directory, &options, cancel);
+        combined.truncated |= report.truncated;
         for entry in &report.entries {
             let name = entry.display_name();
             let stem = name
@@ -1914,10 +2016,22 @@ impl<'a> DuplicateFinder<'a> {
         let mut by_size: HashMap<u64, Vec<PathBuf>> = HashMap::new();
         let roots = collapse_nested_roots(roots.to_vec());
         let mut seen_paths: HashSet<PathBuf> = HashSet::new();
+        let min_size_bytes = self.options.min_size_bytes;
 
         // Stage 1: group by exact byte size.
+        //
+        // Each root is walked with a sink rather than collected first. The size
+        // index has to stay for the whole run — a duplicate pair usually spans two
+        // roots, so the stages cannot run per root — which left the same set held
+        // twice: once as the walk's `entries` and once as the index. The entry now
+        // goes straight into the index and is dropped, so the run holds one path
+        // per candidate file instead of two. The walk is bounded by the same
+        // result budget as the other whole-tree walks, and a walk that hits it
+        // marks the stage truncated: the groups found are real, the run is not
+        // complete, and the summary reports it as partial.
         for root in &roots {
-            let mut options = WalkOptions::new(self.home_dir.clone(), WalkMode::Files);
+            let mut options =
+                with_scan_budget(WalkOptions::new(self.home_dir.clone(), WalkMode::Files));
             options.authorized_roots = self.authorized_roots.clone();
             options.skip_hidden = self.skip_hidden;
             options.skip_directory_names = walker::DEFAULT_SKIP_DIRECTORY_NAMES
@@ -1925,35 +2039,19 @@ impl<'a> DuplicateFinder<'a> {
                 .map(|s| (*s).to_string())
                 .collect();
             skip_excluded_directories(&mut options);
-            let walk = walker::walk(root, &options, self.cancel);
+            let walk = walker::walk_streaming(root, &options, self.cancel, &mut |entry| {
+                let Some(size) = duplicate_candidate_size(&entry, min_size_bytes) else {
+                    return;
+                };
+                if seen_paths.insert(entry.path.clone()) {
+                    by_size.entry(size).or_default().push(entry.path);
+                }
+            });
             if walk.cancelled {
                 report.cancelled = true;
                 return report;
             }
-            for entry in walk.entries {
-                if entry.is_directory {
-                    continue;
-                }
-                if is_in_excluded_location(&entry.path) {
-                    continue;
-                }
-                if !seen_paths.insert(entry.path.clone()) {
-                    continue;
-                }
-                let size = entry.size_bytes.unwrap_or(0);
-                if size == 0 && self.options.min_size_bytes > 0 {
-                    // Empty files are cheap to compare and are grouped, but they
-                    // reclaim nothing; keep them out of the reclaimable report.
-                    continue;
-                }
-                if size < self.options.min_size_bytes {
-                    continue;
-                }
-                if self.is_cloud_placeholder(&entry.path) {
-                    continue;
-                }
-                by_size.entry(size).or_default().push(entry.path);
-            }
+            report.truncated |= walk.truncated;
         }
 
         // Stage 2 and 3: sample, then hash the survivors.
@@ -2048,20 +2146,44 @@ impl<'a> DuplicateFinder<'a> {
         report.full_hashes = self.hashes_computed;
         report
     }
+}
 
-    /// iCloud and other cloud placeholders must never be offered for deletion.
-    fn is_cloud_placeholder(&self, path: &Path) -> bool {
-        let text = path.to_string_lossy();
-        if text.contains(".icloud") || text.contains("com~apple~") {
-            return true;
+/// The size a duplicate scan files `entry` under, or `None` when it is no candidate.
+///
+/// Every rejection here is a file the duplicate stage must not offer: a
+/// directory, an excluded location, a file below the request's floor, an empty
+/// file (cheap to compare, but it reclaims nothing) and a cloud placeholder. The
+/// checks live in one function because the walk hands entries over one at a time
+/// and the sink stays a single statement.
+fn duplicate_candidate_size(entry: &WalkEntry, min_size_bytes: u64) -> Option<u64> {
+    if entry.is_directory || is_in_excluded_location(&entry.path) {
+        return None;
+    }
+    let size = entry.size_bytes.unwrap_or(0);
+    if size == 0 && min_size_bytes > 0 {
+        return None;
+    }
+    if size < min_size_bytes {
+        return None;
+    }
+    if is_cloud_placeholder(&entry.path) {
+        return None;
+    }
+    Some(size)
+}
+
+/// iCloud and other cloud placeholders must never be offered for deletion.
+fn is_cloud_placeholder(path: &Path) -> bool {
+    let text = path.to_string_lossy();
+    if text.contains(".icloud") || text.contains("com~apple~") {
+        return true;
+    }
+    match std::fs::symlink_metadata(path) {
+        Ok(metadata) => {
+            let identity = FileIdentity::from_metadata(&metadata);
+            identity.is_skipped_placeholder
         }
-        match std::fs::symlink_metadata(path) {
-            Ok(metadata) => {
-                let identity = FileIdentity::from_metadata(&metadata);
-                identity.is_skipped_placeholder
-            }
-            Err(_) => true,
-        }
+        Err(_) => true,
     }
 }
 
@@ -2355,6 +2477,42 @@ mod tests {
         assert!(
             !found.iter().any(|path| path.contains("com.three")),
             "a container without the directory contributes nothing"
+        );
+    }
+
+    /// The expansion stops at exactly the cap, not one past it.
+    ///
+    /// `~/Library/Containers/*` on a machine with a few thousand applications is
+    /// the shape that reaches this: the rule is bounded, and the two engines have
+    /// to agree on the bound to the entry. The loop pushes a name and then stops
+    /// when it holds the last one it may keep, so a directory with one more child
+    /// than the cap yields the cap.
+    #[test]
+    fn the_wildcard_expansion_stops_at_exactly_the_root_cap() {
+        let harness = Harness::new("wildcard-cap");
+        // `~/Library/Caches`: a rule may name a child of it, and it is the shape a
+        // wildcard rule over per-application directories uses.
+        let base = harness.tree.dir("Library/Caches");
+        for index in 0..=sift_rules::MAX_RULE_ROOTS {
+            std::fs::create_dir_all(base.join(format!("com.example.app{index}")))
+                .expect("the fixture directory");
+        }
+
+        let expanded = expand_relative_path(&base, sift_rules::RELATIVE_PATH_WILDCARD, &|_| false);
+
+        assert_eq!(
+            expanded.len(),
+            sift_rules::MAX_RULE_ROOTS,
+            "the cap is the count, not one more and not one fewer"
+        );
+
+        // And the roots a rule ends up with are capped too, which is the number a
+        // caller sees: a `homeLibrary` rule expands from `~/Library`.
+        let rule = wildcard_directory_rule("Caches/*");
+        assert_eq!(
+            rule_roots(&rule, &harness.tree.root, &[], None).len(),
+            sift_rules::MAX_RULE_ROOTS,
+            "the rule's own root list stops at the cap"
         );
     }
 
@@ -2899,6 +3057,107 @@ mod tests {
             rule_roots(&inside, home, &grants, None),
             vec![PathBuf::from("/Volumes/Backup/var/log")]
         );
+    }
+
+    /// An expansion that climbs out of its anchor is dropped, whatever produced it.
+    ///
+    /// `RuleSet::from_json` refuses a `relativePath` with a `..` component, so this
+    /// shape cannot come from a rule file — but the literal join is not the only
+    /// way a root leaves its anchor, a wildcard's children were never checked
+    /// against the anchor at all, and a table assembled in code never passed the
+    /// decoder. `~/Library/../../Shared` reads as though it sits under the home
+    /// directory and resolves to its sibling.
+    #[test]
+    fn an_expanded_root_that_climbs_out_of_the_anchor_is_dropped() {
+        let harness = Harness::new("expansion-climb");
+        let outside = TempTree::new("expansion-climb-outside");
+        // A directory that really exists where the escape lands, so the check is
+        // the containment test and not "the path is missing".
+        let escaped = harness
+            .tree
+            .root
+            .join("Library/../../Shared")
+            .join("Caches");
+        std::fs::create_dir_all(&escaped).expect("the escaped directory");
+        outside.file("Shared/Caches/kept.bin", 4096);
+
+        let mut rule = wildcard_directory_rule("Library/Caches");
+        rule.relative_path = "Library/../../Shared/Caches".to_string();
+
+        assert!(
+            rule_roots(&rule, &harness.tree.root, &[], None).is_empty(),
+            "a relative path that leaves its anchor has no root"
+        );
+        assert!(
+            scan_with_rule(&harness, &rule).is_empty(),
+            "and the walk is never given one"
+        );
+
+        std::fs::remove_dir_all(harness.tree.root.join("Shared")).ok();
+    }
+
+    /// The containment check is not a blanket refusal of descendants.
+    #[test]
+    fn an_expanded_root_inside_the_anchor_is_kept() {
+        let harness = Harness::new("expansion-inside");
+        harness
+            .tree
+            .file("Library/Caches/com.example.app/a.bin", 4096);
+
+        // `wildcard_directory_rule` is anchored at `~/Library`, so `Caches` is
+        // the relative path that names `~/Library/Caches`.
+        let rule = wildcard_directory_rule("Caches");
+        assert_eq!(
+            rule_roots(&rule, &harness.tree.root, &[], None),
+            vec![harness.tree.root.join("Library/Caches")],
+            "a root directly below the anchor is what the rule asked for"
+        );
+    }
+
+    /// One directory, spelled two ways, is authorised both ways.
+    ///
+    /// The request names the home directory as `$TMPDIR` gives it and the rule
+    /// root arrives resolved, so the comparison has to normalise both sides the
+    /// way the walk does: a `..` in either, a duplicate separator, or the
+    /// `/private/var` alias made a rule silently find nothing. A trailing
+    /// separator decided the same question differently.
+    #[test]
+    fn an_authorised_root_is_matched_however_it_is_spelled() {
+        let harness = Harness::new("authorised-spelling");
+        let caches = harness.tree.dir("Library/Caches");
+        let resolved = std::fs::canonicalize(&caches).expect("the fixture resolves");
+
+        let spelled = |root: String| ScanRequest {
+            roots: vec![ScanRoot::new(root, "home")],
+            ..harness.request.clone()
+        };
+
+        for root in [
+            harness.tree.root.to_string_lossy().to_string(),
+            format!("{}/", harness.tree.root.to_string_lossy()),
+            format!("{}/Library/..", harness.tree.root.to_string_lossy()),
+        ] {
+            let request = spelled(root.clone());
+            assert!(
+                root_is_authorised(&caches, &request),
+                "the rule root is under the home directory spelled as {root}"
+            );
+        }
+
+        let request = spelled(harness.tree.root.to_string_lossy().to_string());
+        assert!(
+            root_is_authorised(&resolved, &request),
+            "the resolved spelling of the same directory is authorised too"
+        );
+
+        // And the containment is still whole-component: a sibling is not inside.
+        let sibling = TempTree::new("authorised-spelling-sibling");
+        assert!(!root_is_authorised(&sibling.root, &request));
+
+        // A measure-only root never authorises a rule.
+        let mut read_only = spelled(harness.tree.root.to_string_lossy().to_string());
+        read_only.roots[0].is_cleanable = false;
+        assert!(!root_is_authorised(&caches, &read_only));
     }
 
     #[test]
@@ -4094,6 +4353,73 @@ mod tests {
         );
     }
 
+    /// An installed set that stopped early reports no residue at all.
+    ///
+    /// Every residue location answers its question from `installed_bundle_ids`,
+    /// so one bundle that could not be read leaves its application unnamed and
+    /// turns its live container into a "leftover". The five directories, the group
+    /// containers and the preference files are all covered: nothing found is a
+    /// run the user can repeat, an offered live container is not.
+    #[test]
+    fn an_incomplete_installed_set_reports_no_residue_at_all() {
+        let harness = Harness::new("installed-incomplete");
+        harness
+            .tree
+            .file("Library/Caches/com.gone.app/blob.bin", 4096);
+        harness
+            .tree
+            .file("Library/Containers/com.gone.app/Data/blob.bin", 4096);
+        harness
+            .tree
+            .file("Library/Application Support/com.gone.app/data.bin", 4096);
+        harness.tree.file("Library/Logs/com.gone.app/old.log", 4096);
+        harness.tree.file(
+            "Library/Saved Application State/com.gone.app.savedState/state.bin",
+            4096,
+        );
+        harness
+            .tree
+            .file("Library/Group Containers/group.com.gone.app/store.db", 4096);
+        harness
+            .tree
+            .file("Library/Preferences/com.gone.app.plist", 512);
+
+        let residue = |complete: bool| {
+            let mut request = harness.request.clone();
+            request.installed_bundle_ids = vec!["com.installed.app".to_string()];
+            request.installed_bundle_ids_complete = complete;
+            let cancel = CancelToken::new();
+            let mut files = |_: u64, _: u64| {};
+            let mut path = |_: &Path| {};
+            let mut context = ScanContext {
+                request: &request,
+                home_dir: harness.tree.root.clone(),
+                rules: effective_rules(None).unwrap(),
+                progress: ProgressSink {
+                    on_files: &mut files,
+                    on_current_path: &mut path,
+                },
+            };
+            let (candidates, _) = scan_application_residue(&mut context, &cancel);
+            candidates
+                .iter()
+                .map(|candidate| candidate.path.to_string_lossy().to_string())
+                .collect::<Vec<_>>()
+        };
+
+        let complete = residue(true);
+        assert!(
+            complete.len() >= 6,
+            "the fixture holds a leftover in every location: {complete:?}"
+        );
+
+        let incomplete = residue(false);
+        assert!(
+            incomplete.is_empty(),
+            "an unread bundle makes every location unknown: {incomplete:?}"
+        );
+    }
+
     /// A root can exist for its rules without feeding the threshold scans.
     ///
     /// `/Library/Logs` is added to the scan scope so the `system-logs` rule can
@@ -4210,6 +4536,71 @@ mod tests {
         assert_eq!(group.members.len(), 2);
         assert_eq!(group.reclaimable_bytes, group.size_bytes);
         assert_eq!(group.members.iter().filter(|m| m.keep).count(), 1);
+    }
+
+    /// A pair that spans two roots is still one group.
+    ///
+    /// The size index is what stage one builds, and it is built while each root is
+    /// walked in turn rather than after every root has been collected. The stages
+    /// that decide a group therefore run over all roots together: reducing each
+    /// root to its own groups would have missed this pair, and the same file in
+    /// `~/Downloads` and on an authorised volume is the ordinary case.
+    #[test]
+    fn a_duplicate_pair_across_two_roots_is_one_group() {
+        let harness = Harness::new("dup-two-roots");
+        let first = harness
+            .tree
+            .file_with("Downloads/copy.bin", b"identical content here");
+        // Not `Desktop` or `Projects`: both are protected home children, and the
+        // walk refuses them entry by entry whatever root it was given.
+        let second = harness
+            .tree
+            .file_with("Archive/copy-again.bin", b"identical content here");
+
+        let cancel = CancelToken::new();
+        let options = DuplicateOptions {
+            min_size_bytes: 1,
+            ..Default::default()
+        };
+        let mut finder =
+            DuplicateFinder::new(options, harness.tree.root.clone(), Vec::new(), &cancel);
+        let report = finder.run(
+            &[
+                first.parent().unwrap().to_path_buf(),
+                second.parent().unwrap().to_path_buf(),
+            ],
+            &mut |_| {},
+        );
+
+        assert_eq!(report.groups.len(), 1);
+        assert_eq!(report.groups[0].members.len(), 2);
+        assert!(!report.truncated);
+    }
+
+    /// A run that spends its hash budget says so instead of looking complete.
+    #[test]
+    fn a_duplicate_run_that_spends_its_hash_budget_reports_truncation() {
+        let harness = Harness::new("dup-hash-budget");
+        for index in 0..3 {
+            harness.tree.file_with(
+                &format!("g{index}/same.bin"),
+                b"identical payload for the hash budget",
+            );
+        }
+
+        let cancel = CancelToken::new();
+        let options = DuplicateOptions {
+            min_size_bytes: 1,
+            max_full_hashes: 1,
+            ..Default::default()
+        };
+        let mut finder =
+            DuplicateFinder::new(options, harness.tree.root.clone(), Vec::new(), &cancel);
+        let report = finder.run(std::slice::from_ref(&harness.tree.root), &mut |_| {});
+        assert!(
+            report.truncated,
+            "the groups found are real, the run is not complete"
+        );
     }
 
     #[test]

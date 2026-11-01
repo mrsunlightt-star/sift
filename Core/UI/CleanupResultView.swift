@@ -19,7 +19,13 @@ public struct CleanupResultView: View {
     /// has to state what it is about to remove.
     let loadTrash: () async -> TrashService.Snapshot
     /// Empties exactly the batch the confirmation described.
-    let onEmptyTrash: (TrashService.Snapshot) async -> TrashService.Outcome
+    ///
+    /// The answer is the gate's verdict rather than the removal, because the
+    /// removal is not the only possible answer: `emptyTrash` is the only
+    /// permanent deletion in the product, so it claims the destructive slot and
+    /// checks the entitlement first, and a page that rendered "0 items" for
+    /// either refusal would describe a deletion that never happened.
+    let onEmptyTrash: (TrashService.Snapshot) async -> TrashEmptyResult
     let onRevealFailed: (URL) -> Void
     let onRequestPurchase: () -> Void
     /// A failure the shell hit while exporting; the local report still exists.
@@ -43,7 +49,7 @@ public struct CleanupResultView: View {
         onExport: @escaping () -> Void,
         onOpenTrash: @escaping () -> Void,
         loadTrash: @escaping () async -> TrashService.Snapshot = { .empty },
-        onEmptyTrash: @escaping (TrashService.Snapshot) async -> TrashService.Outcome = { _ in .none },
+        onEmptyTrash: @escaping (TrashService.Snapshot) async -> TrashEmptyResult = { _ in .executed(.none) },
         onRevealFailed: @escaping (URL) -> Void,
         onRequestPurchase: @escaping () -> Void,
         statusMessage: String? = nil
@@ -103,11 +109,25 @@ public struct CleanupResultView: View {
     private func emptyTrash() async {
         isTrashBusy = true
         defer { isTrashBusy = false }
-        let outcome = await onEmptyTrash(trash)
-        trash = await loadTrash()
-        emptyTrashFailure = outcome.isComplete
-            ? nil
-            : LocalizationKey.cleanupFailurePartialFailure.localized
+        let result = await onEmptyTrash(trash)
+        switch result {
+        case .busy:
+            // Another destructive operation owns the slot. Nothing was removed,
+            // so the bin is not re-read and no success is implied. No sentence is
+            // shown for the same reason every other page stays quiet here: the
+            // operation that holds the slot is already on screen, and a second
+            // notice about it would read as an error the user caused.
+            return
+        case .purchaseRequired:
+            emptyTrashFailure = nil
+            onRequestPurchase()
+            return
+        case let .executed(outcome):
+            trash = await loadTrash()
+            emptyTrashFailure = outcome.isComplete
+                ? nil
+                : LocalizationKey.cleanupFailurePartialFailure.localized
+        }
     }
 
     private var header: some View {
@@ -249,7 +269,24 @@ public struct CleanupResultView: View {
                 // promises is the Trash, and the space is only reclaimed when it
                 // is emptied — so the step belongs next to the result that filled
                 // it, with the count and the size stated before it happens.
-                if !trash.isEmpty {
+                if let unreadable = trash.unreadable {
+                    // The bin exists and this process may not list it. Offering
+                    // "empty" here would report a success it cannot verify, and
+                    // saying "0 items" would hide the one thing the user can do
+                    // about it.
+                    Text(unreadable.titleKey.localized)
+                        .font(SiftFont.caption)
+                        .foregroundStyle(.secondary)
+                    if unreadable.offersSettingsAction {
+                        Button {
+                            Task { await WorkspaceActions.openFullDiskAccessSettings() }
+                        } label: {
+                            Text(LocalizationKey.scanOpenSystemSettings.localized)
+                                .font(SiftFont.caption)
+                        }
+                        .buttonStyle(SiftLinkButtonStyle())
+                    }
+                } else if !trash.isEmpty {
                     SiftSecondaryButton(
                         title: LocalizationKey.trashEmptyAction.localized,
                         symbolName: "trash.slash"

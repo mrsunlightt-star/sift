@@ -4,7 +4,34 @@
 //! no translation tables: `Category` and `Risk` already serialise to the exact
 //! identifiers Swift uses.
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
+
+/// The bounds a request's numbers are held to.
+///
+/// The request arrives as JSON over the C ABI, so every number in it is a
+/// caller's claim rather than a measurement. Three of them are used as a `Vec`
+/// capacity or as a count of retained rows before any work is done — an item
+/// batch sizes the summary vector, the full-hash cap sizes the hashing budget,
+/// and the thresholds decide how much of the tree is offered — so a request that
+/// asked for `u32::MAX` item batches asked for a multi-gigabyte allocation from
+/// a string of twenty digits. They are clamped where they are read, and the
+/// clamps are the values at which the product still behaves: a larger batch is
+/// no faster, and a larger hash budget is a scan that never ends.
+pub const MAX_EVENT_BATCH_ITEMS: u32 = 4096;
+/// At least one item per batch: a zero batch would publish every summary
+/// individually, which is the event-per-file stream the design forbids.
+pub const MIN_EVENT_BATCH_ITEMS: u32 = 1;
+/// The most full hashes one duplicate run may compute before it reports itself
+/// truncated.
+pub const MAX_FULL_HASHES: u64 = 1_000_000;
+/// The largest byte threshold a request may ask for: above this a "large file"
+/// is not a class of file on a consumer Mac.
+pub const MAX_THRESHOLD_BYTES: u64 = 10 * 1024 * 1024 * 1024;
+/// The largest age threshold in days, ten years. Zero stays valid: it is what a
+/// rule or a request uses to mean "no age filter".
+pub const MAX_THRESHOLD_DAYS: u32 = 3650;
+/// The largest minimum size the duplicate scan may be told to ignore.
+pub const MAX_DUPLICATE_MIN_SIZE_BYTES: u64 = 1024 * 1024 * 1024;
 
 /// One root the scan is allowed to visit.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -64,10 +91,60 @@ pub struct DuplicateOptions {
     pub roots: Vec<String>,
     /// Files smaller than this are ignored: tiny files are rarely worth the
     /// hash, and the candidate set explodes otherwise.
+    #[serde(deserialize_with = "clamp_min_size_bytes")]
     pub min_size_bytes: u64,
     /// Cap on full hashes per session, so a pathological volume cannot pin the
     /// CPU forever. Reached groups are reported as truncated.
+    #[serde(deserialize_with = "clamp_max_full_hashes")]
     pub max_full_hashes: u64,
+}
+
+/// Holds a requested hash budget to [`MAX_FULL_HASHES`].
+fn clamp_max_full_hashes<'de, D>(deserializer: D) -> Result<u64, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let requested = u64::deserialize(deserializer)?;
+    Ok(requested.min(MAX_FULL_HASHES))
+}
+
+/// Holds a requested duplicate floor to [`MAX_DUPLICATE_MIN_SIZE_BYTES`].
+fn clamp_min_size_bytes<'de, D>(deserializer: D) -> Result<u64, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let requested = u64::deserialize(deserializer)?;
+    Ok(requested.min(MAX_DUPLICATE_MIN_SIZE_BYTES))
+}
+
+/// Holds a requested byte threshold to [`MAX_THRESHOLD_BYTES`].
+fn clamp_threshold_bytes<'de, D>(deserializer: D) -> Result<u64, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let requested = u64::deserialize(deserializer)?;
+    Ok(requested.min(MAX_THRESHOLD_BYTES))
+}
+
+/// Holds a requested age threshold to [`MAX_THRESHOLD_DAYS`]; zero is kept.
+fn clamp_threshold_days<'de, D>(deserializer: D) -> Result<u32, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let requested = u32::deserialize(deserializer)?;
+    Ok(requested.min(MAX_THRESHOLD_DAYS))
+}
+
+/// Holds a requested item batch to [`MIN_EVENT_BATCH_ITEMS`]`..=`[`MAX_EVENT_BATCH_ITEMS`].
+///
+/// The coordinator reserves `event_batch_items` summaries per batch, so the
+/// field is a `Vec` capacity before anything has been found.
+fn clamp_event_batch_items<'de, D>(deserializer: D) -> Result<u32, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let requested = u32::deserialize(deserializer)?;
+    Ok(requested.clamp(MIN_EVENT_BATCH_ITEMS, MAX_EVENT_BATCH_ITEMS))
 }
 
 impl Default for DuplicateOptions {
@@ -89,10 +166,13 @@ pub struct ScanRequest {
     pub home_dir: String,
     pub roots: Vec<ScanRoot>,
     /// Large-file threshold in bytes (default 1 GB).
+    #[serde(deserialize_with = "clamp_threshold_bytes")]
     pub large_file_threshold_bytes: u64,
     /// Age threshold in days for old files (default 180).
+    #[serde(deserialize_with = "clamp_threshold_days")]
     pub old_file_threshold_days: u32,
     /// Age threshold in days before a log or installer counts as stale.
+    #[serde(deserialize_with = "clamp_threshold_days")]
     pub stale_threshold_days: u32,
     /// Directories the user asked Sift never to look at.
     pub ignore_paths: Vec<String>,
@@ -130,6 +210,23 @@ pub struct ScanRequest {
     /// categories are unaffected.
     #[serde(default = "complete_by_default")]
     pub app_group_ids_complete: bool,
+    /// Whether `installed_bundle_ids` is the complete set.
+    ///
+    /// The same judgement as `app_group_ids_complete`, about the other set. The
+    /// residue scan asks "does no installed application answer for this name",
+    /// and every location it reads — `~/Library/Caches`, `Containers`,
+    /// `Application Support`, `Logs`, `Saved Application State`, the group
+    /// containers and the preference files — is answered from this list. A read
+    /// that stopped early (a deadline, a cancelled scan, a bundle directory that
+    /// refused) leaves an installed application unnamed, so its live data reads
+    /// as the leftover of something that was removed. When the set is incomplete
+    /// this core reports no residue at all for that run: a scan that finds
+    /// nothing is recoverable, one that offers a live container is not.
+    ///
+    /// It defaults to `true` so a caller that never sends the field keeps the
+    /// behaviour it had.
+    #[serde(default = "complete_by_default")]
+    pub installed_bundle_ids_complete: bool,
     /// Aliases of the applications running when the scan started.
     ///
     /// Bundle identifiers, Finder names and executable names, lower-cased by the
@@ -157,6 +254,10 @@ pub struct ScanRequest {
     pub include_duplicates: bool,
     pub duplicates: DuplicateOptions,
     /// Per-batch summary size published to the event stream.
+    ///
+    /// Clamped where it is read: the coordinator reserves this many summaries
+    /// per batch, and the field arrives from JSON.
+    #[serde(deserialize_with = "clamp_event_batch_items")]
     pub event_batch_items: u32,
     /// Filesystem path of the SQLite index for this session.
     pub index_path: String,
@@ -189,6 +290,7 @@ impl Default for ScanRequest {
             installed_bundle_ids: Vec::new(),
             app_group_ids: Vec::new(),
             app_group_ids_complete: true,
+            installed_bundle_ids_complete: true,
             running_app_tokens: Vec::new(),
             include_hidden_files: true,
             extra_rules_json: None,
@@ -438,5 +540,124 @@ impl EngineError {
             EngineError::Cancelled => "Scan cancelled.".to_string(),
             EngineError::Internal(_) => "Something went wrong. Please try again.".to_string(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::{json, Value};
+
+    /// The request the app sends, as data, so a test can replace single fields.
+    fn request_value() -> Value {
+        json!({
+            "sessionId": "s",
+            "homeDir": "/Users/example",
+            "roots": [{"path": "/Users/example", "anchor": "home"}],
+            "largeFileThresholdBytes": 1024 * 1024 * 1024u64,
+            "oldFileThresholdDays": 180,
+            "staleThresholdDays": 30,
+            "ignorePaths": [],
+            "installedBundleIds": ["com.example.app"],
+            "extraRulesJson": null,
+            "includeDuplicates": true,
+            "duplicates": {"roots": [], "minSizeBytes": 4096, "maxFullHashes": 200_000},
+            "eventBatchItems": 512,
+            "indexPath": "",
+        })
+    }
+
+    /// Overwrites fields, descending into an object so `duplicates` can be
+    /// patched one key at a time.
+    fn merge(base: &mut Value, over: Value) {
+        match (base, over) {
+            (Value::Object(base), Value::Object(over)) => {
+                for (key, value) in over {
+                    match base.get_mut(&key) {
+                        Some(existing) if existing.is_object() && value.is_object() => {
+                            merge(existing, value);
+                        }
+                        _ => {
+                            base.insert(key, value);
+                        }
+                    }
+                }
+            }
+            (base, over) => *base = over,
+        }
+    }
+
+    fn decode(overrides: Value) -> ScanRequest {
+        let mut value = request_value();
+        merge(&mut value, overrides);
+        serde_json::from_value(value).expect("the request decodes")
+    }
+
+    /// The numbers a request carries are claims, not measurements.
+    ///
+    /// `event_batch_items` is reserved as a `Vec` capacity before the scan finds
+    /// anything, and the thresholds decide how much of the tree is offered, so a
+    /// request asking for `u32::MAX` batches asked for a multi-gigabyte
+    /// allocation from a string of ten digits.
+    #[test]
+    fn a_pathological_request_is_clamped_where_it_is_read() {
+        let request = decode(json!({
+            "largeFileThresholdBytes": u64::MAX,
+            "oldFileThresholdDays": u32::MAX,
+            "staleThresholdDays": 0,
+            "eventBatchItems": u32::MAX,
+            "duplicates": {
+                "minSizeBytes": u64::MAX,
+                "maxFullHashes": u64::MAX,
+            },
+        }));
+
+        assert_eq!(request.event_batch_items, MAX_EVENT_BATCH_ITEMS);
+        assert_eq!(request.large_file_threshold_bytes, MAX_THRESHOLD_BYTES);
+        assert_eq!(request.old_file_threshold_days, MAX_THRESHOLD_DAYS);
+        assert_eq!(
+            request.stale_threshold_days, 0,
+            "zero is a threshold the product uses: no age filter"
+        );
+        assert_eq!(request.duplicates.max_full_hashes, MAX_FULL_HASHES);
+        assert_eq!(
+            request.duplicates.min_size_bytes,
+            MAX_DUPLICATE_MIN_SIZE_BYTES
+        );
+    }
+
+    /// A batch of zero items would publish one event per file, which is the
+    /// stream the design forbids; it becomes the smallest batch instead.
+    #[test]
+    fn an_empty_batch_size_becomes_one_item() {
+        let request = decode(json!({"eventBatchItems": 0}));
+        assert_eq!(request.event_batch_items, MIN_EVENT_BATCH_ITEMS);
+    }
+
+    /// A request inside the bounds is taken as written.
+    #[test]
+    fn a_request_inside_the_bounds_is_unchanged() {
+        let request = decode(json!({}));
+        assert_eq!(request.event_batch_items, 512);
+        assert_eq!(request.large_file_threshold_bytes, 1024 * 1024 * 1024);
+        assert_eq!(request.old_file_threshold_days, 180);
+        assert_eq!(request.duplicates.max_full_hashes, 200_000);
+        assert_eq!(request.duplicates.min_size_bytes, 4096);
+    }
+
+    /// The installed set's completeness travels under the struct's camelCase
+    /// name and defaults to complete, so an old caller keeps its behaviour.
+    #[test]
+    fn the_installed_set_is_complete_unless_the_request_says_otherwise() {
+        let defaulted = decode(json!({}));
+        assert!(defaulted.installed_bundle_ids_complete);
+        assert!(defaulted.app_group_ids_complete);
+
+        let incomplete = decode(json!({"installedBundleIdsComplete": false}));
+        assert!(!incomplete.installed_bundle_ids_complete);
+        assert!(
+            incomplete.app_group_ids_complete,
+            "the two sets answer different questions"
+        );
     }
 }

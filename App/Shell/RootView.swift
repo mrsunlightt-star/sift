@@ -100,7 +100,7 @@ public struct RootShellView: View {
                             },
                             onOpenTrash: { Task { await environment.openTrash() } },
                             loadTrash: { await environment.trashSnapshot() },
-                            onEmptyTrash: { snapshot in await environment.emptyTrash(snapshot) },
+                            onEmptyTrash: { snapshot in await environment.emptyTrashGated(snapshot) },
                             onRevealFailed: { url in Task { await environment.reveal(url) } },
                             onRequestPurchase: { router.requestPurchase(reason: .exportReport) },
                             statusMessage: environment.reportExportMessage

@@ -230,16 +230,39 @@ public actor SettingsStore {
         }
     }
 
+    /// The domain a stored preference is clamped to when it is read back.
+    ///
+    /// `UserDefaults` is a file outside the app's control: `defaults write …
+    /// -int 4294967296` reaches this store, and the values travel into the Rust
+    /// request as `UInt32` and `UInt64`. A conversion that traps there would
+    /// take the app down on the next scan, which is a preference write becoming
+    /// a crash — so the value is clamped once, here, where it enters the app.
+    /// Ten years of days is far past any threshold the UI offers, and a petabyte
+    /// is past any disk that can be attached to this machine.
+    static let dayRange = 0...3650
+    static let largeFileThresholdRange: ClosedRange<Int64> = 0...(Int64(1) << 50)
+
+    /// Pulls a stored value into the domain the rest of the app may assume.
+    private static func clamped<T: Comparable>(_ value: T, to range: ClosedRange<T>) -> T {
+        min(max(value, range.lowerBound), range.upperBound)
+    }
+
     private static func load(from defaults: StringPreferences) -> AppSettings {
         var settings = AppSettings.default
         if let bytes = defaults.int64(forKey: Key.largeFileThresholdBytes) {
-            settings.largeFileThresholdBytes = bytes
+            settings.largeFileThresholdBytes = clamped(bytes, to: largeFileThresholdRange)
         }
         if defaults.hasValue(forKey: Key.oldFileThresholdDays) {
-            settings.oldFileThresholdDays = defaults.integer(forKey: Key.oldFileThresholdDays)
+            settings.oldFileThresholdDays = clamped(
+                defaults.integer(forKey: Key.oldFileThresholdDays),
+                to: dayRange
+            )
         }
         if defaults.hasValue(forKey: Key.staleThresholdDays) {
-            settings.staleThresholdDays = defaults.integer(forKey: Key.staleThresholdDays)
+            settings.staleThresholdDays = clamped(
+                defaults.integer(forKey: Key.staleThresholdDays),
+                to: dayRange
+            )
         }
         settings.showHiddenFiles = defaults.bool(forKey: Key.showHiddenFiles)
         // Confirmation defaults to on: an absent key must not silently disable it.

@@ -116,11 +116,18 @@ public actor ReportService {
     /// user may have kept, while the history is two timestamps. Deleting the
     /// directory is also what makes the action visible to the user — clearing
     /// only UserDefaults left the reports in place.
+    ///
+    /// It goes through `OwnedLocationRemoval` rather than `FileManager` directly
+    /// because the directory is the app's own only while the path still names it:
+    /// `removeItem` follows a symbolic link in an ancestor, so a re-pointed
+    /// `Application Support/Sift` would make this a recursive delete of a tree the
+    /// user never selected. The refusal propagates to the caller, which reports a
+    /// failed deletion instead of a count.
     @discardableResult
     public func deleteAllReports() throws -> Int {
         guard fileManager.fileExists(atPath: reportsDirectory.path) else { return 0 }
         let entries = (try? fileManager.contentsOfDirectory(atPath: reportsDirectory.path)) ?? []
-        try fileManager.removeItem(at: reportsDirectory)
+        try OwnedLocationRemoval.remove(at: reportsDirectory, fileManager: fileManager)
         logger.info("Deleted local reports (count=\(entries.count))")
         return entries.count
     }

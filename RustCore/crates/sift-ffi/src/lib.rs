@@ -21,17 +21,33 @@
 //! an event, page or analysis are released by the matching `_free` function.
 
 use sift_hasher::CancelToken;
-use sift_rules::{default_rules, protection_reason, Risk};
+use sift_rules::{
+    default_rules, is_prefix_of, normalize_path, protection_reason, protection_reason_authorized,
+    Risk,
+};
 use sift_scanner_core::storage::{self, AnalysisOptions};
 use sift_scanner_core::{Engine, Event, ScanHandle, ScanRequest};
 use std::ffi::{c_char, CStr};
 use std::panic::{catch_unwind, AssertUnwindSafe};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 /// Version of the FFI contract. Swift compares this on load so a mismatched
 /// framework fails loudly instead of silently misreading a struct.
 pub const SIFT_FFI_VERSION: u32 = 1;
+
+/// Path-protection codes, mirroring the `SiftPathProtection` enum in
+/// `Bridge/include/sift_scanner.h`.
+///
+/// Named here because Swift switches on these numbers, and `-1` in particular
+/// carries a promise: a question that could not be answered is reported as
+/// protected, never as scannable. The contract test compares these values with
+/// the header's.
+pub const SIFT_PATH_UNKNOWN: i32 = -1;
+pub const SIFT_PATH_SCANNABLE: i32 = 0;
+pub const SIFT_PATH_USER_CONTENT: i32 = 1;
+pub const SIFT_PATH_SYSTEM: i32 = 2;
+pub const SIFT_PATH_SECRETS: i32 = 3;
 
 /// A UTF-8 buffer. Always valid UTF-8 on the Rust side.
 #[repr(C)]
@@ -79,10 +95,22 @@ pub unsafe extern "C" fn sift_string_free(value: SiftString) {
 
 /// Borrows a `SiftString` as a `&str`.
 ///
+/// The returned borrow lives exactly as long as the caller's own borrow of
+/// `value`. It used to carry a free lifetime parameter, which let a caller keep
+/// the `&str` after the `SiftString` — and, with it, the buffer the caller is
+/// about to free — had gone away: an unsound signature that asked callers to
+/// uphold a promise the type did not state.
+///
+/// The lifetime is written out rather than elided, and `clippy::needless_lifetimes`
+/// is allowed here, because elision is what the unsound version looked like: an
+/// `'a` that appeared only in the return type borrowed nothing from the argument,
+/// and a reader had to check the binding by hand.
+///
 /// # Safety
 /// The pointer must be valid for `len` bytes and hold UTF-8, which is
 /// guaranteed when the value came from Swift's `String` bridging.
-unsafe fn as_str<'a>(value: &SiftString) -> Option<&'a str> {
+#[allow(clippy::needless_lifetimes)]
+unsafe fn as_str<'a>(value: &'a SiftString) -> Option<&'a str> {
     if value.ptr.is_null() {
         return None;
     }
@@ -320,30 +348,87 @@ pub extern "C" fn sift_rules_json() -> SiftString {
     })
 }
 
+/// Translates a [`sift_rules::ProtectedReason`] into the header's
+/// `SiftPathProtection` value.
+///
+/// One place, because both protection entry points have to report the same
+/// numbers: a caller that compares the two answers is asking whether the grants
+/// changed anything, and a second mapping is how the codes would disagree.
+fn protection_code(reason: Option<sift_rules::ProtectedReason>) -> i32 {
+    match reason {
+        None => SIFT_PATH_SCANNABLE,
+        Some(sift_rules::ProtectedReason::UserContent { .. }) => SIFT_PATH_USER_CONTENT,
+        Some(sift_rules::ProtectedReason::SystemPath { .. }) => SIFT_PATH_SYSTEM,
+        Some(sift_rules::ProtectedReason::Secrets { .. }) => SIFT_PATH_SECRETS,
+    }
+}
+
 /// Classifies a path against the compiled-in protection list.
 ///
-/// Returns `0` when scannable, `1` for user content, `2` for a system prefix,
-/// `3` for secrets and `-1` when the question could not be answered (invalid
-/// UTF-8, or a panic). Callers must treat `-1` as protected, not as scannable:
-/// an answer that was not given must never unlock a path.
+/// Returns a `SiftPathProtection` value: `0` when scannable, `1` for user
+/// content, `2` for a system prefix, `3` for secrets and `-1` when the question
+/// could not be answered (invalid UTF-8, or a panic). Callers must treat `-1` as
+/// protected, not as scannable: an answer that was not given must never unlock a
+/// path.
+///
+/// **This function applies the compiled-in list and nothing else.** The grants a
+/// user added are not consulted, so a path inside an authorised volume is
+/// reported as protected here while every gate that actually moves an item —
+/// pre-flight, the file operations service, the scanner — uses
+/// [`sift_path_protection_authorized`] and answers differently. Use this one to
+/// ask what the list itself says; use the authorised one to ask what Sift will
+/// do.
 ///
 /// # Safety
 /// Both strings must be valid `SiftString` values.
 #[no_mangle]
 pub unsafe extern "C" fn sift_path_protection(home_dir: SiftString, path: SiftString) -> i32 {
-    const UNKNOWN: i32 = -1;
-    guard(UNKNOWN, || {
+    guard(SIFT_PATH_UNKNOWN, || {
         let (Some(home), Some(path)) = (as_str(&home_dir), as_str(&path)) else {
-            return UNKNOWN;
+            return SIFT_PATH_UNKNOWN;
         };
-        match protection_reason(home, path) {
-            None => 0,
-            Some(reason) => match reason {
-                sift_rules::ProtectedReason::UserContent { .. } => 1,
-                sift_rules::ProtectedReason::SystemPath { .. } => 2,
-                sift_rules::ProtectedReason::Secrets { .. } => 3,
-            },
+        protection_code(protection_reason(home, path))
+    })
+}
+
+/// Classifies a path the way the scanner and the pre-flight check do, with the
+/// user's grants applied.
+///
+/// `grants_json` is a JSON array of absolute paths the user authorised; a null
+/// or empty string means there are none, which makes this call answer exactly
+/// what [`sift_path_protection`] answers. A grant lifts the blanket `/Volumes`
+/// guard for the subtree it names and nothing else: user content, secrets, a
+/// photo library, a recycle bin and every real system prefix stay refused.
+///
+/// The return value is the same `SiftPathProtection` value as the ungranted
+/// call, and `-1` again means the question could not be answered. A grants
+/// document that is not an array of strings is one of those cases rather than an
+/// empty grant list: a caller whose intent could not be read must not be told
+/// its path is scannable.
+///
+/// # Safety
+/// The three strings must be valid `SiftString` values.
+#[no_mangle]
+pub unsafe extern "C" fn sift_path_protection_authorized(
+    home_dir: SiftString,
+    path: SiftString,
+    grants_json: SiftString,
+) -> i32 {
+    guard(SIFT_PATH_UNKNOWN, || {
+        let (Some(home), Some(path)) = (as_str(&home_dir), as_str(&path)) else {
+            return SIFT_PATH_UNKNOWN;
+        };
+        let mut grants: Vec<PathBuf> = Vec::new();
+        if let Some(json) = as_str(&grants_json) {
+            let trimmed = json.trim();
+            if !trimmed.is_empty() && trimmed != "null" {
+                match serde_json::from_str::<Vec<String>>(trimmed) {
+                    Ok(paths) => grants.extend(paths.iter().map(PathBuf::from)),
+                    Err(_) => return SIFT_PATH_UNKNOWN,
+                }
+            }
         }
+        protection_code(protection_reason_authorized(home, path, &grants))
     })
 }
 
@@ -368,6 +453,119 @@ pub unsafe extern "C" fn sift_engine_free(engine: *mut SiftEngine) {
         return;
     }
     guard((), || drop(Box::from_raw(engine)));
+}
+
+/// One location a request asks this library to read.
+struct ScopeRoot<'a> {
+    path: &'a str,
+    /// The rule anchor the request attached, when the request document has one.
+    ///
+    /// A `ScanRequest` names an anchor for every root; the storage options
+    /// document has no anchor field at all, so its roots arrive with `None` and
+    /// are judged by their shape alone.
+    anchor: Option<&'a str>,
+}
+
+/// True when `path` is the per-session `/var/folders/<two>/<hash>` directory.
+///
+/// The shape is written out here rather than inferred from a prefix: `/var/folders`
+/// is every session on the machine and `/private/var` is the database, the swap
+/// files and the logs, so the anchor branch has to say exactly how deep a session
+/// directory is — two components below the container, the first of them the
+/// two-character session prefix macOS writes.
+fn is_session_temp_root(path: &str) -> bool {
+    // `normalize_path` maps `/var` to `/private/var`, so the comparison is made
+    // in one spelling. It is the same function the protection list uses, and
+    // the session directory arrives under both: `confstr` answers `/var/...`
+    // while `resolvingSymlinksInPath` answers `/private/var/...`.
+    let normalized = normalize_path(path);
+    let Some(rest) = normalized.strip_prefix("/private/var/folders/") else {
+        return false;
+    };
+    let components: Vec<&str> = rest
+        .split('/')
+        .filter(|component| !component.is_empty())
+        .collect();
+    matches!(components.as_slice(), [session, hash] if session.len() == 2 && !hash.is_empty())
+}
+
+/// The allowlist a request has to satisfy before this library walks anything.
+///
+/// The ABI is a trust boundary: the Swift side builds these requests and applies
+/// its own allowlist, but a caller that never used that allowlist must not be
+/// able to name `/`, the home directory, a volume container or an arbitrary
+/// system tree and have the walk read it. `Engine::start_scan` applies this
+/// shape to a scan request; the storage entry point had no such gate at all, so
+/// it validated the same document in two places and only one of them mattered.
+/// Both entry points now call this one function, which is the only reason the
+/// scan path is allowed to keep relying on the engine's own copy: the answer is
+/// the same and the message a user reads is written once.
+///
+/// The rules are the product's, not this function's invention:
+///
+///  * the home directory is absolute — every other comparison is anchored to it,
+///    so a relative or empty home would make the prefix checks meaningless (and
+///    an empty prefix now matches every path);
+///  * a root is inside the home directory, inside `/Volumes/`, exactly
+///    `/Library/Logs`, or the session temp directory the request names with
+///    `anchor: "userTemp"`;
+///  * a grant is inside `/Volumes/` or inside the home directory, and is never
+///    `/`, `/Volumes` or the home itself — those lift the blanket volume guard
+///    for every disk, or for a tree nobody opened.
+///
+/// The messages are user-facing sentences with no path in them: a refusal is
+/// shown in the page, and a report line is not where a full path belongs.
+///
+/// Paths are compared after [`normalize_path`], not after the bare collapse: one
+/// directory arrives in two spellings on the Mac — `/var/folders/...` from the
+/// process and `/private/var/folders/...` after `resolvingSymlinksInPath` — and a
+/// gate that compared the spellings would refuse the request the app itself
+/// builds. It is the same normalisation the protection list applies, so "inside
+/// the home directory" means the same thing here as it does there.
+fn validate_scope(
+    home_dir: &str,
+    roots: &[ScopeRoot<'_>],
+    grants: &[&str],
+) -> Result<(), &'static str> {
+    if !Path::new(home_dir).is_absolute() {
+        return Err("The location Sift was asked about is not an absolute path.");
+    }
+    // The root of the disk is not a home directory. Every protection name is
+    // relative to the home — `~/Documents` is how user content is recognised — so
+    // a request that calls `/` the home makes that whole half of the list match
+    // nothing while every scan root below `/` stays inside the "home".
+    if normalize_path(home_dir) == "/" {
+        return Err("The home directory in this request is not one Sift accepts.");
+    }
+    let home = normalize_path(home_dir);
+
+    for root in roots {
+        let path = normalize_path(root.path);
+        let inside_home = is_prefix_of(&home, &path);
+        let inside_volumes = is_prefix_of("/Volumes", &path) && path != "/Volumes";
+        let system_logs = is_prefix_of("/Library/Logs", &path);
+        // `anchor: "userTemp"` alone is not enough — the shape has to be the
+        // one macOS produces — and a root the storage options document named
+        // (no anchor field) is judged by that shape alone.
+        let user_temp = (root.anchor.is_none() || root.anchor == Some("userTemp"))
+            && is_session_temp_root(&path);
+        if !Path::new(root.path).is_absolute()
+            || !(inside_home || inside_volumes || system_logs || user_temp)
+        {
+            return Err("A location in this request is somewhere Sift does not read.");
+        }
+    }
+
+    for grant in grants {
+        let path = normalize_path(grant);
+        let inside_volumes = is_prefix_of("/Volumes", &path) && path != "/Volumes";
+        let inside_home = is_prefix_of(&home, &path) && path != home;
+        if path == "/" || path == "/Volumes" || path == home || !(inside_volumes || inside_home) {
+            return Err("An authorised location in this request is not one Sift accepts.");
+        }
+    }
+
+    Ok(())
 }
 
 /// Starts a scan from a JSON `ScanRequest` and returns a handle.
@@ -410,6 +608,28 @@ pub unsafe extern "C" fn sift_scan_start(
                     ))
                 }
             };
+
+            // The same allowlist the storage entry point applies, checked before
+            // the engine sees the request. `Engine::start_scan` applies it again
+            // — it is the last gate in front of a thread that walks the disk —
+            // but the message a user reads is decided here so the two entry
+            // points cannot describe one refusal in two ways.
+            let scope_roots: Vec<ScopeRoot> = request
+                .roots
+                .iter()
+                .map(|root| ScopeRoot {
+                    path: root.path.as_str(),
+                    anchor: Some(root.anchor.as_str()),
+                })
+                .collect();
+            let scope_grants: Vec<&str> = request
+                .authorized_roots
+                .iter()
+                .map(String::as_str)
+                .collect();
+            if let Err(message) = validate_scope(&request.home_dir, &scope_roots, &scope_grants) {
+                return Err(("invalidRequest", message.to_string()));
+            }
 
             let engine_ref = &*engine;
             match engine_ref.engine.start_scan(request) {
@@ -1044,10 +1264,42 @@ pub unsafe extern "C" fn sift_storage_analyse(
             return fail("The analysis options could not be read.");
         };
 
+        // The gate the scan entry point applies, applied here too. This call
+        // walks every root it is handed and reports what it found, so a
+        // `homeDir` that is not the real home — and a root named outside the
+        // allowlist — reaches exactly the same files a scan would. It used to
+        // arrive with no check at all: the request was deserialised and the
+        // directories were read.
+        let scope_roots: Vec<ScopeRoot> = options
+            .roots
+            .iter()
+            .map(|path| ScopeRoot {
+                path: path.as_str(),
+                anchor: None,
+            })
+            .collect();
+        let scope_grants: Vec<&str> = options
+            .authorized_roots
+            .iter()
+            .map(String::as_str)
+            .collect();
+        if let Err(message) = validate_scope(&options.home_dir, &scope_roots, &scope_grants) {
+            return fail(message);
+        }
+
         let mut analysis_options =
             AnalysisOptions::new(PathBuf::from(&options.home_dir), Vec::new());
         analysis_options.roots = options.roots.iter().map(PathBuf::from).collect();
-        analysis_options.ignore_paths = options.ignore_paths.iter().map(PathBuf::from).collect();
+        // An empty ignore path is not a location. It normalises to `/`, and
+        // since `is_prefix_of` treats the root as containing every path, a blank
+        // row in the user's "never visit" list would exclude the whole disk from
+        // the measurement and report an empty one.
+        analysis_options.ignore_paths = options
+            .ignore_paths
+            .iter()
+            .filter(|path| !path.trim_matches('/').is_empty())
+            .map(PathBuf::from)
+            .collect();
         analysis_options.authorized_roots =
             options.authorized_roots.iter().map(PathBuf::from).collect();
         analysis_options.include_hidden_files = options.include_hidden_files;
@@ -1076,7 +1328,15 @@ pub unsafe extern "C" fn sift_storage_analyse(
         };
         let analysis = storage::analyse(&analysis_options, token);
 
-        let categories: Vec<SiftCategoryTotal> = analysis
+        // Everything the result owns is built and still owned here: the three
+        // rows as `Box<[...]>`, the two headline strings as `SiftString`. The
+        // handover below is one expression, because `guard` catches a panic and
+        // a panic *between* handovers left arrays that nothing on the Rust side
+        // pointed at any more — the caller only ever receives the struct, so an
+        // already-transferred array is unreachable and leaked. Nothing between
+        // the last allocation and that expression can unwind, which is what
+        // makes one expression the whole of the fix.
+        let categories: Box<[SiftCategoryTotal]> = analysis
             .categories
             .iter()
             .map(|category| SiftCategoryTotal {
@@ -1085,12 +1345,11 @@ pub unsafe extern "C" fn sift_storage_analyse(
                 item_count: category.file_count as i64,
                 total_bytes: category.size_bytes as i64,
             })
-            .collect::<Vec<_>>();
-        let category_boxed = categories.into_boxed_slice();
-        let category_count = category_boxed.len();
-        let category_pointer = Box::into_raw(category_boxed) as *mut SiftCategoryTotal;
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
+        let category_count = categories.len();
 
-        let files: Vec<SiftStorageFile> = analysis
+        let files: Box<[SiftStorageFile]> = analysis
             .top_files
             .iter()
             .map(|file| SiftStorageFile {
@@ -1101,12 +1360,11 @@ pub unsafe extern "C" fn sift_storage_analyse(
                 size_bytes: file.size_bytes,
                 modified_secs: file.modified_secs,
             })
-            .collect::<Vec<_>>();
-        let file_boxed = files.into_boxed_slice();
-        let file_count = file_boxed.len();
-        let file_pointer = Box::into_raw(file_boxed) as *mut SiftStorageFile;
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
+        let file_count = files.len();
 
-        let directories: Vec<SiftStorageDirectory> = analysis
+        let directories: Box<[SiftStorageDirectory]> = analysis
             .top_directories
             .iter()
             .map(|directory| SiftStorageDirectory {
@@ -1116,16 +1374,18 @@ pub unsafe extern "C" fn sift_storage_analyse(
                 size_bytes: directory.size_bytes,
                 file_count: directory.file_count,
             })
-            .collect::<Vec<_>>();
-        let directory_boxed = directories.into_boxed_slice();
-        let directory_count = directory_boxed.len();
-        let directory_pointer = Box::into_raw(directory_boxed) as *mut SiftStorageDirectory;
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
+        let directory_count = directories.len();
+
+        let mount_point = SiftString::from_str(&analysis.volume.mount_point);
+        let volume_name = SiftString::from_str(&analysis.volume.volume_name);
 
         Box::into_raw(Box::new(SiftStorageAnalysis {
             version: SIFT_FFI_VERSION,
             ok: true,
-            mount_point: SiftString::from_str(&analysis.volume.mount_point),
-            volume_name: SiftString::from_str(&analysis.volume.volume_name),
+            mount_point,
+            volume_name,
             total_bytes: analysis.volume.total_bytes,
             free_bytes: analysis.volume.free_bytes,
             used_bytes: analysis.volume.used_bytes,
@@ -1135,13 +1395,13 @@ pub unsafe extern "C" fn sift_storage_analyse(
             skipped_count: analysis.skipped_count,
             elapsed_millis: analysis.elapsed_millis,
             aggregated: analysis.aggregated,
-            categories: category_pointer,
-            category_count,
-            files: file_pointer,
-            file_count,
-            directories: directory_pointer,
-            directory_count,
             error: SiftString::EMPTY,
+            categories: Box::into_raw(categories) as *mut SiftCategoryTotal,
+            category_count,
+            files: Box::into_raw(files) as *mut SiftStorageFile,
+            file_count,
+            directories: Box::into_raw(directories) as *mut SiftStorageDirectory,
+            directory_count,
         }))
     })
 }
@@ -1225,10 +1485,16 @@ pub unsafe extern "C" fn sift_storage_analysis_free(analysis: *mut SiftStorageAn
 /// Asks the scanner whether a risk level may enter the deletion queue. Swift
 /// calls this before enabling a checkbox, so a `protected` item can never be
 /// selected even if a rule file were wrong.
+///
+/// # Safety
+/// `risk` must be a valid `SiftString`: reading it dereferences the caller's
+/// buffer, which is what makes this function unsafe rather than safe. The
+/// signature used to be an ordinary `extern "C"` fn, which told Rust a caller
+/// could pass anything and still be safe.
 #[no_mangle]
-pub extern "C" fn sift_risk_is_cleanable(risk: SiftString) -> bool {
+pub unsafe extern "C" fn sift_risk_is_cleanable(risk: SiftString) -> bool {
     guard(false, || {
-        let Some(value) = (unsafe { as_str(&risk) }) else {
+        let Some(value) = as_str(&risk) else {
             return false;
         };
         matches!(value, "safe" | "review")
@@ -1236,10 +1502,14 @@ pub extern "C" fn sift_risk_is_cleanable(risk: SiftString) -> bool {
 }
 
 /// Returns the most cautious risk level the library assigns to a category.
+///
+/// # Safety
+/// `category` must be a valid `SiftString`, for the same reason as
+/// [`sift_risk_is_cleanable`]: the answer is read out of the caller's memory.
 #[no_mangle]
-pub extern "C" fn sift_default_risk_for_category(category: SiftString) -> SiftString {
+pub unsafe extern "C" fn sift_default_risk_for_category(category: SiftString) -> SiftString {
     guard(SiftString::EMPTY, || {
-        let Some(value) = (unsafe { as_str(&category) }) else {
+        let Some(value) = as_str(&category) else {
             return SiftString::EMPTY;
         };
         let risk = default_rules()
@@ -1357,6 +1627,243 @@ mod tests {
         assert!(text.contains("user-cache"));
         assert!(text.contains("explanationKey"));
         assert!(text.contains("requiresFullDiskAccess"));
+    }
+
+    #[test]
+    fn the_authorised_classifier_applies_the_grants_it_is_given() {
+        // The ungranted export is what a future caller reaches for first, and it
+        // would have refused every item on a volume the user authorised while
+        // every real gate allowed it. The two functions have to be told apart by
+        // their answer, not only by their name.
+        unsafe {
+            let home = string("/Users/example");
+            let volume = string("/Volumes/Backup/file.bin");
+            assert_eq!(
+                sift_path_protection(home, volume),
+                SIFT_PATH_SYSTEM,
+                "the compiled-in list refuses the volume on its own"
+            );
+
+            for no_grants in [SiftString::EMPTY, string("")] {
+                assert_eq!(
+                    sift_path_protection_authorized(home, volume, no_grants),
+                    SIFT_PATH_SYSTEM,
+                    "no grants is the ungranted answer"
+                );
+                sift_string_free(no_grants);
+            }
+            let null_grants = string("null");
+            assert_eq!(
+                sift_path_protection_authorized(home, volume, null_grants),
+                SIFT_PATH_SYSTEM
+            );
+            sift_string_free(null_grants);
+
+            let grants = string(r#"["/Volumes/Backup"]"#);
+            assert_eq!(
+                sift_path_protection_authorized(home, volume, grants),
+                SIFT_PATH_SCANNABLE,
+                "the granted volume is measured and cleaned"
+            );
+
+            // A grant is one subtree: the volume container and its siblings stay
+            // refused, and so does everything a grant must never lift.
+            let other_volume = string("/Volumes/Other/file.bin");
+            assert_eq!(
+                sift_path_protection_authorized(home, other_volume, grants),
+                SIFT_PATH_SYSTEM
+            );
+            let documents = string("/Users/example/Documents/taxes.pdf");
+            assert_eq!(
+                sift_path_protection_authorized(home, documents, grants),
+                SIFT_PATH_USER_CONTENT
+            );
+            let keychain = string("/Users/example/Library/Keychains/login.keychain-db");
+            assert_eq!(
+                sift_path_protection_authorized(home, keychain, grants),
+                SIFT_PATH_SECRETS
+            );
+            let bin = string("/Volumes/Backup/.Trashes/501/item");
+            assert_eq!(
+                sift_path_protection_authorized(home, bin, grants),
+                SIFT_PATH_USER_CONTENT,
+                "a grant opens a subtree, never the Trash inside it"
+            );
+
+            // A grants document that could not be read is not "no grants": the
+            // question was not answered, and an unanswered question is protected.
+            let broken = string(r#"{"grants":"nope"}"#);
+            assert_eq!(
+                sift_path_protection_authorized(home, volume, broken),
+                SIFT_PATH_UNKNOWN
+            );
+
+            for value in [
+                home,
+                volume,
+                other_volume,
+                documents,
+                keychain,
+                bin,
+                grants,
+                broken,
+            ] {
+                sift_string_free(value);
+            }
+        }
+    }
+
+    #[test]
+    fn an_application_bundle_is_refused_at_the_boundary() {
+        // The Swift half of this list is generated from the Rust constants, so
+        // the boundary is where a caller outside this crate can see the answer.
+        unsafe {
+            let home = string("/Users/example");
+            let application = string("/Applications/Safari.app");
+            assert_eq!(sift_path_protection(home, application), SIFT_PATH_SYSTEM);
+            let content = string("/Applications/Safari.app/Contents/MacOS/Safari");
+            assert_eq!(sift_path_protection(home, content), SIFT_PATH_SYSTEM);
+            for value in [home, application, content] {
+                sift_string_free(value);
+            }
+        }
+    }
+
+    #[test]
+    fn the_scope_gate_refuses_what_the_app_could_not_have_asked_for() {
+        let home = "/Users/example";
+        let root = |path: &'static str, anchor: Option<&'static str>| ScopeRoot { path, anchor };
+
+        assert!(validate_scope(home, &[root(home, Some("home"))], &[]).is_ok());
+        // The root of the disk is every directory at once.
+        assert!(validate_scope(home, &[root("/", Some("home"))], &[]).is_err());
+        // A volume container is a container: a scan root inside a volume is not,
+        // a root that *is* `/Volumes` is every disk.
+        assert!(validate_scope(home, &[root("/Volumes", Some("externalVolume"))], &[]).is_err());
+        assert!(validate_scope(home, &[root("/Volumes/Backup", Some("authorized"))], &[]).is_ok());
+        // A spoofed home directory, with a root that is outside the home the
+        // request named: this is the request the storage entry point used to
+        // accept without looking.
+        assert!(validate_scope(
+            "/tmp/not-a-home",
+            &[root("/Users/example/Documents", Some("home"))],
+            &[]
+        )
+        .is_err());
+        assert!(validate_scope("relative/home", &[], &[]).is_err());
+        // `/` as the home would make every home-relative protection name match
+        // nothing while every root below it stayed "inside the home".
+        assert!(validate_scope("/", &[root("/Users/example", Some("home"))], &[]).is_err());
+        // Prefix matching is per segment, so a sibling of the home is outside it.
+        assert!(
+            validate_scope(home, &[root("/Users/example2/.cache", Some("home"))], &[]).is_err()
+        );
+
+        // The two locations outside the home that a scan legitimately names.
+        assert!(validate_scope(home, &[root("/Library/Logs", Some("systemLibrary"))], &[]).is_ok());
+        assert!(validate_scope(
+            home,
+            &[root(
+                "/Library/Logs/DiagnosticReports",
+                Some("systemLibrary")
+            )],
+            &[]
+        )
+        .is_ok());
+        assert!(validate_scope(
+            home,
+            &[root(
+                "/private/var/folders/0a/abcdef0123456789",
+                Some("userTemp")
+            )],
+            &[]
+        )
+        .is_ok());
+        assert!(
+            validate_scope(
+                home,
+                &[root("/var/folders/0a/abcdef0123456789/T", Some("userTemp"))],
+                &[]
+            )
+            .is_err(),
+            "the session directory itself, not a directory inside it"
+        );
+
+        // A session directory is `/var/folders/<two>/<hash>` and nothing else:
+        // neither the container nor a deeper directory is one session.
+        for path in [
+            "/private/var/folders",
+            "/private/var/folders/0a",
+            "/private/var",
+            "/private/var/folders/abc/abcdef",
+            "/private/var/folders/0a/abc/extra",
+        ] {
+            assert!(
+                validate_scope(home, &[root(path, Some("userTemp"))], &[]).is_err(),
+                "{path} is not one session directory"
+            );
+        }
+        // The anchor is what says the request meant the session directory: the
+        // same path under another anchor is a root outside the allowlist.
+        assert!(validate_scope(
+            home,
+            &[root(
+                "/private/var/folders/0a/abcdef0123456789",
+                Some("home")
+            )],
+            &[]
+        )
+        .is_err());
+
+        // One directory, two spellings: `confstr` answers `/var/folders/...` and
+        // `resolvingSymlinksInPath` answers `/private/var/folders/...`, so a home
+        // and a root that differ only by that alias are the same tree. Without
+        // the alias-aware comparison the app's own request was refused.
+        assert!(validate_scope(
+            "/var/folders/0a/abcdef0123456789/T/sift-fixture",
+            &[root(
+                "/private/var/folders/0a/abcdef0123456789/T/sift-fixture/home",
+                Some("home")
+            )],
+            &[]
+        )
+        .is_ok());
+
+        // Grants: never `/`, never the container, never the home itself.
+        for grant in ["/", "/Volumes", home] {
+            assert!(
+                validate_scope(home, &[], &[grant]).is_err(),
+                "{grant} is not a grant"
+            );
+        }
+        for sibling in ["/Users/other/folder", "/Library"] {
+            assert!(
+                validate_scope(home, &[], &[sibling]).is_err(),
+                "{sibling} is outside the allowlist"
+            );
+        }
+        assert!(validate_scope(home, &[], &["/Volumes/Backup"]).is_ok());
+        assert!(validate_scope(home, &[], &["/Users/example/Projects"]).is_ok());
+    }
+
+    #[test]
+    fn a_storage_analysis_outside_the_allowlist_is_refused() {
+        // End to end, so the gate is proved wired and not merely correct: the
+        // root of the disk is the request that used to measure everything.
+        let options = serde_json::json!({
+            "homeDir": "/Users/example",
+            "roots": ["/"]
+        })
+        .to_string();
+        let analysis = unsafe { sift_storage_analyse(string(&options), std::ptr::null_mut()) };
+        assert!(!analysis.is_null());
+        unsafe {
+            assert!(!(*analysis).ok, "the analysis is refused");
+            let message = as_str(&(*analysis).error).unwrap_or_default().to_string();
+            assert!(!message.is_empty(), "a refusal carries a message");
+            assert!(!message.contains('/'), "the message names no path");
+            sift_storage_analysis_free(analysis);
+        }
     }
 
     #[test]
@@ -1818,13 +2325,21 @@ mod tests {
 
     #[test]
     fn risk_helpers_match_the_rule_table() {
+        // Both helpers read the caller's buffer, so they are `unsafe extern "C"`
+        // functions now: passing a `SiftString` that does not describe a valid
+        // buffer is the caller's mistake to avoid, not this library's to assume
+        // away.
         for value in ["safe", "review", "protected"] {
             let input = string(value);
             let expected = value != "protected";
-            assert_eq!(sift_risk_is_cleanable(input), expected, "risk {value}");
+            assert_eq!(
+                unsafe { sift_risk_is_cleanable(input) },
+                expected,
+                "risk {value}"
+            );
             unsafe { sift_string_free(input) };
         }
-        assert!(!sift_risk_is_cleanable(SiftString::EMPTY));
+        assert!(!unsafe { sift_risk_is_cleanable(SiftString::EMPTY) });
 
         // `temporaryFiles` holds both levels now: the Xcode artifacts and the
         // saved window state are `safe`, and the per-user temporary root is
@@ -1832,7 +2347,7 @@ mod tests {
         // to an application the user can recognise. The category default is the
         // more cautious of the two, so a caller that has only a category never
         // pre-selects on the strength of the safest rule in it.
-        let risk = sift_default_risk_for_category(string("temporaryFiles"));
+        let risk = unsafe { sift_default_risk_for_category(string("temporaryFiles")) };
         let text = unsafe { as_str(&risk) }.unwrap().to_string();
         unsafe { sift_string_free(risk) };
         assert_eq!(text, "review");
@@ -1842,19 +2357,19 @@ mod tests {
         // because the same name can hold state an application cannot rebuild.
         // The category default is the more cautious one, which is also why the
         // answer changed when those rules were added.
-        let risk = sift_default_risk_for_category(string("applicationCache"));
+        let risk = unsafe { sift_default_risk_for_category(string("applicationCache")) };
         let text = unsafe { as_str(&risk) }.unwrap().to_string();
         unsafe { sift_string_free(risk) };
         assert_eq!(text, "review");
 
         // `logs` holds both safe and review rules; the category default is the
         // more cautious one, or diagnostic reports would be preselected.
-        let logs = sift_default_risk_for_category(string("logs"));
+        let logs = unsafe { sift_default_risk_for_category(string("logs")) };
         let text = unsafe { as_str(&logs) }.unwrap().to_string();
         unsafe { sift_string_free(logs) };
         assert_eq!(text, "review");
 
-        let unknown = sift_default_risk_for_category(string("nonsense"));
+        let unknown = unsafe { sift_default_risk_for_category(string("nonsense")) };
         let text = unsafe { as_str(&unknown) }.unwrap().to_string();
         unsafe { sift_string_free(unknown) };
         assert_eq!(text, "review", "an unknown category is never pre-selected");

@@ -1,3 +1,4 @@
+import Dispatch
 import Foundation
 import OSLog
 import Shared
@@ -23,6 +24,16 @@ actor RustScannerEngine: ScannerEngine {
 
     private let logger = SiftLog.scan
     private let indexDirectory: URL
+    /// The session this engine started most recently.
+    ///
+    /// Kept so a superseded run can be shut down in order — cancel, wait for the
+    /// worker to report finished, then release — instead of being freed the
+    /// instant the caller drops its reference, which is what let a live worker
+    /// keep writing an index that had already been unlinked. Replaced on the
+    /// next `startScan`, so at most one session is retained, and the index left
+    /// behind by a run the caller released without superseding it is what
+    /// `prepareIndexDirectory` sweeps at the start of the next one.
+    private var liveSession: RustScanSession?
 
     init(indexDirectory: URL = SettingsStore.defaultSupportDirectory().appendingPathComponent("Index", isDirectory: true)) {
         self.indexDirectory = indexDirectory
@@ -105,10 +116,27 @@ actor RustScannerEngine: ScannerEngine {
                 message: "The scanner core and the app disagree on their interface version."
             )
         }
+        // A run is superseded only here: the caller replaces its own reference
+        // without telling anyone, so the previous session would otherwise be
+        // released the moment it is dropped — handle freed and index unlinked
+        // while its worker is still scanning. Tearing it down first is the one
+        // ordered place to do it, because this actor is the thing that started
+        // it.
+        if let previous = liveSession {
+            liveSession = nil
+            await previous.shutDown()
+        }
+
         let engine = sift_engine_new()
         guard let engine else {
             throw ScannerError(code: .internalError, message: LocalizationKey.commonUnknownError.localized)
         }
+        // The handle owns the pointer from this line on, not from the one that
+        // builds the session: everything between here and there can throw — the
+        // request encoding below, the C start call — and each of those paths
+        // reached neither `sift_engine_free` nor a handle's `deinit`, so a scan
+        // that failed to assemble leaked the engine and its worker thread.
+        let owner = RustEngineHandle(pointer: engine)
 
         // The index lives in the app's data directory and is removed when the
         // session ends: the spec requires scan results not to accumulate.
@@ -131,7 +159,8 @@ actor RustScannerEngine: ScannerEngine {
                 ? LocalizationKey.commonUnknownError.localized
                 : readString(error.message)
             releaseResult(&error)
-            sift_engine_free(engine)
+            // The engine is released by `owner` as this frame unwinds; freeing
+            // it here as well would release it twice.
             throw ScannerError(code: code, message: message)
         }
         releaseResult(&error)
@@ -147,14 +176,18 @@ actor RustScannerEngine: ScannerEngine {
         }
 
         logger.info("Scan started (engine=rust roots=\(request.roots.count))")
-        let owner = RustEngineHandle(pointer: engine)
-        return RustScanSession(
+        let session = RustScanSession(
             id: sessionID,
             handle: handle,
             owner: owner,
             indexURL: indexURL,
             scannedLocationCount: request.roots.count
         )
+        // Remembered so the next `startScan` can tear this one down in order.
+        // Holding it changes nothing for the caller, which still owns its own
+        // reference: at most one finished session is kept alive here.
+        liveSession = session
+        return session
     }
 
     /// Releases the strings a `SiftResult` owns.
@@ -192,8 +225,8 @@ private final class RustScanSession: ScanSession, @unchecked Sendable {
     let id: String
 
     // The Rust handle is an opaque pointer, which Swift cannot prove `Sendable`.
-    // The actor serialises every use, and `deinit` is the only place it is
-    // released, so the single-owner rule holds.
+    // The lock serialises every use, and `releaseResourcesLocked` is the only
+    // place it is released, so the single-owner rule holds.
     private let lock = NSLock()
     private let handle: OpaquePointer
     private let owner: RustEngineHandle
@@ -201,6 +234,21 @@ private final class RustScanSession: ScanSession, @unchecked Sendable {
     /// How many roots the request covered, reported in the summary.
     private let scannedLocationCount: Int
     private let logger = SiftLog.scan
+    /// Set once the C handle has been released, so no later call reaches it.
+    ///
+    /// Guarded by `lock` on every path but `deinit`, which cannot suspend and
+    /// runs only after the last strong reference is gone. Without it a page or a
+    /// poll that was already in flight when `shutDown()` released the handle
+    /// would read freed memory — the very window this session's teardown exists
+    /// to close.
+    private var released = false
+
+    /// How long a teardown waits for the worker to report finished.
+    ///
+    /// A worker stops at its next checkpoint, and a checkpoint inside a large
+    /// hashing pass takes a moment; two seconds is long enough to reach one and
+    /// short enough that a wedged worker cannot stall a teardown for ever.
+    private static let teardownTimeout: TimeInterval = 2
 
     init(
         id: String,
@@ -217,27 +265,115 @@ private final class RustScanSession: ScanSession, @unchecked Sendable {
     }
 
     deinit {
-        // The lock cannot be taken in `deinit`; that is safe here because a
-        // session is released only after its last caller has let it go.
-        sift_scan_free(handle)
-        // The SQLite index is a scan artifact; removing it keeps the data
-        // directory from accumulating paths the user has since deleted. The WAL
-        // and shared-memory files hold the same rows and must go with it.
-        RustScannerEngine.removeIndexArtifacts(at: indexURL)
-        _ = owner
+        // No waiting here, and no lock: `deinit` cannot suspend, and a session is
+        // released only after its last caller has let it go.
+        //
+        // The cancel is still required. The worker holds its own reference to
+        // the scan state and is writing the SQLite index, so freeing the handle
+        // without asking it to stop left it scanning into a database whose
+        // `-wal` and `-shm` this teardown then unlinked — a state SQLite does
+        // not support. `shutDown()` is the ordered path; this is the backstop
+        // for a session nobody tore down.
+        sift_scan_cancel(owner.raw)
+        releaseResourcesLocked()
     }
 
-    func pollEvents(maxEvents: Int) -> [ScanEvent] {
-        guard maxEvents > 0 else { return [] }
+    /// Stops the worker, waits for it, and only then releases everything.
+    ///
+    /// The order is the point. Cancel, then wait (bounded) for the worker to
+    /// report finished, then free the handle and remove the index: releasing
+    /// first is how the index came to be unlinked while the worker still held an
+    /// open database on it. The wait is bounded rather than indefinite because a
+    /// worker stuck in one syscall must not hold teardown for ever, and the
+    /// deletion that follows is a fallback, not the proof that it stopped.
+    func shutDown() async {
+        guard !hasReleased() else { return }
+
+        cancel()
+
+        let deadline = Date().addingTimeInterval(Self.teardownTimeout)
+        while Date() < deadline {
+            if await isFinished() { break }
+            // A cancelled caller stops the wait rather than spinning through it:
+            // `Task.sleep` returns immediately once the task is cancelled, so the
+            // deadline alone would turn this loop into two seconds of busy work.
+            if Task.isCancelled { break }
+            try? await Task.sleep(nanoseconds: 50_000_000)
+        }
+
+        releaseResources()
+    }
+
+    /// Whether the handle is already gone.
+    ///
+    /// A synchronous question on purpose: `NSLock.lock()` is unavailable from an
+    /// async context, so every lock is taken inside a synchronous helper and the
+    /// async surface only ever calls those.
+    private func hasReleased() -> Bool {
         lock.lock()
         defer { lock.unlock() }
+        return released
+    }
+
+    /// Releases the handle and the index, taking the lock itself.
+    private func releaseResources() {
+        lock.lock()
+        defer { lock.unlock() }
+        releaseResourcesLocked()
+    }
+
+    /// Releases the C handle and removes the index artifacts, exactly once.
+    ///
+    /// The name is the contract: every caller holds `lock`, or is `deinit`, which
+    /// runs after the last reference is gone. The Rust side now removes its own
+    /// index when the worker ends, so the deletion here is the fallback for a
+    /// session whose worker never ran (a request the core refused after the file
+    /// was created) — and it only ever runs after the worker reported finished,
+    /// so nothing is writing those files when they go.
+    private func releaseResourcesLocked() {
+        guard !released else { return }
+        released = true
+        sift_scan_free(handle)
+        RustScannerEngine.removeIndexArtifacts(at: indexURL)
+    }
+
+    /// The queue the event drain runs on.
+    ///
+    /// One call is a blocking C poll plus decoding of up to 64 events of 512
+    /// rows each, with eight strings per row. That is not work for the caller's
+    /// executor — and the caller's executor is the main actor, because the pump
+    /// runs there — so the drain gets a queue of its own rather than tying up a
+    /// cooperative thread that other work needs.
+    private static let pollingQueue = DispatchQueue(
+        label: "com.siftmac.scanner.rust-poll",
+        qos: .userInitiated
+    )
+
+    func pollEvents(maxEvents: Int) async -> [ScanEvent] {
+        guard maxEvents > 0 else { return [] }
+        // A real `async` body, not a synchronous witness: a sync function
+        // satisfies the protocol's `async` requirement without any hop, so
+        // `await session.pollEvents(...)` stayed on the main actor and decoded
+        // every batch on the UI thread.
+        return await withCheckedContinuation { continuation in
+            Self.pollingQueue.async {
+                continuation.resume(returning: self.drain(maxEvents: maxEvents))
+            }
+        }
+    }
+
+    /// One locked drain, called on `pollingQueue`.
+    private func drain(maxEvents: Int) -> [ScanEvent] {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !released else { return [] }
         return lockedPollEvents(maxEvents: maxEvents)
     }
 
     private func lockedPollEvents(maxEvents: Int) -> [ScanEvent] {
         var buffer = [SiftScanEvent](repeating: SiftScanEvent(), count: maxEvents)
         let written = buffer.withUnsafeMutableBufferPointer { pointer in
-            sift_scan_poll_events(handle, UInt32(maxEvents), pointer.baseAddress)
+            sift_scan_poll_events(handle, UInt32(clamping: maxEvents), pointer.baseAddress)
         }
         guard written > 0 else { return [] }
 
@@ -413,6 +549,10 @@ private final class RustScanSession: ScanSession, @unchecked Sendable {
     func isFinished() -> Bool {
         lock.lock()
         defer { lock.unlock() }
+        // A released handle reports finished rather than being asked: nothing
+        // can happen to this session any more, and a pump that asked would be
+        // reading freed memory.
+        guard !released else { return true }
         return sift_scan_is_finished(handle)
     }
 
@@ -425,6 +565,14 @@ private final class RustScanSession: ScanSession, @unchecked Sendable {
     private func lockedPage(offset: Int, limit: Int, sort: ScanSort, category: CleanupCategory?) throws -> ScanPage {
         lock.lock()
         defer { lock.unlock() }
+        // A torn-down session answers with cancellation instead of reading a
+        // released handle.
+        guard !released else {
+            throw ScannerError(
+                code: .cancelled,
+                message: LocalizationKey.commonUnknownError.localized
+            )
+        }
         var page = SiftPage()
         var error = SiftResult()
         let categoryString = category?.rawValue
@@ -437,8 +585,8 @@ private final class RustScanSession: ScanSession, @unchecked Sendable {
                     withUnsafeMutablePointer(to: &error) { errorPointer in
                         sift_scan_page_results(
                             handle,
-                            UInt32(max(offset, 0)),
-                            UInt32(max(limit, 1)),
+                            UInt32(clamping: offset),
+                            UInt32(clamping: max(limit, 1)),
                             sortValue,
                             categoryValue,
                             pagePointer,
@@ -510,14 +658,15 @@ private final class RustScanSession: ScanSession, @unchecked Sendable {
     private func lockedDuplicateGroups(offset: Int, limit: Int) -> [DuplicateGroup] {
         lock.lock()
         defer { lock.unlock() }
+        guard !released else { return [] }
         let capacity = max(limit, 1)
         var buffer = [SiftDuplicateGroup](repeating: SiftDuplicateGroup(), count: capacity)
         let written = sift_scan_page_duplicate_groups(
             handle,
-            UInt32(max(offset, 0)),
-            UInt32(capacity),
+            UInt32(clamping: offset),
+            UInt32(clamping: capacity),
             &buffer,
-            UInt32(capacity)
+            UInt32(clamping: capacity)
         )
         defer {
             for index in 0..<buffer.count {
@@ -552,6 +701,7 @@ private final class RustScanSession: ScanSession, @unchecked Sendable {
     private func lockedDuplicateMembersTakingLock(groupID: Int64) -> [DuplicateMember] {
         lock.lock()
         defer { lock.unlock() }
+        guard !released else { return [] }
         return lockedDuplicateMembers(groupID: groupID)
     }
 
@@ -571,10 +721,10 @@ private final class RustScanSession: ScanSession, @unchecked Sendable {
             let written = sift_scan_duplicate_members(
                 handle,
                 groupID,
-                UInt32(offset),
-                UInt32(pageSize),
+                UInt32(clamping: offset),
+                UInt32(clamping: pageSize),
                 &buffer,
-                UInt32(pageSize)
+                UInt32(clamping: pageSize)
             )
             if written == 0 { break }
             for index in 0..<Int(written) {
@@ -603,6 +753,7 @@ private final class RustScanSession: ScanSession, @unchecked Sendable {
     func skippedLocations() -> [SkippedLocation] {
         lock.lock()
         defer { lock.unlock() }
+        guard !released else { return [] }
         return lockedSkippedLocations()
     }
 
@@ -628,9 +779,17 @@ private final class RustScanSession: ScanSession, @unchecked Sendable {
         }
     }
 
+    /// Forwards cancellation to the Rust flag.
+    ///
+    /// The lock is taken here like everywhere else, because the handle below is
+    /// the one `sift_scan_page_results` is inside: the Rust side accepts a
+    /// cancel from any thread, so the unlocked version bought no latency and
+    /// allowed two calls into one handle at once. What the wait costs is one
+    /// page read — the work the user is already waiting on.
     func cancel() {
-        // Deliberately unlocked: cancelling must work even while another call
-        // holds the lock, and the Rust side accepts it from any thread.
+        lock.lock()
+        defer { lock.unlock() }
+        guard !released else { return }
         sift_scan_cancel(owner.raw)
         logger.notice("Cancellation requested (engine=rust)")
     }
@@ -647,6 +806,14 @@ private struct RustScanRequest: Encodable {
     let ignorePaths: [String]
     let authorizedRoots: [String]
     let installedBundleIds: [String]
+    /// Whether `installedBundleIds` is the whole set.
+    ///
+    /// Sent under the key the core reads, `installedBundleIdsComplete`. False
+    /// means the caller could not finish reading the installed bundles, and the
+    /// core then reports no application residue for the run: a partial set is
+    /// worse than none, because every application that went unread makes its
+    /// live data look like a leftover.
+    let installedBundleIdsComplete: Bool
     let appGroupIds: [String]
     let appGroupIdsComplete: Bool
     let runningAppTokens: [String]
@@ -681,16 +848,24 @@ private struct RustScanRequest: Encodable {
                 anchor: root.anchor.rawValue,
                 isCleanable: root.isCleanable,
                 includesThresholdFiles: root.includesThresholdFiles,
-                maxDepth: root.maxDepth.map(UInt32.init),
+                maxDepth: root.maxDepth.map { UInt32(clamping: $0) },
                 volumeId: root.volumeIdentifier
             )
         }
-        self.largeFileThresholdBytes = UInt64(max(request.largeFileThresholdBytes, 0))
-        self.oldFileThresholdDays = UInt32(max(request.oldFileThresholdDays, 0))
-        self.staleThresholdDays = UInt32(max(request.staleThresholdDays, 0))
+        // `clamping` rather than `UInt32(_:)`: these four values come from
+        // `UserDefaults`, which the user can write from outside the app
+        // (`defaults write … -int 4294967296`), and a trapping conversion here
+        // takes the whole app down on the next scan. The settings store clamps
+        // them as well; this is the boundary that must not trust its caller, and
+        // a value out of range becomes the nearest one the ABI can carry instead
+        // of a crash.
+        self.largeFileThresholdBytes = UInt64(clamping: request.largeFileThresholdBytes)
+        self.oldFileThresholdDays = UInt32(clamping: request.oldFileThresholdDays)
+        self.staleThresholdDays = UInt32(clamping: request.staleThresholdDays)
         self.ignorePaths = request.ignoredPaths
         self.authorizedRoots = request.authorizedRoots
         self.installedBundleIds = request.installedBundleIdentifiers
+        self.installedBundleIdsComplete = request.installedBundleIdentifiersComplete
         // The groups installed applications declare: a container named after one
         // of them is live however its name reads.
         self.appGroupIds = request.appGroupIdentifiers
@@ -705,7 +880,7 @@ private struct RustScanRequest: Encodable {
         self.duplicates = Duplicates(
             roots: request.duplicateRoots,
             minSizeBytes: UInt64(ScanDefaults.duplicateMinimumBytes),
-            maxFullHashes: UInt64(max(request.duplicateMaxFullHashes, 0))
+            maxFullHashes: UInt64(clamping: request.duplicateMaxFullHashes)
         )
         // Batches of 512 keep the event queue small without making the poller
         // work per file.

@@ -539,6 +539,80 @@ final class ProtectionTests: XCTestCase, @unchecked Sendable {
         }
     }
 
+    /// The disk root is protected, and the answer does not depend on which
+    /// helper asked.
+    ///
+    /// `is_prefix_of("/")` answered `false` in the Rust core and `true` in the
+    /// Swift one, so `/` was refused by one engine and walked by the other. The
+    /// entry is not in the table yet — this keeps the two helpers agreeing about
+    /// the boundary the table is written against, which is what makes adding it
+    /// safe.
+    func test_theDiskRootIsProtectedEverywhere() {
+        XCTAssertNotNil(engine.protectionReason(for: "/"), "the disk root contains everything")
+        // The home directory is not on the list and must not be: the product
+        // lives inside it. It is refused by the container check instead, which
+        // is the statement about "a place to look inside, never an item".
+        XCTAssertNil(engine.protectionReason(for: "/Users/example"))
+        XCTAssertTrue(engine.isCleanupContainer("/Users/example"))
+        // The two helpers answer the boundary the same way, which is what makes
+        // adding `/` to the table a one-line change rather than an engine split.
+        XCTAssertTrue(RuleEngine.isPrefix("/", "/Users/example/anything"))
+        XCTAssertTrue(RuleEngine.isPrefix("", "/Users/example/anything"))
+        XCTAssertTrue(RuleEngine.isProtectedPrefix("/", "/Users/example/anything"))
+    }
+
+    /// A rule may name the applications anchor; the item it would produce is an
+    /// application bundle, and a bundle is not junk.
+    ///
+    /// The rule table can only see a name and an age, so `/Applications` is on
+    /// the compiled-in list. Before it was, a user rule with `relativePath: "*"`
+    /// offered every installed application for removal, and pre-flight only
+    /// stopped the ones that happened to be running.
+    func test_anApplicationBundleIsProtectedWhileItIsNotRunning() {
+        for path in [
+            "/Applications/Safari.app",
+            "/Applications/Safari.app/Contents/MacOS/Safari",
+            "/Applications/Xcode.app/Contents/Developer",
+            "/Applications/Utilities/Terminal.app",
+        ] {
+            XCTAssertNotNil(engine.protectionReason(for: path), "\(path) must be protected")
+        }
+        // The near miss: a cache under the user's own library is still junk.
+        XCTAssertNil(engine.protectionReason(for: "/Users/example/Library/Caches/com.apple.Safari"))
+    }
+
+    /// The two engines report one reason for one path, because the reason is the
+    /// sentence the user reads.
+    ///
+    /// The Rust order is: home children, then absolute prefixes (so `/Volumes`
+    /// answers `systemPath`), then a recycle bin. An item already in a volume's
+    /// bin is inside `/Volumes` as well, and the order is what decides which
+    /// sentence the row carries.
+    func test_aVolumeRecycleBinIsRefusedForTheVolumeReason() {
+        guard let reason = engine.protectionReason(for: "/Volumes/Backup/.Trashes/501/item") else {
+            return XCTFail("a volume's bin must be refused")
+        }
+        guard case .systemPath(let prefix) = reason else {
+            return XCTFail("the volume prefix decides first, got \(reason)")
+        }
+        XCTAssertEqual(prefix, "/Volumes")
+    }
+
+    /// A recycle bin is recognised however its name is spelled, including the
+    /// Unicode fold that `lowercased` alone does not perform.
+    func test_aRecycleBinNameIsFoldedBeforeItIsCompared() {
+        for path in [
+            "/Users/example/.Trash/item",
+            "/Users/example/.Tra\u{017F}h/item",
+            "/Volumes/Backup/.Trashes/501/item",
+        ] {
+            XCTAssertNotNil(engine.protectionReason(for: path), "\(path) must be refused")
+        }
+        // `.Trash-notes` is an ordinary folder, and `Caſhe` is a cache.
+        XCTAssertNil(engine.protectionReason(for: "/Users/example/Library/Caches/.Trash-notes"))
+        XCTAssertNil(engine.protectionReason(for: "/Users/example/Library/Caches/Ca\u{017F}he"))
+    }
+
     func test_malformedRuleFileLeavesTheBuiltInsInPlace() {
         let fixture = TemporaryDirectory(tag: "rules-broken")
         let ruleFile = fixture.url.appendingPathComponent("CleaningRules.json")

@@ -51,7 +51,21 @@ pub struct WalkOptions {
     /// Roots the user authorised; protection checks consult them.
     pub authorized_roots: Vec<PathBuf>,
     /// Stop after this many entries; `None` means unlimited.
+    ///
+    /// [`WalkOptions::new`] sets a default rather than leaving this open. The
+    /// result set is what the caller receives and each entry is a `PathBuf`
+    /// plus three strings, so an unbounded walk of a whole home directory
+    /// materialised hundreds of megabytes that the index was going to hold
+    /// anyway. A caller with a reason for another number sets it explicitly.
     pub max_entries: Option<u64>,
+    /// Stop *recording* skips after this many; `None` means unlimited.
+    ///
+    /// A skip is a diagnostic, not a result, so a walk that has run out of
+    /// skip budget keeps walking and stops collecting: dropping the rest of the
+    /// tree because a million permission errors were recorded would lose the
+    /// items the user can actually clean. The report says `truncated` instead,
+    /// and the summary reports the run as partial.
+    pub max_skips: Option<u64>,
     /// Skip entries whose name starts with `.`.
     ///
     /// The "show hidden files" setting decides what the walk *produces* rather
@@ -87,12 +101,25 @@ impl WalkOptions {
             skip_directory_names: HashSet::new(),
             skip_paths: Vec::new(),
             authorized_roots: Vec::new(),
-            max_entries: None,
+            max_entries: Some(DEFAULT_MAX_ENTRIES),
+            max_skips: Some(DEFAULT_MAX_SKIPS),
             skip_hidden: false,
             stop_at_packages: true,
             open_timeout: Duration::from_secs(30),
             stay_on_device: true,
         }
+    }
+
+    /// Sets both result budgets at once.
+    ///
+    /// A strategy that walks a whole root states its numbers rather than
+    /// inheriting the default, so the budget is a decision at the call site:
+    /// a measurement that only reads totals can afford a larger entry count
+    /// than a scan whose entries are published.
+    pub fn with_budgets(mut self, max_entries: u64, max_skips: u64) -> Self {
+        self.max_entries = Some(max_entries);
+        self.max_skips = Some(max_skips);
+        self
     }
 
     pub fn with_max_depth(mut self, depth: u32) -> Self {
@@ -164,6 +191,22 @@ pub struct WalkReport {
     pub cancelled: bool,
 }
 
+/// How many entries one walk produces before it reports itself truncated.
+///
+/// Half a million entries is a whole home directory's worth of files; a scan
+/// that reaches it has already found more than a window can show, and the index
+/// holds what was found. The number exists so a caller that forgets a budget —
+/// every caller did — is still bounded.
+pub const DEFAULT_MAX_ENTRIES: u64 = 500_000;
+
+/// How many skip records one walk keeps before it stops collecting them.
+///
+/// Skips are diagnostics. Two thousand distinct unreadable locations is more
+/// than a person reads and far more than the guide needs, and the walk keeps
+/// going after the budget so the items behind an unreadable folder are still
+/// reported.
+pub const DEFAULT_MAX_SKIPS: u64 = 2_000;
+
 /// Directory names that never contain cleanup targets and are expensive to walk.
 pub const DEFAULT_SKIP_DIRECTORY_NAMES: &[&str] = &[
     ".git",
@@ -184,7 +227,16 @@ pub const DEFAULT_SKIP_DIRECTORY_NAMES: &[&str] = &[
 pub(crate) fn normalize_skip_paths(skip_paths: &[PathBuf]) -> Vec<String> {
     skip_paths
         .iter()
+        // An empty entry has no meaning as a location, and normalising one
+        // produces `/` — which is a prefix of every path. `is_prefix_of` answers
+        // true for a root prefix on purpose (the disk root protects everything
+        // it contains), so an empty entry would turn an "ignore nothing" list
+        // into "ignore the whole disk" and the scan would find exactly nothing.
+        // A caller that builds the list from user input cannot rule this out,
+        // which is why the drop happens here rather than at each call site.
+        .filter(|skip| !skip.as_os_str().is_empty())
         .map(|skip| normalize_path(&skip.to_string_lossy()))
+        .filter(|skip| skip != "/")
         .collect()
 }
 
@@ -217,31 +269,74 @@ pub(crate) fn is_skipped_normalized(path: &Path, normalized_skips: &[String]) ->
 /// Returns a [`WalkReport`] rather than `Result`: the only hard failures are
 /// invalid arguments, which callers validate up front.
 pub fn walk(root: &Path, options: &WalkOptions, cancel: &CancelToken) -> WalkReport {
+    let mut entries: Vec<WalkEntry> = Vec::new();
+    let mut report = walk_with(root, options, cancel, &mut |entry| entries.push(entry));
+    report.entries = entries;
+    report
+}
+
+/// Walks `root` and hands every entry to `on_entry` instead of collecting them.
+///
+/// The duplicate pipeline is the caller this exists for. It reduces each file to
+/// a size and a path and keeps the size index for the whole run, so collecting
+/// the tree first held two copies of the same set — one in the report and one in
+/// the index — for as long as a root took to walk. Here the entry vector does
+/// not exist: the entry is moved into the index and dropped.
+///
+/// The report is the same one [`walk`] returns, with `entries` empty, because
+/// the entries went to the sink. Use [`walk`] when the entries are the result.
+pub fn walk_streaming(
+    root: &Path,
+    options: &WalkOptions,
+    cancel: &CancelToken,
+    on_entry: &mut dyn FnMut(WalkEntry),
+) -> WalkReport {
+    walk_with(root, options, cancel, on_entry)
+}
+
+/// The walk itself, with every entry handed to `emit`.
+fn walk_with(
+    root: &Path,
+    options: &WalkOptions,
+    cancel: &CancelToken,
+    emit: &mut dyn FnMut(WalkEntry),
+) -> WalkReport {
     let mut report = WalkReport::default();
+    // Counted here rather than read off the report: the entries may never be in
+    // it, and the budget bounds what the caller receives, not what is held.
+    let mut emitted: u64 = 0;
 
     let root_metadata = match std::fs::symlink_metadata(root) {
         Ok(metadata) => metadata,
         Err(error) => {
-            report.skips.push(skip_for(root, &error));
+            record_skip(options, &mut report, skip_for(root, &error));
             return report;
         }
     };
     if root_metadata.file_type().is_symlink() {
-        report.skips.push(WalkSkip {
-            path: root.to_path_buf(),
-            code: "fileNotFound",
-            message: "Symbolic links are not followed.".to_string(),
-            needs_full_disk_access: false,
-        });
+        record_skip(
+            options,
+            &mut report,
+            WalkSkip {
+                path: root.to_path_buf(),
+                code: "fileNotFound",
+                message: "Symbolic links are not followed.".to_string(),
+                needs_full_disk_access: false,
+            },
+        );
         return report;
     }
     if !root_metadata.is_dir() {
-        report.skips.push(WalkSkip {
-            path: root.to_path_buf(),
-            code: "invalidRequest",
-            message: "Scan root is not a directory.".to_string(),
-            needs_full_disk_access: false,
-        });
+        record_skip(
+            options,
+            &mut report,
+            WalkSkip {
+                path: root.to_path_buf(),
+                code: "invalidRequest",
+                message: "Scan root is not a directory.".to_string(),
+                needs_full_disk_access: false,
+            },
+        );
         return report;
     }
 
@@ -263,17 +358,22 @@ pub fn walk(root: &Path, options: &WalkOptions, cancel: &CancelToken) -> WalkRep
                     report.cancelled = true;
                     return report;
                 }
-                report.skips.push(WalkSkip {
-                    path: directory,
-                    code: "timedOut",
-                    message: "The directory did not answer in time; skipped rather than waiting."
-                        .to_string(),
-                    needs_full_disk_access: false,
-                });
+                record_skip(
+                    options,
+                    &mut report,
+                    WalkSkip {
+                        path: directory,
+                        code: "timedOut",
+                        message:
+                            "The directory did not answer in time; skipped rather than waiting."
+                                .to_string(),
+                        needs_full_disk_access: false,
+                    },
+                );
                 continue;
             }
             Err(error) => {
-                report.skips.push(skip_for(&directory, &error));
+                record_skip(options, &mut report, skip_for(&directory, &error));
                 continue;
             }
         };
@@ -288,12 +388,16 @@ pub fn walk(root: &Path, options: &WalkOptions, cancel: &CancelToken) -> WalkRep
                 continue;
             }
             if is_protected_by_policy(options, &path) {
-                report.skips.push(WalkSkip {
-                    path: path.clone(),
-                    code: "protectedLocation",
-                    message: "Protected location, not scanned.".to_string(),
-                    needs_full_disk_access: false,
-                });
+                record_skip(
+                    options,
+                    &mut report,
+                    WalkSkip {
+                        path: path.clone(),
+                        code: "protectedLocation",
+                        message: "Protected location, not scanned.".to_string(),
+                        needs_full_disk_access: false,
+                    },
+                );
                 continue;
             }
 
@@ -301,7 +405,7 @@ pub fn walk(root: &Path, options: &WalkOptions, cancel: &CancelToken) -> WalkRep
             let metadata = match std::fs::symlink_metadata(&path) {
                 Ok(metadata) => metadata,
                 Err(error) => {
-                    report.skips.push(skip_for(&path, &error));
+                    record_skip(options, &mut report, skip_for(&path, &error));
                     continue;
                 }
             };
@@ -317,13 +421,17 @@ pub fn walk(root: &Path, options: &WalkOptions, cancel: &CancelToken) -> WalkRep
                 // A mount point below the root belongs to another disk. The
                 // user never authorised it, and its bytes are not this
                 // volume's bytes.
-                report.skips.push(WalkSkip {
-                    path: path.clone(),
-                    code: "protectedLocation",
-                    message: "Another volume is mounted here; not scanned without a grant."
-                        .to_string(),
-                    needs_full_disk_access: false,
-                });
+                record_skip(
+                    options,
+                    &mut report,
+                    WalkSkip {
+                        path: path.clone(),
+                        code: "protectedLocation",
+                        message: "Another volume is mounted here; not scanned without a grant."
+                            .to_string(),
+                        needs_full_disk_access: false,
+                    },
+                );
                 continue;
             }
 
@@ -356,24 +464,25 @@ pub fn walk(root: &Path, options: &WalkOptions, cancel: &CancelToken) -> WalkRep
                     WalkMode::Files => false,
                 };
                 if report_directory && !is_package {
-                    if budget_spent(options, &report) {
+                    if budget_spent(options, emitted) {
                         report.truncated = true;
                         return report;
                     }
                     if let Some(entry) = build_entry(&path, true, &metadata, 0) {
-                        report.entries.push(entry);
+                        emit(entry);
+                        emitted += 1;
                     }
                 }
 
                 if is_package && options.stop_at_packages {
-                    if budget_spent(options, &report) {
+                    if budget_spent(options, emitted) {
                         report.truncated = true;
                         return report;
                     }
                     // A bundle counts as one item: report it and measure it as a
                     // unit rather than descending file by file.
                     let measured = measure_within(&path, cancel, options, &mut report, &mut lister);
-                    report.entries.push(WalkEntry {
+                    emit(WalkEntry {
                         path: path.clone(),
                         is_directory: true,
                         size_bytes: Some(measured.bytes),
@@ -382,6 +491,7 @@ pub fn walk(root: &Path, options: &WalkOptions, cancel: &CancelToken) -> WalkRep
                         created_secs,
                         is_package: true,
                     });
+                    emitted += 1;
                     continue;
                 }
                 stack.push((path, depth + 1));
@@ -390,7 +500,7 @@ pub fn walk(root: &Path, options: &WalkOptions, cancel: &CancelToken) -> WalkRep
                     // Sockets, FIFOs and devices are not cleanup candidates.
                     continue;
                 }
-                if budget_spent(options, &report) {
+                if budget_spent(options, emitted) {
                     report.truncated = true;
                     return report;
                 }
@@ -409,7 +519,8 @@ pub fn walk(root: &Path, options: &WalkOptions, cancel: &CancelToken) -> WalkRep
                     {
                         report.total_files += 1;
                         report.total_bytes += entry.size_bytes.unwrap_or(0);
-                        report.entries.push(entry);
+                        emit(entry);
+                        emitted += 1;
                     }
                 } else {
                     report.total_files += 1;
@@ -427,12 +538,32 @@ pub fn walk(root: &Path, options: &WalkOptions, cancel: &CancelToken) -> WalkRep
 /// Every reported entry counts, directories and package directories included:
 /// `max_entries` is a bound on the result the caller receives, and a walk that
 /// only counted files still let a tree of a million empty folders build a
-/// million entries.
-fn budget_spent(options: &WalkOptions, report: &WalkReport) -> bool {
+/// million entries. The count comes from the walk's own tally rather than from
+/// `report.entries`, which is empty when the entries went to a [`walk_streaming`]
+/// sink.
+fn budget_spent(options: &WalkOptions, emitted: u64) -> bool {
     options
         .max_entries
-        .map(|max| report.entries.len() as u64 >= max)
+        .map(|max| emitted >= max)
         .unwrap_or(false)
+}
+
+/// Records a skip, or notes that the walk has run out of room to record one.
+///
+/// The budget bounds the diagnostics, not the walk: `truncated` says the report
+/// is shorter than the tree, which the summary turns into `partial`. Continuing
+/// is the point — a directory that cannot be read is one skip record, and the
+/// items beside it are still results.
+fn record_skip(options: &WalkOptions, report: &mut WalkReport, skip: WalkSkip) {
+    let has_room = options
+        .max_skips
+        .map(|max| (report.skips.len() as u64) < max)
+        .unwrap_or(true);
+    if has_room {
+        report.skips.push(skip);
+    } else {
+        report.truncated = true;
+    }
 }
 
 /// True when the walk must not enter `path`.
@@ -813,6 +944,32 @@ mod tests {
         assert!(report.skips.is_empty(), "ignored paths are silent");
     }
 
+    /// An empty entry in the ignore list names no location, and must not be
+    /// read as the disk root.
+    ///
+    /// Normalising `""` produces `/`, and `/` is a prefix of every path — so an
+    /// empty entry would turn "ignore nothing" into "skip the whole walk" and the
+    /// scan would report a clean Mac with nothing on it. The list can be built
+    /// from user input (`ignorePaths` in the request), which is why the drop
+    /// belongs in the normaliser rather than at each call site.
+    #[test]
+    fn an_empty_ignored_path_does_not_skip_the_whole_walk() {
+        let tree = TempTree::new("walk-empty-ignore");
+        tree.file("a.txt", 10);
+        tree.file("nested/b.txt", 10);
+
+        let opts = options(&tree.root).with_skip_paths(vec![PathBuf::from(""), PathBuf::from("/")]);
+        let report = walk(&tree.root, &opts, &CancelToken::new());
+        assert_eq!(
+            report.entries.len(),
+            2,
+            "an empty ignore path ignores nothing"
+        );
+
+        assert!(normalize_skip_paths(&[PathBuf::from("")]).is_empty());
+        assert!(normalize_skip_paths(&[PathBuf::from("/")]).is_empty());
+    }
+
     /// The ignore list is compared the way the protection rules are: through the
     /// alias mapping, so a location handed over in its `/private/var` spelling
     /// still ignores the subtree the walk visits as `/var`.
@@ -1048,6 +1205,109 @@ mod tests {
             "a package is an entry and must count against the budget"
         );
         assert!(report.entries.iter().all(|entry| entry.is_package));
+    }
+
+    /// A walk that never asks for a budget is still bounded.
+    ///
+    /// Every production caller forgot to set `max_entries`, so a scan of a whole
+    /// home directory materialised the tree in one vector of `PathBuf` and three
+    /// strings per file. The default is the bound a forgetful caller gets.
+    #[test]
+    fn a_walk_without_a_requested_budget_is_still_bounded() {
+        let tree = TempTree::new("walk-default-budget");
+        let opts = options(&tree.root);
+        assert_eq!(opts.max_entries, Some(DEFAULT_MAX_ENTRIES));
+        assert_eq!(opts.max_skips, Some(DEFAULT_MAX_SKIPS));
+    }
+
+    /// The skip budget bounds the diagnostics, not the walk.
+    ///
+    /// A tree of unreadable directories used to grow `report.skips` without
+    /// limit; stopping the walk to bound it would have lost every item behind
+    /// them, so the records stop and the walk continues.
+    #[test]
+    fn a_walk_that_runs_out_of_skip_budget_keeps_walking() {
+        let tree = TempTree::new("walk-skip-budget");
+        let mut locked = Vec::new();
+        for i in 0..4 {
+            let directory = tree.dir(&format!("locked{i}"));
+            tree.file(&format!("locked{i}/inside.bin"), 16);
+            let mut permissions = std::fs::metadata(&directory).unwrap().permissions();
+            std::os::unix::fs::PermissionsExt::set_mode(&mut permissions, 0o000);
+            std::fs::set_permissions(&directory, permissions).unwrap();
+            locked.push(directory);
+        }
+        tree.file("readable/kept.bin", 16);
+
+        let mut opts = options(&tree.root);
+        opts.max_skips = Some(2);
+        let report = walk(&tree.root, &opts, &CancelToken::new());
+
+        assert!(
+            report
+                .entries
+                .iter()
+                .any(|entry| entry.path.ends_with("readable/kept.bin")),
+            "the walk continues past the skip budget: {:?}",
+            report.entries
+        );
+        assert_eq!(report.skips.len(), 2, "the records stop at the budget");
+        assert!(report.truncated, "a report shorter than the tree says so");
+
+        for directory in locked {
+            let mut permissions = std::fs::metadata(&directory).unwrap().permissions();
+            std::os::unix::fs::PermissionsExt::set_mode(&mut permissions, 0o755);
+            std::fs::set_permissions(&directory, permissions).unwrap();
+        }
+    }
+
+    /// The streaming walk is the same walk with the entries handed over.
+    ///
+    /// The duplicate pipeline keeps one size index for the whole run, so the
+    /// entry vector was a second copy of the same paths held for as long as a
+    /// root took to walk.
+    #[test]
+    fn a_streaming_walk_hands_every_entry_over_and_keeps_none() {
+        let tree = TempTree::new("walk-streaming");
+        for i in 0..5 {
+            tree.file(&format!("dir{i}/file.bin"), 32);
+        }
+
+        let mut streamed: Vec<PathBuf> = Vec::new();
+        let streamed_report = walk_streaming(
+            &tree.root,
+            &options(&tree.root),
+            &CancelToken::new(),
+            &mut |entry| {
+                streamed.push(entry.path);
+            },
+        );
+        let collected_report = walk(&tree.root, &options(&tree.root), &CancelToken::new());
+
+        assert!(
+            streamed_report.entries.is_empty(),
+            "a streaming walk does not also collect"
+        );
+        assert_eq!(streamed.len(), collected_report.entries.len());
+        assert_eq!(streamed_report.total_files, collected_report.total_files);
+        assert_eq!(streamed_report.total_bytes, collected_report.total_bytes);
+        assert!(!streamed_report.truncated);
+    }
+
+    /// And the entry budget still bounds the streaming walk.
+    #[test]
+    fn a_streaming_walk_stops_at_the_entry_budget() {
+        let tree = TempTree::new("walk-streaming-budget");
+        for i in 0..20 {
+            tree.file(&format!("f{i}.bin"), 8);
+        }
+        let mut opts = options(&tree.root);
+        opts.max_entries = Some(4);
+
+        let mut count = 0u64;
+        let report = walk_streaming(&tree.root, &opts, &CancelToken::new(), &mut |_| count += 1);
+        assert_eq!(count, 4);
+        assert!(report.truncated);
     }
 
     #[test]

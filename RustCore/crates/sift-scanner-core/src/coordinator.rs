@@ -29,13 +29,15 @@ use std::time::{Duration, Instant};
 /// How often a progress event is published at most.
 const PROGRESS_INTERVAL: Duration = Duration::from_millis(200);
 
-/// How many live events one session may queue before the oldest detail events
-/// are dropped.
+/// How many live events one session may queue before its detail events are
+/// folded together.
 ///
 /// The UI drains batches at its own pace, and a scan of a full disk can produce
-/// item batches far faster than a window redraws. The queue is only the live
-/// view — the SQLite index holds the complete result — so dropping the oldest
-/// batches bounds memory without losing anything the user can page to.
+/// item batches far faster than a window redraws. The queue is the live view, so
+/// it is bounded here — by merging batches rather than dropping them, because a
+/// dropped batch is a row the index holds and the stream never carried, which is
+/// how the counters and the index came to describe different runs. See
+/// [`bound_queue`]: the memory itself is bounded by the walk's result budget.
 const EVENT_QUEUE_LIMIT: usize = 4096;
 
 /// Rolling counters and the live phase, shared between the worker and the poller.
@@ -306,29 +308,74 @@ impl Engine {
     }
 
     /// Starts a scan on a worker thread and returns the handle immediately.
+    ///
+    /// The request is normalised before anything reads it. The allowlist below
+    /// judges a path by what it resolves to, and the walk visits the string it was
+    /// given, so validating one spelling and walking another was a way past both:
+    /// `~/Library/Caches/x/../Documents` passes a gate that compares the collapsed
+    /// form, and the kernel then resolves `x` — a symlink, as far as the gate can
+    /// tell — to a tree the request was never allowed to name. There is one string
+    /// from here on, and it is the collapsed one.
     pub fn start_scan(
         self: &Arc<Self>,
-        request: ScanRequest,
+        mut request: ScanRequest,
     ) -> Result<Arc<ScanHandle>, EngineError> {
         if request.session_id.trim().is_empty() {
             return Err(EngineError::InvalidRequest(
                 "session id must not be empty".to_string(),
             ));
         }
-        let home = PathBuf::from(&request.home_dir);
-        if !home.is_absolute() {
+
+        // Absoluteness is decided on the string that arrived, before it is
+        // collapsed: `collapse_path` always answers a leading `/`, so collapsing
+        // first turned `Library/Caches` into `/Library/Caches` and the check below
+        // could never fail.
+        if !Path::new(&request.home_dir).is_absolute() {
             return Err(EngineError::InvalidRequest(
                 "home directory must be an absolute path".to_string(),
             ));
+        }
+        for root in &request.roots {
+            if !Path::new(&root.path).is_absolute() {
+                return Err(EngineError::InvalidRequest(
+                    "a scan root is outside the allowlist".to_string(),
+                ));
+            }
+        }
+        for grant in &request.authorized_roots {
+            if !Path::new(grant).is_absolute() {
+                return Err(EngineError::InvalidRequest(
+                    "an authorised root is outside the allowlist".to_string(),
+                ));
+            }
+        }
+
+        // From here there is one spelling of every path, and it is the collapsed
+        // one: the gate, the walk, the rules and the protection check all read it.
+        request.home_dir = collapse_path(&request.home_dir);
+        for root in &mut request.roots {
+            root.path = collapse_path(&root.path);
+            // `collapse_path` removes `.` and `..`, so a component of either cannot
+            // survive it. This is an assertion rather than a filter: if it ever
+            // fires, the walk would be given a path the gate did not judge, and a
+            // request is a better thing to refuse than a protection check to skip.
+            if has_dot_component(&root.path) {
+                return Err(EngineError::InvalidRequest(
+                    "a scan root does not resolve to a path".to_string(),
+                ));
+            }
+        }
+        for grant in &mut request.authorized_roots {
+            *grant = collapse_path(grant);
         }
         // The ABI is a trust boundary too. A request that named `/Volumes`, `/`
         // or the home directory itself as an authorised root would lift the
         // blanket volume guard for every disk, and the Swift allowlist cannot
         // protect a caller that never used it. The shape is checked here when
         // the request is read, not only where the UI happens to build one.
-        let home_text = collapse_path(&home.to_string_lossy());
+        let home_text = request.home_dir.clone();
         for root in &request.roots {
-            let path = collapse_path(&root.path);
+            let path = root.path.as_str();
             let inside_home = path == home_text || path.starts_with(&format!("{home_text}/"));
             let inside_volumes = path.starts_with("/Volumes/");
             let system_logs = path == "/Library/Logs" || path.starts_with("/Library/Logs/");
@@ -340,17 +387,15 @@ impl Engine {
             // and the scan never started — the anchor was honoured by the rule
             // scanner and rejected by the gate in front of it.
             let user_temp =
-                root.anchor == RootAnchor::UserTemp.as_str() && is_user_session_temp_root(&path);
-            if !Path::new(&root.path).is_absolute()
-                || !(inside_home || inside_volumes || system_logs || user_temp)
-            {
+                root.anchor == RootAnchor::UserTemp.as_str() && is_user_session_temp_root(path);
+            if !(inside_home || inside_volumes || system_logs || user_temp) {
                 return Err(EngineError::InvalidRequest(
                     "a scan root is outside the allowlist".to_string(),
                 ));
             }
         }
         for grant in &request.authorized_roots {
-            let path = collapse_path(grant);
+            let path = grant.as_str();
             let inside_volumes = path.starts_with("/Volumes/");
             let inside_home = path.starts_with(&format!("{home_text}/"));
             if path == "/"
@@ -397,19 +442,14 @@ impl Engine {
         }
 
         let worker_handle = Arc::clone(&handle);
+        let owned_index = if request.index_path.trim().is_empty() {
+            None
+        } else {
+            Some(PathBuf::from(&request.index_path))
+        };
         std::thread::Builder::new()
             .name(format!("sift-scan-{}", request.session_id))
-            .spawn(move || {
-                // A panic in the worker must not take the host process down.
-                let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    run_scan(&worker_handle, &request)
-                }));
-                if outcome.is_err() {
-                    worker_handle.state.set_phase(PhaseName::Failed);
-                    worker_handle.push_failed("internal", "The scan stopped unexpectedly.");
-                }
-                worker_handle.state.finished.store(true, Ordering::Release);
-            })
+            .spawn(move || run_worker(&worker_handle, &request, owned_index))
             .map_err(|error| EngineError::Internal(error.to_string()))?;
 
         Ok(handle)
@@ -420,17 +460,25 @@ impl Engine {
         self.cancel_current().is_some()
     }
 
+    /// Cancels the active session, if any, and forgets its index path.
+    ///
+    /// The index files are deliberately *not* removed here. Cancellation is
+    /// cooperative: the worker stops at its next checkpoint, so at this moment it
+    /// is still writing through its `rusqlite` connection, and SQLite does not
+    /// support unlinking `-wal`/`-shm` out from under one. The unlink used to
+    /// happen right here and produced exactly that — the UI thread removing the
+    /// write-ahead log while the worker committed into it.
+    ///
+    /// The worker removes its own files as its last act, and only for a session
+    /// that was cancelled or superseded (see [`run_worker`]). A session that
+    /// completed keeps its index, because the page is served out of it.
     fn cancel_current(&self) -> Option<Arc<ScanHandle>> {
         let previous = self.session.lock().ok().and_then(|mut slot| slot.take());
         if let Some(handle) = &previous {
             handle.cancel();
         }
-        if let Some(path) = self.index_path.lock().ok().and_then(|mut p| p.take()) {
-            // The index is a scan artifact: removing it on cancel or restart
-            // keeps the data directory small and leaves no stale paths behind.
-            // SQLite also writes `-wal` and `-shm`; they contain the same rows
-            // (full paths) and outlive the database when only it is removed.
-            remove_index_files(&path);
+        if let Ok(mut path_slot) = self.index_path.lock() {
+            path_slot.take();
         }
         previous
     }
@@ -447,6 +495,64 @@ impl Engine {
             _ => Err(EngineError::SessionNotFound(session_id.to_string())),
         }
     }
+}
+
+impl Drop for Engine {
+    /// Stops the session and forgets the index path.
+    ///
+    /// The files are the worker's to remove, for the reason [`Engine::cancel_current`]
+    /// gives: only the thread that owns the connection may unlink `-wal` and
+    /// `-shm`, and cancellation is cooperative, so the worker may still be at its
+    /// last checkpoint when the engine goes away. What the engine can do without
+    /// blocking is stop it and drop the path it wrote, so nothing that outlives it
+    /// mistakes that file for its own.
+    fn drop(&mut self) {
+        drop(self.cancel_current());
+    }
+}
+
+/// Runs one session to completion, then removes the index files it owned.
+///
+/// The removal is the last act and belongs to this thread alone. `finished` is set
+/// first, so a caller waiting for the session is never waiting on a file removal,
+/// and it happens only when the session was cancelled or superseded: a session that
+/// completed keeps its index, because the result page is paged out of it.
+fn run_worker(handle: &Arc<ScanHandle>, request: &ScanRequest, owned_index: Option<PathBuf>) {
+    // A panic in the worker must not take the host process down.
+    let outcome =
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| run_scan(handle, request)));
+    if outcome.is_err() {
+        handle.state.set_phase(PhaseName::Failed);
+        handle.push_failed("internal", "The scan stopped unexpectedly.");
+    }
+    handle.state.finished.store(true, Ordering::Release);
+
+    if !handle.cancel.is_cancelled() {
+        return;
+    }
+    let Some(path) = owned_index else {
+        return;
+    };
+    // The index lock is taken for the removal so no pager reads through the
+    // connection while its files go. It is this thread's last act, so waiting here
+    // costs the session nothing; taking it from the caller would have stalled the
+    // UI, which is why the removal is not in `cancel_current` in the first place.
+    // A poisoned lock means another thread panicked holding the index, and the
+    // files are left in place rather than removed blind.
+    let Ok(_guard) = handle.index.lock() else {
+        return;
+    };
+    remove_index_files(&path);
+}
+
+/// True when a normalised path still names a `.` or `..` component.
+///
+/// Checked on the raw segments rather than through `Path::components`, which
+/// resolves an interior `.` away and would answer "no" for the one spelling the
+/// caller might have sent.
+fn has_dot_component(path: &str) -> bool {
+    path.split('/')
+        .any(|segment| segment == "." || segment == "..")
 }
 
 /// True when `path` names one login session's temporary root, and nothing wider.
@@ -475,7 +581,8 @@ fn is_user_session_temp_root(path: &str) -> bool {
 /// Removes the index database and the WAL/SHM files SQLite writes beside it.
 ///
 /// The WAL carries the same rows as the database, including full paths, so
-/// deleting only the `.sqlite` file leaves a copy behind.
+/// deleting only the `.sqlite` file leaves a copy behind. Called by the worker
+/// that owns the connection and by nothing else: see [`run_worker`].
 fn remove_index_files(path: &Path) {
     let base = path.to_string_lossy();
     for suffix in ["", "-wal", "-shm"] {
@@ -527,6 +634,10 @@ fn run_scan(handle: &Arc<ScanHandle>, request: &ScanRequest) {
     let batch_size = request.event_batch_items.max(1) as usize;
     let mut pending_batch: Vec<ScanItemSummary> = Vec::with_capacity(batch_size);
     let mut skipped: Vec<SkippedLocation> = Vec::new();
+    // A walk that stopped at its result budget saw part of its tree. The items it
+    // found are real, so they are kept; the run is not complete, so the summary
+    // reports `partial` rather than presenting a truncated list as the result.
+    let mut truncated = false;
 
     {
         let state = Arc::clone(&handle.state);
@@ -552,6 +663,7 @@ fn run_scan(handle: &Arc<ScanHandle>, request: &ScanRequest) {
         // 1. Rule-driven cleanup candidates.
         let (candidates, report) = scanners::scan_rules(&mut context, cancel);
         record_skips(handle, &report.skips, &mut skipped);
+        truncated |= report.truncated;
         if report.cancelled || cancel.is_cancelled() {
             finish_cancelled(handle);
             return;
@@ -574,6 +686,7 @@ fn run_scan(handle: &Arc<ScanHandle>, request: &ScanRequest) {
         if !cancel.is_cancelled() {
             let (residue, report) = scanners::scan_application_residue(&mut context, cancel);
             record_skips(handle, &report.skips, &mut skipped);
+            truncated |= report.truncated;
             if let Err(error) = persist_candidates(
                 handle,
                 residue,
@@ -597,6 +710,7 @@ fn run_scan(handle: &Arc<ScanHandle>, request: &ScanRequest) {
                 request.large_file_threshold_bytes,
             );
             record_skips(handle, &report.skips, &mut skipped);
+            truncated |= report.truncated;
             if let Err(error) =
                 persist_candidates(handle, large, &batch_size, &mut pending_batch, &mut merged)
             {
@@ -609,6 +723,7 @@ fn run_scan(handle: &Arc<ScanHandle>, request: &ScanRequest) {
             let (old, report) =
                 scanners::scan_old_files(&mut context, cancel, request.old_file_threshold_days);
             record_skips(handle, &report.skips, &mut skipped);
+            truncated |= report.truncated;
             if let Err(error) =
                 persist_candidates(handle, old, &batch_size, &mut pending_batch, &mut merged)
             {
@@ -684,7 +799,14 @@ fn run_scan(handle: &Arc<ScanHandle>, request: &ScanRequest) {
     }
 
     // 5. Summary and completion.
-    let summary = match build_summary(handle, request, &skipped, started, &duplicate_report) {
+    let summary = match build_summary(
+        handle,
+        request,
+        &skipped,
+        started,
+        &duplicate_report,
+        truncated,
+    ) {
         Ok(summary) => summary,
         Err(error) => {
             handle.state.set_phase(PhaseName::Failed);
@@ -705,33 +827,74 @@ fn run_scan(handle: &Arc<ScanHandle>, request: &ScanRequest) {
     handle.push(Event::Completed(Box::new(summary)));
 }
 
-/// Drops the oldest live-detail events once the queue exceeds its bound.
+/// Folds item batches together once the queue exceeds its bound.
 ///
-/// Only events whose content the index also holds are eligible. Phase changes,
-/// skipped locations, the completion summary and a failure are never dropped:
-/// they are verdicts and context, not the live list.
+/// A dropped `ItemBatch` used to be a row the user could page to in the index and
+/// never saw arrive: Swift counts what the event stream carries, so the counters
+/// and the index disagreed about one run. Rows are therefore merged rather than
+/// dropped — the oldest batch's items are appended to the newest batch and the
+/// batch itself goes away, which keeps the count of events down and loses none of
+/// them.
+///
+/// `Progress` and `DuplicateGroup` are the events that are recalculated rather
+/// than accumulated: a progress event is superseded by the next one, and a
+/// duplicate group is a summary the index answers again. Phase changes, skipped
+/// locations, the completion summary and a failure are never dropped at all: they
+/// are verdicts and context, not the live list.
+///
+/// The memory bound this queue used to provide now comes from the walk's result
+/// budget: a scan cannot produce more entries than the budget allows, so the
+/// batches in the queue are bounded by the same number and sorting them into one
+/// batch does not make the queue unbounded.
 fn bound_queue(queue: &mut VecDeque<Event>) {
     while queue.len() > EVENT_QUEUE_LIMIT {
-        let index = queue
+        if merge_oldest_item_batch(queue) {
+            continue;
+        }
+        let droppable = queue
             .iter()
-            .position(|event| matches!(event, Event::ItemBatch { .. }))
-            .or_else(|| {
-                queue
-                    .iter()
-                    .position(|event| matches!(event, Event::Progress(_)))
-            })
+            .position(|event| matches!(event, Event::Progress(_)))
             .or_else(|| {
                 queue
                     .iter()
                     .position(|event| matches!(event, Event::DuplicateGroup { .. }))
             });
-        match index {
+        match droppable {
             Some(index) => {
                 queue.remove(index);
             }
             None => break,
         }
     }
+}
+
+/// Appends the oldest item batch's items to the newest one. Returns false when
+/// there is only one batch, which has nothing to fold into.
+fn merge_oldest_item_batch(queue: &mut VecDeque<Event>) -> bool {
+    let Some(newest) = queue
+        .iter()
+        .rposition(|event| matches!(event, Event::ItemBatch { .. }))
+    else {
+        return false;
+    };
+    let Some(oldest) = queue
+        .iter()
+        .position(|event| matches!(event, Event::ItemBatch { .. }))
+    else {
+        return false;
+    };
+    if oldest >= newest {
+        return false;
+    }
+    let moved = match queue.get_mut(oldest) {
+        Some(Event::ItemBatch { items }) => std::mem::take(items),
+        _ => return false,
+    };
+    if let Some(Event::ItemBatch { items }) = queue.get_mut(newest) {
+        items.extend(moved);
+    }
+    queue.remove(oldest);
+    true
 }
 
 fn publish_if_due(handle: &Arc<ScanHandle>) {
@@ -895,6 +1058,7 @@ fn build_summary(
     skipped: &[SkippedLocation],
     started: Instant,
     duplicate_report: &scanners::DuplicateReport,
+    truncated: bool,
 ) -> Result<ScanSummary, EngineError> {
     let index = handle.index_checked()?;
     let totals = index.summary()?;
@@ -910,7 +1074,12 @@ fn build_summary(
     let duplicate_group_count = index.duplicate_group_count()?;
     let duplicate_reclaimable_bytes = index.duplicate_reclaimable_bytes()?;
 
-    let is_partial = !skipped.is_empty() || duplicate_report.truncated;
+    // Three ways a run is incomplete, and all of them must reach the flag: a
+    // location that could not be read, a walk that spent its budget, and a
+    // duplicate stage that spent its hashes. `is_partial` is what the page shows
+    // and what the phase becomes, so a run that hit any of them and reported
+    // `ready` was claiming a comparison it never made.
+    let is_partial = !skipped.is_empty() || duplicate_report.truncated || truncated;
     // The summary carries the final phase as well as the flag. The event stream
     // already says `partial`, but the completion event used to overwrite it with
     // `ready`, so the page showed a complete scan after a permission skip.
@@ -1606,5 +1775,286 @@ mod tests {
         assert_eq!(streamed_paths.len(), 2, "{sorted_paths:?}");
         assert_eq!(streamed_paths.len() as i64, item_count, "{sorted_paths:?}");
         assert_eq!(streamed_paths.len(), page.len(), "{sorted_paths:?}");
+    }
+
+    /// The database and the two files SQLite writes beside it, if any of them
+    /// are still on disk.
+    fn index_files(path: &Path) -> Vec<PathBuf> {
+        let base = path.to_string_lossy();
+        ["", "-wal", "-shm"]
+            .iter()
+            .map(|suffix| PathBuf::from(format!("{base}{suffix}")))
+            .filter(|candidate| candidate.exists())
+            .collect()
+    }
+
+    fn wait_for_index_files_to_go(path: &Path) {
+        let deadline = Instant::now() + Duration::from_secs(20);
+        while Instant::now() < deadline {
+            if index_files(path).is_empty() {
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(5));
+        }
+    }
+
+    /// A cancelled session removes its own index files, and no file is unlinked
+    /// under a live connection.
+    ///
+    /// The engine used to remove them inside `cancel_current`, immediately after
+    /// asking the worker to stop — but cancellation is cooperative, so the worker
+    /// was still committing into the `-wal` the UI thread had just unlinked.
+    /// SQLite does not support that. The worker now removes its files as its last
+    /// act, after `finished`, when it is the only thread that can touch the
+    /// connection.
+    #[test]
+    fn a_cancelled_scan_leaves_no_index_files_behind() {
+        let fixture = Fixture::new("index-cancel");
+        for i in 0..50 {
+            fixture
+                .tree
+                .file(&format!("Library/Caches/com.app{i}/blob.bin"), 8192);
+        }
+        let store = TempTree::new("index-cancel-store");
+        let index_path = store.root.join("scan.sqlite");
+
+        let mut request = fixture.request("index-cancel");
+        request.index_path = index_path.to_string_lossy().to_string();
+
+        let engine = StdArc::new(Engine::new());
+        let handle = engine.start_scan(request).expect("scan starts");
+        handle.cancel();
+        wait_for_completion(&handle);
+
+        // The removal is the worker's last act, after it published `finished`.
+        wait_for_index_files_to_go(&index_path);
+        assert_eq!(
+            index_files(&index_path),
+            Vec::<PathBuf>::new(),
+            "a cancelled session leaves neither the database nor a -wal/-shm copy"
+        );
+    }
+
+    /// A session that completed keeps its index: the page is served out of it.
+    #[test]
+    fn a_completed_scan_keeps_an_index_that_still_pages() {
+        let fixture = Fixture::new("index-kept");
+        fixture
+            .tree
+            .file("Library/Caches/com.example.app/blob.bin", 4096);
+        let store = TempTree::new("index-kept-store");
+        let index_path = store.root.join("scan.sqlite");
+
+        let mut request = fixture.request("index-kept");
+        request.index_path = index_path.to_string_lossy().to_string();
+
+        let engine = StdArc::new(Engine::new());
+        let handle = engine.start_scan(request).expect("scan starts");
+        wait_for_completion(&handle);
+
+        let page = handle
+            .page_results(0, 10, "size", None)
+            .expect("paging works");
+        assert!(
+            page.iter()
+                .any(|row| row.path.ends_with("Library/Caches/com.example.app")),
+            "the completed session's rows are pageable: {:?}",
+            page.iter().map(|row| &row.path).collect::<Vec<_>>()
+        );
+        assert!(
+            index_path.exists(),
+            "a finished scan keeps its index; the page reads from it"
+        );
+    }
+
+    /// Going away cancels the session the engine held.
+    ///
+    /// `cancel()` is cooperative, so a worker outlives the engine by a checkpoint;
+    /// what `Drop` can promise without blocking is that the session was told to
+    /// stop and that its path is forgotten. A session whose index is left behind
+    /// with a live connection is what H4 was: the engine removed the files while
+    /// the worker was still writing them.
+    #[test]
+    fn dropping_the_engine_cancels_the_session_it_held() {
+        let fixture = Fixture::new("engine-drop");
+        for i in 0..50 {
+            fixture
+                .tree
+                .file(&format!("Library/Caches/com.app{i}/blob.bin"), 8192);
+        }
+        let store = TempTree::new("engine-drop-store");
+        let index_path = store.root.join("scan.sqlite");
+
+        let mut request = fixture.request("engine-drop");
+        request.index_path = index_path.to_string_lossy().to_string();
+
+        let engine = StdArc::new(Engine::new());
+        let handle = engine.start_scan(request).expect("scan starts");
+        drop(engine);
+
+        wait_for_completion(&handle);
+        wait_for_index_files_to_go(&index_path);
+        assert_eq!(
+            index_files(&index_path),
+            Vec::<PathBuf>::new(),
+            "the session it cancelled removed its own files"
+        );
+    }
+
+    /// A root is judged by what it resolves to, and the walk visits that.
+    ///
+    /// The gate collapsed each path for validation and then handed the raw strings
+    /// to the walk, so a root carrying `..` was approved as one location and
+    /// resolved by the kernel as another.
+    #[test]
+    fn a_root_with_a_dotdot_component_is_collapsed_before_the_walk() {
+        let fixture = Fixture::new("root-dotdot");
+        fixture.tree.file("Library/Caches/large.bin", 8192);
+
+        let mut request = fixture.request("root-dotdot");
+        request.large_file_threshold_bytes = 1024;
+        request.roots = vec![ScanRoot::new(
+            format!(
+                "{}/Library/../Library/Caches",
+                fixture.tree.root.to_string_lossy()
+            ),
+            "home",
+        )];
+
+        let engine = StdArc::new(Engine::new());
+        let handle = engine.start_scan(request).expect("the root is accepted");
+        wait_for_completion(&handle);
+
+        let page = handle.page_results(0, 50, "size", None).expect("paging");
+        assert!(
+            page.iter()
+                .any(|row| row.path.ends_with("Library/Caches/large.bin")),
+            "the file the root resolves to is reported: {:?}",
+            page.iter().map(|row| &row.path).collect::<Vec<_>>()
+        );
+        assert!(
+            page.iter().all(|row| !row.path.contains("..")),
+            "no row carries the spelling the request used: {:?}",
+            page.iter().map(|row| &row.path).collect::<Vec<_>>()
+        );
+    }
+
+    /// A root that only leaves the allowlist after collapsing is refused.
+    #[test]
+    fn a_root_that_escapes_after_collapsing_is_refused() {
+        let fixture = Fixture::new("root-escape");
+        let engine = StdArc::new(Engine::new());
+        let mut request = fixture.request("root-escape");
+        request.roots = vec![ScanRoot::new(
+            format!(
+                "{}/Library/../../Documents",
+                fixture.tree.root.to_string_lossy()
+            ),
+            "home",
+        )];
+        assert!(matches!(
+            engine.start_scan(request),
+            Err(EngineError::InvalidRequest(_))
+        ));
+    }
+
+    /// A run that spent a walk budget is `partial`, never `ready`.
+    ///
+    /// The items a truncated walk found are real, so they stay; what the summary
+    /// must not do is present a part of the tree as the whole of it. `is_partial`
+    /// is what the page shows and what the phase becomes, so both are checked here
+    /// rather than only the flag.
+    #[test]
+    fn a_scan_that_hit_its_walk_budget_is_reported_as_partial() {
+        let handle = StdArc::new(ScanHandle {
+            session_id: "partial".into(),
+            cancel: CancelToken::new(),
+            state: StdArc::new(SharedState::new()),
+            events: StdArc::new(Mutex::new(VecDeque::new())),
+            index: Mutex::new(FileIndex::open_in_memory("partial").unwrap()),
+            skipped: Mutex::new(Vec::new()),
+        });
+        let request = ScanRequest {
+            session_id: "partial".into(),
+            ..Default::default()
+        };
+        let summary = |truncated: bool| {
+            build_summary(
+                &handle,
+                &request,
+                &[],
+                Instant::now(),
+                &scanners::DuplicateReport::default(),
+                truncated,
+            )
+            .expect("the summary is built from an empty index")
+        };
+
+        let cut_short = summary(true);
+        assert!(cut_short.is_partial);
+        assert_eq!(
+            cut_short.phase, "partial",
+            "the completion event must not overwrite partial with ready"
+        );
+
+        let complete = summary(false);
+        assert!(!complete.is_partial);
+        assert_eq!(complete.phase, "ready");
+    }
+
+    /// A full queue folds item batches together instead of losing their rows.
+    ///
+    /// Dropping a batch meant the index held a row the event stream never carried,
+    /// so Swift's counters and the index described different runs. Only the events
+    /// that are recalculated — progress, duplicate groups — may go.
+    #[test]
+    fn a_full_queue_merges_item_batches_instead_of_dropping_rows() {
+        let mut queue: VecDeque<Event> = VecDeque::new();
+        let rows = EVENT_QUEUE_LIMIT + 50;
+        for index in 0..rows {
+            queue.push_back(Event::ItemBatch {
+                items: vec![item_summary(&format!("/tmp/item-{index}"))],
+            });
+            queue.push_back(Event::Progress(ScanProgress::default()));
+        }
+        queue.push_back(Event::Completed(Box::default()));
+
+        bound_queue(&mut queue);
+
+        assert!(queue.len() <= EVENT_QUEUE_LIMIT);
+        let delivered: usize = queue
+            .iter()
+            .filter_map(|event| match event {
+                Event::ItemBatch { items } => Some(items.len()),
+                _ => None,
+            })
+            .sum();
+        assert_eq!(
+            delivered, rows,
+            "every row the index holds is still in the stream"
+        );
+        assert!(
+            queue
+                .iter()
+                .any(|event| matches!(event, Event::Completed(_))),
+            "the completion summary is never a detail event"
+        );
+    }
+
+    fn item_summary(path: &str) -> ScanItemSummary {
+        ScanItemSummary {
+            path: path.to_string(),
+            display_name: String::new(),
+            parent_path: String::new(),
+            category: "applicationCache".to_string(),
+            risk: "safe".to_string(),
+            size_bytes: 1,
+            file_count: 1,
+            explanation_key: "cleanup.explanation.cache".to_string(),
+            rule_id: "test".to_string(),
+            bundle_id: None,
+            modified_secs: 0,
+            is_directory: false,
+        }
     }
 }

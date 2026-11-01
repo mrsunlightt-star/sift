@@ -502,6 +502,19 @@ public struct RuleEngine: Sendable {
     public func protectionReason(for path: String) -> ProtectionReason? {
         let resolved = Self.normalize(path)
 
+        // The order of the checks is the Rust core's order, and it is not
+        // cosmetic: both engines answer the boolean question the same way, but a
+        // path that several entries cover got a different *reason* from each
+        // engine, and the reason is the sentence the confirmation panel and the
+        // report show. `/Volumes/Backup/.Trashes/501` was "user content" here and
+        // "a system path" there.
+        //
+        // The root of the disk is every directory at once, so it is answered
+        // first and explicitly, exactly as `protection_reason` does.
+        if resolved == "/" {
+            return .systemPath("/")
+        }
+
         // Protection names are literals and macOS volumes are case-insensitive
         // by default, so `~/documents` is the user's Documents directory. The
         // comparison folds case; rule matching keeps the exact `isPrefix`.
@@ -509,32 +522,24 @@ public struct RuleEngine: Sendable {
         where Self.isProtectedPrefix("\(homeDirectory)/\(child)", resolved) {
             return .userContent(child)
         }
-        for entry in ProtectedPaths.libraryChildren
-        where Self.isProtectedPrefix("\(homeDirectory)/\(entry.path)", resolved) {
-            switch entry.kind {
-            case .userContent: return .userContent(entry.path)
-            case .secrets: return .secrets(entry.path)
-            }
-        }
-        if Self.isPhotoLibrary(resolved) {
-            return .photosLibrary
-        }
-        // A recycle bin is refused wherever it appears: `~/.Trash`, an item
-        // already inside it, and the `.Trashes` a volume keeps at its root. The
-        // product's undo *is* the Trash, so offering its contents turns "moved
-        // to the Trash" into "moved into the bin it was in", and the next empty
-        // makes that unrecoverable. Checked before the `/Volumes` grant below,
-        // because a grant opens a subtree and the bin inside it is the place
-        // the user's undo lives.
-        if let bin = Self.recycleBinComponent(resolved) {
-            return .userContent(bin)
-        }
-        // A grant may lift the blanket `/Volumes` guard for exactly the subtree
-        // the user added. It must never lift a real system prefix: granting
-        // `/Library` or `/private/var` would otherwise expose launch daemons and
-        // the system database, so authorisation is consulted only here.
+
+        // The blanket volume guard, before the recycle bin, which is the order
+        // the Rust `protection_reason` reports. Authorisation is consulted
+        // inside this branch and nowhere else: a grant may lift `/Volumes` for
+        // exactly the subtree the user added, and it must never lift a real
+        // system prefix — granting `/Library` or `/private/var` would otherwise
+        // expose launch daemons and the system database.
+        //
+        // The bin inside a *granted* volume is still refused, because the undo
+        // the product promises is the user emptying that Trash later. This is
+        // what `protection_reason_authorized` does in Rust (it checks the bin
+        // before it consults the grants), so the two engines agree about a
+        // granted volume's own `.Trashes` as well.
         if Self.isProtectedPrefix("/Volumes", resolved) {
             if effectiveAuthorizedPaths.contains(where: { Self.isProtectedPrefix($0, resolved) }) {
+                if let bin = Self.recycleBinComponent(resolved) {
+                    return .userContent(bin)
+                }
                 return nil
             }
             return .systemPath("/Volumes")
@@ -544,6 +549,25 @@ public struct RuleEngine: Sendable {
         for prefix in ProtectedPaths.prefixes
         where prefix != "/Volumes" && Self.isProtectedPrefix(prefix, resolved) {
             return .systemPath(prefix)
+        }
+
+        // A recycle bin is refused wherever else it appears: `~/.Trash`, an item
+        // already inside it, and a bin in a directory the user picked. Offering
+        // its contents turns "moved to the Trash" into "moved into the bin it
+        // was in", and the next empty makes that unrecoverable.
+        if let bin = Self.recycleBinComponent(resolved) {
+            return .userContent(bin)
+        }
+
+        for entry in ProtectedPaths.libraryChildren
+        where Self.isProtectedPrefix("\(homeDirectory)/\(entry.path)", resolved) {
+            switch entry.kind {
+            case .userContent: return .userContent(entry.path)
+            case .secrets: return .secrets(entry.path)
+            }
+        }
+        if Self.isPhotoLibrary(resolved) {
+            return .photosLibrary
         }
         return nil
     }
@@ -782,13 +806,16 @@ public struct RuleEngine: Sendable {
     /// `.Trashes` are two names of one thing, `/Volumes/Backup/.Trashes/501` is
     /// the same bin as the one in the home folder, and a folder called
     /// `.Trash-notes` is an ordinary folder.
+    ///
+    /// The fold is the shared one (`folded`), which is Unicode case folding: a
+    /// bin renamed `.Traſh` is a `.Trash` to both engines, and it is the same
+    /// comparison the Rust `recycle_bin_reason` applies.
     public static func recycleBinComponent(_ path: String) -> String? {
         normalize(path).split(separator: "/").lazy
             .map(String.init)
             .first { component in
-                ProtectedPaths.recycleBinNames.contains {
-                    $0.caseInsensitiveCompare(component) == .orderedSame
-                }
+                let foldedComponent = folded(component)
+                return ProtectedPaths.recycleBinNames.contains { folded($0) == foldedComponent }
             }
     }
 
@@ -1478,11 +1505,28 @@ public struct RuleEngine: Sendable {
     /// directories. Only the protection check folds case; rule matching keeps
     /// `isPrefix`, so a case-sensitive volume does not start matching a
     /// differently-cased sibling.
+    ///
+    /// The fold is Unicode case folding, not `lowercased()`, which is the same
+    /// operation the Rust core applies (`fold_case`). The two are not the same
+    /// thing: `ſ` (U+017F) lowercases to itself and folds to `s`, so a directory
+    /// renamed with a long s was refused by one engine and allowed by the other.
     static func isProtectedPrefix(_ prefix: String, _ path: String) -> Bool {
-        let prefix = normalize(prefix).lowercased()
-        let path = normalize(path).lowercased()
-        if prefix == "/" { return true }
+        let prefix = folded(normalize(prefix))
+        let path = folded(normalize(path))
+        // `/` is the root of the filesystem and contains every path; the Rust
+        // `is_protected_prefix` answers this case the same way.
+        if prefix == "/" || prefix.isEmpty { return true }
         return path == prefix || path.hasPrefix(prefix + "/")
+    }
+
+    /// The Unicode case fold both engines compare protection names with.
+    ///
+    /// `caseInsensitiveCompare` folds this way, and so does the Rust core's
+    /// `fold_case`; `lowercased()` does not. One spelling of the operation, used
+    /// by the prefix comparison and by the recycle-bin comparison, is what keeps
+    /// the two answers the same for a name a rename can produce.
+    static func folded(_ value: String) -> String {
+        value.folding(options: .caseInsensitive, locale: nil)
     }
 
     /// Component depth of `path` below `root`, or `nil` when outside it.

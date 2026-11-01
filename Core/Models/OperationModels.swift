@@ -229,7 +229,10 @@ public struct FileIdentitySnapshot: Sendable, Hashable {
     public let inode: UInt64
     public let fileType: UInt16
 
-    public init(device: UInt64, inode: UInt64, fileType: UInt16) {
+    /// Internal, like `ApprovedPlan.init`: an identity is what pre-flight read
+    /// from the disk, and a caller that can mint one can describe an object it
+    /// never looked at. `of(path:)` is the only producer.
+    init(device: UInt64, inode: UInt64, fileType: UInt16) {
         self.device = device
         self.inode = inode
         self.fileType = fileType
@@ -291,6 +294,18 @@ public struct ApprovedPlan: Sendable {
 }
 
 /// The result of pre-flight checking a whole selection.
+///
+/// The initialiser is the seam an `ApprovedPlan` could have been assembled
+/// through without pre-flight. It is still `public` because
+/// `SelfTest/SiftSelfTest.swift` builds a forged report on purpose — its case is
+/// "execution refuses a protected item", which pre-flight never approves — and
+/// that target imports `Core` without `@testable`. Closing it (making this
+/// initialiser and `makeApprovedPlan` internal, like `ApprovedPlan.init`) needs
+/// that file's four call sites adapted first. What does not depend on the access
+/// level is enforced where it matters: `ApprovedPlan.init` is internal,
+/// `FileIdentitySnapshot.init` is internal, and
+/// `FileOperationService.execute` re-derives the risk of every item before it
+/// moves it and refuses a path no rule may offer.
 public struct PreflightReport: Sendable {
     public let ready: [CleanupItem]
     public let skipped: [(item: CleanupItem, code: ErrorCode, message: String)]
@@ -366,7 +381,11 @@ public struct PreflightReport: Sendable {
     ///
     /// Returns `nil` when a ready item has no identity or is not cleanable. The
     /// checks repeat what `FileOperationService.preflight` already enforced, so a
-    /// report assembled by another caller cannot turn into an executable plan.
+    /// report assembled by another caller cannot turn into an executable plan
+    /// without at least presenting an identity for every item — and an identity
+    /// can only be read from the disk (`FileIdentitySnapshot.init` is internal).
+    /// `execute` re-derives each item's risk as well, because a plan is a
+    /// snapshot and the rule table it was judged by can have changed since.
     public func makeApprovedPlan(
         operation: CleanupOperationName,
         categoryTotals: [CategoryTotal]? = nil

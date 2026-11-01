@@ -34,6 +34,35 @@ public enum OperationGateResult: Sendable {
     case busy
 }
 
+/// What asking to empty the Trash produced.
+///
+/// Emptying the bin is the only irreversible removal in the product, so it is
+/// behind the same two gates as a cleanup: the one destructive slot and the
+/// entitlement check. Both of them can refuse without touching a file, and a
+/// caller that only receives `TrashService.Outcome` cannot tell "the bin was
+/// empty" from "the request was refused" — so the gate's answer is the result and
+/// the outcome travels inside `.executed`.
+public enum TrashEmptyResult: Sendable {
+    case executed(TrashService.Outcome)
+    /// The user is on the free tier. Nothing was removed.
+    case purchaseRequired
+    /// Another destructive operation owns the slot. Nothing was removed.
+    case busy
+
+    /// The removal, or the empty answer a refused request has.
+    public var outcome: TrashService.Outcome {
+        switch self {
+        case let .executed(outcome): outcome
+        case .busy, .purchaseRequired: .none
+        }
+    }
+
+    public var didExecute: Bool {
+        if case .executed = self { return true }
+        return false
+    }
+}
+
 /// Verifies a licence key for the direct channel.
 ///
 /// No licence vendor is wired yet; the specification leaves the choice open
@@ -543,14 +572,20 @@ public final class AppEnvironment: ObservableObject {
             )
         }
 
-        let discovered = await applications.installedBundleIdentifiers()
+        let installed = await scanInstalledIdentity()
         // An application can live outside the five searched directories. The
         // residue locations name applications by bundle id, so resolve those
         // names through LaunchServices before deciding that one is gone.
         let resident = applications.residueBundleIdentifiersStillInstalled()
         let bundleIdentifiers = Array(
-            Set(discovered.map { $0.lowercased() } + resident)
+            Set(installed.identifiers.map { $0.lowercased() } + resident)
         )
+        if !installed.complete {
+            // Stated here as well as in the request: both engines report no
+            // application residue for a run whose installed set is partial, so the
+            // log has to say why that section was empty.
+            logger.notice("The installed set for this scan is partial; both engines will report no residue")
+        }
         // The app groups those applications declare. A group container is named
         // after its group, so without this set a container two applications share
         // is reported as a leftover of an uninstalled application. Read from the
@@ -558,11 +593,6 @@ public final class AppEnvironment: ObservableObject {
         // group container on the machine, so a scan pays nothing for a feature it
         // cannot use.
         let declaredGroups = await applications.declaredAppGroupIdentifiers()
-        // Duplicate roots follow the same frozen grants: `defaultDuplicateRoots`
-        // reads the live registry, and asking it here would reintroduce the
-        // mismatch this builder exists to remove. `Desktop` is on the
-        // protection list, so requesting it only produced a skip record; both
-        // engines refuse it.
         var duplicateRoots = ["Downloads"]
             .map { home.appendingPathComponent($0) }
             .filter { FileManager.default.fileExists(atPath: $0.path) }
@@ -577,6 +607,13 @@ public final class AppEnvironment: ObservableObject {
             ignoredPaths: current.ignoredPaths,
             authorizedRoots: authorizedURLs.map(\.path),
             installedBundleIdentifiers: bundleIdentifiers,
+            // Whether that set is the whole one. Residue is decided by comparing a
+            // directory name with the installed applications, so an application
+            // whose bundle identifier was never read answers "nothing claims this"
+            // and its live data is offered as a leftover. Both engines report no
+            // application residue at all when this is false: half a set is worse
+            // than none for the question it answers.
+            installedBundleIdentifiersComplete: installed.complete,
             appGroupIdentifiers: declaredGroups.identifiers,
             appGroupIdentifiersComplete: declaredGroups.isComplete,
             // Which applications are running decides whether a rule that owns
@@ -599,6 +636,48 @@ public final class AppEnvironment: ObservableObject {
             extraRulesJSON: extraRulesJSON
         )
     }
+
+    /// The installed applications a scan's residue decisions rest on, and whether
+    /// the set is whole.
+    ///
+    /// Residue is what remains when no installed application claims a directory,
+    /// so a partial set is worse than none: every application whose bundle
+    /// identifier went unread looks uninstalled, and its live container, cache and
+    /// Application Support directory would be offered as junk. The read is
+    /// therefore accompanied by its own verdict, and the two cases that can cut it
+    /// short are named here rather than assumed away:
+    ///
+    ///  * **An unreadable application directory.** A directory that does not exist
+    ///    is not a failure — a Mac without `~/Applications` has every application
+    ///    somewhere else — but one that exists and cannot be listed is, because the
+    ///    bundles inside it are invisible to the walk that follows the same path.
+    ///  * **A run that ran out of time, or was cancelled.** The walk has no
+    ///    deadline of its own; this bounds it from outside and reports the overrun
+    ///    instead of a shorter list that looks complete.
+    ///
+    /// `ScanRequest.installedBundleIdentifiersComplete` carries the flag into both
+    /// engines.
+    func scanInstalledIdentity(
+        deadline: Date = Date().addingTimeInterval(AppEnvironment.installedIdentifiersDeadline)
+    ) async -> (identifiers: [String], complete: Bool) {
+        let manager = FileManager.default
+        let readable = applications.searchDirectories.allSatisfy { directory in
+            guard manager.fileExists(atPath: directory.path) else { return true }
+            return (try? manager.contentsOfDirectory(atPath: directory.path)) != nil
+        }
+        let identifiers = await applications.installedBundleIdentifiers()
+        let complete = readable && !Task.isCancelled && Date() <= deadline
+        return (identifiers, complete)
+    }
+
+    /// How long the installed-set read may take before it is reported as partial.
+    ///
+    /// Five seconds is the budget `AppGroupRegistry` uses for the signature reads
+    /// that answer the sibling question, and this read is the same shape: a walk
+    /// over the application directories that a slow or network-mounted volume can
+    /// stretch. It is a bound on the *report*, not a cancellation: a set that
+    /// finishes late is still returned, marked as one no residue decision may use.
+    static let installedIdentifiersDeadline: TimeInterval = 5
 
     /// The one way a scan is started (§5.1-§5.5).
     ///
@@ -809,7 +888,10 @@ public final class AppEnvironment: ObservableObject {
         // replaces `operations`; the plan was judged by the old table, so the
         // move has to run against that same table rather than a newer one.
         let operations = self.operations
-        let verdict = await operations.preflight(items.map(FileOperationService.Candidate.init(item:)))
+        let verdict = await operations.preflight(
+            items.map(FileOperationService.Candidate.init(item:)),
+            intent: .uninstall
+        )
         let outcome: CleanupOutcome
         if let plan = verdict.makeApprovedPlan(operation: .uninstall) {
             // The pre-flight walk can take a while, and the licence can expire
@@ -1191,6 +1273,12 @@ public final class AppEnvironment: ObservableObject {
     /// Read before the page offers to empty it: the button states the count and
     /// the size it is about to remove, and a number the user cannot see is not a
     /// confirmation.
+    ///
+    /// The snapshot also carries why the bin could not be listed, when it could
+    /// not. A page must render that as guidance — `Snapshot.isUnreadable`, with
+    /// `UnreadableReason.titleKey` and, when it says so, the settings shortcut —
+    /// and not as an empty bin: emptying the Trash is what reclaims the space, so
+    /// "0 items" is the most misleading answer this call can give.
     public func trashSnapshot() async -> TrashService.Snapshot {
         await trash.inspect()
     }
@@ -1199,14 +1287,65 @@ public final class AppEnvironment: ObservableObject {
     ///
     /// The snapshot is passed back in rather than re-read here, so what is removed
     /// is exactly what the confirmation described.
+    ///
+    /// Returns the outcome alone. The gate's own two answers — the slot and the
+    /// entitlement — are reported through `emptyTrashGated`, and this form exists
+    /// for the pages that already call it; a refused request answers with
+    /// `Outcome.none` and is logged, so it can no longer remove anything.
     public func emptyTrash(_ snapshot: TrashService.Snapshot) async -> TrashService.Outcome {
+        let result = await emptyTrashGated(snapshot)
+        switch result {
+        case let .executed(outcome):
+            return outcome
+        case .busy:
+            logger.notice("Refused to empty the Trash: another destructive operation owns the slot")
+            return .none
+        case .purchaseRequired:
+            logger.notice("Refused to empty the Trash: the free tier cannot remove files")
+            return .none
+        }
+    }
+
+    /// Empties the Trash, through the same gate as every other destruction.
+    ///
+    /// It is the one permanent deletion in the product, and it used to be the one
+    /// destructive entry point with neither guard: no claim on the slot, no
+    /// entitlement check. A free-tier user could empty the bin by hand through it,
+    /// and it could run while a cleanup held the slot and was still filling that
+    /// same bin.
+    ///
+    /// The order is the one `confirmCleanup` uses and for the same reason: the
+    /// slot is claimed synchronously, before the entitlement check, which is the
+    /// first suspension. Claiming it afterwards let two callers both pass the
+    /// guard while neither had set the flag.
+    ///
+    /// The capability is `.cleanFiles` rather than a capability of its own: the
+    /// bin holds what a cleanup moved, the paid tier is one flag for every
+    /// cleaning capability, and inventing a sixth `.emptyTrash` case would put the
+    /// gate's answer in a type owned by the entitlement service rather than in
+    /// this one place.
+    public func emptyTrashGated(_ snapshot: TrashService.Snapshot) async -> TrashEmptyResult {
+        guard beginDestructiveOperation() else { return .busy }
+        defer { endDestructiveOperation() }
+
+        guard await entitlements.allows(.cleanFiles) else { return .purchaseRequired }
+
+        // A bin that could not be read is not an empty one, and emptying what the
+        // caller could not confirm is not this method's decision. The snapshot
+        // carries no entries in that case, so the loop below would report a
+        // successful emptying of nothing.
+        guard !snapshot.isUnreadable else {
+            logger.notice("Refused to empty the Trash: the bin could not be read")
+            return .executed(.none)
+        }
+
         let outcome = await trash.empty(snapshot)
         if outcome.isComplete {
             logger.info("Trash emptied (\(outcome.removedCount) entries)")
         } else {
             logger.notice("Trash emptied partially (\(outcome.failures.count) entries left)")
         }
-        return outcome
+        return .executed(outcome)
     }
 
     /// What happened when the user asked which application a residue row is.

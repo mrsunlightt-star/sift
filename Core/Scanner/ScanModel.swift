@@ -193,7 +193,11 @@ public final class ScanModel: ObservableObject {
             if phase.isRunning { phase = .cancelled }
             return
         }
-        await session.cancel()
+        // Shut down rather than merely cancel: `cancel` is a request the engine
+        // honours at its next checkpoint, and this model is about to forget the
+        // session. A worker that is never waited for keeps scanning a tree whose
+        // index files are already being removed.
+        await session.shutDown()
         self.session = nil
         phase = .cancelled
     }
@@ -479,11 +483,28 @@ public final class ScanModel: ObservableObject {
                     // batches is queued. Drain until empty so the terminal phase
                     // and completion report cannot remain behind an arbitrary
                     // 256-event tail, leaving waitUntilSettled() blocked forever.
-                    while true {
+                    //
+                    // The drain is bounded, because "until empty" is not a
+                    // termination condition the queue guarantees. A poisoned
+                    // mutex inside the core makes `poll_events` synthesise a fresh
+                    // `Failed` event on every call without consuming anything: the
+                    // loop then never sees an empty batch, never exits, and the run
+                    // never settles — the single-flight gate and the destructive
+                    // slot stay claimed for the life of the process. Two bounds,
+                    // and the second is the one that matters: a `failed` event is
+                    // a verdict, so there is nothing further to collect.
+                    var drainedBatches = 0
+                    let deadline = Date().addingTimeInterval(ScanModel.drainDeadlineSeconds)
+                    while drainedBatches < ScanModel.maximumDrainedBatches, Date() < deadline {
                         let pending = await session.pollEvents(maxEvents: 256)
                         guard self.isCurrent(run) else { return }
                         guard !pending.isEmpty else { break }
                         self.apply(pending)
+                        drainedBatches += 1
+                        // A failure is terminal: `apply` has recorded it, the
+                        // remaining events of that run can only describe work that
+                        // was abandoned, and continuing is what a poison loop does.
+                        if self.failure != nil { break }
                     }
                     // A session that finished without ever publishing a terminal
                     // event has no verdict to give. Saying so is what keeps
@@ -500,10 +521,33 @@ public final class ScanModel: ObservableObject {
                 // A short sleep keeps the pump from spinning while the scanner
                 // works on a large directory.
                 try? await Task.sleep(nanoseconds: 60_000_000)
+
+                // A run whose verdict is already recorded is over. Polling on
+                // would keep this task — and the model's settled state — waiting
+                // for an engine that has nothing left to say, which is the other
+                // half of a failure that used to hang the page.
+                if self.failure != nil { break }
             }
             self?.retirePump(run)
         }
     }
+
+    /// How many 256-event batches one drain may read before it gives up.
+    ///
+    /// 64 batches is 16,384 events, far more than the tail of a real run: one item
+    /// batch, one progress event and one completion is the normal shape. It is a
+    /// ceiling on a loop that otherwise has none, not a limit on what a scan may
+    /// report — the index keeps every item, and the drain only carries the events
+    /// that follow `isFinished()`.
+    static let maximumDrainedBatches = 64
+
+    /// How long one drain may take before it gives up.
+    ///
+    /// The count alone bounds a loop that spins with no I/O worth waiting for; this
+    /// bounds one whose polls are slow (a session that is already tearing down).
+    /// Both end the same way: the drain stops, and the terminal-event check below
+    /// decides the verdict.
+    static let drainDeadlineSeconds: TimeInterval = 5
 
     /// True while `run` is still the scan the model is showing.
     private func isCurrent(_ run: Int) -> Bool { run == generation }

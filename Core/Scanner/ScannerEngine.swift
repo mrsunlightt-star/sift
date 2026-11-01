@@ -44,6 +44,16 @@ public struct ScanRequest: Sendable {
     public var authorizedRoots: [String]
     /// Bundle identifiers of installed apps, used for residue detection.
     public var installedBundleIdentifiers: [String]
+    /// Whether `installedBundleIdentifiers` is the complete set.
+    ///
+    /// `false` when the enumeration was cut short — a deadline, a cancelled
+    /// scan, a bundle directory that stopped answering. Both engines then report
+    /// no application residue for that run: residue is what remains when no
+    /// installed application claims a directory, so an application that was
+    /// never read would turn its live data into a cleanup row. A partial set is
+    /// worse than none for the question it answers, which is the direction this
+    /// flag exists to make reachable.
+    public var installedBundleIdentifiersComplete: Bool
     /// App groups declared by installed apps' entitlements.
     ///
     /// A group container is named after its group, so a container two
@@ -106,6 +116,7 @@ public struct ScanRequest: Sendable {
         ignoredPaths: [String] = [],
         authorizedRoots: [String] = [],
         installedBundleIdentifiers: [String] = [],
+        installedBundleIdentifiersComplete: Bool = true,
         appGroupIdentifiers: [String] = [],
         appGroupIdentifiersComplete: Bool = true,
         runningApplicationTokens: [String] = [],
@@ -123,6 +134,7 @@ public struct ScanRequest: Sendable {
         self.ignoredPaths = ignoredPaths
         self.authorizedRoots = authorizedRoots
         self.installedBundleIdentifiers = installedBundleIdentifiers
+        self.installedBundleIdentifiersComplete = installedBundleIdentifiersComplete
         self.appGroupIdentifiers = appGroupIdentifiers
         self.appGroupIdentifiersComplete = appGroupIdentifiersComplete
         self.runningApplicationTokens = runningApplicationTokens
@@ -238,6 +250,28 @@ public protocol ScanSession: Sendable {
     func skippedLocations() async -> [SkippedLocation]
     /// Requests cancellation. The engine stops at its next checkpoint.
     func cancel() async
+    /// Cancels, waits (bounded) for the worker to stop, then releases what it
+    /// holds.
+    ///
+    /// `cancel()` is a request: an engine stops at its next checkpoint, and a
+    /// caller that drops the session immediately leaves a detached worker
+    /// scanning a tree whose index files were just unlinked — SQLite does not
+    /// support removing a WAL from under a live connection, and a Rust worker
+    /// keeps its own handle, so nothing else would stop it. `ScanModel` calls
+    /// this before it forgets the session, which is the only place that has both
+    /// the ordering and the chance to await.
+    ///
+    /// The default implementation is the honest one for an engine that has
+    /// nothing to wait for.
+    func shutDown() async
+}
+
+public extension ScanSession {
+    /// A session with no worker behind it has nothing to wait for beyond the
+    /// cancellation itself.
+    func shutDown() async {
+        await cancel()
+    }
 }
 
 /// One page of results.

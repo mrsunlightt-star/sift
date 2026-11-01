@@ -113,6 +113,13 @@ public actor FileOperationService {
     /// Injected so a test can decide which applications are "running" without
     /// launching one, and so this service never has to know about AppKit.
     private let runningTokenProvider: @Sendable () async -> [String]
+    /// A suspension point inside the awaited region of `execute`.
+    ///
+    /// The window this file's ordering exists to close can only be exercised from
+    /// inside it: a test has to suspend the loop and then replace an ancestor
+    /// with a symbolic link, and no argument can express "be suspended now".
+    /// Production never installs one; it is internal so no feature can either.
+    private var validationSuspension: (@Sendable () async -> Void)?
 
     public init(
         rules: RuleEngine,
@@ -128,6 +135,11 @@ public actor FileOperationService {
         self.runningTokenProvider = runningTokenProvider
     }
 
+    /// Installs the test-only suspension described on `validationSuspension`.
+    func setValidationSuspension(_ body: (@Sendable () async -> Void)?) {
+        validationSuspension = body
+    }
+
     // MARK: - Pre-flight
 
     /// Checks a selection before anything is moved (§9.2).
@@ -139,14 +151,33 @@ public actor FileOperationService {
     ///  * parent/child overlap, so a folder and a file inside it are not both
     ///    counted,
     ///  * items a running application holds open.
-    public func preflight(_ candidates: [Candidate]) async -> PreflightReport {
+    /// Checks a selection before anything is moved.
+    ///
+    /// `intent` is the flow asking, and it changes exactly one answer. The
+    /// protection list carries `/Applications` because a rule must never offer
+    /// an application: a bundle is not junk, and a rule can only see a name and
+    /// an age, never whether the thing inside is still wanted. The uninstaller
+    /// is the one flow whose *subject* is the bundle, it does not take its items
+    /// from a rule (the user picks from the installed list), and refusing here
+    /// would make the feature impossible rather than safe. Nothing else is
+    /// lifted — user content, secrets, a recycle bin and every other system
+    /// prefix stay refused for both flows — and the exception is keyed on the
+    /// protection *reason* rather than on the path, so a second entry that
+    /// happens to sit under `/Applications` cannot widen it by accident.
+    public func preflight(
+        _ candidates: [Candidate],
+        intent: CleanupOperationName = .junkCleanup
+    ) async -> PreflightReport {
         var ready: [Candidate] = []
         var skipped: [(item: Candidate, code: ErrorCode, message: String)] = []
         var subsumed: [Candidate] = []
         var protected: [Candidate] = []
 
-        // Deepest paths first, so a parent can absorb its children without the
-        // children having been queued already.
+        // Shallowest paths first, which is the order the overlap rule needs: a
+        // parent approved first absorbs every child approved after it, so a
+        // folder and a file inside it are one move rather than two. The children
+        // are not skipped by this ordering — `isSubsumed` drops them when they
+        // arrive — and `resolveOverlap` below covers the reverse order.
         let ordered = candidates.sorted { $0.url.pathComponents.count < $1.url.pathComponents.count }
 
         for scanned in ordered {
@@ -166,7 +197,12 @@ public actor FileOperationService {
                 continue
             }
 
-            if let reason = rules.protectionReason(for: path) {
+            let protectionReason = rules.protectionReason(for: path)
+            let isApplicationMove = protectionReason.map {
+                Self.permitsApplicationMove($0, intent: intent)
+            } ?? false
+
+            if let reason = protectionReason, !isApplicationMove {
                 protected.append(candidate)
                 logger.notice(
                     "Refused a protected location (code=protectedLocation, reason=\(String(describing: reason)))"
@@ -207,7 +243,7 @@ public actor FileOperationService {
             // the user anyway.
             if candidate.risk == .safe {
                 let derivedRisk = rules.risk(for: path)
-                if derivedRisk == .protected {
+                if derivedRisk == .protected && !isApplicationMove {
                     protected.append(candidate)
                     logger.notice("Refused a location no rule may offer (re-derived at pre-flight)")
                     continue
@@ -315,10 +351,18 @@ public actor FileOperationService {
     }
 
     private func isSubsumed(_ candidate: Candidate, by selected: [Candidate]) -> Bool {
-        selected.contains { parent in
+        // Both sides are folded. `RuleEngine.isPrefix` is case-sensitive because
+        // rule matching needs the exact spelling, while the protection list
+        // compares case-folded because a default APFS volume is case-insensitive.
+        // Using the sensitive one here let `~/Library/Caches/Foo` and
+        // `~/Library/caches/foo` sit in one selection as two items: the second
+        // was queued instead of absorbed and then failed at the move, because by
+        // then the first had taken the directory away.
+        let target = RuleEngine.normalize(candidate.url.path).lowercased()
+        return selected.contains { parent in
             parent.url != candidate.url
                 && isDirectory(parent.url)
-                && RuleEngine.isPrefix(parent.url.path, candidate.url.path)
+                && RuleEngine.isPrefix(RuleEngine.normalize(parent.url.path).lowercased(), target)
         }
     }
 
@@ -392,7 +436,44 @@ public actor FileOperationService {
     /// under `/private/var` and the alias mapping is what reconciles the two
     /// spellings. A legitimate path therefore compares equal whichever spelling
     /// it arrived in.
+    ///
+    /// A path that cannot be stat'ed is a refusal, not a pass. `resolvingSymlinksInPath`
+    /// answers the written path when nothing is there, so a vanished item would
+    /// compare equal to itself and be admitted to the move, where the failure
+    /// would arrive from `trashItem` instead of from this check — and the two are
+    /// not the same statement: an object that does not exist is not an object this
+    /// check verified.
+    /// Whether this flow may move an application bundle out of `/Applications`.
+    ///
+    /// Exactly one flow may, and exactly one prefix is lifted. The list protects
+    /// `/Applications` because a *rule* must never offer an application: a bundle
+    /// is not junk, and a rule can only see a name and an age, never whether the
+    /// thing inside is still wanted. The uninstaller's subject is the bundle, and
+    /// its items do not come from a rule at all — the user picks one from the
+    /// installed list — so the protection is not doing its job there, it is only
+    /// making the feature impossible.
+    ///
+    /// Everything else stays refused for both flows: user content, secrets, a
+    /// recycle bin, photo libraries and every other system prefix. The test is
+    /// keyed on the protection *reason* rather than on the path so that a future
+    /// entry under `/Applications` — `/Applications/Utilities`, a moved system
+    /// app — cannot widen the exception by being spelled the same way.
+    static func permitsApplicationMove(
+        _ reason: RuleEngine.ProtectionReason,
+        intent: CleanupOperationName
+    ) -> Bool {
+        guard intent == .uninstall else { return false }
+        if case .systemPath(let prefix) = reason, prefix == "/Applications" {
+            return true
+        }
+        return false
+    }
+
     private static func refusalForARelocatedPath(_ url: URL) -> (code: ErrorCode, message: String)? {
+        var info = stat()
+        guard lstat(url.path, &info) == 0 else {
+            return (.itemChanged, LocalizationKey.cleanupFailureItemChanged.localized)
+        }
         let written = RuleEngine.normalize(url.path)
         let resolved = RuleEngine.normalize(url.resolvingSymlinksInPath().path)
         guard written == resolved else {
@@ -465,8 +546,15 @@ public actor FileOperationService {
 
             // Re-validate every item immediately before acting: the scan result
             // may be minutes old, and a protected path must never slip through
-            // because it was classified earlier.
-            if let reason = rules.protectionReason(for: item.url.path) {
+            // because it was classified earlier. The uninstaller's own subject —
+            // an application bundle under `/Applications` — is the one reason
+            // this flow may look past, and `permitsApplicationMove` is the single
+            // place that decision exists.
+            let executionProtection = rules.protectionReason(for: item.url.path)
+            let executionApplicationMove = executionProtection.map {
+                Self.permitsApplicationMove($0, intent: operation)
+            } ?? false
+            if let reason = executionProtection, !executionApplicationMove {
                 logger.error("Blocked a protected path at execution time (reason=\(String(describing: reason)))")
                 results.append(
                     FileOperationResult(
@@ -530,8 +618,68 @@ public actor FileOperationService {
                 continue
             }
 
-            // The last word before the move, and the reason it exists: between
-            // the pre-flight check and this line the path can be re-pointed.
+            // The state that can change while the panel is open, and that the
+            // identity check cannot see: the object is the same, but its
+            // application is now running. Moving it then would either fail
+            // opaquely or pull a bundle out from under a live process.
+            //
+            // These two questions are asked FIRST, and the invariant that
+            // explains the order is: **between the last validation and the move
+            // there must be no suspension point**. It used to be the other way
+            // round — relocation check, identity check, then these two `await`s,
+            // then `trashItem` — and the window they opened was real.
+            // `trashItem` follows a symbolic link in any component of the path,
+            // so an ancestor replaced by a link during the suspension turned a
+            // request to move a cache directory into a request to move an object
+            // under, say, `~/Documents`: an object the protection list never
+            // judged, because the written path still sits under `Caches`, and one
+            // the identity snapshot never saw, because it was read before the link
+            // appeared.
+            let bundleInUse = await isInUse(item.url, fresh: true)
+            // The one suspension inside the region a test has to be able to hold
+            // open: everything below judges the state this pause leaves behind.
+            if let suspended = validationSuspension { await suspended() }
+            let ownerRunning = await isOwnedByARunningApplication(item.url, fresh: true)
+            if bundleInUse || ownerRunning {
+                results.append(
+                    FileOperationResult(
+                        sourceURL: item.url,
+                        status: .skipped,
+                        errorCode: ErrorCode.fileInUse.rawValue,
+                        message: LocalizationKey.cleanupFailureFileInUse.localized,
+                        sizeInBytes: item.sizeInBytes,
+                        category: item.category
+                    )
+                )
+                continue
+            }
+
+            // A level is a statement about a rule table, and the table in force
+            // at the move is not necessarily the one the plan was built from. The
+            // plan is a snapshot and its `risk` field is data, so a plan assembled
+            // by another caller — or one built before the user's rule file changed
+            // — can carry a level no rule backs any more. It is re-derived rather
+            // than trusted: a path the current table calls `protected` is refused,
+            // which is the same statement pre-flight makes before anything is
+            // approved.
+            if rules.risk(for: item.url.path) == .protected && !executionApplicationMove {
+                logger.error("Blocked a location no rule may offer (re-derived at execution time)")
+                results.append(
+                    FileOperationResult(
+                        sourceURL: item.url,
+                        status: .failed,
+                        errorCode: ErrorCode.protectedLocation.rawValue,
+                        message: LocalizationKey.cleanupFailureProtectedLocation.localized,
+                        sizeInBytes: item.sizeInBytes,
+                        category: item.category
+                    )
+                )
+                continue
+            }
+
+            // The last validation, and the reason it is last: between this line
+            // and `trashItem` there is nothing that can be suspended. A path
+            // re-pointed after the pre-flight check is refused here.
             if let refusal = Self.refusalForARelocatedPath(item.url) {
                 logger.error("Refused an item whose path resolves elsewhere before the move")
                 results.append(
@@ -553,6 +701,11 @@ public actor FileOperationService {
             // Pre-flight recorded the object it approved; anything else at this
             // path now is refused. A missing snapshot is refused too: falling
             // back to the path checks is exactly the gap this snapshot closes.
+            //
+            // This is the second half of the same invariant: the object is read
+            // after every suspension the loop takes, so a replacement made while
+            // the loop was suspended is visible here and the move below is the
+            // only thing that follows.
             guard let expected = plan.identities[item.id] else {
                 logger.error("Refused an item without a pre-flight identity (code=itemChanged)")
                 results.append(
@@ -575,26 +728,6 @@ public actor FileOperationService {
                         status: .skipped,
                         errorCode: ErrorCode.itemChanged.rawValue,
                         message: LocalizationKey.cleanupFailureItemChanged.localized,
-                        sizeInBytes: item.sizeInBytes,
-                        category: item.category
-                    )
-                )
-                continue
-            }
-
-            // The state that can change while the panel is open, and that the
-            // identity check cannot see: the object is the same, but its
-            // application is now running. Moving it then would either fail
-            // opaquely or pull a bundle out from under a live process.
-            let bundleInUse = await isInUse(item.url, fresh: true)
-            let ownerRunning = await isOwnedByARunningApplication(item.url, fresh: true)
-            if bundleInUse || ownerRunning {
-                results.append(
-                    FileOperationResult(
-                        sourceURL: item.url,
-                        status: .skipped,
-                        errorCode: ErrorCode.fileInUse.rawValue,
-                        message: LocalizationKey.cleanupFailureFileInUse.localized,
                         sizeInBytes: item.sizeInBytes,
                         category: item.category
                     )

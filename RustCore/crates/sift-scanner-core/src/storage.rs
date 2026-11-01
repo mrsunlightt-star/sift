@@ -28,6 +28,16 @@ pub const DEFAULT_TOP_DIRECTORY_LIMIT: u32 = 100;
 pub const DEFAULT_DIRECTORY_ROLLUP_LIMIT: usize = 20_000;
 /// Beyond this many entries the analysis aggregates instead of listing.
 pub const MAX_LISTED_RESULTS: u64 = 10_000;
+/// The most large files an analysis retains.
+///
+/// The page renders a short list; the number exists because `top_file_limit`
+/// arrives in the request and is used as the length of a retained vector, so a
+/// request could ask for one the machine cannot hold.
+pub const MAX_TOP_FILE_LIMIT: u32 = 5_000;
+/// The most directories an analysis returns.
+pub const MAX_TOP_DIRECTORY_LIMIT: u32 = 1_000;
+/// The most directory rollups an analysis retains before pruning.
+pub const MAX_DIRECTORY_ROLLUP_LIMIT: usize = 200_000;
 
 /// One file entry in the large-file list.
 #[derive(Debug, Clone, PartialEq)]
@@ -293,6 +303,30 @@ impl AnalysisOptions {
     }
 }
 
+impl AnalysisOptions {
+    /// The options an analysis actually runs with.
+    ///
+    /// Every number here arrives in a request. The threshold decides how much of
+    /// the tree is offered and the three limits are the lengths of the lists the
+    /// analysis keeps — `top_file_limit` sizes a vector and
+    /// `directory_rollup_limit` bounds a map that is otherwise never pruned — so a
+    /// caller could ask for a list of four billion entries, which is a
+    /// multi-gigabyte allocation from a number in a JSON document. They are held
+    /// to the largest values the page can render and the analysis can hold.
+    fn clamped(mut self) -> Self {
+        // A threshold below a megabyte would list thousands of ordinary files.
+        self.large_file_threshold_bytes = self.large_file_threshold_bytes.max(1024 * 1024);
+        self.top_file_limit = self.top_file_limit.clamp(1, MAX_TOP_FILE_LIMIT);
+        self.top_directory_limit = self.top_directory_limit.clamp(1, MAX_TOP_DIRECTORY_LIMIT);
+        // Two is the smallest cap the pruning can work with: one kept entry and
+        // one ancestor of it.
+        self.directory_rollup_limit = self
+            .directory_rollup_limit
+            .clamp(2, MAX_DIRECTORY_ROLLUP_LIMIT);
+        self
+    }
+}
+
 /// Accumulates the analysis while walking.
 ///
 /// Directory sizes are rolled up as files are visited, so a file five levels
@@ -535,9 +569,10 @@ impl Accumulator {
 /// reported as partial. A mount point below a root belongs to another volume
 /// and is skipped entry by entry.
 pub fn analyse(options: &AnalysisOptions, cancel: &CancelToken) -> StorageAnalysis {
-    let mut options = options.clone();
-    // A threshold below a megabyte would list thousands of ordinary files.
-    options.large_file_threshold_bytes = options.large_file_threshold_bytes.max(1024 * 1024);
+    // Clamped here rather than where the request was decoded: this is the entry
+    // point every caller shares, so a caller that built the options in code is
+    // held to the same numbers.
+    let options = options.clone().clamped();
     let mut accumulator = Accumulator::new(options.clone());
 
     let ignored: Vec<String> = options
@@ -681,6 +716,12 @@ fn measure_bundle(path: &Path, cancel: &CancelToken, options: &AnalysisOptions) 
     let mut skip_paths = Vec::with_capacity(options.ignore_paths.len() * 2);
     for path in &options.ignore_paths {
         let text = path.to_string_lossy();
+        // An empty ignore path collapses to `/`, and `/` is a prefix of every
+        // path the walk can hand to the skip check — it would silently measure
+        // nothing at all. A list that named no location names no location.
+        if text.trim_matches('/').is_empty() {
+            continue;
+        }
         skip_paths.push(PathBuf::from(collapse_path(&text)));
         skip_paths.push(PathBuf::from(normalize_path(&text)));
     }
@@ -759,6 +800,41 @@ mod tests {
                 .any(|d| d.display_name == "Photos"),
             "directory rollup contains Photos"
         );
+    }
+
+    /// The listing limits are a request's numbers, not a measurement.
+    ///
+    /// `top_file_limit` sizes the retained vector and `directory_rollup_limit`
+    /// bounds a map that is otherwise never pruned, so a request asking for four
+    /// billion of either asked for a multi-gigabyte allocation before a single
+    /// file was read.
+    #[test]
+    fn a_pathological_listing_limit_is_clamped_before_the_lists_are_sized() {
+        let tree = TempTree::new("storage-clamp");
+        let mut options = AnalysisOptions::new(tree.root.clone(), vec![tree.root.clone()]);
+        options.top_file_limit = u32::MAX;
+        options.top_directory_limit = u32::MAX;
+        options.directory_rollup_limit = usize::MAX;
+        options.large_file_threshold_bytes = 0;
+
+        let clamped = options.clamped();
+        assert_eq!(clamped.top_file_limit, MAX_TOP_FILE_LIMIT);
+        assert_eq!(clamped.top_directory_limit, MAX_TOP_DIRECTORY_LIMIT);
+        assert_eq!(clamped.directory_rollup_limit, MAX_DIRECTORY_ROLLUP_LIMIT);
+        assert_eq!(
+            clamped.large_file_threshold_bytes,
+            1024 * 1024,
+            "a threshold below a megabyte lists ordinary files"
+        );
+
+        // And a limit of zero, which would produce an empty page from a full disk,
+        // becomes the smallest list instead.
+        let mut empty = AnalysisOptions::new(tree.root.clone(), vec![tree.root.clone()]);
+        empty.top_file_limit = 0;
+        empty.top_directory_limit = 0;
+        let clamped = empty.clamped();
+        assert_eq!(clamped.top_file_limit, 1);
+        assert_eq!(clamped.top_directory_limit, 1);
     }
 
     #[test]

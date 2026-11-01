@@ -92,6 +92,36 @@ runner 起不来是**间歇**的，不是这台机器的固有缺陷，而且有
 - Full Disk Access 提示路径；
 - 外部卷授权：拔盘后 bookmark 失效、重新插上后重新授权，且授权未扩大可扫描范围。
 
+## 5.1 威胁模型：不沙盒的代价要写在明处
+
+直售版没有 App Sandbox（`Config/Sift.entitlements` 里 `com.apple.security.app-sandbox` 为
+`false`），也没有 privileged helper，Full Disk Access 由用户在系统设置里授予。这不是可以含糊
+过去的一处配置，它决定了产品的威胁模型：
+
+> **进程内任何一处内存安全缺陷，等价于"用户级全盘读写"，而不是"沙盒内的越权"。**
+
+因此三件事是发布条件，而不是"最好有"：
+
+- `unsafe` 面只有 `sift-ffi` 一个 crate（其余 crate 生产代码里没有 `unsafe`），新增的第二处
+  需要在这份清单里说明理由；
+- 跨语言的每一个入口都校验形状：扫描请求与存储分析的根目录走同一个 allowlist
+  （`RustCore/crates/sift-ffi/src/lib.rs` 的 `validate_scope`），请求里的尺寸字段在反序列化
+  时被 clamp，用户规则文件在读取时拒绝逃逸锚点与禁用目录；
+- CI 为 `sift-ffi` 常开 ASan，`cargo audit` 失败即红。
+
+发布前跑一次：
+
+```bash
+cd RustCore && cargo audit                      # 依赖 CVE
+cd RustCore && RUSTFLAGS="-Zsanitizer=address" \
+  cargo +nightly test -p sift-ffi --target aarch64-apple-darwin
+grep -rn "unsafe" RustCore/crates --include=*.rs | grep -v "sift-ffi"   # 期望：只在测试或注释里
+```
+
+对应的审查记录见 [Research/security-audit-2026-11.md](Research/security-audit-2026-11.md)：那一篇
+列了每条缺陷、修法与**明确接受的残余风险**（纯词法归一不做 `realpath`、`trashItem` 自身跟随
+祖先链接）。残余风险不是待办，是产品当前的样子；改动它们要同时改这份清单。
+
 ## 6. 生成产物是当前的
 
 `Scripts/verify.sh` 第一步已经检查字符串目录、保护清单与规则表；发布前确认它在本地与 CI 都是

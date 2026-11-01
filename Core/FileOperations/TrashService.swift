@@ -40,15 +40,79 @@ public actor TrashService {
         public var id: String { url.path }
     }
 
+    /// Why the bin could not be listed.
+    ///
+    /// The product promise is that emptying the Trash is what reclaims the space
+    /// a cleanup freed, so "0 items" and "Sift may not look in the bin" are
+    /// opposite statements about the user's disk. The first says there is nothing
+    /// to do; the second says the action the user came for cannot be taken, and
+    /// the page has to say which of the two it is.
+    public enum UnreadableReason: Sendable, Equatable {
+        /// The directory exists and this process may not list it, which is the
+        /// state a Mac without Full Disk Access is in: `~/.Trash` is one of the
+        /// locations macOS withholds until the user grants it.
+        case needsFullDiskAccess
+        /// The listing failed for another reason — a directory that is not one,
+        /// or an I/O error. Reported rather than turned into an empty bin.
+        case listingFailed
+
+        /// The heading the page shows.
+        public var titleKey: LocalizationKey {
+            switch self {
+            case .needsFullDiskAccess: .permissionFullDiskAccess
+            case .listingFailed: .cleanupFailurePermissionDenied
+            }
+        }
+
+        /// The sentence that says what to do about it.
+        public var detailKey: LocalizationKey {
+            switch self {
+            case .needsFullDiskAccess: .permissionFullDiskAccessDetail
+            case .listingFailed: .cleanupFailurePermissionDenied
+            }
+        }
+
+        /// Whether the page should offer the shortcut to System Settings.
+        public var offersSettingsAction: Bool {
+            self == .needsFullDiskAccess
+        }
+    }
+
     /// What the Trash holds right now.
     public struct Snapshot: Sendable, Equatable {
         public let entries: [Entry]
         public let totalBytes: Int64
+        /// Why the bin could not be listed, when it could not.
+        ///
+        /// Carried on the snapshot rather than folded into an empty entry list:
+        /// every caller already passes the snapshot to the confirmation that
+        /// states what is about to be removed, so the state travels with the
+        /// number instead of depending on each page asking twice. `nil` means the
+        /// answer came from the directory.
+        public let unreadable: UnreadableReason?
+
+        public init(entries: [Entry], totalBytes: Int64, unreadable: UnreadableReason? = nil) {
+            self.entries = entries
+            self.totalBytes = totalBytes
+            self.unreadable = unreadable
+        }
 
         public var count: Int { entries.count }
         public var isEmpty: Bool { entries.isEmpty }
 
+        /// True when the bin exists and this process may not list it.
+        ///
+        /// A page that offers "Empty Trash" must check this first and show
+        /// guidance instead: emptying a bin it cannot read would report a success
+        /// it cannot verify.
+        public var isUnreadable: Bool { unreadable != nil }
+
         public static let empty = Snapshot(entries: [], totalBytes: 0)
+
+        /// A bin that is there and cannot be read.
+        public static func unreadable(_ reason: UnreadableReason) -> Snapshot {
+            Snapshot(entries: [], totalBytes: 0, unreadable: reason)
+        }
     }
 
     /// What emptying the Trash did.
@@ -103,12 +167,30 @@ public actor TrashService {
     }
 
     /// The bin's current contents, measured the way the scanner measures.
+    ///
+    /// Three outcomes, and the difference between the last two is the point:
+    ///
+    ///  * no bin at all — a real state (a fresh account, or one that has never
+    ///    emptied anything) and an empty answer;
+    ///  * a bin that lists — its entries;
+    ///  * a bin that exists and cannot be listed. `try?` turned this into `.empty`
+    ///    as well, so a Mac without Full Disk Access was told its bin was empty
+    ///    while the space it came to reclaim sat in it. The state travels on the
+    ///    snapshot so the page can offer the guidance instead of "0 items".
     public func inspect() async -> Snapshot {
-        guard let names = try? fileManager.contentsOfDirectory(atPath: trashURL.path) else {
-            // No `~/.Trash` is a real state (a fresh account, or one that has
-            // never emptied anything) and an unreadable one is indistinguishable
-            // from it here. Either way there is nothing to offer.
+        var isDirectory: ObjCBool = false
+        guard fileManager.fileExists(atPath: trashURL.path, isDirectory: &isDirectory) else {
             return .empty
+        }
+        let names: [String]
+        do {
+            names = try fileManager.contentsOfDirectory(atPath: trashURL.path)
+        } catch {
+            let reason = Self.unreadableReason(for: error)
+            logger.notice(
+                "The Trash could not be listed (reason=\(String(describing: reason), privacy: .public))"
+            )
+            return .unreadable(reason)
         }
         var entries: [Entry] = []
         var total: Int64 = 0
@@ -119,6 +201,29 @@ public actor TrashService {
             total += entry.bytes
         }
         return Snapshot(entries: entries, totalBytes: total)
+    }
+
+    /// Which guidance an unlistable bin deserves.
+    ///
+    /// `EPERM` and `EACCES` from `~/.Trash` are the Full Disk Access case rather
+    /// than a permissions accident: macOS withholds the bin from a process the
+    /// user has not granted it to, and telling the user to check file permissions
+    /// on their own Trash sends them looking for a problem that is not there.
+    static func unreadableReason(for error: Error) -> UnreadableReason {
+        let nsError = error as NSError
+        if nsError.domain == NSPOSIXErrorDomain {
+            switch Int32(nsError.code) {
+            case EPERM, EACCES: return .needsFullDiskAccess
+            default: return .listingFailed
+            }
+        }
+        if nsError.domain == NSCocoaErrorDomain {
+            switch nsError.code {
+            case NSFileReadNoPermissionError: return .needsFullDiskAccess
+            default: return .listingFailed
+            }
+        }
+        return .listingFailed
     }
 
     /// Removes every entry the given snapshot reported.

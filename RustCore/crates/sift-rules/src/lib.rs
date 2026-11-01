@@ -633,6 +633,27 @@ pub const PROTECTED_HOME_CHILDREN: &[&str] = &[
 ];
 
 /// Absolute path prefixes that are never scanned or cleaned.
+///
+/// `/Applications` is here because an installed application is not junk, and
+/// nothing about a name or an age can say otherwise. A rule anchored at
+/// `applications` with `relativePath: "*"` expands to one root per bundle and
+/// used to offer `/Applications/Safari.app` as a cleanup item — the item the
+/// product moves to the Trash. Pre-flight refused such a bundle only while its
+/// application was *running* (`needsAppClosed`), which left every quit
+/// application one rule away from being moved out of `/Applications`. The
+/// prefix refuses every package below it — `.app`, `.bundle`, `.framework`, an
+/// app extension inside one, and the plain directories a vendor ships beside
+/// them — whether or not its owner is running, because "not running" is a
+/// property of the moment and a moved bundle does not come back.
+///
+/// `/Library/Preferences` and `/Library/Printers` are the machine-wide halves of
+/// two places the product already knows per user. `~/Library/Preferences` is one
+/// account's settings and the uninstaller removes an application's own file
+/// there; `/Library/Preferences` is the system-wide store, and
+/// `/Library/Printers` holds the drivers every account shares. Both look like
+/// ordinary state to a rule — a `.plist`, a vendor folder — and removing either
+/// resets a machine for users who never ran the scan. No shipped rule names
+/// them; the list is what keeps a rule written from a wildcard from doing so.
 pub const PROTECTED_PREFIXES: &[&str] = &[
     "/System",
     "/bin",
@@ -642,10 +663,13 @@ pub const PROTECTED_PREFIXES: &[&str] = &[
     "/private/etc",
     "/private/var/db",
     "/private/var/vm",
+    "/Applications",
     "/Library/Apple",
     "/Library/Extensions",
     "/Library/LaunchDaemons",
     "/Library/LaunchAgents",
+    "/Library/Printers",
+    "/Library/Preferences",
     "/Library/StagedExtensions",
     "/Volumes",
 ];
@@ -1708,12 +1732,58 @@ pub fn relative_path_stays_inside_anchor(path: &str) -> bool {
 ///
 /// A whole-segment comparison, so `/Systematic` is not below `/System`. Both
 /// sides are expected to be collapsed already.
+///
+/// An empty prefix — `/`, `//`, or `""` after trimming — is the root of the
+/// filesystem and contains everything, so it answers `true`. It used to answer
+/// `false`, which made the two engines disagree about the same question: the
+/// Swift `isPrefix` has always treated `/` as a prefix of every path, so a `/`
+/// that reached a protection table would have refused everything there and
+/// nothing here. The callers that treat an empty string as "no location"
+/// (`normalize_skip_paths`, the storage analysis' ignore list) have to drop
+/// empty entries themselves; this function answers about containment only.
 pub fn is_prefix_of(prefix: &str, path: &str) -> bool {
     let prefix = prefix.trim_end_matches('/');
     if prefix.is_empty() {
-        return false;
+        return path.starts_with('/');
     }
     path == prefix || path.starts_with(&format!("{prefix}/"))
+}
+
+/// Folds a protection name or path for comparison, the way the Swift engine's
+/// `caseInsensitiveCompare` does.
+///
+/// `to_lowercase()` alone is not that comparison. Swift folds case, and case
+/// folding and lowercasing are two different Unicode operations: `ſ` (U+017F,
+/// Latin small letter long s) lowercases to itself but folds to `s`, so Swift
+/// refuses a recycle bin renamed `.Traſh` while a lowercase comparison of the
+/// bytes does not see a `.Trash` at all. `.Traſh` is a real directory name on a
+/// volume that does not object to it, and "spell the protection name with a long
+/// s" must not be a way past the list — the same reasoning that made this
+/// comparison case-folded in the first place.
+///
+/// The table is the complete set of code points whose case folding differs from
+/// lowercasing **and** lands in ASCII: the sharp s, its capital form, the long
+/// s, and the `ff`/`fi`/`fl`/`ffi`/`ffl`/`st` ligatures. Nothing else can fold
+/// onto a protection name, because every name in the list is ASCII and a
+/// character that folds to a non-ASCII letter cannot equal one — so this is the
+/// whole difference between the two engines for the names that are compared,
+/// rather than a sample of it.
+fn fold_case(value: &str) -> String {
+    let mut folded = String::with_capacity(value.len());
+    for character in value.chars() {
+        match character {
+            'ß' | 'ẞ' => folded.push_str("ss"),
+            'ſ' => folded.push('s'),
+            'ﬀ' => folded.push_str("ff"),
+            'ﬁ' => folded.push_str("fi"),
+            'ﬂ' => folded.push_str("fl"),
+            'ﬃ' => folded.push_str("ffi"),
+            'ﬄ' => folded.push_str("ffl"),
+            'ﬅ' | 'ﬆ' => folded.push_str("st"),
+            other => folded.extend(other.to_lowercase()),
+        }
+    }
+    folded
 }
 
 /// The protection list's comparison: case-folded, because macOS volumes are
@@ -1727,10 +1797,13 @@ pub fn is_prefix_of(prefix: &str, path: &str) -> bool {
 /// applied only here: rule matching keeps `is_prefix_of`, so a case-sensitive
 /// volume does not suddenly match a differently-cased sibling.
 pub fn is_protected_prefix(prefix: &str, path: &str) -> bool {
-    let prefix = prefix.trim_end_matches('/').to_lowercase();
-    let path = path.to_lowercase();
+    let prefix = fold_case(prefix.trim_end_matches('/'));
+    let path = fold_case(path);
+    // `/` is the root of the filesystem and holds every path, which is the same
+    // answer the Swift `isProtectedPrefix` gives. Answering `false` here would
+    // make `/` a hole in one engine and a blanket in the other.
     if prefix.is_empty() {
-        return false;
+        return path.starts_with('/');
     }
     path == prefix || path.starts_with(&format!("{prefix}/"))
 }
@@ -1772,11 +1845,17 @@ fn protected_library_reason(home: &str, path: &str) -> Option<ProtectedReason> {
 /// Checked as a whole component at any depth, so `~/.Trash/x`, an item already
 /// in `~/.Trash/` and `/Volumes/Backup/.Trashes/501/x` are all refused, while a
 /// user folder that merely starts with the name is not.
+///
+/// Compared after [`fold_case`], not with `eq_ignore_ascii_case`: the Swift
+/// engine uses `caseInsensitiveCompare`, so an ASCII-only fold refused `.Trash`
+/// here and allowed `.Traſh`, and the two engines disagreed about a directory
+/// name that a rename can produce.
 fn recycle_bin_reason(path: &str) -> Option<ProtectedReason> {
     path.split('/').find_map(|component| {
+        let folded = fold_case(component);
         PROTECTED_RECYCLE_BIN_NAMES
             .iter()
-            .any(|name| component.eq_ignore_ascii_case(name))
+            .any(|name| folded == fold_case(name))
             .then(|| ProtectedReason::UserContent {
                 child: component.to_string(),
             })
@@ -1790,6 +1869,17 @@ fn recycle_bin_reason(path: &str) -> Option<ProtectedReason> {
 pub fn protection_reason(home: &str, path: &str) -> Option<ProtectedReason> {
     let home = normalize_path(home);
     let path = normalize_path(path);
+
+    // The root of the disk is every directory at once, so it is not a cleanup
+    // target whatever the list says. Written out rather than left to the prefix
+    // loop, which would answer it only if `/` were itself a list entry: a caller
+    // that normalised an empty path to `/` used to get `None` here and a blanket
+    // refusal from the Swift engine.
+    if path == "/" {
+        return Some(ProtectedReason::SystemPath {
+            prefix: "/".to_string(),
+        });
+    }
 
     for child in PROTECTED_HOME_CHILDREN {
         let candidate = format!("{home}/{child}");
@@ -1863,6 +1953,15 @@ pub fn protection_reason_authorized(
 ) -> Option<ProtectedReason> {
     let path_normalized = normalize_path(path);
     let home_normalized = normalize_path(home);
+
+    // The root of the disk, for the same reason as in `protection_reason`: a
+    // grant never reaches it, and the answer cannot depend on whether the caller
+    // asked the authorised question.
+    if path_normalized == "/" {
+        return Some(ProtectedReason::SystemPath {
+            prefix: "/".to_string(),
+        });
+    }
 
     // Hard rules first.
     for child in PROTECTED_HOME_CHILDREN {
@@ -1971,6 +2070,102 @@ mod tests {
     }
 
     #[test]
+    fn every_entry_on_the_shared_protection_list_is_refused() {
+        // The Swift half is generated from these constants, so an entry that
+        // either engine does not act on is a row in one list and not in the
+        // other. Every entry is asked both ways: with no grants, and with a
+        // grant that covers a volume, because the authorised question is the one
+        // pre-flight asks.
+        let grants = [std::path::PathBuf::from("/Volumes/Backup")];
+        for child in PROTECTED_HOME_CHILDREN {
+            let path = format!("{HOME}/{child}/file.txt");
+            assert!(is_protected_path(HOME, &path), "{path} must be refused");
+            assert!(
+                is_protected_path_authorized(HOME, &path, &grants),
+                "{path} must be refused under a grant too"
+            );
+        }
+        for prefix in PROTECTED_PREFIXES {
+            let path = format!("{prefix}/anything");
+            assert!(is_protected_path(HOME, &path), "{path} must be refused");
+            assert!(
+                is_protected_path_authorized(HOME, &path, &grants),
+                "{path} must be refused under a grant too"
+            );
+        }
+        for child in PROTECTED_LIBRARY_CHILDREN {
+            let path = format!("{HOME}/{child}/content");
+            assert!(is_protected_path(HOME, &path), "{path} must be refused");
+            assert!(
+                is_protected_path_authorized(HOME, &path, &grants),
+                "{path} must be refused under a grant too"
+            );
+        }
+        for name in PROTECTED_RECYCLE_BIN_NAMES {
+            for path in [
+                format!("{HOME}/{name}"),
+                format!("{HOME}/{name}/item"),
+                format!("/Volumes/Backup/{name}/501/item"),
+            ] {
+                assert!(is_protected_path(HOME, &path), "{path} must be refused");
+            }
+        }
+    }
+
+    #[test]
+    fn an_application_under_applications_is_refused_while_it_is_not_running() {
+        // A rule anchored at `applications` with `relativePath: "*"` expands to
+        // one root per bundle. Pre-flight used to refuse only a bundle whose
+        // application was running, so every quit application was one user rule
+        // away from being moved out of `/Applications`. The prefix refuses the
+        // package itself and everything inside it, running or not.
+        for path in [
+            "/Applications/Safari.app",
+            "/Applications/Safari.app/Contents/MacOS/Safari",
+            "/Applications/Utilities/Terminal.app",
+            "/Applications/Foo.bundle",
+            "/Applications/Bar.framework/Versions/A/Bar",
+            "/Applications/Safari.app/Contents/PlugIns/Share.appex",
+        ] {
+            assert!(
+                is_protected_path(HOME, path),
+                "{path} must be refused whether or not its owner runs"
+            );
+            assert_eq!(
+                protection_reason(HOME, path),
+                Some(ProtectedReason::SystemPath {
+                    prefix: "/Applications".to_string()
+                }),
+                "{path} is refused by the /Applications prefix"
+            );
+        }
+    }
+
+    #[test]
+    fn the_machine_wide_halves_of_the_user_locations_are_refused() {
+        // `~/Library/Preferences` is one account's settings and the uninstaller
+        // removes one application's file there; `/Library/Preferences` is the
+        // store every account reads, and `/Library/Printers` holds the drivers
+        // they share. A rule written from a name shape must not reach either.
+        for path in [
+            "/Library/Preferences/com.apple.dock.plist",
+            "/Library/Printers/PPDs/Contents/Resources/Xerox.gz",
+        ] {
+            assert!(is_protected_path(HOME, path), "{path} must be refused");
+        }
+        // The per-user spellings stay scannable: protecting them would empty the
+        // preference and cache rules the product exists for.
+        assert!(!is_protected_path(
+            HOME,
+            &format!("{HOME}/Library/Preferences/com.example.app.plist")
+        ));
+        assert!(!is_protected_path(
+            HOME,
+            &format!("{HOME}/Library/Caches/x")
+        ));
+    }
+
+    #[test]
     fn caches_and_logs_are_allowed() {
         assert!(!is_protected_path(
             HOME,
@@ -2029,6 +2224,86 @@ mod tests {
             &format!("{HOME}/documents-old/a.txt")
         ));
         assert!(!is_protected_path(HOME, "/systematic/a.txt"));
+    }
+
+    #[test]
+    fn the_root_of_the_disk_is_protected() {
+        // `/` is every directory at once, so the question "may this be cleaned"
+        // has one answer. It is written out rather than left to the prefix loop,
+        // because `/` is not a list entry: `normalize_path` turns an empty path
+        // into `/`, and the Swift engine has always refused it.
+        assert_eq!(
+            protection_reason(HOME, "/"),
+            Some(ProtectedReason::SystemPath {
+                prefix: "/".to_string()
+            })
+        );
+        let grants = [std::path::PathBuf::from("/Volumes/Backup")];
+        assert_eq!(
+            protection_reason_authorized(HOME, "/", &grants),
+            Some(ProtectedReason::SystemPath {
+                prefix: "/".to_string()
+            }),
+            "no grant reaches the root of the disk"
+        );
+        // The same answer however the root arrives.
+        for spelling in ["", "//", "/./", "/tmp/.."] {
+            assert!(
+                is_protected_path(HOME, spelling),
+                "{spelling:?} normalises to /"
+            );
+        }
+    }
+
+    #[test]
+    fn an_empty_prefix_contains_every_path() {
+        // `is_prefix_of` used to answer `false` for `/`, while the Swift
+        // `isPrefix` answers `true`: a `/` in a protection table would have
+        // refused everything on one side and nothing on the other. An empty or
+        // all-slash prefix is the root, and the root holds every absolute path.
+        for prefix in ["", "/", "//"] {
+            for path in ["/", "/Users", "/Users/example/Documents/a.txt"] {
+                assert!(is_prefix_of(prefix, path), "{prefix:?} must contain {path}");
+            }
+            assert!(
+                !is_prefix_of(prefix, "relative/path"),
+                "{prefix:?} is not a prefix of a path that is not absolute"
+            );
+        }
+        // Segment matching is unchanged: an ordinary prefix still does not shade
+        // a longer sibling, and `..` does not climb back over a shorter prefix.
+        assert!(!is_prefix_of("/System", "/Systematic/a.txt"));
+        assert!(is_prefix_of("/System/", "/System/x"));
+    }
+
+    #[test]
+    fn a_recycle_bin_name_is_matched_after_unicode_case_folding() {
+        // The Swift engine compares with `caseInsensitiveCompare`, which folds
+        // case the way Unicode defines it. `eq_ignore_ascii_case` folds only A-Z,
+        // so `.Traſh` — a real directory name a rename can produce, spelled with
+        // U+017F — was refused by Swift and allowed here.
+        for path in [
+            format!("{HOME}/.Traſh"),
+            format!("{HOME}/.Traſh/old-report.pdf"),
+            "/Volumes/Backup/.Traſh/501/item".to_string(),
+        ] {
+            assert!(
+                is_protected_path(HOME, &path),
+                "{path} is the bin however it is spelled"
+            );
+        }
+        // The fold adds folding, not substring matching: a name that folds to
+        // something other than a bin name is an ordinary folder.
+        for path in [
+            format!("{HOME}/Caſhe/com.example.app/x"),
+            format!("{HOME}/Library/Caches/Caſhe/x"),
+            format!("{HOME}/.Trash-notes/a.txt"),
+        ] {
+            assert!(
+                !is_protected_path(HOME, &path),
+                "{path} is an ordinary folder"
+            );
+        }
     }
 
     #[test]

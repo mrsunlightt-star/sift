@@ -212,15 +212,29 @@ void sift_string_free(SiftString value);
 /* Returns the built-in rule table as a JSON array. Caller frees. */
 SiftString sift_rules_json(void);
 
-/* Classifies a path against the compiled-in protection list.
- * Returns a `SiftPathProtection` value. */
+/* Classifies a path against the compiled-in protection list and nothing else.
+ * Returns a `SiftPathProtection` value. Grants are not consulted: a path inside
+ * an authorised volume is reported as protected here, while every gate that can
+ * move an item answers through `sift_path_protection_authorized`. Use this one
+ * to ask what the list says, not what the app will do. */
 int32_t sift_path_protection(SiftString home_dir, SiftString path);
 
-/* Returns true when a risk level may enter the deletion queue. */
+/* Classifies a path the way the scanner and the pre-flight check do, with the
+ * user's grants applied. `grants_json` is a JSON array of absolute paths; a
+ * NULL, empty or "null" value means no grants and answers exactly what
+ * `sift_path_protection` answers. Returns the same `SiftPathProtection` values,
+ * and -1 when the question could not be answered — including a `grants_json`
+ * that is not an array of strings, which must be treated as protected. */
+int32_t sift_path_protection_authorized(SiftString home_dir, SiftString path,
+                                        SiftString grants_json);
+
+/* Returns true when a risk level may enter the deletion queue.
+ * `risk` must point at a UTF-8 buffer of `len` bytes valid for the call. */
 bool sift_risk_is_cleanable(SiftString risk);
 
 /* Returns the most cautious risk level the library assigns to a category.
- * Caller frees. */
+ * Caller frees the result. `category` must point at a UTF-8 buffer of `len`
+ * bytes valid for the call. */
 SiftString sift_default_risk_for_category(SiftString category);
 
 /* Creates an engine. Free with `sift_engine_free`. */

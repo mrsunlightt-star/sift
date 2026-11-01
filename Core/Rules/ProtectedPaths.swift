@@ -50,10 +50,13 @@ public enum ProtectedPaths {
         "/private/etc",
         "/private/var/db",
         "/private/var/vm",
+        "/Applications",
         "/Library/Apple",
         "/Library/Extensions",
         "/Library/LaunchDaemons",
         "/Library/LaunchAgents",
+        "/Library/Printers",
+        "/Library/Preferences",
         "/Library/StagedExtensions",
         "/Volumes",
     ]
