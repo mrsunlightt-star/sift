@@ -284,4 +284,19 @@ final class SelectionTests: XCTestCase, @unchecked Sendable {
         XCTAssertFalse(cleanable.isEmpty)
         XCTAssertTrue(measureOnly.isEmpty, "a measure-only root must not offer cleanup candidates")
     }
+    /// The review group opens closed; the other two open.
+    ///
+    /// A review row needs a decision each, and a list that opens with those rows
+    /// expanded puts the group the user has to read next to the one that is
+    /// already selected — which is how a row that asks for confirmation gets
+    /// skimmed. The header reports the count and the bytes either way, so a
+    /// closed group is a summary rather than a hidden one.
+    func test_theReviewGroupStartsClosed() {
+        XCTAssertTrue(CleanupRisk.safe.isExpandedByDefault)
+        XCTAssertFalse(
+            CleanupRisk.review.isExpandedByDefault,
+            "the group that asks for a decision per row starts closed"
+        )
+        XCTAssertTrue(CleanupRisk.protected.isExpandedByDefault)
+    }
 }

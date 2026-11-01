@@ -115,6 +115,15 @@ public enum CleanupRisk: String, Codable, Sendable, CaseIterable {
     /// `safe` items are pre-selected; everything else starts unselected.
     public var isSelectedByDefault: Bool { level.isSelectedByDefault }
 
+    /// Whether this group's rows are on screen when the results first appear.
+    ///
+    /// `review` opens closed. Its rows are the ones that need a decision each,
+    /// and a list that opens with them expanded puts the group the user has to
+    /// read next to the one that is already selected — which is how a row that
+    /// asks for confirmation gets skimmed. The header reports the count and the
+    /// bytes either way, so a closed group is a summary, not a hidden one.
+    public var isExpandedByDefault: Bool { self != .review }
+
     /// The caution order the engine uses when two rules match one path: the
     /// higher value wins.
     public var severity: Int {

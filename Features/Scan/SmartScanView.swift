@@ -30,6 +30,15 @@ public struct ScanView: View {
     @State private var showsAllRows = false
     /// What the owner lookup answered, shown above the list.
     @State private var ownerLookupMessage: String?
+    /// Groups the user opened or closed, keyed by risk.
+    ///
+    /// Absent means "whatever the group starts as": `review` opens closed, the
+    /// other two open. Recorded rather than derived so that reopening a group
+    /// survives the list being rebuilt by a later page.
+    @State private var groupExpansion: [CleanupRisk: Bool] = [:]
+    /// Set while the dialog that turns a whole review group into a selection
+    /// is up.
+    @State private var isConfirmingReviewSelection = false
 
     private let pageSize = 100
     private let collapsedRowsPerGroup = 4
@@ -426,14 +435,17 @@ public struct ScanView: View {
         if let ownerLookupMessage {
             NoticeBanner(level: .information, message: ownerLookupMessage)
         }
-        let safe = visible(groupItems(.safe))
-        let review = visible(groupItems(.review))
-        let protected = visible(groupItems(.protected))
+        let safeGroup = groupItems(.safe)
+        let reviewGroup = groupItems(.review)
+        let protectedGroup = groupItems(.protected)
+        let safe = isExpanded(.safe) ? visible(safeGroup) : []
+        let review = isExpanded(.review) ? visible(reviewGroup) : []
+        let protected = isExpanded(.protected) ? visible(protectedGroup) : []
 
-        if !safe.isEmpty {
+        if !safeGroup.isEmpty {
             groupHeader(
                 LocalizationKey.scanResultsSafeGroup.localized,
-                count: groupItems(.safe).count,
+                count: safeGroup.count,
                 detail: LocalizationKey.scanResultsDefaultSelected.localized,
                 tint: SiftColor.safe
             )
@@ -443,23 +455,35 @@ public struct ScanView: View {
             }
         }
 
-        if !review.isEmpty {
-            groupHeader(
-                LocalizationKey.scanResultsReviewGroup.localized,
-                count: groupItems(.review).count,
-                detail: LocalizationKey.scanResultsReviewHint.localized,
-                tint: SiftColor.review
-            )
-            ForEach(review, id: \.stableRowID) { item in
-                ScanItemRow(item: item, cleanup: cleanup, onLookUpOwner: lookUpOwner)
-                Divider()
+        if !reviewGroup.isEmpty {
+            reviewHeader(reviewGroup)
+            if isExpanded(.review) {
+                HStack(spacing: SiftMetrics.spacingS) {
+                    Spacer()
+                    Button {
+                        isConfirmingReviewSelection = true
+                    } label: {
+                        Text(
+                            LocalizationKey.scanSelectAllShown
+                                .localized(visible(reviewGroup).count)
+                        )
+                        .font(SiftFont.caption)
+                    }
+                    .buttonStyle(SiftLinkButtonStyle())
+                }
+                .padding(.bottom, SiftMetrics.spacingS)
+
+                ForEach(review, id: \.stableRowID) { item in
+                    ScanItemRow(item: item, cleanup: cleanup, onLookUpOwner: lookUpOwner)
+                    Divider()
+                }
             }
         }
 
-        if !protected.isEmpty {
+        if !protectedGroup.isEmpty {
             groupHeader(
                 LocalizationKey.scanResultsProtectedGroup.localized,
-                count: groupItems(.protected).count,
+                count: protectedGroup.count,
                 detail: RiskLevel.protected.detailKey.localized,
                 tint: SiftColor.danger
             )
@@ -508,6 +532,82 @@ public struct ScanView: View {
             .buttonStyle(SiftLinkButtonStyle())
             .frame(maxWidth: .infinity)
             .padding(.vertical, SiftMetrics.spacingM)
+        }
+    }
+
+    /// Whether a group's rows are on screen.
+    ///
+    /// The default comes from the risk level — `review` opens closed — and a
+    /// click overrides it for the rest of the page's life.
+    private func isExpanded(_ risk: CleanupRisk) -> Bool {
+        groupExpansion[risk] ?? risk.isExpandedByDefault
+    }
+
+    private func toggleExpansion(_ risk: CleanupRisk) {
+        groupExpansion[risk] = !isExpanded(risk)
+    }
+
+    /// The review group's header: a disclosure, not a decoration.
+    ///
+    /// The group starts closed because its rows are the ones that need a
+    /// decision each, and a list that opens with them expanded puts the one
+    /// group the user has to read next to the one that is already selected. The
+    /// header still reports the count and the bytes, so a closed group is a
+    /// summary rather than a hidden one — and the hint says why it is closed.
+    @ViewBuilder
+    private func reviewHeader(_ group: [CleanupItemSummary]) -> some View {
+        let expanded = isExpanded(.review)
+        Button {
+            toggleExpansion(.review)
+        } label: {
+            HStack(spacing: SiftMetrics.spacingS) {
+                Circle()
+                    .fill(SiftColor.review)
+                    .frame(width: 6, height: 6)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: SiftMetrics.spacingS) {
+                        Text(LocalizationKey.scanResultsReviewGroup.localized)
+                            .font(SiftFont.bodyEmphasis)
+                        Text(LocalizationKey.commonItemCount.localized(group.count))
+                            .font(SiftFont.caption)
+                            .foregroundStyle(.secondary)
+                        Text(SiftFormat.bytes(group.reduce(0) { $0 + $1.sizeInBytes }))
+                            .font(SiftFont.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Text(LocalizationKey.scanResultsReviewHint.localized)
+                        .font(SiftFont.caption)
+                        .foregroundStyle(.tertiary)
+                }
+                Spacer(minLength: SiftMetrics.spacingS)
+                Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.vertical, SiftMetrics.spacingM)
+        .accessibilityLabel(
+            Text(LocalizationKey.scanResultsReviewGroup.localized)
+        )
+        .accessibilityValue(
+            Text(LocalizationKey.commonItemCount.localized(group.count))
+        )
+        .accessibilityHint(Text(LocalizationKey.scanResultsReviewHint.localized))
+        .confirmationDialog(
+            LocalizationKey.scanSelectAllShown.localized(visible(group).count),
+            isPresented: $isConfirmingReviewSelection,
+            titleVisibility: .visible
+        ) {
+            Button(LocalizationKey.scanSelectAll.localized) {
+                // Only what the page is showing: a row the list has not revealed
+                // yet is not something the user agreed to by opening the group.
+                cleanup.selectAll(in: visible(group).map { $0.asCleanupItem() })
+            }
+            Button(LocalizationKey.cleanupConfirmCancel.localized, role: .cancel) {}
+        } message: {
+            Text(LocalizationKey.cleanupConfirmRiskWarning.localized)
         }
     }
 
@@ -809,23 +909,38 @@ public struct ScanView: View {
         showsAllRows ? group : Array(group.prefix(collapsedRowsPerGroup))
     }
 
-    private var visibleRowCount: Int {
-        if showsAllRows { return items.count }
-        return [CleanupRisk.safe, .review, .protected]
-            .reduce(0) { total, risk in
-                total + min(groupItems(risk).count, collapsedRowsPerGroup)
-            }
+    /// The risks whose rows are on screen, in display order.
+    private var expandedGroups: [CleanupRisk] {
+        [.safe, .review, .protected].filter { isExpanded($0) }
     }
 
+    private var visibleRowCount: Int {
+        expandedGroups.reduce(0) { total, risk in
+            let count = groupItems(risk).count
+            return total + (showsAllRows ? count : min(count, collapsedRowsPerGroup))
+        }
+    }
+
+    /// Rows this page holds back *within* an open group.
+    ///
+    /// A closed group is not counted: its header already states what it holds,
+    /// and adding it here would offer "show all" for rows the user did not ask
+    /// to see yet.
     private var hiddenItemCount: Int {
-        max(items.count - visibleRowCount, 0)
+        expandedGroups.reduce(0) { total, risk in
+            let count = groupItems(risk).count
+            return total + (showsAllRows ? 0 : max(count - collapsedRowsPerGroup, 0))
+        }
     }
 
     private var hiddenBytes: Int64 {
         let shownIDs = Set(
-            [CleanupRisk.safe, .review, .protected].flatMap { visible(groupItems($0)).map(\.stableRowID) }
+            expandedGroups.flatMap { visible(groupItems($0)).map(\.stableRowID) }
         )
-        return items.filter { !shownIDs.contains($0.stableRowID) }.reduce(0) { $0 + $1.sizeInBytes }
+        let expandedIDs = Set(expandedGroups.flatMap { groupItems($0).map(\.stableRowID) })
+        return items
+            .filter { expandedIDs.contains($0.stableRowID) && !shownIDs.contains($0.stableRowID) }
+            .reduce(0) { $0 + $1.sizeInBytes }
     }
 
     private func beginCleanup() async {
