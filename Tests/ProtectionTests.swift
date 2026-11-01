@@ -385,6 +385,50 @@ final class ProtectionTests: XCTestCase, @unchecked Sendable {
         XCTAssertFalse(engine.looksLikeBundleIdentifier("com..x"))
     }
 
+    /// A name that continues an installed identifier belongs to that application.
+    ///
+    /// The Rust core applies the identical rule (`names_an_installed_application`),
+    /// and `EngineAgreementTests` holds both engines to the same row. The measured
+    /// counter-example: WorkBuddy installs as `com.tencent.workbuddy.mac`, and its
+    /// 689 MB bundle-migration cache was offered as residue while the application
+    /// was installed.
+    func test_aNameThatContinuesAnInstalledIdentifierBelongsToIt() {
+        let installed: Set<String> = ["com.installed.app"]
+        XCTAssertTrue(
+            RuleEngine.namesAnInstalledApplication("com.installed.app", installed: installed)
+        )
+        XCTAssertTrue(
+            RuleEngine.namesAnInstalledApplication(
+                "com.installed.app.BundleMigration",
+                installed: installed
+            )
+        )
+        XCTAssertTrue(
+            RuleEngine.namesAnInstalledApplication("COM.Installed.App-Helper", installed: installed)
+        )
+        // Only a prefix that ends exactly at a separator is a continuation.
+        XCTAssertFalse(
+            RuleEngine.namesAnInstalledApplication("com.installed.appleby", installed: installed)
+        )
+        XCTAssertFalse(
+            RuleEngine.namesAnInstalledApplication("com.installed", installed: installed)
+        )
+        XCTAssertFalse(
+            RuleEngine.namesAnInstalledApplication("com.gone.app", installed: installed)
+        )
+    }
+
+    /// `com.apple.` is the reserved namespace: a daemon is not an application that
+    /// can be uninstalled, so its container and preference files are not residue.
+    func test_aSystemServiceNameIsReserved() {
+        XCTAssertTrue(RuleEngine.isSystemReservedBundleName("com.apple.mediaanalysisd"))
+        XCTAssertTrue(RuleEngine.isSystemReservedBundleName("com.apple"))
+        // A vendor whose identifier merely starts with the same letters is not
+        // Apple, and a name in another namespace is untouched.
+        XCTAssertFalse(RuleEngine.isSystemReservedBundleName("com.appleby.app"))
+        XCTAssertFalse(RuleEngine.isSystemReservedBundleName("com.example.app"))
+    }
+
     func test_packageDirectoriesAreRecognised() {
         XCTAssertTrue(engine.isPackageDirectory(name: "Safari.app"))
         XCTAssertTrue(engine.isPackageDirectory(name: "Photos.photoslibrary"))

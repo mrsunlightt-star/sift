@@ -246,6 +246,15 @@ final class EngineAgreementTests: XCTestCase, @unchecked Sendable {
         fixture.write("Library/Saved Application State/com.gone.app/savedState/data.bin", bytes: 4096)
         fixture.write("Library/Preferences/com.gone.app.plist", bytes: 512)
         fixture.write("Library/Preferences/com.installed.app.plist", bytes: 512)
+        // Residue attribution. A name that continues an installed identifier is
+        // that application's data — the measured case is WorkBuddy's 689 MB
+        // `com.tencent.workbuddy.mac.BundleMigration` cache, offered as residue
+        // while the application was installed — and a system service is never an
+        // application that was uninstalled. Both engines read the same name and
+        // must reach the same verdict.
+        fixture.write("Library/Caches/com.installed.app.BundleMigration/blob.bin", bytes: 4096)
+        fixture.write("Library/Containers/com.apple.mediaanalysisd/Data/blob.bin", bytes: 4096)
+        fixture.write("Library/Preferences/com.apple.ncprefs.plist", bytes: 512)
 
         // The wildcard families: a cache inside a container the platform named,
         // the two `Cache(s)` spellings inside an application's support directory,
@@ -372,6 +381,44 @@ final class EngineAgreementTests: XCTestCase, @unchecked Sendable {
             XCTAssertTrue(
                 names.contains("TEAM1.com.gone.app"),
                 "an undeclared container is still residue in both engines"
+            )
+        }
+    }
+
+    /// A name that continues an installed identifier belongs to that application,
+    /// and a reserved system name is never a leftover: neither engine may report
+    /// either as residue.
+    ///
+    /// The row has to agree, not only the verdict: `com.installed.app.BundleMigration`
+    /// sits under `~/Library/Caches`, so both engines now report it as a cache of an
+    /// installed application rather than as residue the user must confirm.
+    func test_theTwoEnginesAgreeAboutANameThatContinuesAnInstalledIdentifier() async throws {
+        writeHazards()
+
+        XCTAssertTrue(ScannerEngineFactory.hasRustCore)
+        let request = makeRequest()
+        let production = try await scan(ScannerEngineFactory.makeDefault(rules: makeRules()), request)
+        let reference = try await scan(SwiftScannerEngine(rules: makeRules()), request)
+
+        for items in [production, reference] {
+            let residueNames = items
+                .filter { $0.category == .applicationResidue }
+                .map(\.displayName)
+            XCTAssertFalse(
+                residueNames.contains("com.installed.app.BundleMigration"),
+                "the cache of an installed application is not residue: \(residueNames)"
+            )
+            XCTAssertFalse(
+                residueNames.contains("com.apple.mediaanalysisd"),
+                "a system service is never an application that was uninstalled: \(residueNames)"
+            )
+            XCTAssertFalse(
+                residueNames.contains("com.apple.ncprefs.plist"),
+                "a system preference file is not a leftover: \(residueNames)"
+            )
+            XCTAssertTrue(
+                residueNames.contains("com.gone.app"),
+                "an application that is gone is still residue: \(residueNames)"
             )
         }
     }

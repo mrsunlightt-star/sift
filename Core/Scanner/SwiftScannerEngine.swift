@@ -645,7 +645,11 @@ actor SwiftScanSession: ScanSession {
                 let name = entry.displayName
                 if rules.isExcludedBundleName(name) { continue }
                 if !rules.looksLikeBundleIdentifier(name) { continue }
-                if installed.contains(name.lowercased()) { continue }
+                // A reserved system name is never an application that was
+                // uninstalled, so its container is not residue. Same rule and same
+                // order as the Rust core.
+                if RuleEngine.isSystemReservedBundleName(name) { continue }
+                if RuleEngine.namesAnInstalledApplication(name, installed: installed) { continue }
                 let measured = FileWalker.measure(
                     url: entry.url,
                     rules: rules,
@@ -703,7 +707,10 @@ actor SwiftScanSession: ScanSession {
                 // readings are a statement about how a name is spelled.
                 if declaredGroups.contains(name.lowercased()) { continue }
                 let readings = Self.groupContainerBundleIdentifiers(name)
-                if readings.contains(where: { installed.contains($0) }) { continue }
+                if readings.contains(where: { RuleEngine.isSystemReservedBundleName($0) }) { continue }
+                if readings.contains(where: {
+                    RuleEngine.namesAnInstalledApplication($0, installed: installed)
+                }) { continue }
                 guard let bundleID = readings.first(where: { rules.looksLikeBundleIdentifier($0) })
                 else { continue }
                 let measured = FileWalker.measure(
@@ -761,7 +768,8 @@ actor SwiftScanSession: ScanSession {
                     : (name.hasSuffix(".binarycookies") ? String(name.dropLast(14)) : name)
                 if rules.isExcludedBundleName(stem) { continue }
                 guard rules.looksLikeBundleIdentifier(stem) else { continue }
-                if installed.contains(stem.lowercased()) { continue }
+                if RuleEngine.isSystemReservedBundleName(stem) { continue }
+                if RuleEngine.namesAnInstalledApplication(stem, installed: installed) { continue }
                 found.append(
                     CleanupItemSummary(
                         id: nextIdentifier(),

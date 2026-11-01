@@ -878,6 +878,53 @@ public struct RuleEngine: Sendable {
         return parts.allSatisfy { $0.unicodeScalars.allSatisfy { allowed.contains($0) } }
     }
 
+    /// True when `name` belongs to an installed application, exactly or by prefix.
+    ///
+    /// Equality alone is not enough, and the counter-example is measured: WorkBuddy
+    /// is installed as `com.tencent.workbuddy.mac`, and its bundle-migration cache is
+    /// `~/Library/Caches/com.tencent.workbuddy.mac.BundleMigration` — 689 MB that was
+    /// offered as residue while the application that owns it was installed in
+    /// `/Applications`. A name that continues an installed identifier at a `.` or `-`
+    /// boundary is data of that application: macOS and the applications themselves
+    /// write helpers, updaters, extension hosts and migration folders that way
+    /// (`<id>.helper`, `<id>-updater`, `<id>.ShipIt`, `<id>.BundleMigration`).
+    ///
+    /// Only prefixes that end exactly at a separator are consulted, so
+    /// `com.example.app` never claims `com.example.appleby`. Suffix matching is
+    /// deliberately absent: the trailing component carries no identity.
+    ///
+    /// The Rust core applies the identical rule (`names_an_installed_application`),
+    /// and `EngineAgreementTests` holds the two to the same row. An item suppressed
+    /// here is one the user is not offered rather than one that is removed, which is
+    /// the safe direction for a verdict that is only ever `review`.
+    public static func namesAnInstalledApplication(_ name: String, installed: Set<String>) -> Bool {
+        let lowered = name.lowercased()
+        if installed.contains(lowered) { return true }
+        var searchStart = lowered.startIndex
+        while let separator = lowered[searchStart...].firstIndex(where: { $0 == "." || $0 == "-" }) {
+            if separator > lowered.startIndex,
+               installed.contains(String(lowered[lowered.startIndex..<separator])) {
+                return true
+            }
+            searchStart = lowered.index(after: separator)
+        }
+        return false
+    }
+
+    /// True for the reserved `com.apple.` namespace.
+    ///
+    /// A system service is not an application that can be uninstalled:
+    /// `mediaanalysisd`, `geod` and `BKAgentService` have containers and preference
+    /// files on every Mac and never appear in the installed bundle list, so the
+    /// name-based residue scan offered all of them. Measured on one machine: 569
+    /// containers (352 MB) and 285 preference files.
+    ///
+    /// The Rust core applies the identical rule (`is_system_reserved_bundle_name`).
+    public static func isSystemReservedBundleName(_ name: String) -> Bool {
+        let lowered = name.lowercased()
+        return lowered == "com.apple" || lowered.hasPrefix("com.apple.")
+    }
+
     /// Resolves a rule anchor to the directories it applies under.
     ///
     /// Most anchors name one directory that can be resolved when the rule is

@@ -1403,7 +1403,11 @@ pub fn scan_application_residue(
     }
     let mut candidates = Vec::new();
     let mut combined = WalkReport::default();
-    let installed: Vec<String> = context
+    // A set rather than a list: the check below is "does this name resolve to an
+    // installed application", and it runs once per entry of five directories —
+    // `~/Library/Preferences` alone holds thousands of files on a machine that
+    // has been in use for a year.
+    let installed: HashSet<String> = context
         .request
         .installed_bundle_ids
         .iter()
@@ -1462,7 +1466,14 @@ pub fn scan_application_residue(
             if !looks_like_bundle_identifier(&name) {
                 continue;
             }
-            if installed.iter().any(|id| *id == name.to_ascii_lowercase()) {
+            // A reserved system name is never an application that was uninstalled:
+            // a daemon is not an app bundle, so it can never appear in the
+            // installed list, and every one of its containers used to be offered
+            // as residue. Measured on one machine: 569 containers, 352 MB.
+            if is_system_reserved_bundle_name(&name) {
+                continue;
+            }
+            if names_an_installed_application(&name, &installed) {
                 continue;
             }
             let authorized: Vec<PathBuf> = context
@@ -1565,9 +1576,12 @@ pub fn scan_application_residue(
                 continue;
             }
             let readings = group_container_bundle_ids(&name);
+            if readings.iter().any(|id| is_system_reserved_bundle_name(id)) {
+                continue;
+            }
             if readings
                 .iter()
-                .any(|id| installed.iter().any(|app| app == id))
+                .any(|id| names_an_installed_application(id, &installed))
             {
                 continue;
             }
@@ -1668,7 +1682,10 @@ pub fn scan_application_residue(
             if !looks_like_bundle_identifier(stem) {
                 continue;
             }
-            if installed.iter().any(|id| *id == stem.to_ascii_lowercase()) {
+            if is_system_reserved_bundle_name(stem) {
+                continue;
+            }
+            if names_an_installed_application(stem, &installed) {
                 continue;
             }
             candidates.push(Candidate {
@@ -1766,6 +1783,61 @@ pub fn looks_like_bundle_identifier(name: &str) -> bool {
                 .chars()
                 .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
     })
+}
+
+/// True when `name` belongs to an installed application, exactly or by prefix.
+///
+/// Equality alone is not enough, and the counter-example is measured: WorkBuddy
+/// is installed as `com.tencent.workbuddy.mac`, and its bundle-migration cache is
+/// `~/Library/Caches/com.tencent.workbuddy.mac.BundleMigration` — 689 MB that was
+/// offered as residue while the application that owns it was running from
+/// `/Applications`. A name that continues an installed identifier at a `.` or `-`
+/// boundary is data of that application: macOS and the applications themselves
+/// write helpers, updaters, extension hosts and migration folders that way
+/// (`<id>.helper`, `<id>-updater`, `<id>.ShipIt`, `<id>.BundleMigration`).
+///
+/// The comparison is the other way round from a substring test: only prefixes that
+/// end exactly at a separator are consulted, so `com.example.app` never claims
+/// `com.example.appleby`. Suffix matching is deliberately absent — the trailing
+/// component carries no identity, and `Foo.app` must not make every `Foo` a live
+/// application.
+///
+/// The cost of being wrong here is bounded in the safe direction: residue is
+/// `review`, so a suppressed item is one the user is not offered rather than one
+/// that is removed.
+pub fn names_an_installed_application(name: &str, installed: &HashSet<String>) -> bool {
+    let lowered = name.to_ascii_lowercase();
+    if installed.contains(&lowered) {
+        return true;
+    }
+    // Every prefix that ends at a `.` or `-`. Both are ASCII, so the byte index is
+    // a valid slice boundary whatever the multi-byte characters before it.
+    for (index, byte) in lowered.bytes().enumerate() {
+        if byte != b'.' && byte != b'-' {
+            continue;
+        }
+        if index > 0 && installed.contains(&lowered[..index]) {
+            return true;
+        }
+    }
+    false
+}
+
+/// True for the reserved `com.apple.` namespace.
+///
+/// A system service is not an application that can be uninstalled: `mediaanalysisd`,
+/// `geod` and `BKAgentService` have containers and preference files on every Mac and
+/// never appear in the installed bundle list, so the name-based residue scan offered
+/// all of them. They are not leftovers of anything a user removed, and the engine
+/// must not ask the user to confirm them. Measured on one machine: 569 containers
+/// (352 MB) and 285 preference files.
+///
+/// `com.apple` itself and the bare `Apple`-style names are left to the rules: this
+/// predicate is about the namespace, and `is_excluded_bundle_name` stays the list of
+/// individually protected names.
+pub fn is_system_reserved_bundle_name(name: &str) -> bool {
+    let lowered = name.to_ascii_lowercase();
+    lowered == "com.apple" || lowered.starts_with("com.apple.")
 }
 
 /// Duplicate discovery.
@@ -3396,6 +3468,110 @@ mod tests {
             .map(|candidate| candidate.display_name.as_str())
             .collect();
         assert!(!names.contains(&"com.apple.bird.plist"), "{names:?}");
+        assert!(names.contains(&"com.gone.app.plist"), "{names:?}");
+    }
+
+    /// A name that continues an installed identifier is that application's data.
+    ///
+    /// The measured counter-example: WorkBuddy is installed as
+    /// `com.tencent.workbuddy.mac`, and its bundle-migration cache —
+    /// `~/Library/Caches/com.tencent.workbuddy.mac.BundleMigration`, 689 MB — was
+    /// offered as residue while the application that owns it was installed. The
+    /// trailing component names the operation, not the application, so the reading
+    /// has to accept a prefix that ends at a separator — and only there.
+    #[test]
+    fn a_name_that_continues_an_installed_identifier_is_not_residue() {
+        let harness = Harness::new("residue-prefix");
+        harness.tree.file(
+            "Library/Caches/com.installed.app.BundleMigration/blob.bin",
+            4096,
+        );
+        harness
+            .tree
+            .file("Library/Caches/com.installed.appleby/blob.bin", 4096);
+        harness
+            .tree
+            .file("Library/Caches/com.gone.app/blob.bin", 4096);
+        let mut request = harness.request.clone();
+        request.installed_bundle_ids = vec!["com.installed.app".to_string()];
+
+        let cancel = CancelToken::new();
+        let mut files = |_: u64, _: u64| {};
+        let mut path = |_: &Path| {};
+        let mut context = ScanContext {
+            request: &request,
+            home_dir: harness.tree.root.clone(),
+            rules: effective_rules(None).unwrap(),
+            progress: ProgressSink {
+                on_files: &mut files,
+                on_current_path: &mut path,
+            },
+        };
+        let (candidates, _) = scan_application_residue(&mut context, &cancel);
+        let names: Vec<&str> = candidates
+            .iter()
+            .map(|candidate| candidate.display_name.as_str())
+            .collect();
+        assert!(
+            !names.contains(&"com.installed.app.BundleMigration"),
+            "the cache of an installed application is not residue: {names:?}"
+        );
+        assert!(
+            names.contains(&"com.installed.appleby"),
+            "a name that only starts with the same letters is not a continuation: {names:?}"
+        );
+        assert!(
+            names.contains(&"com.gone.app"),
+            "an application that is gone is still residue: {names:?}"
+        );
+    }
+
+    /// A system service is never an application that was uninstalled.
+    ///
+    /// `com.apple.*` is the reserved namespace: daemons such as `mediaanalysisd`
+    /// and `geod` are not app bundles, so they never appear in the installed list
+    /// and every container and preference file of theirs used to be offered for
+    /// confirmation. Measured on one machine: 569 containers and 285 preference
+    /// files.
+    #[test]
+    fn a_system_service_is_never_residue() {
+        let harness = Harness::new("residue-system");
+        harness.tree.file(
+            "Library/Containers/com.apple.mediaanalysisd/Data/db.bin",
+            4096,
+        );
+        harness
+            .tree
+            .file("Library/Preferences/com.apple.ncprefs.plist", 512);
+        harness
+            .tree
+            .file("Library/Containers/com.gone.app/Data/db.bin", 4096);
+        harness
+            .tree
+            .file("Library/Preferences/com.gone.app.plist", 512);
+        let mut request = harness.request.clone();
+        request.installed_bundle_ids = vec!["com.installed.app".to_string()];
+
+        let cancel = CancelToken::new();
+        let mut files = |_: u64, _: u64| {};
+        let mut path = |_: &Path| {};
+        let mut context = ScanContext {
+            request: &request,
+            home_dir: harness.tree.root.clone(),
+            rules: effective_rules(None).unwrap(),
+            progress: ProgressSink {
+                on_files: &mut files,
+                on_current_path: &mut path,
+            },
+        };
+        let (candidates, _) = scan_application_residue(&mut context, &cancel);
+        let names: Vec<&str> = candidates
+            .iter()
+            .map(|candidate| candidate.display_name.as_str())
+            .collect();
+        assert!(!names.contains(&"com.apple.mediaanalysisd"), "{names:?}");
+        assert!(!names.contains(&"com.apple.ncprefs.plist"), "{names:?}");
+        assert!(names.contains(&"com.gone.app"), "{names:?}");
         assert!(names.contains(&"com.gone.app.plist"), "{names:?}");
     }
 
