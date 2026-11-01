@@ -52,9 +52,11 @@
 "cleanup.explanation.residuePreferences" = "Plik preferencji bez pasującej zainstalowanej aplikacji.";
 "cleanup.explanation.residueWebStorage" = "Dane sieciowe aplikacji, która nie jest już zainstalowana.";
 "cleanup.explanation.savedState" = "Stan okien zapisany dla aplikacji, które już nie działają.";
+"cleanup.explanation.simulatorDevices" = "Urządzenia symulatora i wszystko, co w nich zainstalowano. Urządzenie można utworzyć od nowa; aplikacje w nim trzeba zainstalować ponownie.";
 "cleanup.explanation.systemLogs" = "Dzienniki systemowe starsze niż %d dni. Odczyt niektórych wymaga pełnego dostępu do dysku.";
 "cleanup.explanation.systemLogsItem" = "Przestarzałe dzienniki systemowe. Odczyt niektórych wymaga pełnego dostępu do dysku.";
 "cleanup.explanation.temporary" = "Pliki robocze pozostawione przez aplikacje.";
+"cleanup.explanation.xcodeArchives" = "Zarchiwizowane kompilacje. Projekt można zarchiwizować ponownie, ale tego archiwum nie da się odzyskać.";
 "cleanup.failure.fileInUse" = "Plik w użyciu";
 "cleanup.failure.fileNotFound" = "Już usunięto";
 "cleanup.failure.itemChanged" = "Przeniesiono lub zastąpiono";

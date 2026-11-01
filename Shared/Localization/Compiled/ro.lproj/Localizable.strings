@@ -52,9 +52,11 @@
 "cleanup.explanation.residuePreferences" = "Fișier de preferințe fără o aplicație instalată corespunzătoare.";
 "cleanup.explanation.residueWebStorage" = "Stocare web pentru o aplicație care nu mai este instalată.";
 "cleanup.explanation.savedState" = "Starea ferestrelor salvată pentru aplicații care nu mai rulează.";
+"cleanup.explanation.simulatorDevices" = "Dispozitive de simulator și tot ce este instalat în ele. Dispozitivul poate fi recreat; aplicațiile din el trebuie reinstalate.";
 "cleanup.explanation.systemLogs" = "Fișiere jurnal de sistem mai vechi de %d zile. Unele necesită Acces complet la disc pentru citire.";
 "cleanup.explanation.systemLogsItem" = "Fișiere jurnal de sistem vechi. Citirea unora dintre ele necesită Acces complet la disc.";
 "cleanup.explanation.temporary" = "Fișiere temporare lăsate în urmă de aplicații.";
+"cleanup.explanation.xcodeArchives" = "Build-uri arhivate. Proiectul poate fi arhivat din nou, dar această arhivă nu poate fi recuperată.";
 "cleanup.failure.fileInUse" = "Fișierul este în uz";
 "cleanup.failure.fileNotFound" = "Deja eliminat";
 "cleanup.failure.itemChanged" = "Mutat sau înlocuit";

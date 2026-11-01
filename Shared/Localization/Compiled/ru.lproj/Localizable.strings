@@ -52,9 +52,11 @@
 "cleanup.explanation.residuePreferences" = "Файл настроек без соответствующего установленного приложения.";
 "cleanup.explanation.residueWebStorage" = "Веб-хранилище приложения, которое больше не установлено.";
 "cleanup.explanation.savedState" = "Сохранённое состояние окон для закрытых приложений.";
+"cleanup.explanation.simulatorDevices" = "Устройства симулятора и всё, что в них установлено. Устройство можно создать заново, а приложения в нём придётся устанавливать снова.";
 "cleanup.explanation.systemLogs" = "Системные журналы старше %d дней. Для некоторых нужен полный доступ к диску.";
 "cleanup.explanation.systemLogsItem" = "Устаревшие системные журналы. Для чтения некоторых нужен полный доступ к диску.";
 "cleanup.explanation.temporary" = "Временные файлы, оставленные приложениями.";
+"cleanup.explanation.xcodeArchives" = "Архивные сборки. Проект можно заархивировать заново, но этот архив восстановить нельзя.";
 "cleanup.failure.fileInUse" = "Файл используется";
 "cleanup.failure.fileNotFound" = "Уже удалено";
 "cleanup.failure.itemChanged" = "Перемещено или заменено";

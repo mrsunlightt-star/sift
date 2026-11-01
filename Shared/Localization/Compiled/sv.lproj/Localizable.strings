@@ -52,9 +52,11 @@
 "cleanup.explanation.residuePreferences" = "Inställningsfil utan en matchande installerad app.";
 "cleanup.explanation.residueWebStorage" = "Webblagring för en app som inte längre är installerad.";
 "cleanup.explanation.savedState" = "Fönstertillstånd sparat för appar som inte längre körs.";
+"cleanup.explanation.simulatorDevices" = "Simulatorenheter och allt som är installerat i dem. Enheten kan skapas igen; apparna i den måste installeras om.";
 "cleanup.explanation.systemLogs" = "Systemloggar äldre än %d dagar. Vissa kräver fullskivåtkomst för att läsas.";
 "cleanup.explanation.systemLogsItem" = "Föråldrade systemloggar. Att läsa vissa av dem kräver fullskivåtkomst.";
 "cleanup.explanation.temporary" = "Tillfälliga filer som lämnats kvar av appar.";
+"cleanup.explanation.xcodeArchives" = "Arkiverade byggen. Projektet kan arkiveras igen, men detta arkiv kan inte återställas.";
 "cleanup.failure.fileInUse" = "Filen används";
 "cleanup.failure.fileNotFound" = "Redan borttagna";
 "cleanup.failure.itemChanged" = "Flyttad eller ersatt";

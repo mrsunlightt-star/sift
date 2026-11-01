@@ -52,9 +52,11 @@
 "cleanup.explanation.residuePreferences" = "Fail keutamaan tanpa apl dipasang yang sepadan.";
 "cleanup.explanation.residueWebStorage" = "Storan web untuk apl yang tidak lagi dipasang.";
 "cleanup.explanation.savedState" = "Keadaan tetingkap yang disimpan untuk apl yang tidak lagi berjalan.";
+"cleanup.explanation.simulatorDevices" = "Peranti simulator dan semua yang dipasang di dalamnya. Peranti boleh dicipta semula; apl di dalamnya perlu dipasang semula.";
 "cleanup.explanation.systemLogs" = "Fail log sistem yang lebih lama daripada %d hari. Sesetengahnya memerlukan Akses Cakera Penuh untuk dibaca.";
 "cleanup.explanation.systemLogsItem" = "Fail log sistem usang. Membaca sebahagian daripadanya memerlukan Akses Cakera Penuh.";
 "cleanup.explanation.temporary" = "Fail sementara yang ditinggalkan oleh apl.";
+"cleanup.explanation.xcodeArchives" = "Binaan yang diarkibkan. Projek boleh diarkibkan semula, tetapi arkib ini tidak boleh dipulihkan.";
 "cleanup.failure.fileInUse" = "Fail sedang digunakan";
 "cleanup.failure.fileNotFound" = "Sudah dibuang";
 "cleanup.failure.itemChanged" = "Dialihkan atau diganti";

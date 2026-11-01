@@ -1050,6 +1050,43 @@ pub fn default_rules() -> Vec<Rule> {
         MatchSpec::Directory,
     ));
 
+    // An archive is a build product, but it is not a cache. Xcode writes an
+    // `.xcarchive` by date first and by product second (`Archives/<date>/<name>
+    // .xcarchive`), so the item is the archive and not the date folder that
+    // holds one good build next to three dead ones. The two wildcards are above
+    // the item and are what makes that expressible; both levels are enumerated
+    // from the disk and bounded by `MAX_RULE_ROOTS`.
+    //
+    // `review`, and no age: the archive of a project shipped last week is the
+    // one whose dSYMs are still needed, and a rule that matches a name shape
+    // cannot tell a finished project from an active one.
+    rules.push(with_spec(
+        rule(
+            "xcode-archives",
+            TemporaryFiles,
+            Review,
+            HomeLibrary,
+            "Developer/Xcode/Archives/*/*",
+            "cleanup.explanation.xcodeArchives",
+        ),
+        MatchSpec::Directory,
+    ));
+
+    // A simulator device is a machine image: the device can be created again in
+    // a minute, whatever was installed into it cannot. One item per device, so
+    // that the image of a half-finished session is not taken with it.
+    rules.push(with_spec(
+        rule(
+            "xcode-simulator-devices",
+            TemporaryFiles,
+            Review,
+            HomeLibrary,
+            "Developer/CoreSimulator/Devices",
+            "cleanup.explanation.simulatorDevices",
+        ),
+        MatchSpec::ChildDirectories,
+    ));
+
     // --- Logs --------------------------------------------------------------
     //
     // The rule still matches each application's log directory, but the scanner

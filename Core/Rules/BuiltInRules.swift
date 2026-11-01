@@ -118,6 +118,36 @@ public enum BuiltInRules {
             isEnabled: true
         ),
         RuleEngine.Rule(
+            id: "xcode-archives",
+            category: .temporaryFiles,
+            risk: .review,
+            root: .homeLibrary,
+            relativePath: "Developer/Xcode/Archives/*/*",
+            matchSpec: .directory,
+            excludes: [],
+            minAgeDays: nil,
+            usesStaleThreshold: false,
+            requiresFullDiskAccess: false,
+            needsAppClosed: false,
+            explanationKey: "cleanup.explanation.xcodeArchives",
+            isEnabled: true
+        ),
+        RuleEngine.Rule(
+            id: "xcode-simulator-devices",
+            category: .temporaryFiles,
+            risk: .review,
+            root: .homeLibrary,
+            relativePath: "Developer/CoreSimulator/Devices",
+            matchSpec: .childDirectories,
+            excludes: [],
+            minAgeDays: nil,
+            usesStaleThreshold: false,
+            requiresFullDiskAccess: false,
+            needsAppClosed: false,
+            explanationKey: "cleanup.explanation.simulatorDevices",
+            isEnabled: true
+        ),
+        RuleEngine.Rule(
             id: "user-logs",
             category: .logs,
             risk: .safe,

@@ -52,9 +52,11 @@
 "cleanup.explanation.residuePreferences" = "沒有對應已安裝應用程式的偏好設定檔案。";
 "cleanup.explanation.residueWebStorage" = "已解除安裝應用程式的網頁儲存資料。";
 "cleanup.explanation.savedState" = "為已結束的應用程式儲存的視窗狀態。";
+"cleanup.explanation.simulatorDevices" = "模擬器裝置及其內部安裝的內容。裝置可以重新建立，裡面的應用程式需要重新安裝。";
 "cleanup.explanation.systemLogs" = "%d 天前的系統記錄檔。部分需要完全磁碟存取權限。";
 "cleanup.explanation.systemLogsItem" = "過期的系統記錄檔案。讀取其中一部分需要「完全磁碟存取權限」。";
 "cleanup.explanation.temporary" = "應用程式留下的暫存檔案。";
+"cleanup.explanation.xcodeArchives" = "封存的建置產物。專案可以重新封存，但這份封存無法復原。";
 "cleanup.failure.fileInUse" = "檔案使用中";
 "cleanup.failure.fileNotFound" = "已被移除";
 "cleanup.failure.itemChanged" = "已移動或被替換";

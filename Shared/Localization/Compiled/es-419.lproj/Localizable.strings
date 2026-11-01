@@ -52,9 +52,11 @@
 "cleanup.explanation.residuePreferences" = "Archivo de preferencias sin una aplicación instalada correspondiente.";
 "cleanup.explanation.residueWebStorage" = "Almacenamiento web de una aplicación que ya no está instalada.";
 "cleanup.explanation.savedState" = "Estado de ventanas guardado de aplicaciones que ya no están abiertas.";
+"cleanup.explanation.simulatorDevices" = "Dispositivos del simulador y todo lo instalado en ellos. El dispositivo se puede crear de nuevo; las apps que contiene hay que instalarlas otra vez.";
 "cleanup.explanation.systemLogs" = "Archivos de registro del sistema de más de %d días. Algunos requieren Acceso total al disco.";
 "cleanup.explanation.systemLogsItem" = "Archivos de registro del sistema obsoletos. Para leer algunos se necesita Acceso total al disco.";
 "cleanup.explanation.temporary" = "Archivos temporales que dejan las aplicaciones.";
+"cleanup.explanation.xcodeArchives" = "Compilaciones archivadas. El proyecto se puede archivar de nuevo, pero este archivo no se puede recuperar.";
 "cleanup.failure.fileInUse" = "Archivo en uso";
 "cleanup.failure.fileNotFound" = "Ya eliminado";
 "cleanup.failure.itemChanged" = "Movido o reemplazado";

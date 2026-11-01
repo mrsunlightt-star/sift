@@ -52,9 +52,11 @@
 "cleanup.explanation.residuePreferences" = "Tệp tùy chọn không có ứng dụng nào đang cài khớp.";
 "cleanup.explanation.residueWebStorage" = "Dữ liệu web của ứng dụng đã gỡ cài đặt.";
 "cleanup.explanation.savedState" = "Trạng thái cửa sổ được lưu cho ứng dụng không còn chạy.";
+"cleanup.explanation.simulatorDevices" = "Thiết bị giả lập và mọi thứ được cài trong đó. Có thể tạo lại thiết bị; ứng dụng bên trong phải cài lại.";
 "cleanup.explanation.systemLogs" = "Tệp nhật ký hệ thống cũ hơn %d ngày. Một số cần Quyền truy cập Toàn bộ Đĩa để đọc.";
 "cleanup.explanation.systemLogsItem" = "Tệp nhật ký hệ thống cũ. Một số tệp cần Quyền truy cập Toàn bộ Đĩa để đọc.";
 "cleanup.explanation.temporary" = "Tệp tạm do ứng dụng để lại.";
+"cleanup.explanation.xcodeArchives" = "Bản dựng đã lưu trữ. Có thể lưu trữ lại dự án, nhưng bản lưu trữ này không khôi phục được.";
 "cleanup.failure.fileInUse" = "Tệp đang được dùng";
 "cleanup.failure.fileNotFound" = "Đã bị xóa";
 "cleanup.failure.itemChanged" = "Đã bị di chuyển hoặc thay thế";

@@ -52,9 +52,11 @@
 "cleanup.explanation.residuePreferences" = "Soubor předvoleb bez odpovídající nainstalované aplikace.";
 "cleanup.explanation.residueWebStorage" = "Webové úložiště po aplikaci, která už není nainstalovaná.";
 "cleanup.explanation.savedState" = "Stav oken uložený pro aplikace, které už neběží.";
+"cleanup.explanation.simulatorDevices" = "Zařízení simulátoru a vše, co je v nich nainstalováno. Zařízení lze vytvořit znovu; aplikace v něm je nutné nainstalovat znovu.";
 "cleanup.explanation.systemLogs" = "Systémové protokoly starší než %d dní. K některým je potřeba Úplný přístup k disku.";
 "cleanup.explanation.systemLogsItem" = "Zastaralé systémové protokoly. Ke čtení některých z nich je potřeba Úplný přístup k disku.";
 "cleanup.explanation.temporary" = "Dočasné soubory zanechané aplikacemi.";
+"cleanup.explanation.xcodeArchives" = "Archivované buildy. Projekt lze archivovat znovu, ale toto archivum obnovit nelze.";
 "cleanup.failure.fileInUse" = "Soubor se používá";
 "cleanup.failure.fileNotFound" = "Již odstraněno";
 "cleanup.failure.itemChanged" = "Přesunuto nebo nahrazeno";

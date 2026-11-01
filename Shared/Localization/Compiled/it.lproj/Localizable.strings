@@ -52,9 +52,11 @@
 "cleanup.explanation.residuePreferences" = "File di preferenze senza un’app installata corrispondente.";
 "cleanup.explanation.residueWebStorage" = "Dati web di un’app non più installata.";
 "cleanup.explanation.savedState" = "Stato delle finestre salvato per app che non sono più in esecuzione.";
+"cleanup.explanation.simulatorDevices" = "Dispositivi del simulatore e tutto ciò che vi è installato. Il dispositivo si può ricreare; le app che contiene vanno reinstallate.";
 "cleanup.explanation.systemLogs" = "File di log di sistema più vecchi di %d giorni. Alcuni richiedono l’Accesso completo al disco.";
 "cleanup.explanation.systemLogsItem" = "File di log di sistema datati. Alcuni richiedono l’Accesso completo al disco per essere letti.";
 "cleanup.explanation.temporary" = "File di lavoro lasciati dalle app.";
+"cleanup.explanation.xcodeArchives" = "Build archiviate. Il progetto può essere archiviato di nuovo, ma questa archiviazione non è recuperabile.";
 "cleanup.failure.fileInUse" = "File in uso";
 "cleanup.failure.fileNotFound" = "Già rimosso";
 "cleanup.failure.itemChanged" = "Spostato o sostituito";

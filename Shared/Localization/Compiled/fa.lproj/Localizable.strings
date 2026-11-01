@@ -52,9 +52,11 @@
 "cleanup.explanation.residuePreferences" = "فایل تنظیمات بدون برنامهٔ نصب‌شدهٔ متناظر.";
 "cleanup.explanation.residueWebStorage" = "حافظهٔ وب برنامه‌ای که دیگر نصب نیست.";
 "cleanup.explanation.savedState" = "وضعیت پنجره‌های ذخیره‌شده برای برنامه‌هایی که دیگر باز نیستند.";
+"cleanup.explanation.simulatorDevices" = "دستگاه‌های شبیه‌ساز و هر چیزی که در آن‌ها نصب شده است. دستگاه را می‌توان دوباره ساخت؛ برنامه‌های داخل آن باید دوباره نصب شوند.";
 "cleanup.explanation.systemLogs" = "گزارش‌های سیستم قدیمی‌تر از %d روز. برخی نیاز به دسترسی کامل به دیسک دارند.";
 "cleanup.explanation.systemLogsItem" = "گزارش‌های قدیمی سیستم. خواندن برخی نیاز به دسترسی کامل به دیسک دارد.";
 "cleanup.explanation.temporary" = "فایل‌های موقتی که برنامه‌ها جا گذاشته‌اند.";
+"cleanup.explanation.xcodeArchives" = "بیلدهای بایگانی‌شده. پروژه را می‌توان دوباره بایگانی کرد، اما این بایگانی قابل بازیابی نیست.";
 "cleanup.failure.fileInUse" = "فایل در حال استفاده است";
 "cleanup.failure.fileNotFound" = "قبلاً حذف شده";
 "cleanup.failure.itemChanged" = "جابه‌جا یا جایگزین شده";

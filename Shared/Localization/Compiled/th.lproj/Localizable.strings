@@ -52,9 +52,11 @@
 "cleanup.explanation.residuePreferences" = "ไฟล์การตั้งค่าที่ไม่มีแอปที่ติดตั้งอยู่รองรับ";
 "cleanup.explanation.residueWebStorage" = "พื้นที่เก็บข้อมูลเว็บของแอปที่ถอนการติดตั้งไปแล้ว";
 "cleanup.explanation.savedState" = "สถานะหน้าต่างที่บันทึกไว้สำหรับแอปที่ไม่ได้ทำงานอยู่แล้ว";
+"cleanup.explanation.simulatorDevices" = "อุปกรณ์จำลองและทุกอย่างที่ติดตั้งอยู่ข้างใน สร้างอุปกรณ์ใหม่ได้ แต่แอปข้างในต้องติดตั้งใหม่";
 "cleanup.explanation.systemLogs" = "ไฟล์บันทึกของระบบที่เก่ากว่า %d วัน บางไฟล์ต้องใช้การเข้าถึงดิสก์ทั้งหมดเพื่ออ่าน";
 "cleanup.explanation.systemLogsItem" = "ไฟล์บันทึกของระบบที่ไม่ได้ใช้แล้ว การอ่านบางไฟล์ต้องใช้การเข้าถึงดิสก์ทั้งหมด";
 "cleanup.explanation.temporary" = "ไฟล์ชั่วคราวที่แอปทิ้งไว้";
+"cleanup.explanation.xcodeArchives" = "บิลด์ที่เก็บถาวรแล้ว โปรเจกต์เก็บถาวรใหม่ได้ แต่ไฟล์เก็บถาวรนี้กู้คืนไม่ได้";
 "cleanup.failure.fileInUse" = "ไฟล์กำลังถูกใช้งาน";
 "cleanup.failure.fileNotFound" = "ถูกลบไปแล้ว";
 "cleanup.failure.itemChanged" = "ถูกย้ายหรือแทนที่แล้ว";

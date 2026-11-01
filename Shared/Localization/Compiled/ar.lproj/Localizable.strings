@@ -52,9 +52,11 @@
 "cleanup.explanation.residuePreferences" = "ملف تفضيلات دون تطبيق مثبت مطابق.";
 "cleanup.explanation.residueWebStorage" = "تخزين ويب لتطبيق لم يعد مثبتًا.";
 "cleanup.explanation.savedState" = "حالة نوافذ محفوظة لتطبيقات لم تعد تعمل.";
+"cleanup.explanation.simulatorDevices" = "أجهزة المحاكي وكل ما ثُبِّت داخلها. يمكن إنشاء الجهاز من جديد، أما التطبيقات بداخله فتجب إعادة تثبيتها.";
 "cleanup.explanation.systemLogs" = "ملفات سجلات النظام أقدم من %d يومًا. بعضها يتطلب الوصول الكامل إلى القرص.";
 "cleanup.explanation.systemLogsItem" = "ملفات سجلات نظام قديمة. قراءة بعضها يتطلب الوصول الكامل إلى القرص.";
 "cleanup.explanation.temporary" = "ملفات مؤقتة تركتها التطبيقات.";
+"cleanup.explanation.xcodeArchives" = "عمليات بناء مؤرشفة. يمكن أرشفة المشروع من جديد، لكن هذا الأرشيف لا يمكن استعادته.";
 "cleanup.failure.fileInUse" = "الملف قيد الاستخدام";
 "cleanup.failure.fileNotFound" = "أُزيل بالفعل";
 "cleanup.failure.itemChanged" = "نُقل أو استُبدل";

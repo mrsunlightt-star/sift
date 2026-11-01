@@ -52,9 +52,11 @@
 "cleanup.explanation.residuePreferences" = "対応するアプリがない環境設定ファイルです。";
 "cleanup.explanation.residueWebStorage" = "アンインストール済みアプリの Web ストレージです。";
 "cleanup.explanation.savedState" = "終了したアプリのウィンドウ状態の保存ファイルです。";
+"cleanup.explanation.simulatorDevices" = "シミュレータのデバイスとその中にインストールされたものすべて。デバイスは作り直せますが、中のアプリは入れ直す必要があります。";
 "cleanup.explanation.systemLogs" = "%d 日より前のシステムログです。一部はフルディスクアクセスが必要です。";
 "cleanup.explanation.systemLogsItem" = "古いシステムログファイルです。一部の読み取りにはフルディスクアクセスが必要です。";
 "cleanup.explanation.temporary" = "アプリが残した一時ファイルです。";
+"cleanup.explanation.xcodeArchives" = "アーカイブされたビルドです。プロジェクトは再アーカイブできますが、このアーカイブは復元できません。";
 "cleanup.failure.fileInUse" = "ファイルが使用中";
 "cleanup.failure.fileNotFound" = "すでに削除済み";
 "cleanup.failure.itemChanged" = "移動または置換済み";

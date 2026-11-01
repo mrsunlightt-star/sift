@@ -10711,6 +10711,216 @@
         }
       }
     },
+    "cleanup.explanation.simulatorDevices": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Simulator devices and everything installed in them. The device can be created again; the apps inside it must be installed again."
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模拟器设备及其内部安装的内容。设备可以重新创建，里面的应用需要重新安装。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "시뮬레이터 기기와 그 안에 설치된 모든 항목입니다. 기기는 다시 만들 수 있지만 안의 앱은 다시 설치해야 합니다."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Устройства симулятора и всё, что в них установлено. Устройство можно создать заново, а приложения в нём придётся устанавливать снова."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dispositivos del simulador y todo lo instalado en ellos. El dispositivo se puede crear de nuevo; las apps que contiene hay que instalarlas otra vez."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "シミュレータのデバイスとその中にインストールされたものすべて。デバイスは作り直せますが、中のアプリは入れ直す必要があります。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Appareils du simulateur et tout ce qui y est installé. L’appareil peut être recréé ; les apps qu’il contient doivent être réinstallées."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Simulator-Geräte und alles, was darin installiert ist. Das Gerät lässt sich neu anlegen; die Apps darin müssen neu installiert werden."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dispositivi del simulatore e tutto ciò che vi è installato. Il dispositivo si può ricreare; le app che contiene vanno reinstallate."
+          }
+        },
+        "pt-br": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dispositivos do simulador e tudo o que está instalado neles. O dispositivo pode ser criado de novo; os apps dentro dele precisam ser instalados outra vez."
+          }
+        },
+        "zh-hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模擬器裝置及其內部安裝的內容。裝置可以重新建立，裡面的應用程式需要重新安裝。"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Simülatör aygıtları ve içlerine kurulan her şey. Aygıt yeniden oluşturulabilir; içindeki uygulamalar yeniden kurulmalıdır."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Urządzenia symulatora i wszystko, co w nich zainstalowano. Urządzenie można utworzyć od nowa; aplikacje w nim trzeba zainstalować ponownie."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Simulatorapparaten en alles wat erin is geïnstalleerd. Het apparaat kan opnieuw worden aangemaakt; de apps erin moeten opnieuw worden geïnstalleerd."
+          }
+        },
+        "lo": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ອຸປະກອນຈຳລອງ ແລະ ທຸກຢ່າງທີ່ຕິດຕັ້ງຢູ່ໃນນັ້ນ. ສ້າງອຸປະກອນຄືນໃໝ່ໄດ້ ແຕ່ແອັບຂ້າງໃນຕ້ອງຕິດຕັ້ງໃໝ່."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أجهزة المحاكي وكل ما ثُبِّت داخلها. يمكن إنشاء الجهاز من جديد، أما التطبيقات بداخله فتجب إعادة تثبيتها."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "התקני סימולטור וכל מה שמותקן בהם. אפשר ליצור את ההתקן מחדש; את האפליקציות שבתוכו צריך להתקין שוב."
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "دستگاه‌های شبیه‌ساز و هر چیزی که در آن‌ها نصب شده است. دستگاه را می‌توان دوباره ساخت؛ برنامه‌های داخل آن باید دوباره نصب شوند."
+          }
+        },
+        "bg": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Устройства на симулатора и всичко инсталирано в тях. Устройството може да се създаде отново; приложенията в него трябва да се инсталират наново."
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zařízení simulátoru a vše, co je v nich nainstalováno. Zařízení lze vytvořit znovu; aplikace v něm je nutné nainstalovat znovu."
+          }
+        },
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Simulatorenheder og alt, hvad der er installeret i dem. Enheden kan oprettes igen; appene i den skal installeres igen."
+          }
+        },
+        "el": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Συσκευές προσομοιωτή και ό,τι είναι εγκατεστημένο σε αυτές. Η συσκευή μπορεί να δημιουργηθεί ξανά· οι εφαρμογές μέσα της πρέπει να εγκατασταθούν ξανά."
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dispositivos del simulador y todo lo instalado en ellos. El dispositivo se puede crear de nuevo; las apps que contiene hay que instalarlas otra vez."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Simulaattorilaitteet ja kaikki niihin asennettu. Laitteen voi luoda uudelleen; sen sisältämät sovellukset on asennettava uudelleen."
+          }
+        },
+        "hu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Szimulátor-eszközök és minden, ami bennük telepítve van. Az eszköz újra létrehozható; a benne lévő appokat újra kell telepíteni."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Perangkat simulator dan semua yang terpasang di dalamnya. Perangkat dapat dibuat ulang; aplikasi di dalamnya harus dipasang ulang."
+          }
+        },
+        "ms": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Peranti simulator dan semua yang dipasang di dalamnya. Peranti boleh dicipta semula; apl di dalamnya perlu dipasang semula."
+          }
+        },
+        "nb": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Simulatorenheter og alt som er installert i dem. Enheten kan opprettes på nytt; appene i den må installeres på nytt."
+          }
+        },
+        "pt-pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dispositivos do simulador e tudo o que está instalado neles. O dispositivo pode ser criado de novo; as aplicações dentro dele têm de ser instaladas outra vez."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dispozitive de simulator și tot ce este instalat în ele. Dispozitivul poate fi recreat; aplicațiile din el trebuie reinstalate."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Simulatorenheter och allt som är installerat i dem. Enheten kan skapas igen; apparna i den måste installeras om."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "อุปกรณ์จำลองและทุกอย่างที่ติดตั้งอยู่ข้างใน สร้างอุปกรณ์ใหม่ได้ แต่แอปข้างในต้องติดตั้งใหม่"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пристрої симулятора й усе, що в них встановлено. Пристрій можна створити знову; застосунки в ньому доведеться встановлювати заново."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thiết bị giả lập và mọi thứ được cài trong đó. Có thể tạo lại thiết bị; ứng dụng bên trong phải cài lại."
+          }
+        }
+      }
+    },
     "cleanup.explanation.systemLogs": {
       "comment": null,
       "extractionState": "manual",
@@ -11337,6 +11547,216 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tệp tạm do ứng dụng để lại."
+          }
+        }
+      }
+    },
+    "cleanup.explanation.xcodeArchives": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Archived builds. A project can be archived again, but this archive cannot be recovered."
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "归档的构建产物。项目可以重新归档，但这份归档无法恢复。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "보관된 빌드 결과물입니다. 프로젝트를 다시 아카이브할 수는 있지만 이 아카이브는 복구할 수 없습니다."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Архивные сборки. Проект можно заархивировать заново, но этот архив восстановить нельзя."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compilaciones archivadas. El proyecto se puede archivar de nuevo, pero este archivo no se puede recuperar."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アーカイブされたビルドです。プロジェクトは再アーカイブできますが、このアーカイブは復元できません。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compilations archivées. Le projet peut être réarchivé, mais cette archive ne peut pas être récupérée."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Archivierte Builds. Das Projekt lässt sich erneut archivieren, dieses Archiv jedoch nicht wiederherstellen."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Build archiviate. Il progetto può essere archiviato di nuovo, ma questa archiviazione non è recuperabile."
+          }
+        },
+        "pt-br": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compilações arquivadas. O projeto pode ser arquivado de novo, mas este arquivo não pode ser recuperado."
+          }
+        },
+        "zh-hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "封存的建置產物。專案可以重新封存，但這份封存無法復原。"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arşivlenmiş derlemeler. Proje yeniden arşivlenebilir, ancak bu arşiv geri getirilemez."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zarchiwizowane kompilacje. Projekt można zarchiwizować ponownie, ale tego archiwum nie da się odzyskać."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gearchiveerde builds. Het project kan opnieuw worden gearchiveerd, maar dit archief is niet te herstellen."
+          }
+        },
+        "lo": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ບິວທີ່ເກັບໄວ້. ໂປເຈັກສາມາດເກັບຄືນໃໝ່ໄດ້ ແຕ່ບິວທີ່ເກັບໄວ້ນີ້ກູ້ຄືນບໍ່ໄດ້."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "عمليات بناء مؤرشفة. يمكن أرشفة المشروع من جديد، لكن هذا الأرشيف لا يمكن استعادته."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "בניות בארכיון. אפשר לארכב את הפרויקט מחדש, אבל אי אפשר לשחזר את הארכיון הזה."
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "بیلدهای بایگانی‌شده. پروژه را می‌توان دوباره بایگانی کرد، اما این بایگانی قابل بازیابی نیست."
+          }
+        },
+        "bg": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Архивирани билдове. Проектът може да бъде архивиран отново, но този архив не може да бъде възстановен."
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Archivované buildy. Projekt lze archivovat znovu, ale toto archivum obnovit nelze."
+          }
+        },
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arkiverede builds. Projektet kan arkiveres igen, men dette arkiv kan ikke gendannes."
+          }
+        },
+        "el": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Αρχειοθετημένα builds. Το έργο μπορεί να αρχειοθετηθεί ξανά, αλλά αυτό το αρχείο δεν ανακτάται."
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compilaciones archivadas. El proyecto se puede archivar de nuevo, pero este archivo no se puede recuperar."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arkistoidut buildit. Projektin voi arkistoida uudelleen, mutta tätä arkistoa ei voi palauttaa."
+          }
+        },
+        "hu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Archivált buildek. A projekt újra archiválható, de ez az archívum nem állítható vissza."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Build yang diarsipkan. Proyek dapat diarsipkan ulang, tetapi arsip ini tidak dapat dipulihkan."
+          }
+        },
+        "ms": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Binaan yang diarkibkan. Projek boleh diarkibkan semula, tetapi arkib ini tidak boleh dipulihkan."
+          }
+        },
+        "nb": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arkiverte bygg. Prosjektet kan arkiveres på nytt, men dette arkivet kan ikke gjenopprettes."
+          }
+        },
+        "pt-pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compilações arquivadas. O projeto pode ser arquivado de novo, mas este arquivo não pode ser recuperado."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Build-uri arhivate. Proiectul poate fi arhivat din nou, dar această arhivă nu poate fi recuperată."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arkiverade byggen. Projektet kan arkiveras igen, men detta arkiv kan inte återställas."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "บิลด์ที่เก็บถาวรแล้ว โปรเจกต์เก็บถาวรใหม่ได้ แต่ไฟล์เก็บถาวรนี้กู้คืนไม่ได้"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Архівовані збірки. Проєкт можна заархівувати знову, але цей архів відновити неможливо."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bản dựng đã lưu trữ. Có thể lưu trữ lại dự án, nhưng bản lưu trữ này không khôi phục được."
           }
         }
       }

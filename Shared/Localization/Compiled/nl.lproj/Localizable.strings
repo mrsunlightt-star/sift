@@ -52,9 +52,11 @@
 "cleanup.explanation.residuePreferences" = "Voorkeurenbestand zonder een bijbehorende geïnstalleerde app.";
 "cleanup.explanation.residueWebStorage" = "Webopslag van een app die niet meer geïnstalleerd is.";
 "cleanup.explanation.savedState" = "Vensterstatus opgeslagen voor apps die niet meer draaien.";
+"cleanup.explanation.simulatorDevices" = "Simulatorapparaten en alles wat erin is geïnstalleerd. Het apparaat kan opnieuw worden aangemaakt; de apps erin moeten opnieuw worden geïnstalleerd.";
 "cleanup.explanation.systemLogs" = "Systeemlogbestanden ouder dan %d dagen. Sommige lezen vereist Volledige Schijftoegang.";
 "cleanup.explanation.systemLogsItem" = "Verouderde systeemlogbestanden. Sommige lezen vereist Volledige Schijftoegang.";
 "cleanup.explanation.temporary" = "Tijdelijke werkbestanden die de apps achterlieten.";
+"cleanup.explanation.xcodeArchives" = "Gearchiveerde builds. Het project kan opnieuw worden gearchiveerd, maar dit archief is niet te herstellen.";
 "cleanup.failure.fileInUse" = "Bestand in gebruik";
 "cleanup.failure.fileNotFound" = "Al verwijderd";
 "cleanup.failure.itemChanged" = "Verplaatst of vervangen";

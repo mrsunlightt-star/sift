@@ -52,9 +52,11 @@
 "cleanup.explanation.residuePreferences" = "ໄຟລ໌ການຕັ້ງຄ່າທີ່ບໍ່ມີແອັບຕິດຕັ້ງຕໍ່ກັນ.";
 "cleanup.explanation.residueWebStorage" = "ຂໍ້ມູນເວັບຂອງແອັບທີ່ຖອນແລ້ວ.";
 "cleanup.explanation.savedState" = "ສະຖານະໜ້າຕ່າງທີ່ບັນທຶກໄວ້ສຳລັບແອັບທີ່ອອກຈາກການເຮັດວຽກແລ້ວ.";
+"cleanup.explanation.simulatorDevices" = "ອຸປະກອນຈຳລອງ ແລະ ທຸກຢ່າງທີ່ຕິດຕັ້ງຢູ່ໃນນັ້ນ. ສ້າງອຸປະກອນຄືນໃໝ່ໄດ້ ແຕ່ແອັບຂ້າງໃນຕ້ອງຕິດຕັ້ງໃໝ່.";
 "cleanup.explanation.systemLogs" = "ໄຟລ໌ບັນທຶກລະບົບທີ່ເກົ່າກວ່າ %d ວັນ. ບາງອັນຕ້ອງມີສິດເຂົ້າເຖິງດິສກ໌ຢ່າງເຕັມສ່ວນ.";
 "cleanup.explanation.systemLogsItem" = "ໄຟລ໌ບັນທຶກລະບົບເກົ່າ. ບາງອັນຕ້ອງມີສິດເຂົ້າເຖິງດິສກ໌ຢ່າງເຕັມສ່ວນຈຶ່ງອ່ານໄດ້.";
 "cleanup.explanation.temporary" = "ໄຟລ໌ຊົ່ວຄາວທີ່ແອັບທິ້ງໄວ້.";
+"cleanup.explanation.xcodeArchives" = "ບິວທີ່ເກັບໄວ້. ໂປເຈັກສາມາດເກັບຄືນໃໝ່ໄດ້ ແຕ່ບິວທີ່ເກັບໄວ້ນີ້ກູ້ຄືນບໍ່ໄດ້.";
 "cleanup.failure.fileInUse" = "ໄຟລ໌ກຳລັງຖືກໃຊ້";
 "cleanup.failure.fileNotFound" = "ຖືກລຶບໄປແລ້ວ";
 "cleanup.failure.itemChanged" = "ຖືກຍ້າຍ ຫຼື ຖືກແທນ";

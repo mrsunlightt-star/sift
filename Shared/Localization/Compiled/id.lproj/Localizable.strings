@@ -52,9 +52,11 @@
 "cleanup.explanation.residuePreferences" = "File preferensi tanpa aplikasi terpasang yang cocok.";
 "cleanup.explanation.residueWebStorage" = "Penyimpanan web untuk aplikasi yang sudah tidak terpasang.";
 "cleanup.explanation.savedState" = "Status jendela yang disimpan untuk aplikasi yang sudah tidak berjalan.";
+"cleanup.explanation.simulatorDevices" = "Perangkat simulator dan semua yang terpasang di dalamnya. Perangkat dapat dibuat ulang; aplikasi di dalamnya harus dipasang ulang.";
 "cleanup.explanation.systemLogs" = "File log sistem yang lebih lama dari %d hari. Sebagian memerlukan Akses Disk Penuh untuk dibaca.";
 "cleanup.explanation.systemLogsItem" = "File log sistem yang usang. Membaca sebagiannya memerlukan Akses Disk Penuh.";
 "cleanup.explanation.temporary" = "File sementara yang ditinggalkan aplikasi.";
+"cleanup.explanation.xcodeArchives" = "Build yang diarsipkan. Proyek dapat diarsipkan ulang, tetapi arsip ini tidak dapat dipulihkan.";
 "cleanup.failure.fileInUse" = "File sedang digunakan";
 "cleanup.failure.fileNotFound" = "Sudah dihapus";
 "cleanup.failure.itemChanged" = "Dipindahkan atau diganti";

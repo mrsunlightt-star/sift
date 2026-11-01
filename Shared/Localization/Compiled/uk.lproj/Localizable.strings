@@ -52,9 +52,11 @@
 "cleanup.explanation.residuePreferences" = "Файл налаштувань без відповідної встановленої програми.";
 "cleanup.explanation.residueWebStorage" = "Вебсховище програми, яку вже не встановлено.";
 "cleanup.explanation.savedState" = "Стан вікон, збережений для програм, які вже не працюють.";
+"cleanup.explanation.simulatorDevices" = "Пристрої симулятора й усе, що в них встановлено. Пристрій можна створити знову; застосунки в ньому доведеться встановлювати заново.";
 "cleanup.explanation.systemLogs" = "Системні журнали, старші за %d днів. Для деяких потрібен Повний доступ до диска.";
 "cleanup.explanation.systemLogsItem" = "Застарілі системні журнали. Для читання деяких із них потрібен Повний доступ до диска.";
 "cleanup.explanation.temporary" = "Тимчасові файли, залишені програмами.";
+"cleanup.explanation.xcodeArchives" = "Архівовані збірки. Проєкт можна заархівувати знову, але цей архів відновити неможливо.";
 "cleanup.failure.fileInUse" = "Файл використовується";
 "cleanup.failure.fileNotFound" = "Уже видалено";
 "cleanup.failure.itemChanged" = "Переміщено або замінено";

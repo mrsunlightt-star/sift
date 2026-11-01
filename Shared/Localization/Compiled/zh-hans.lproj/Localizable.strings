@@ -52,9 +52,11 @@
 "cleanup.explanation.residuePreferences" = "没有对应已安装应用的偏好设置文件。";
 "cleanup.explanation.residueWebStorage" = "已卸载应用的网页存储数据。";
 "cleanup.explanation.savedState" = "为已退出的应用保存的窗口状态。";
+"cleanup.explanation.simulatorDevices" = "模拟器设备及其内部安装的内容。设备可以重新创建，里面的应用需要重新安装。";
 "cleanup.explanation.systemLogs" = "%d 天前的系统日志。部分需要完全磁盘访问权限。";
 "cleanup.explanation.systemLogsItem" = "过期的系统日志文件。读取其中一部分需要“完全磁盘访问权限”。";
 "cleanup.explanation.temporary" = "应用留下的临时文件。";
+"cleanup.explanation.xcodeArchives" = "归档的构建产物。项目可以重新归档，但这份归档无法恢复。";
 "cleanup.failure.fileInUse" = "文件正在使用";
 "cleanup.failure.fileNotFound" = "已被移除";
 "cleanup.failure.itemChanged" = "已移动或被替换";

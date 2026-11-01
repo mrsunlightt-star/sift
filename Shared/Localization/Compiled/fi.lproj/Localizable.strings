@@ -52,9 +52,11 @@
 "cleanup.explanation.residuePreferences" = "Asetustiedosto ilman vastaavaa asennettua sovellusta.";
 "cleanup.explanation.residueWebStorage" = "Verkkotallennus sovellukselle, jota ei ole enää asennettu.";
 "cleanup.explanation.savedState" = "Ikkunatila, joka on tallennettu sovelluksille, jotka eivät enää ole käynnissä.";
+"cleanup.explanation.simulatorDevices" = "Simulaattorilaitteet ja kaikki niihin asennettu. Laitteen voi luoda uudelleen; sen sisältämät sovellukset on asennettava uudelleen.";
 "cleanup.explanation.systemLogs" = "Järjestelmän lokitiedostot, jotka ovat yli %d päivää vanhoja. Joidenkin lukeminen vaatii täyden levynkäyttöoikeuden.";
 "cleanup.explanation.systemLogsItem" = "Vanhentuneet järjestelmän lokitiedostot. Joidenkin lukeminen vaatii täyden levynkäyttöoikeuden.";
 "cleanup.explanation.temporary" = "Sovellusten jälkeensä jättämät väliaikaistiedostot.";
+"cleanup.explanation.xcodeArchives" = "Arkistoidut buildit. Projektin voi arkistoida uudelleen, mutta tätä arkistoa ei voi palauttaa.";
 "cleanup.failure.fileInUse" = "Tiedosto on käytössä";
 "cleanup.failure.fileNotFound" = "Jo poistettu";
 "cleanup.failure.itemChanged" = "Siirretty tai korvattu";

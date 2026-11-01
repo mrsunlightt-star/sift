@@ -52,9 +52,11 @@
 "cleanup.explanation.residuePreferences" = "Indstillingsfil uden en matchende installeret app.";
 "cleanup.explanation.residueWebStorage" = "Weblager for en app, der ikke længere er installeret.";
 "cleanup.explanation.savedState" = "Vinduestilstand gemt for apps, der ikke længere kører.";
+"cleanup.explanation.simulatorDevices" = "Simulatorenheder og alt, hvad der er installeret i dem. Enheden kan oprettes igen; appene i den skal installeres igen.";
 "cleanup.explanation.systemLogs" = "Systemlogfiler ældre end %d dage. Nogle kræver fuld diskadgang for at blive læst.";
 "cleanup.explanation.systemLogsItem" = "Forældede systemlogfiler. Læsning af nogle kræver fuld diskadgang.";
 "cleanup.explanation.temporary" = "Midlertidige filer efterladt af apps.";
+"cleanup.explanation.xcodeArchives" = "Arkiverede builds. Projektet kan arkiveres igen, men dette arkiv kan ikke gendannes.";
 "cleanup.failure.fileInUse" = "Filen er i brug";
 "cleanup.failure.fileNotFound" = "Allerede fjernet";
 "cleanup.failure.itemChanged" = "Flyttet eller erstattet";

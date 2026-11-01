@@ -52,9 +52,11 @@
 "cleanup.explanation.residuePreferences" = "Kurulu karşılığı olmayan bir tercihler dosyası.";
 "cleanup.explanation.residueWebStorage" = "Artık yüklü olmayan bir uygulamanın web depolama verisi.";
 "cleanup.explanation.savedState" = "Çalışmayan uygulamalar için kaydedilmiş pencere durumu.";
+"cleanup.explanation.simulatorDevices" = "Simülatör aygıtları ve içlerine kurulan her şey. Aygıt yeniden oluşturulabilir; içindeki uygulamalar yeniden kurulmalıdır.";
 "cleanup.explanation.systemLogs" = "%d günden eski sistem günlükleri. Bazılarını okumak Tam Disk Erişimi gerektirir.";
 "cleanup.explanation.systemLogsItem" = "Eski sistem günlük dosyaları. Bazılarını okumak Tam Disk Erişimi gerektirir.";
 "cleanup.explanation.temporary" = "Uygulamaların geride bıraktığı geçici dosyalar.";
+"cleanup.explanation.xcodeArchives" = "Arşivlenmiş derlemeler. Proje yeniden arşivlenebilir, ancak bu arşiv geri getirilemez.";
 "cleanup.failure.fileInUse" = "Dosya kullanımda";
 "cleanup.failure.fileNotFound" = "Zaten kaldırılmış";
 "cleanup.failure.itemChanged" = "Taşınmış veya değiştirilmiş";

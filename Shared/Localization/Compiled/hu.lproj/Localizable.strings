@@ -52,9 +52,11 @@
 "cleanup.explanation.residuePreferences" = "Beállításfájl, amelyhez nincs telepített alkalmazás.";
 "cleanup.explanation.residueWebStorage" = "Webes tárhely egy már nem telepített alkalmazáshoz.";
 "cleanup.explanation.savedState" = "A már nem futó alkalmazásokhoz mentett ablakállapot.";
+"cleanup.explanation.simulatorDevices" = "Szimulátor-eszközök és minden, ami bennük telepítve van. Az eszköz újra létrehozható; a benne lévő appokat újra kell telepíteni.";
 "cleanup.explanation.systemLogs" = "%d napnál régebbi rendszernapló-fájlok. Némelyik olvasásához Teljes lemezhozzáférés kell.";
 "cleanup.explanation.systemLogsItem" = "Elavult rendszernapló-fájlok. Némelyik olvasásához Teljes lemezhozzáférés kell.";
 "cleanup.explanation.temporary" = "Alkalmazások által hátrahagyott ideiglenes fájlok.";
+"cleanup.explanation.xcodeArchives" = "Archivált buildek. A projekt újra archiválható, de ez az archívum nem állítható vissza.";
 "cleanup.failure.fileInUse" = "A fájl használatban van";
 "cleanup.failure.fileNotFound" = "Már eltávolítva";
 "cleanup.failure.itemChanged" = "Áthelyezve vagy lecserélve";
