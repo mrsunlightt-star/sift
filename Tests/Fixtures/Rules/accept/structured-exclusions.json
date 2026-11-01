@@ -1,0 +1,6 @@
+{"schemaVersion":1,"rules":[
+  {"id":"described-exclusions","category":"applicationCache","risk":"review","root":"homeLibrary",
+   "relativePath":"Caches","matchSpec":"childDirectories",
+   "excludes":["CloudKit",{"match":"glob","value":"com.apple.*"},{"match":"suffix","value":".noindex"}],
+   "explanationKey":"k"}
+]}

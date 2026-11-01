@@ -1102,13 +1102,12 @@ fn is_excluded_by_rule(rule: &Rule, path: &Path, root: &Path) -> bool {
 
 /// True when a directory name is on a rule's `excludes` list.
 ///
-/// A name matches whole, or as the prefix of a bundle identifier (`com.apple`
-/// covers `com.apple.Safari` but not `com.appleby`), which is the same
-/// comparison the excluded-application list uses.
-fn exclude_matches(excludes: &[String], name: &str) -> bool {
-    excludes
-        .iter()
-        .any(|exclude| name == exclude.as_str() || name.starts_with(&format!("{exclude}.")))
+/// What one entry compares is [`Exclusion`]'s decision: a name matches whole or
+/// as the prefix of a bundle identifier (`com.apple` covers `com.apple.Safari`
+/// but not `com.appleby`), and a described entry says exactly which comparison
+/// it means. Several entries are alternatives — any of them excludes the name.
+fn exclude_matches(excludes: &[sift_rules::Exclusion], name: &str) -> bool {
+    excludes.iter().any(|exclude| exclude.matches(name))
 }
 
 /// Adds the never-clean bundle directories to a walk's skip list.

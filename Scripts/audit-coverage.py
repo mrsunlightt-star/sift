@@ -311,6 +311,49 @@ def rule_roots(
     return roots
 
 
+def _glob_matches(pattern: str, text: str) -> bool:
+    """The same two-pointer scan both engines carry, `*` meaning any run."""
+    star = None
+    mark = 0
+    p = t_ = 0
+    while t_ < len(text):
+        if p < len(pattern) and pattern[p] == text[t_]:
+            p += 1
+            t_ += 1
+        elif p < len(pattern) and pattern[p] == "*":
+            star = p
+            mark = t_
+            p += 1
+        elif star is not None:
+            p = star + 1
+            mark += 1
+            t_ = mark
+        else:
+            return False
+    while p < len(pattern) and pattern[p] == "*":
+        p += 1
+    return p == len(pattern)
+
+
+def exclusion_matches(exclusion, name: str) -> bool:
+    """One entry on a rule's `excludes` list, in either shape the document allows."""
+    if isinstance(exclusion, str):
+        return name == exclusion or name.startswith(exclusion + ".")
+    kind = exclusion.get("match")
+    value = exclusion.get("value", "")
+    if kind == "exact":
+        return name == value
+    if kind == "prefix":
+        return name.startswith(value)
+    if kind == "suffix":
+        return name.endswith(value)
+    if kind == "contains":
+        return value in name
+    if kind == "glob":
+        return _glob_matches(value, name)
+    return False
+
+
 def excluded_by_rule(rule: dict, path: Path, root: Path) -> bool:
     excludes = rule.get("excludes") or []
     if not excludes:
@@ -321,7 +364,7 @@ def excluded_by_rule(rule: dict, path: Path, root: Path) -> bool:
         return False
     for component in relative:
         for exclude in excludes:
-            if component == exclude or component.startswith(exclude + "."):
+            if exclusion_matches(exclude, component):
                 return True
     return False
 

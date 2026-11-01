@@ -453,6 +453,71 @@ final class RuleEngineTests: XCTestCase, @unchecked Sendable {
         XCTAssertEqual(risks["xcode-derived-data"], .safe)
     }
 
+    /// One exclusion entry decides a name the way the document says it does.
+    ///
+    /// The bare form is the comparison every shipped rule was written with, and
+    /// the described form is literal — `exact` means what it says, with no
+    /// implicit dot. The Rust engine answers from the same two rules
+    /// (`an_exclusion_compares_the_way_it_is_described`).
+    func test_anExclusionComparesTheWayItIsDescribed() {
+        let name: RuleEngine.Exclusion = "com.apple"
+        XCTAssertTrue(name.matches("com.apple"))
+        XCTAssertTrue(name.matches("com.apple.Safari"))
+        XCTAssertFalse(name.matches("com.appleby"))
+
+        XCTAssertTrue(RuleEngine.Exclusion.pattern(.exact, "com.apple").matches("com.apple"))
+        XCTAssertFalse(
+            RuleEngine.Exclusion.pattern(.exact, "com.apple").matches("com.apple.Safari"),
+            "the described form carries no implicit dot"
+        )
+        XCTAssertTrue(RuleEngine.Exclusion.pattern(.prefix, "com.apple").matches("com.appleby"))
+        XCTAssertTrue(
+            RuleEngine.Exclusion.pattern(.suffix, ".savedState")
+                .matches("com.apple.Safari.savedState")
+        )
+        XCTAssertFalse(
+            RuleEngine.Exclusion.pattern(.suffix, ".savedState").matches("com.apple.Safari")
+        )
+        XCTAssertTrue(RuleEngine.Exclusion.pattern(.contains, "Code ").matches("Code Cache"))
+        XCTAssertFalse(RuleEngine.Exclusion.pattern(.contains, "Code ").matches("Caches"))
+    }
+
+    /// Only `*` is a wildcard; everything else is compared as written.
+    func test_aGlobMatchesNamesAndIsNotARegularExpression() {
+        XCTAssertTrue(RuleEngine.Exclusion.globMatches(pattern: "com.apple.*", text: "com.apple.Safari"))
+        XCTAssertTrue(RuleEngine.Exclusion.globMatches(pattern: "*", text: "anything"))
+        XCTAssertTrue(RuleEngine.Exclusion.globMatches(pattern: "a*c", text: "ac"))
+        XCTAssertTrue(RuleEngine.Exclusion.globMatches(pattern: "a*c", text: "abbc"))
+        XCTAssertFalse(RuleEngine.Exclusion.globMatches(pattern: "a*c", text: "abb"))
+        XCTAssertTrue(RuleEngine.Exclusion.globMatches(pattern: "*Cache*", text: "GPUCacheV2"))
+        XCTAssertTrue(RuleEngine.Exclusion.globMatches(pattern: "a?c", text: "a?c"))
+        XCTAssertFalse(RuleEngine.Exclusion.globMatches(pattern: "a?c", text: "abc"))
+        XCTAssertTrue(RuleEngine.Exclusion.globMatches(pattern: "[ab]*", text: "[ab]c"))
+    }
+
+    /// A value that can never be a component name is refused where the file is
+    /// read, in both shapes the document allows.
+    func test_anUnusableExclusionIsRefusedWhereTheFileIsRead() throws {
+        func document(_ exclusion: String) -> Data {
+            Data(
+                """
+                {"schemaVersion":1,"rules":[{"id":"x","category":"applicationCache",
+                 "risk":"review","root":"homeLibrary","relativePath":"Caches",
+                 "matchSpec":"childDirectories","excludes":[\(exclusion)],
+                 "explanationKey":"k"}]}
+                """.utf8
+            )
+        }
+
+        XCTAssertThrowsError(try RuleEngine.decode(document("{\"match\":\"prefix\",\"value\":\"a/b\"}"))) {
+            XCTAssertEqual($0 as? RuleEngine.RuleError, .unusableExclusion("a/b"))
+        }
+        XCTAssertThrowsError(try RuleEngine.decode(document("{\"match\":\"contains\",\"value\":\"\"}")))
+        XCTAssertNoThrow(try RuleEngine.decode(document("\"CloudKit\"")))
+        XCTAssertNoThrow(try RuleEngine.decode(document("{\"match\":\"glob\",\"value\":\"com.apple.*\"}")))
+        XCTAssertThrowsError(try RuleEngine.decode(document("{\"match\":\"regex\",\"value\":\"^a\"}")))
+    }
+
     /// Both decoders accept and refuse the same documents.
     ///
     /// The Swift engine validates a user rule file and then hands the document

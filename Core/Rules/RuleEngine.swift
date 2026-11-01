@@ -21,6 +21,139 @@ import Shared
 /// side immediately before a file operation, which is what §13.3 requires
 /// ("删除前重新验证 URL，不能只信任旧扫描结果").
 public struct RuleEngine: Sendable {
+    /// One entry on a rule's `excludes` list.
+    ///
+    /// A rule rejects an entry by name (`"com.apple"`) or describes the shape of
+    /// the names it rejects (`{"match": "suffix", "value": ".savedState"}`). The
+    /// shorthand is what the shipped table uses and it reads better, so it stays
+    /// and keeps its comparison: the name whole, or as the prefix of a bundle
+    /// identifier. The described form is a literal comparison with no implicit
+    /// dot, because a comparison that quietly means something other than its
+    /// name is how two engines come to disagree about one document.
+    ///
+    /// `ExpressibleByStringLiteral` is what lets the generated table keep writing
+    /// `excludes: ["CloudKit"]`.
+    public enum Exclusion: Sendable, Hashable, Codable, ExpressibleByStringLiteral {
+        /// A name, matched whole or as the prefix of a bundle identifier.
+        case name(String)
+        /// An explicit comparison.
+        case pattern(Match, String)
+
+        /// How a described exclusion decides a name.
+        public enum Match: String, Sendable, Codable, CaseIterable {
+            case exact
+            case prefix
+            case suffix
+            case contains
+            case glob
+        }
+
+        public init(stringLiteral value: String) {
+            self = .name(value)
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case match
+            case value
+        }
+
+        /// Reads either shape, from one document, in both engines.
+        public init(from decoder: Decoder) throws {
+            let single = try decoder.singleValueContainer()
+            if let text = try? single.decode(String.self) {
+                self = .name(text)
+                return
+            }
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            let kind = try container.decode(Match.self, forKey: .match)
+            let value = try container.decode(String.self, forKey: .value)
+            self = .pattern(kind, value)
+        }
+
+        public func encode(to encoder: Encoder) throws {
+            switch self {
+            case let .name(value):
+                var single = encoder.singleValueContainer()
+                try single.encode(value)
+            case let .pattern(kind, value):
+                var container = encoder.container(keyedBy: CodingKeys.self)
+                try container.encode(kind, forKey: .match)
+                try container.encode(value, forKey: .value)
+            }
+        }
+
+        /// The text the entry compares against.
+        public var value: String {
+            switch self {
+            case let .name(value): return value
+            case let .pattern(_, value): return value
+            }
+        }
+
+        /// True when this entry rejects `name`.
+        public func matches(_ name: String) -> Bool {
+            switch self {
+            case let .name(value):
+                return name == value || name.hasPrefix(value + ".")
+            case let .pattern(kind, value):
+                switch kind {
+                case .exact: return name == value
+                case .prefix: return name.hasPrefix(value)
+                case .suffix: return name.hasSuffix(value)
+                case .contains: return name.contains(value)
+                case .glob: return Self.globMatches(pattern: value, text: name)
+                }
+            }
+        }
+
+        /// True when an exclusion can decide anything.
+        ///
+        /// A component name never contains a separator, so a value that does
+        /// cannot match and is a path the author meant to write into
+        /// `relativePath`. It is refused rather than left to match nothing: an
+        /// exclusion that never fires reads as "the rule found this today".
+        public var isUsable: Bool {
+            let text = value
+            return !text.isEmpty && !text.contains("/") && text != "." && text != ".."
+        }
+
+        /// True when `text` matches `pattern`, where `*` is any run of characters.
+        ///
+        /// Deliberately not a regular expression: the pattern travels in a rule
+        /// file, and a backtracking engine would make one rule file able to stall
+        /// a scan. The algorithm is the two-pointer scan below, and the Rust
+        /// engine carries the same one so that both decide a document the same
+        /// way.
+        static func globMatches(pattern: String, text: String) -> Bool {
+            let pattern = Array(pattern)
+            let text = Array(text)
+            var p = 0, t = 0
+            var star: Int?
+            var mark = 0
+
+            while t < text.count {
+                if p < pattern.count, pattern[p] == text[t] {
+                    p += 1
+                    t += 1
+                } else if p < pattern.count, pattern[p] == "*" {
+                    star = p
+                    mark = t
+                    p += 1
+                } else if let starIndex = star {
+                    p = starIndex + 1
+                    mark += 1
+                    t = mark
+                } else {
+                    return false
+                }
+            }
+            while p < pattern.count, pattern[p] == "*" {
+                p += 1
+            }
+            return p == pattern.count
+        }
+    }
+
     /// A rule loaded from `CleaningRules.json`.
     public struct Rule: Sendable, Hashable {
         public let id: String
@@ -29,7 +162,7 @@ public struct RuleEngine: Sendable {
         public let root: RootAnchor
         public let relativePath: String
         public let matchSpec: MatchSpec?
-        public let excludes: [String]
+        public let excludes: [Exclusion]
         public let minAgeDays: Int?
         /// Whether the user's stale threshold replaces `minAgeDays`.
         ///
@@ -58,7 +191,7 @@ public struct RuleEngine: Sendable {
             root: RootAnchor,
             relativePath: String,
             matchSpec: MatchSpec?,
-            excludes: [String],
+            excludes: [Exclusion],
             minAgeDays: Int?,
             usesStaleThreshold: Bool = false,
             requiresFullDiskAccess: Bool,
@@ -603,7 +736,7 @@ public struct RuleEngine: Sendable {
         let relative = pathComponents.dropFirst(rootComponents.count)
         return relative.contains { component in
             let name = String(component)
-            return rule.excludes.contains { name == $0 || name.hasPrefix($0 + ".") }
+            return rule.excludes.contains { $0.matches(name) }
         }
     }
 
@@ -759,7 +892,7 @@ public struct RuleEngine: Sendable {
     /// them as one would apply a volume-wide rule to a folder.
     public func resolvedRoots(for rule: Rule) -> [URL] {
         let isExcluded = { (name: String) in
-            rule.excludes.contains { name == $0 || name.hasPrefix($0 + ".") }
+            rule.excludes.contains { $0.matches(name) }
         }
         let roots: [URL]
         switch rule.root {
@@ -1116,6 +1249,9 @@ public struct RuleEngine: Sendable {
                !Self.directoryNameSetIsValid(names) {
                 throw RuleError.directoriesNamedWithoutNames
             }
+            if let bad = rule.excludes.first(where: { !$0.isUsable }) {
+                throw RuleError.unusableExclusion(bad.value)
+            }
             guard Self.relativePathGlobIsValid(rule.relativePath) else {
                 throw RuleError.unsupportedRelativePathWildcard(rule.relativePath)
             }
@@ -1225,6 +1361,8 @@ public struct RuleEngine: Sendable {
         case unsupportedRelativePathWildcard(String)
         /// A `directoriesNamed` rule with no usable name.
         case directoriesNamedWithoutNames
+        /// An exclusion whose value can never be a directory name.
+        case unusableExclusion(String)
     }
 
     // MARK: - Path helpers
@@ -1341,7 +1479,7 @@ extension RuleEngine.Rule: Decodable {
         risk = try container.decode(CleanupRisk.self, forKey: .risk)
         root = try container.decode(RuleEngine.RootAnchor.self, forKey: .root)
         relativePath = try container.decodeIfPresent(String.self, forKey: .relativePath) ?? ""
-        excludes = try container.decodeIfPresent([String].self, forKey: .excludes) ?? []
+        excludes = try container.decodeIfPresent([RuleEngine.Exclusion].self, forKey: .excludes) ?? []
         minAgeDays = try container.decodeIfPresent(Int.self, forKey: .minAgeDays)
         usesStaleThreshold = try container.decodeIfPresent(Bool.self, forKey: .usesStaleThreshold) ?? false
         requiresFullDiskAccess = try container.decodeIfPresent(Bool.self, forKey: .requiresFullDiskAccess) ?? false

@@ -212,7 +212,7 @@ pub struct Rule {
     pub names: Vec<String>,
     /// Path fragments that must be skipped even inside a matching rule.
     #[serde(default)]
-    pub excludes: Vec<String>,
+    pub excludes: Vec<Exclusion>,
     /// Only match entries not modified for at least this many days.
     #[serde(default)]
     pub min_age_days: Option<u32>,
@@ -436,6 +436,121 @@ pub fn directory_name_set_is_valid(names: &[String]) -> bool {
         })
 }
 
+/// How one entry on a rule's `excludes` list decides a name.
+///
+/// The bare string form says "this name": matched whole, or as the prefix of a
+/// bundle identifier (`com.apple` covers `com.apple.Safari` but not
+/// `com.appleby`), which is the comparison every shipped rule was written with.
+/// The explicit form is a literal comparison with no implicit dot, because a
+/// comparison that quietly means something other than its name is how two
+/// engines come to disagree about one document.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ExcludeMatch {
+    /// The name, exactly.
+    Exact,
+    /// The name begins with the value.
+    Prefix,
+    /// The name ends with the value.
+    Suffix,
+    /// The name contains the value.
+    Contains,
+    /// The value with `*` standing for any run of characters, whole-name only.
+    Glob,
+}
+
+/// One entry on a rule's `excludes` list.
+///
+/// A rule rejects an entry by name (`"com.apple"`) or describes the shape of the
+/// names it rejects (`{"match": "suffix", "value": ".savedState"}`). The
+/// shorthand stays because it is what the shipped table uses and it reads
+/// better; a rule that needs a suffix or a glob had no way to say so, which is
+/// why `~/Library/Caches` could only exclude four names it knew in advance.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Exclusion {
+    /// A name, matched whole or as the prefix of a bundle identifier.
+    Name(String),
+    /// An explicit comparison.
+    Pattern {
+        #[serde(rename = "match")]
+        kind: ExcludeMatch,
+        value: String,
+    },
+}
+
+impl Exclusion {
+    /// The text the entry compares against.
+    pub fn value(&self) -> &str {
+        match self {
+            Exclusion::Name(value) => value,
+            Exclusion::Pattern { value, .. } => value,
+        }
+    }
+
+    /// True when this entry rejects `name`.
+    pub fn matches(&self, name: &str) -> bool {
+        match self {
+            Exclusion::Name(value) => {
+                name == value.as_str() || name.starts_with(&format!("{value}."))
+            }
+            Exclusion::Pattern { kind, value } => match kind {
+                ExcludeMatch::Exact => name == value.as_str(),
+                ExcludeMatch::Prefix => name.starts_with(value.as_str()),
+                ExcludeMatch::Suffix => name.ends_with(value.as_str()),
+                ExcludeMatch::Contains => name.contains(value.as_str()),
+                ExcludeMatch::Glob => glob_matches(value, name),
+            },
+        }
+    }
+}
+
+/// True when a rule's exclusion can decide anything.
+///
+/// A component name never contains a separator, so a value that does cannot
+/// match and is a path the author meant to write into `relativePath`. The state
+/// is refused where the file is read rather than left to match nothing: an
+/// exclusion that never fires reads as "the rule found this today".
+pub fn exclusion_is_valid(exclusion: &Exclusion) -> bool {
+    let value = exclusion.value();
+    !value.is_empty() && !value.contains('/') && value != "." && value != ".."
+}
+
+/// True when `text` matches `pattern`, where `*` is any run of characters.
+///
+/// Deliberately not a regular expression: the pattern travels in a rule file,
+/// and a backtracking engine would make one rule file able to stall a scan. The
+/// algorithm is the two-pointer scan below, and the Swift engine carries the
+/// same one so that both decide one document the same way.
+pub fn glob_matches(pattern: &str, text: &str) -> bool {
+    let pattern: Vec<char> = pattern.chars().collect();
+    let text: Vec<char> = text.chars().collect();
+    let (mut p, mut t) = (0, 0);
+    let mut star: Option<usize> = None;
+    let mut mark = 0;
+
+    while t < text.len() {
+        if p < pattern.len() && pattern[p] == text[t] {
+            p += 1;
+            t += 1;
+        } else if p < pattern.len() && pattern[p] == '*' {
+            star = Some(p);
+            mark = t;
+            p += 1;
+        } else if let Some(star_index) = star {
+            p = star_index + 1;
+            mark += 1;
+            t = mark;
+        } else {
+            return false;
+        }
+    }
+    while p < pattern.len() && pattern[p] == '*' {
+        p += 1;
+    }
+    p == pattern.len()
+}
+
 /// True when a relative path names at least one wildcard component.
 pub fn relative_path_has_wildcard(path: &str) -> bool {
     path.split('/')
@@ -626,6 +741,8 @@ pub enum RuleError {
     UnsupportedRelativePathWildcard { id: String, path: String },
     #[error("rule `{id}` is `directoriesNamed` without a usable name")]
     DirectoriesNamedWithoutNames { id: String },
+    #[error("rule `{id}` excludes `{value}`, which can never be a directory name")]
+    UnusableExclusion { id: String, value: String },
 }
 
 impl RuleSet {
@@ -691,6 +808,12 @@ impl RuleSet {
             {
                 return Err(RuleError::DirectoriesNamedWithoutNames {
                     id: rule.id.clone(),
+                });
+            }
+            if let Some(bad) = rule.excludes.iter().find(|e| !exclusion_is_valid(e)) {
+                return Err(RuleError::UnusableExclusion {
+                    id: rule.id.clone(),
+                    value: bad.value().to_string(),
                 });
             }
             if rule.effective_match_spec() == MatchSpec::AnyFile && rule.min_age_days.is_none() {
@@ -761,6 +884,9 @@ pub fn enforce_rule_invariants(
             if rule.match_spec == Some(MatchSpecName::DirectoriesNamed)
                 && !directory_name_set_is_valid(&rule.names)
             {
+                return None;
+            }
+            if rule.excludes.iter().any(|e| !exclusion_is_valid(e)) {
                 return None;
             }
             if rule.effective_match_spec() == MatchSpec::AnyFile && rule.min_age_days.is_none() {
@@ -839,7 +965,10 @@ fn with_names(mut r: Rule, names: &[&str]) -> Rule {
 }
 
 fn with_excludes(mut r: Rule, excludes: &[&str]) -> Rule {
-    r.excludes = excludes.iter().map(|s| (*s).to_string()).collect();
+    r.excludes = excludes
+        .iter()
+        .map(|s| Exclusion::Name((*s).to_string()))
+        .collect();
     r
 }
 
@@ -2622,6 +2751,120 @@ mod tests {
             enforce_rule_invariants(vec![wide], &shipped_rule_ids()).is_empty(),
             "an ageless anyFile rule is dropped"
         );
+    }
+
+    #[test]
+    fn an_exclusion_compares_the_way_it_is_described() {
+        use ExcludeMatch::*;
+
+        // The bare form keeps the comparison every shipped rule was written
+        // with: whole name, or the prefix of a bundle identifier.
+        let name = Exclusion::Name("com.apple".to_string());
+        assert!(name.matches("com.apple"));
+        assert!(name.matches("com.apple.Safari"));
+        assert!(!name.matches("com.appleby"));
+
+        let pattern = |kind| Exclusion::Pattern {
+            kind,
+            value: "com.apple".to_string(),
+        };
+        // The described form is literal: no implicit dot, which is what makes
+        // `exact` mean what it says.
+        assert!(pattern(Exact).matches("com.apple"));
+        assert!(!pattern(Exact).matches("com.apple.Safari"));
+        assert!(pattern(Prefix).matches("com.appleby"));
+
+        let suffix = Exclusion::Pattern {
+            kind: Suffix,
+            value: ".savedState".to_string(),
+        };
+        assert!(suffix.matches("com.apple.Safari.savedState"));
+        assert!(!suffix.matches("com.apple.Safari"));
+
+        let contains = Exclusion::Pattern {
+            kind: Contains,
+            value: "Code ".to_string(),
+        };
+        assert!(contains.matches("Code Cache"));
+        assert!(!contains.matches("Caches"));
+    }
+
+    #[test]
+    fn a_glob_matches_names_and_is_not_a_regular_expression() {
+        assert!(glob_matches("com.apple.*", "com.apple.Safari"));
+        assert!(glob_matches("*", "anything"));
+        assert!(glob_matches("a*c", "ac"));
+        assert!(glob_matches("a*c", "abbc"));
+        assert!(!glob_matches("a*c", "abb"));
+        assert!(glob_matches("*Cache*", "GPUCacheV2"));
+        // Only `*` is a wildcard. `?` and `[` are characters a directory name
+        // may contain, so they are compared literally rather than interpreted —
+        // the point of the two-pointer scan is that both engines answer the same.
+        assert!(glob_matches("a?c", "a?c"));
+        assert!(!glob_matches("a?c", "abc"));
+        assert!(glob_matches("[ab]*", "[ab]c"));
+    }
+
+    #[test]
+    fn several_exclusions_are_alternatives() {
+        let rule = Rule {
+            excludes: vec![
+                Exclusion::Name("CloudKit".to_string()),
+                Exclusion::Pattern {
+                    kind: ExcludeMatch::Suffix,
+                    value: ".noindex".to_string(),
+                },
+            ],
+            ..Rule {
+                id: "alternatives".to_string(),
+                category: Category::ApplicationCache,
+                risk: Risk::Review,
+                root: RootAnchor::HomeLibrary,
+                relative_path: "Caches".to_string(),
+                match_spec: Some(MatchSpecName::ChildDirectories),
+                extensions: Vec::new(),
+                names: Vec::new(),
+                excludes: Vec::new(),
+                min_age_days: None,
+                uses_stale_threshold: false,
+                package_extensions: Vec::new(),
+                requires_full_disk_access: false,
+                needs_app_closed: false,
+                explanation_key: "cleanup.explanation.cache".to_string(),
+                enabled: true,
+            }
+        };
+        assert!(rule.excludes.iter().any(|e| e.matches("CloudKit")));
+        assert!(rule.excludes.iter().any(|e| e.matches("Safari.noindex")));
+        assert!(!rule.excludes.iter().any(|e| e.matches("Safari")));
+    }
+
+    #[test]
+    fn an_unusable_exclusion_is_refused_where_the_file_is_read() {
+        let document = |exclusion: &str| {
+            format!(
+                r#"{{"schemaVersion":1,"rules":[{{"id":"x","category":"applicationCache",
+                   "risk":"review","root":"homeLibrary","relativePath":"Caches",
+                   "matchSpec":"childDirectories","excludes":[{exclusion}],
+                   "explanationKey":"k"}}]}}"#
+            )
+        };
+
+        // A component name never contains a separator, so a value that does
+        // cannot match. Refused rather than left to match nothing: an exclusion
+        // that never fires reads as "the rule found this today".
+        match RuleSet::from_json(&document(r#"{"match":"prefix","value":"a/b"}"#)) {
+            Err(RuleError::UnusableExclusion { value, .. }) => assert_eq!(value, "a/b"),
+            other => panic!("expected an unusable exclusion, got {other:?}"),
+        }
+        assert!(matches!(
+            RuleSet::from_json(&document(r#"{"match":"contains","value":""}"#)),
+            Err(RuleError::UnusableExclusion { .. })
+        ));
+        // The shapes a rule may write are the ones this decoder accepts.
+        assert!(RuleSet::from_json(&document(r#""CloudKit""#)).is_ok());
+        assert!(RuleSet::from_json(&document(r#"{"match":"glob","value":"com.apple.*"}"#)).is_ok());
+        assert!(RuleSet::from_json(&document(r#"{"match":"regex","value":"^a"}"#)).is_err());
     }
 
     #[test]

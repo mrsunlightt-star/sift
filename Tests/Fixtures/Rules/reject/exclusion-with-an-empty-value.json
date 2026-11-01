@@ -1,0 +1,6 @@
+{"schemaVersion":1,"rules":[
+  {"id":"empty-exclusion","category":"applicationCache","risk":"review","root":"homeLibrary",
+   "relativePath":"Caches","matchSpec":"childDirectories",
+   "excludes":[{"match":"contains","value":""}],
+   "explanationKey":"k"}
+]}

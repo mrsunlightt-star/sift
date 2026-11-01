@@ -1,0 +1,6 @@
+{"schemaVersion":1,"rules":[
+  {"id":"unknown-comparison","category":"applicationCache","risk":"review","root":"homeLibrary",
+   "relativePath":"Caches","matchSpec":"childDirectories",
+   "excludes":[{"match":"regex","value":"^com\\.apple"}],
+   "explanationKey":"k"}
+]}
