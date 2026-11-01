@@ -5,22 +5,19 @@ import Shared
 
 /// The composition root's state transitions that cross several services.
 final class AppEnvironmentTests: XCTestCase, @unchecked Sendable {
-    private var suiteName: String!
-
     override func setUp() {
         super.setUp()
-        suiteName = "sift.tests.environment.\(UUID().uuidString)"
+        ScratchPreferences.reset("environment")
     }
 
     override func tearDown() {
-        UserDefaults.standard.removePersistentDomain(forName: suiteName)
-        suiteName = nil
+        ScratchPreferences.reset("environment")
         super.tearDown()
     }
 
     @MainActor
     private func makeEnvironment() -> AppEnvironment {
-        let defaults = UserDefaults(suiteName: suiteName) ?? .standard
+        let defaults = ScratchPreferences.open("environment")
         let store = SettingsStore(
             preferences: StringPreferences(defaults: defaults),
             supportDirectory: FileManager.default.temporaryDirectory

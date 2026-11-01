@@ -767,11 +767,22 @@ final class Harness: @unchecked Sendable {
 
     private func settingsTests() async {
         await group("Settings") {
-            let suiteName = "sift.selftest.\(UUID().uuidString)"
+            // One stable domain, not a fresh UUID per run: `cfprefsd` keeps an
+            // empty plist for every domain it has seen, so a unique name left one
+            // file behind per run and `~/Library/Preferences` filled up with them
+            // (238 of them on the development machine, each reported by the
+            // product's own residue scan). The name has no dots so it can never be
+            // read as a bundle identifier, and the domain is cleared before use so
+            // runs stay independent.
+            let suiteName = "sifttests-selftest"
+            UserDefaults.standard.removePersistentDomain(forName: suiteName)
             // The store reads through a `Sendable` façade, so the test creates an
             // isolated defaults suite and hands that façade in.
             let box = DefaultsBox(suiteName: suiteName)
             let defaults = box.defaults
+            defaults.removePersistentDomain(forName: suiteName)
+            // Cleared again at the end so the domain does not carry this run's
+            // values into a later one that inspects it by hand.
             defer { defaults.removePersistentDomain(forName: suiteName) }
 
             let fixture = TempFixture(tag: "settings")

@@ -19,21 +19,18 @@ private actor InMemoryLicenseStore: LicenseKeyStoring {
 
 /// Purchase gates and the offline grace period (§12, §16.1).
 final class EntitlementTests: XCTestCase, @unchecked Sendable {
-    private var suiteName: String!
-
     override func setUp() {
         super.setUp()
-        suiteName = "sift.tests.entitlement.\(UUID().uuidString)"
+        ScratchPreferences.reset("entitlement")
     }
 
     override func tearDown() {
-        UserDefaults.standard.removePersistentDomain(forName: suiteName)
-        suiteName = nil
+        ScratchPreferences.reset("entitlement")
         super.tearDown()
     }
 
     private func makeService(verify: @escaping DirectLicenseService.Verify) -> EntitlementService {
-        let defaults = UserDefaults(suiteName: suiteName) ?? .standard
+        let defaults = ScratchPreferences.open("entitlement")
         return EntitlementService(
             channel: DirectLicenseService(keychain: InMemoryLicenseStore(), verify: verify),
             defaults: defaults
@@ -94,7 +91,7 @@ final class EntitlementTests: XCTestCase, @unchecked Sendable {
     }
 
     func test_aFailedVerificationDoesNotDowngradeAGracePeriod() async {
-        let defaults = UserDefaults(suiteName: suiteName) ?? .standard
+        let defaults = ScratchPreferences.open("entitlement")
         // Both keys: the cache belongs to the channel that wrote it, so a
         // timestamp without its channel is not restored.
         defaults.set(Date(), forKey: "purchase.verifiedAt")
@@ -118,7 +115,7 @@ final class EntitlementTests: XCTestCase, @unchecked Sendable {
     }
 
     func test_anExpiredGracePeriodFallsBackToFree() async {
-        let defaults = UserDefaults(suiteName: suiteName) ?? .standard
+        let defaults = ScratchPreferences.open("entitlement")
         let longAgo = Date().addingTimeInterval(-Double(EntitlementService.offlineGraceDays + 1) * 86_400)
         defaults.set(longAgo, forKey: "purchase.verifiedAt")
         defaults.set("direct", forKey: "purchase.channel")
@@ -137,7 +134,7 @@ final class EntitlementTests: XCTestCase, @unchecked Sendable {
         // The executable and its UserDefaults domain can be reused by a build
         // whose purchase model is different. A timestamp written under another
         // channel name must not unlock this one.
-        let defaults = UserDefaults(suiteName: suiteName) ?? .standard
+        let defaults = ScratchPreferences.open("entitlement")
         defaults.set(Date(), forKey: "purchase.verifiedAt")
         defaults.set("appStore", forKey: "purchase.channel")
 
@@ -161,7 +158,7 @@ final class EntitlementTests: XCTestCase, @unchecked Sendable {
     /// is exactly the case where it does not, so the expiry has to be evaluated
     /// at the gate rather than when the state was last computed.
     func test_aWindowThatClosesWhileTheProcessRunsStopsUnlocking() async {
-        let defaults = UserDefaults(suiteName: suiteName) ?? .standard
+        let defaults = ScratchPreferences.open("entitlement")
         defaults.set("direct", forKey: "purchase.channel")
         defaults.set(Date(), forKey: "purchase.verifiedAt")
 
@@ -194,7 +191,7 @@ final class EntitlementTests: XCTestCase, @unchecked Sendable {
 
     /// A timestamp in the future is not a verification.
     func test_aVerificationTimestampInTheFutureIsNotRestored() async {
-        let defaults = UserDefaults(suiteName: suiteName) ?? .standard
+        let defaults = ScratchPreferences.open("entitlement")
         defaults.set("direct", forKey: "purchase.channel")
         // Far enough ahead that no clock correction explains it.
         defaults.set(
@@ -218,7 +215,7 @@ final class EntitlementTests: XCTestCase, @unchecked Sendable {
     /// A small forward skew is tolerated, so a corrected clock does not lock a
     /// paying user out.
     func test_aSlightlyFutureTimestampIsStillAccepted() async {
-        let defaults = UserDefaults(suiteName: suiteName) ?? .standard
+        let defaults = ScratchPreferences.open("entitlement")
         defaults.set("direct", forKey: "purchase.channel")
         defaults.set(
             Date().addingTimeInterval(EntitlementService.clockSkewTolerance / 2),
@@ -244,7 +241,7 @@ final class EntitlementTests: XCTestCase, @unchecked Sendable {
             channel: DirectLicenseService(keychain: store) { _ in
                 EntitlementState(channel: .direct, status: .unlocked(verifiedAt: Date()))
             },
-            defaults: UserDefaults(suiteName: suiteName) ?? .standard
+            defaults: ScratchPreferences.open("entitlement")
         )
 
         let storedBefore = await service.hasStoredLicense()

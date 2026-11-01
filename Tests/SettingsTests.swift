@@ -5,21 +5,18 @@ import Shared
 
 /// Preferences (§5.6, §16.1).
 final class SettingsTests: XCTestCase, @unchecked Sendable {
-    private var suiteName: String!
-
     override func setUp() {
         super.setUp()
-        suiteName = "sift.tests.\(UUID().uuidString)"
+        ScratchPreferences.reset("settings")
     }
 
     override func tearDown() {
-        UserDefaults.standard.removePersistentDomain(forName: suiteName)
-        suiteName = nil
+        ScratchPreferences.reset("settings")
         super.tearDown()
     }
 
     private func makeStore() -> SettingsStore {
-        let defaults = UserDefaults(suiteName: suiteName) ?? .standard
+        let defaults = ScratchPreferences.open("settings")
         return SettingsStore(preferences: StringPreferences(defaults: defaults))
     }
 
@@ -37,7 +34,7 @@ final class SettingsTests: XCTestCase, @unchecked Sendable {
     }
 
     func test_valuesSurviveANewStore() async {
-        let defaults = UserDefaults(suiteName: suiteName) ?? .standard
+        let defaults = ScratchPreferences.open("settings")
         let first = SettingsStore(preferences: StringPreferences(defaults: defaults))
         await first.update { settings in
             settings.largeFileThresholdBytes = 2 * 1024 * 1024 * 1024
@@ -61,7 +58,7 @@ final class SettingsTests: XCTestCase, @unchecked Sendable {
     func test_confirmationDefaultsToOnWhenTheKeyIsAbsent() async {
         // An upgrade from a build without the key must not silently disable the
         // confirmation panel.
-        let defaults = UserDefaults(suiteName: suiteName) ?? .standard
+        let defaults = ScratchPreferences.open("settings")
         defaults.removeObject(forKey: "settings.requireConfirmation")
         let settings = await SettingsStore(preferences: StringPreferences(defaults: defaults)).current()
         XCTAssertTrue(settings.requireConfirmation)
@@ -125,7 +122,7 @@ final class SettingsTests: XCTestCase, @unchecked Sendable {
         try Data("{}".utf8).write(to: report)
         defer { try? FileManager.default.removeItem(at: support) }
 
-        let defaults = UserDefaults(suiteName: suiteName) ?? .standard
+        let defaults = ScratchPreferences.open("settings")
         let store = SettingsStore(
             preferences: StringPreferences(defaults: defaults),
             supportDirectory: support
@@ -136,6 +133,27 @@ final class SettingsTests: XCTestCase, @unchecked Sendable {
         XCTAssertTrue(
             FileManager.default.fileExists(atPath: report.path),
             "clearing history must not delete the user's saved reports"
+        )
+    }
+
+    /// The scratch domain must not look like an application.
+    ///
+    /// `~/Library/Preferences` is one of the places residue is looked for, and a
+    /// name with three or more dot-separated components is a bundle identifier by
+    /// that reading: `sift.tests.<uuid>` left 7865 offerable "leftovers" on a
+    /// machine that runs the suite daily, all of them empty. A stable, dot-free name
+    /// is what keeps the product from reporting its own test artifacts.
+    func test_theScratchSuiteCannotBeMistakenForAnApplication() {
+        let name = ScratchPreferences.suite("settings")
+        XCTAssertEqual(
+            name,
+            ScratchPreferences.suite("settings"),
+            "one stable domain per class, so a run rewrites it rather than adding to a pile"
+        )
+        XCTAssertLessThan(
+            name.split(separator: ".").count,
+            3,
+            "a preference domain with three components is offered as application residue: \(name)"
         )
     }
 }
