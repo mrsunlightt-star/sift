@@ -55,6 +55,55 @@ final class FileOperationTests: XCTestCase, @unchecked Sendable {
         XCTAssertTrue(verdict.protected.isEmpty)
     }
 
+    /// A cache item whose application is running is refused, not moved.
+    ///
+    /// The scanner already took the row down to `review`, so it was not
+    /// pre-selected — but the user may still tick it, and the panel may stay open
+    /// while they go and launch the application. The move would succeed and the
+    /// directory would come back with the application's next write, which is the
+    /// case this refusal exists for.
+    func test_preflightRefusesAnItemWhoseApplicationIsRunning() async {
+        fixture.write("Library/Caches/com.running.app/blob.bin", bytes: 4096)
+        let file = fixture.directory("Library/Caches/com.running.app")
+        let engine = RuleEngine(rules: RuleEngine.builtInRules, homeDirectory: fixture.url)
+        let service = FileOperationService(
+            rules: engine,
+            isDryRun: true,
+            runningTokenProvider: { ["com.running.app"] }
+        )
+
+        let verdict = await service.preflight([
+            FileOperationService.Candidate(item: item(file, risk: .review))
+        ])
+
+        XCTAssertTrue(verdict.ready.isEmpty, "a running application's cache must not be queued")
+        XCTAssertEqual(verdict.skipped.count, 1)
+        XCTAssertEqual(verdict.skipped.first?.code, .fileInUse)
+    }
+
+    /// The same item is accepted once its application is not running.
+    ///
+    /// The refusal has to be about the state of the machine, not about the path:
+    /// otherwise every cache item becomes uncleanable the moment any application
+    /// happens to be running.
+    func test_preflightAcceptsTheSameItemWhenTheApplicationIsNotRunning() async {
+        fixture.write("Library/Caches/com.running.app/blob.bin", bytes: 4096)
+        let file = fixture.directory("Library/Caches/com.running.app")
+        let engine = RuleEngine(rules: RuleEngine.builtInRules, homeDirectory: fixture.url)
+        let service = FileOperationService(
+            rules: engine,
+            isDryRun: true,
+            runningTokenProvider: { ["com.other.app"] }
+        )
+
+        let verdict = await service.preflight([
+            FileOperationService.Candidate(item: item(file, risk: .review))
+        ])
+
+        XCTAssertEqual(verdict.ready.count, 1)
+        XCTAssertTrue(verdict.skipped.isEmpty)
+    }
+
     /// The approved item is the item the user selected, not a five-field copy.
     ///
     /// Rebuilding it during pre-flight used to replace the scanner's explanation
@@ -283,6 +332,41 @@ final class FileOperationTests: XCTestCase, @unchecked Sendable {
         XCTAssertTrue(verdict.ready.isEmpty)
         XCTAssertEqual(verdict.protected.count, 1)
         XCTAssertNil(verdict.makeApprovedPlan(operation: .junkCleanup))
+    }
+
+    /// A `safe` level the rule table no longer backs is lowered, not acted on.
+    ///
+    /// The scan result can be minutes old and the user's rule file can change
+    /// between the scan and the click. Re-deriving the level from the table in
+    /// force now is what keeps "only a rule may call an item safe" true without
+    /// depending on every producer remembering to say `review`.
+    func test_aSafeLevelTheTableDoesNotBackIsLoweredToReview() async {
+        let cache = fixture.directory("Library/Caches/com.example.app")
+        let unclaimed = fixture.directory("Library/Application Support/com.example.app")
+
+        let verdict = await makeService().preflight([
+            FileOperationService.Candidate(item: item(cache, risk: .safe)),
+            FileOperationService.Candidate(item: item(unclaimed, risk: .safe)),
+        ])
+
+        XCTAssertEqual(verdict.ready.count, 2, "both are still offered")
+        let backed = verdict.ready.first { $0.url == cache }
+        let lowered = verdict.ready.first { $0.url == unclaimed }
+        XCTAssertEqual(backed?.risk, .safe)
+        XCTAssertEqual(lowered?.risk, .review, "a level no rule backs arrives unselected")
+        XCTAssertEqual(lowered?.isSelectedByDefault, false)
+        XCTAssertTrue(lowered?.explanation().isEmpty == false, "the row keeps its sentence")
+    }
+
+    /// An item inside an excluded application's data is refused even when it
+    /// arrives claiming `safe`: no rule may offer that location at all.
+    func test_preflightRefusesALocationNoRuleMayOffer() async {
+        let file = fixture.write("Library/Caches/CloudKit/db.bin", bytes: 4096)
+        let verdict = await makeService().preflight([
+            FileOperationService.Candidate(item: item(file, risk: .safe))
+        ])
+        XCTAssertTrue(verdict.ready.isEmpty)
+        XCTAssertEqual(verdict.protected.count, 1)
     }
 
     func test_parentAndChildAreNotBothProcessed() async {

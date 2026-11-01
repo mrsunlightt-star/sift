@@ -1,0 +1,4 @@
+{"schemaVersion":1,"rules":[
+  {"id":"dotted","category":"logs","risk":"review","root":"homeLibrary",
+   "relativePath":"Logs/./x","matchSpec":"directory","explanationKey":"k"}
+]}

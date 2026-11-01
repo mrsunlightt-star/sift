@@ -262,6 +262,48 @@ public func XCTFail(
     fail(message.isEmpty ? "explicit failure" : message, file: file, line: line)
 }
 
+/// Asserts that an expression throws.
+///
+/// The handler receives the error so a test can pin *which* failure it expects,
+/// which is how a rule file is checked for the specific reason it was refused
+/// rather than for "something went wrong".
+public func XCTAssertThrowsError<T>(
+    _ expression: @autoclosure () throws -> T,
+    _ message: @autoclosure () -> String = "",
+    file: StaticString = #filePath,
+    line: UInt = #line,
+    _ errorHandler: (Error) -> Void = { _ in }
+) {
+    do {
+        _ = try expression()
+        fail(
+            "\(message().isEmpty ? "expression did not throw" : message()): no error was thrown",
+            file: file,
+            line: line
+        )
+    } catch {
+        errorHandler(error)
+    }
+}
+
+/// Asserts that an expression does not throw.
+public func XCTAssertNoThrow<T>(
+    _ expression: @autoclosure () throws -> T,
+    _ message: @autoclosure () -> String = "",
+    file: StaticString = #filePath,
+    line: UInt = #line
+) {
+    do {
+        _ = try expression()
+    } catch {
+        fail(
+            "\(message().isEmpty ? "expression threw" : message()): \(error)",
+            file: file,
+            line: line
+        )
+    }
+}
+
 public func XCTUnwrap<T>(
     _ expression: @autoclosure () throws -> T?,
     _ message: @autoclosure () -> String = "",

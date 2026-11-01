@@ -14,6 +14,15 @@ public enum CleanupCategory: String, Codable, Sendable, CaseIterable, Identifiab
     case oldFiles
     case duplicateFiles
     case applicationResidue
+    /// The shared container of an application that is gone.
+    ///
+    /// Its own category rather than a second kind of `applicationResidue`: a
+    /// private container belongs to one application, while
+    /// `~/Library/Group Containers/<team-id>.<id>` is shared by an app group, so
+    /// removing it can affect a sibling that is still installed. The uninstaller
+    /// already makes that distinction (a group container is always "review"); the
+    /// scan page now reads the same way.
+    case groupContainerResidue
 
     public var id: String { rawValue }
 
@@ -28,6 +37,7 @@ public enum CleanupCategory: String, Codable, Sendable, CaseIterable, Identifiab
         case .oldFiles: .cleanupCategoryOldFiles
         case .duplicateFiles: .cleanupCategoryDuplicateFiles
         case .applicationResidue: .cleanupCategoryApplicationResidue
+        case .groupContainerResidue: .cleanupCategoryGroupContainerResidue
         }
     }
 
@@ -42,6 +52,7 @@ public enum CleanupCategory: String, Codable, Sendable, CaseIterable, Identifiab
         case .oldFiles: "calendar.badge.clock"
         case .duplicateFiles: "doc.on.doc"
         case .applicationResidue: "questionmark.folder"
+        case .groupContainerResidue: "folder.badge.person.crop"
         }
     }
 
@@ -56,6 +67,7 @@ public enum CleanupCategory: String, Codable, Sendable, CaseIterable, Identifiab
         case .largeFiles: 5
         case .oldFiles: 6
         case .duplicateFiles: 7
+        case .groupContainerResidue: 8
         }
     }
 
@@ -70,6 +82,7 @@ public enum CleanupCategory: String, Codable, Sendable, CaseIterable, Identifiab
         case .largeFiles: 5
         case .oldFiles: 6
         case .duplicateFiles: 7
+        case .groupContainerResidue: 8
         }
     }
 }
@@ -206,6 +219,10 @@ public struct CleanupItem: Identifiable, Hashable, Sendable {
         case .oldFiles: return LocalizationKey.cleanupExplanationOldFiles.localized(180)
         case .duplicateFiles: key = .cleanupExplanationDuplicates
         case .applicationResidue: key = .cleanupExplanationResidue
+        // The scanner attaches `cleanup.explanation.residueGroupContainer` to
+        // every row it finds, so this generic sentence is only the fallback for an
+        // item assembled without one.
+        case .groupContainerResidue: key = .cleanupExplanationResidue
         }
         return key.localized
     }

@@ -634,6 +634,10 @@ public struct RelatedFile: Identifiable, Hashable, Sendable {
         case applicationName
         /// The last component of the bundle identifier, as macOS names some files.
         case identifierSuffix
+        /// A group container whose group this application declares in its
+        /// entitlements. The name belongs to the group, not to the application, so
+        /// nothing about the name can establish this.
+        case appGroup
 
         /// The localisation key of the sentence shown with the file.
         public var titleKey: LocalizationKey {
@@ -642,6 +646,7 @@ public struct RelatedFile: Identifiable, Hashable, Sendable {
             case .identifierPrefix: .uninstallReasonIdentifierPrefix
             case .applicationName: .uninstallReasonApplicationName
             case .identifierSuffix: .uninstallReasonIdentifierSuffix
+            case .appGroup: .uninstallReasonAppGroup
             }
         }
     }
@@ -651,13 +656,41 @@ public struct RelatedFile: Identifiable, Hashable, Sendable {
     public let sizeInBytes: Int64
     public let confidence: Confidence
     public let reason: MatchReason
+    /// Other installed applications that name the same directory.
+    ///
+    /// Only a group container can have this: `~/Library/Group Containers/<team-id>.<id>`
+    /// is shared by an app group, so removing it with one application can take
+    /// data another installed application is still using. Two facts fill it, both
+    /// read from the system rather than guessed: the applications LaunchServices
+    /// answers for the container's name readings, and the applications whose
+    /// entitlements declare the container's group. The row states them before the
+    /// user decides.
+    public let sharedWith: [String]
 
-    public init(url: URL, sizeInBytes: Int64, confidence: Confidence, reason: MatchReason) {
+    /// The app group whose container this file is, when the match came from the
+    /// application's own entitlements.
+    ///
+    /// The container's name *is* the group, so this repeats the row's own name —
+    /// which is the point on the rows that cannot show it: a team-prefixed name is
+    /// truncated in the middle, and the group id is the string a user can search
+    /// for or read back from `codesign -d --entitlements`.
+    public let groupIdentifier: String?
+
+    public init(
+        url: URL,
+        sizeInBytes: Int64,
+        confidence: Confidence,
+        reason: MatchReason,
+        sharedWith: [String] = [],
+        groupIdentifier: String? = nil
+    ) {
         self.id = url.path
         self.url = url
         self.sizeInBytes = sizeInBytes
         self.confidence = confidence
         self.reason = reason
+        self.sharedWith = sharedWith
+        self.groupIdentifier = groupIdentifier
     }
 
     public var displayName: String { url.lastPathComponent }

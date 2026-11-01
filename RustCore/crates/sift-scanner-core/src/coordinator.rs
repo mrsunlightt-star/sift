@@ -19,7 +19,7 @@ use crate::types::{
 use crate::walker;
 use sift_file_index::{FileIndex, ItemRecord, ScanSort};
 use sift_hasher::CancelToken;
-use sift_rules::{collapse_path, Risk};
+use sift_rules::{collapse_path, normalize_path, Risk, RootAnchor};
 use std::collections::{HashMap, VecDeque};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
@@ -332,8 +332,17 @@ impl Engine {
             let inside_home = path == home_text || path.starts_with(&format!("{home_text}/"));
             let inside_volumes = path.starts_with("/Volumes/");
             let system_logs = path == "/Library/Logs" || path.starts_with("/Library/Logs/");
+            // The per-user temporary root is the one scan root that is neither in
+            // the home directory nor a volume: `/var/folders/<xx>/<hash>` is what
+            // `$TMPDIR` sits in, and only the process that owns the session can
+            // resolve it, so the request carries it with `anchor: "userTemp"`.
+            // Without this branch every request the app builds was refused here
+            // and the scan never started — the anchor was honoured by the rule
+            // scanner and rejected by the gate in front of it.
+            let user_temp =
+                root.anchor == RootAnchor::UserTemp.as_str() && is_user_session_temp_root(&path);
             if !Path::new(&root.path).is_absolute()
-                || !(inside_home || inside_volumes || system_logs)
+                || !(inside_home || inside_volumes || system_logs || user_temp)
             {
                 return Err(EngineError::InvalidRequest(
                     "a scan root is outside the allowlist".to_string(),
@@ -438,6 +447,29 @@ impl Engine {
             _ => Err(EngineError::SessionNotFound(session_id.to_string())),
         }
     }
+}
+
+/// True when `path` names one login session's temporary root, and nothing wider.
+///
+/// `confstr(_CS_DARWIN_USER_TEMP_DIR)` answers `/var/folders/<xx>/<hash>/T/`, and
+/// the Swift engine sends its parent as a scan root with `anchor: "userTemp"`.
+/// That anchor cannot be derived from the home directory, which is exactly why
+/// the shape is checked before it is accepted: taking the anchor on its own would
+/// let a caller name `/private/var` or `/var/folders` itself — every session on
+/// the machine — through a field the UI never offers. Shallower than
+/// `<xx>/<hash>` is refused for the same reason; deeper is `T` or `C`, which the
+/// rules reach from this root and which the walk still judges item by item.
+fn is_user_session_temp_root(path: &str) -> bool {
+    // `/var` is a symlink to `/private/var`, and either spelling may arrive.
+    let normalized = normalize_path(path);
+    let Some(rest) = normalized.strip_prefix("/private/var/folders/") else {
+        return false;
+    };
+    let components: Vec<&str> = rest
+        .split('/')
+        .filter(|component| !component.is_empty())
+        .collect();
+    matches!(components.as_slice(), [session, hash] if session.len() == 2 && !hash.is_empty())
 }
 
 /// Removes the index database and the WAL/SHM files SQLite writes beside it.
@@ -923,6 +955,7 @@ fn finish_cancelled(handle: &Arc<ScanHandle>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::ScanRoot;
     use crate::walker::fixtures::TempTree;
     use std::sync::Arc as StdArc;
 
@@ -1101,6 +1134,102 @@ mod tests {
         let request = ScanRequest {
             session_id: "s".to_string(),
             home_dir: "relative/path".to_string(),
+            ..Default::default()
+        };
+        assert!(matches!(
+            engine.start_scan(request),
+            Err(EngineError::InvalidRequest(_))
+        ));
+    }
+
+    /// The app's own request is accepted.
+    ///
+    /// `AppEnvironment.makeScanRequest` sends three roots on an ordinary Mac: the
+    /// home directory, `/Library/Logs` and the session's `/var/folders/<xx>/<hash>`
+    /// with `anchor: "userTemp"`. The third one was outside the allowlist, so every
+    /// scan the shipped app started was refused with `invalidRequest` before the
+    /// engine did any work — and no test noticed, because the fixtures put every
+    /// root inside a temporary home directory.
+    #[test]
+    fn the_roots_the_app_builds_are_accepted() {
+        let engine = StdArc::new(Engine::new());
+        let request = ScanRequest {
+            session_id: "app-roots".to_string(),
+            home_dir: std::env::var("HOME").unwrap_or_else(|_| "/Users/example".to_string()),
+            roots: vec![
+                ScanRoot::new(
+                    std::env::var("HOME").unwrap_or_else(|_| "/Users/example".to_string()),
+                    "home",
+                ),
+                ScanRoot::new("/Library/Logs", "systemLibrary"),
+                ScanRoot::new("/var/folders/zz/0000000000000000000000", "userTemp"),
+            ],
+            ..Default::default()
+        };
+        let handle = engine
+            .start_scan(request)
+            .expect("the request the app builds must be accepted");
+        // Cancelled and drained: the point is that the gate let the request
+        // through, not what the walk of a real home directory finds.
+        handle.cancel();
+        wait_for_completion(&handle);
+    }
+
+    /// A `userTemp` root is accepted only in the shape macOS produces.
+    ///
+    /// The anchor cannot be derived from the home directory, so it is the request
+    /// that names it — and that is why the shape is checked: `/var/folders` is
+    /// every session on the machine, not this one.
+    #[test]
+    fn a_user_temp_root_is_accepted_only_at_the_session_depth() {
+        for accepted in [
+            "/var/folders/zz/0000000000000000000000",
+            "/private/var/folders/zz/0000000000000000000000",
+        ] {
+            assert!(
+                is_user_session_temp_root(accepted),
+                "{accepted} is one session's temporary root"
+            );
+        }
+        for refused in [
+            "/var/folders",
+            "/var/folders/",
+            "/var/folders/zz",
+            "/var/folders/zz/0000000000000000000000/T",
+            "/var/folders/zz/0000000000000000000000/C/stale.app",
+            "/private/var",
+            "/Users/example",
+            "/tmp",
+        ] {
+            assert!(
+                !is_user_session_temp_root(refused),
+                "{refused} is wider than one session"
+            );
+        }
+
+        let engine = StdArc::new(Engine::new());
+        let home = std::env::var("HOME").unwrap_or_else(|_| "/Users/example".to_string());
+        // The shape is right but the anchor is not: a caller that never said
+        // `userTemp` gets no temporary-root allowance.
+        let request = ScanRequest {
+            session_id: "wrong-anchor".to_string(),
+            home_dir: home.clone(),
+            roots: vec![
+                ScanRoot::new(home, "home"),
+                ScanRoot::new("/var/folders/zz/0000000000000000000000", "home"),
+            ],
+            ..Default::default()
+        };
+        assert!(matches!(
+            engine.start_scan(request),
+            Err(EngineError::InvalidRequest(_))
+        ));
+
+        // The anchor is right but the path is a whole tree of sessions.
+        let request = ScanRequest {
+            session_id: "too-wide".to_string(),
+            home_dir: std::env::var("HOME").unwrap_or_else(|_| "/Users/example".to_string()),
+            roots: vec![ScanRoot::new("/var/folders", "userTemp")],
             ..Default::default()
         };
         assert!(matches!(

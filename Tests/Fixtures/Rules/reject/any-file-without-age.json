@@ -1,0 +1,4 @@
+{"schemaVersion":1,"rules":[
+  {"id":"whole-tree","category":"temporaryFiles","risk":"review","root":"homeLibrary",
+   "relativePath":"Caches","matchSpec":"anyFile","explanationKey":"k"}
+]}

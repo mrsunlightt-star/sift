@@ -1,0 +1,5 @@
+{"schemaVersion":1,"rules":[
+  {"id":"aged-any-file","category":"logs","risk":"review","root":"homeLibrary",
+   "relativePath":"Logs/DiagnosticReports","matchSpec":"anyFile","minAgeDays":30,
+   "explanationKey":"k"}
+]}

@@ -44,6 +44,36 @@ public struct ScanRequest: Sendable {
     public var authorizedRoots: [String]
     /// Bundle identifiers of installed apps, used for residue detection.
     public var installedBundleIdentifiers: [String]
+    /// App groups declared by installed apps' entitlements.
+    ///
+    /// A group container is named after its group, so a container two
+    /// applications share names neither of them and no identifier resolves it.
+    /// The set is read from every installed signature once per scan and travels
+    /// here so both engines reach the same verdict from the same request.
+    public var appGroupIdentifiers: [String]
+    /// Whether `appGroupIdentifiers` is the complete set.
+    ///
+    /// `false` when the read was cut short — a deadline, a cancelled scan, a
+    /// volume that stopped answering. An incomplete set is worse than an empty one
+    /// for the question it answers: a container is offered as residue when no
+    /// application declares it, so an unread application would turn a live
+    /// container into a cleanup row. Both engines then report no group-container
+    /// residue for that run, which is the safe direction.
+    public var appGroupIdentifiersComplete: Bool
+    /// Aliases of the applications running when the scan started.
+    ///
+    /// Bundle identifiers, Finder names and executable names, lower-cased by the
+    /// engine that compares them. A rule that marks its items as owned by one
+    /// application (`needsAppClosed`) uses this to take a `safe` item down to
+    /// `review` while its owner is running: the move would otherwise pull a
+    /// cache directory out from under a live process, which recreates it or
+    /// loses what it was writing.
+    ///
+    /// It travels in the request rather than being read inside each engine,
+    /// because only AppKit knows what is running and the Rust core has no
+    /// AppKit. Both engines therefore see the same list, which is what keeps
+    /// their results identical.
+    public var runningApplicationTokens: [String]
     /// Whether entries whose name starts with `.` are part of the scan (§5.6).
     ///
     /// A scope, not a display filter: the setting decides what the engines
@@ -76,6 +106,9 @@ public struct ScanRequest: Sendable {
         ignoredPaths: [String] = [],
         authorizedRoots: [String] = [],
         installedBundleIdentifiers: [String] = [],
+        appGroupIdentifiers: [String] = [],
+        appGroupIdentifiersComplete: Bool = true,
+        runningApplicationTokens: [String] = [],
         includeHiddenFiles: Bool = true,
         includeDuplicates: Bool = true,
         duplicateRoots: [String] = [],
@@ -90,6 +123,9 @@ public struct ScanRequest: Sendable {
         self.ignoredPaths = ignoredPaths
         self.authorizedRoots = authorizedRoots
         self.installedBundleIdentifiers = installedBundleIdentifiers
+        self.appGroupIdentifiers = appGroupIdentifiers
+        self.appGroupIdentifiersComplete = appGroupIdentifiersComplete
+        self.runningApplicationTokens = runningApplicationTokens
         self.includeHiddenFiles = includeHiddenFiles
         self.includeDuplicates = includeDuplicates
         self.duplicateRoots = duplicateRoots

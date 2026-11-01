@@ -1,0 +1,4 @@
+{"schemaVersion":1,"rules":[
+  {"id":"   ","category":"logs","risk":"review","root":"homeLibrary",
+   "relativePath":"Logs","matchSpec":"childDirectories","explanationKey":"k"}
+]}

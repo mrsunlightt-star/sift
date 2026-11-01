@@ -1,0 +1,6 @@
+{"schemaVersion":1,"rules":[
+  {"id":"twice","category":"logs","risk":"review","root":"homeLibrary",
+   "relativePath":"Logs","matchSpec":"childDirectories","explanationKey":"k"},
+  {"id":"twice","category":"logs","risk":"review","root":"homeLibrary",
+   "relativePath":"Caches","matchSpec":"childDirectories","explanationKey":"k"}
+]}

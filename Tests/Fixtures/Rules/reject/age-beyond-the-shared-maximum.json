@@ -1,0 +1,5 @@
+{"schemaVersion":1,"rules":[
+  {"id":"ancient","category":"logs","risk":"review","root":"homeLibrary",
+   "relativePath":"Caches","matchSpec":"childDirectories","minAgeDays":99999,
+   "explanationKey":"k"}
+]}

@@ -50,6 +50,30 @@ final class SiftUITests: XCTestCase {
         )
     }
 
+    /// The picker behind the sidebar language control actually opens.
+    ///
+    /// Existence of the control is not the promise: the rail entry could be
+    /// present and, on press, do nothing at all — which is what happened when
+    /// the popover was presented by the style's conditional wrapper instead of
+    /// by the button, so the appearance switcher's picker opened and the
+    /// language one silently did not.
+    func test_languagePickerOpensFromTheSidebar() throws {
+        let app = launchApp()
+        let switcher = app.buttons.matching(identifier: "sidebar.language").firstMatch
+        XCTAssertTrue(switcher.waitForExistence(timeout: 5))
+        switcher.click()
+
+        let row = app.buttons.matching(identifier: "language.zh-hans").firstMatch
+        XCTAssertTrue(
+            row.waitForExistence(timeout: 5),
+            "pressing the sidebar language control should open the language picker"
+        )
+        XCTAssertTrue(
+            app.buttons.matching(identifier: "language.en").firstMatch.exists,
+            "the picker should list languages other than the current one"
+        )
+    }
+
     /// Opening the storage page must not start an analysis by itself: the page
     /// shows its scope and waits for the user's confirmation.
     func test_storageAnalysisWaitsForTheUser() throws {

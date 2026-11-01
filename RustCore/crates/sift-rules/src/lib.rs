@@ -55,6 +55,16 @@ pub enum Category {
     OldFiles,
     DuplicateFiles,
     ApplicationResidue,
+    /// The shared container of an application that is gone.
+    ///
+    /// A separate category rather than a second kind of `applicationResidue`,
+    /// because the claim is different: `~/Library/Containers/<id>` is one
+    /// application's private data, while
+    /// `~/Library/Group Containers/<team-id>.<id>` is a container an app group
+    /// shares, and removing one can affect a sibling that is still installed. The
+    /// uninstaller already treats the two differently (a group container is
+    /// always "review"); this is the same distinction on the scan page.
+    GroupContainerResidue,
 }
 
 impl Category {
@@ -68,6 +78,7 @@ impl Category {
             Category::OldFiles => "oldFiles",
             Category::DuplicateFiles => "duplicateFiles",
             Category::ApplicationResidue => "applicationResidue",
+            Category::GroupContainerResidue => "groupContainerResidue",
         }
     }
 
@@ -82,6 +93,7 @@ impl Category {
             Category::LargeFiles => 5,
             Category::OldFiles => 6,
             Category::DuplicateFiles => 7,
+            Category::GroupContainerResidue => 8,
         }
     }
 }
@@ -98,6 +110,14 @@ pub enum RootAnchor {
     Applications,
     /// `/Library`
     SystemLibrary,
+    /// The per-user temporary root macOS gives this login session.
+    ///
+    /// `/var/folders/<two>/<hash>` — the parent of `$TMPDIR`, holding `T` (the
+    /// temporary directory) and `C` (the per-user cache directory). Unlike every
+    /// other fixed anchor it is not derived from the home directory, so it is not
+    /// resolvable from a rule: the request carries it, as a scan root with
+    /// `anchor: "userTemp"`, and the Swift engine reads the same value.
+    UserTemp,
     /// A directory the user explicitly authorised in settings.
     Authorized,
     /// An external volume the user explicitly selected.
@@ -111,6 +131,7 @@ impl RootAnchor {
             RootAnchor::HomeLibrary => "homeLibrary",
             RootAnchor::Applications => "applications",
             RootAnchor::SystemLibrary => "systemLibrary",
+            RootAnchor::UserTemp => "userTemp",
             RootAnchor::Authorized => "authorized",
             RootAnchor::ExternalVolume => "externalVolume",
         }
@@ -136,6 +157,8 @@ pub enum MatchSpecName {
     FilesByExtension,
     /// Any file below the root; used together with an age threshold.
     AnyFile,
+    /// Direct child directories whose own name is in the rule's `names`.
+    DirectoriesNamed,
 }
 
 /// What a rule considers a match, with the extension list resolved.
@@ -151,6 +174,13 @@ pub enum MatchSpec {
     FilesByExtension { extensions: Vec<String> },
     /// Any file below the root; used together with an age threshold.
     AnyFile,
+    /// Direct child directories whose own name is in the rule's `names`.
+    ///
+    /// `childDirectories` with a filter that is part of the rule rather than part
+    /// of a path: an application names its cache directory `Cache`, `Caches`,
+    /// `GPUCache` or `Code Cache` depending on the framework it was built with,
+    /// and a model without a name set needs one rule per spelling.
+    DirectoriesNamed { names: Vec<String> },
 }
 
 /// A single declarative cleaning rule.
@@ -172,6 +202,14 @@ pub struct Rule {
     /// the shipped rule file.
     #[serde(default)]
     pub extensions: Vec<String>,
+    /// Directory names a `directoriesNamed` rule matches, compared without case.
+    ///
+    /// A sibling of `match_spec` for the same reason `extensions` is: the
+    /// document says `{"matchSpec":"directoriesNamed","names":["Cache"]}` and an
+    /// externally tagged enum cannot express that without changing the shape the
+    /// shipped file already uses.
+    #[serde(default)]
+    pub names: Vec<String>,
     /// Path fragments that must be skipped even inside a matching rule.
     #[serde(default)]
     pub excludes: Vec<String>,
@@ -192,6 +230,19 @@ pub struct Rule {
     pub package_extensions: Vec<String>,
     #[serde(default)]
     pub requires_full_disk_access: bool,
+    /// Whether the data under this rule belongs to an application, so that
+    /// application must not be running while an item is removed.
+    ///
+    /// A cache directory is not locked the way an `.app` bundle is: the move
+    /// succeeds, the application keeps writing into the path it remembers, and
+    /// the directory reappears a moment later — or, worse, the application
+    /// loses the state it was in the middle of writing. This flag says "the
+    /// owner may be running, so check" and the scan downgrades a `safe` item to
+    /// `review` when any running application's name or identifier appears in
+    /// the item's path (see [`running_app_owns_path`]). The shipped flags are
+    /// on the rules whose items a single application owns.
+    #[serde(default)]
+    pub needs_app_closed: bool,
     /// Localisation key for the explanation shown to users.
     pub explanation_key: String,
     #[serde(default = "default_enabled")]
@@ -210,6 +261,9 @@ impl Rule {
             Some(MatchSpecName::Directory) => MatchSpec::Directory,
             Some(MatchSpecName::ChildDirectories) => MatchSpec::ChildDirectories,
             Some(MatchSpecName::AnyFile) => MatchSpec::AnyFile,
+            Some(MatchSpecName::DirectoriesNamed) => MatchSpec::DirectoriesNamed {
+                names: self.names.clone(),
+            },
             Some(MatchSpecName::FilesByExtension) => MatchSpec::FilesByExtension {
                 // Lower-cased here rather than at the comparison, so the defaults
                 // and a hand-written rule file behave identically.
@@ -249,6 +303,206 @@ pub struct RuleSet {
 
 /// Rule schema version understood by this build.
 pub const RULE_SCHEMA_VERSION: u32 = 1;
+
+/// The largest age a rule file may state, in days.
+///
+/// The scanner compares a file's age against this number, so the domain is a
+/// safety property rather than a formatting one: a negative age makes every
+/// file stale, and an age past this bound is a typo that silently disables the
+/// rule. Swift and Rust both validate it against this bound, because a document
+/// one engine accepts and the other refuses fails the whole scan.
+pub const MAX_RULE_MIN_AGE_DAYS: u32 = 3650;
+
+/// Directory names no rule may target, whoever wrote the rule file.
+///
+/// Each of these holds the live data of *every* application at once, and a
+/// rule can only match a name shape or an age — it cannot know whether an
+/// application is installed. A `childDirectories` rule here offers each
+/// application's data as one item, and with `risk: safe` that item arrives
+/// pre-selected. Orphaned containers and residue are found at scan time by
+/// [`Category::ApplicationResidue`] scanners instead, which compare names
+/// against what is actually installed.
+///
+/// The shipped table is asserted against this list, and [`from_json`] refuses a
+/// rule file that names one, so the invariant holds for a rule this build does
+/// not ship as well.
+pub const FORBIDDEN_RULE_DIRECTORIES: &[&str] =
+    &["Containers", "Group Containers", "Application Support"];
+
+/// The forbidden directory a relative path names, if it names one.
+///
+/// Two shapes are refused, and both offer every application's data as a set of
+/// individual items:
+///
+/// * the container is the item — `Containers`, or any path ending in it;
+/// * the wildcard is the container's direct child — `Containers/*`, which is
+///   one item per installed application.
+///
+/// A path that *descends through* a container to a named location inside it is
+/// a different thing and stays allowed: `Containers/*/Data/Library/Caches` is
+/// one directory per application, named by the platform rather than guessed.
+///
+/// Components are compared after collapsing `.` and duplicate separators, and
+/// case-folded, because these are ordinary directory names on a volume that
+/// does not distinguish case.
+pub fn forbidden_rule_directory(
+    relative_path: &str,
+    spec: Option<MatchSpecName>,
+) -> Option<&'static str> {
+    let components: Vec<&str> = relative_path
+        .split('/')
+        .filter(|component| !component.is_empty() && *component != ".")
+        .collect();
+
+    let forbidden = |name: &str| {
+        FORBIDDEN_RULE_DIRECTORIES
+            .iter()
+            .find(|forbidden| name.eq_ignore_ascii_case(forbidden))
+            .copied()
+    };
+
+    if let Some(last) = components.last() {
+        if let Some(name) = forbidden(last) {
+            return Some(name);
+        }
+    }
+    // `<container>/*`: the container's own children, one item each — unless the
+    // specification names what to look for inside them, which is what
+    // `directoriesNamed` does. `Application Support/*` with `childDirectories`
+    // offers every application's data root; with `directoriesNamed ["Cache"]` it
+    // offers one named cache directory per application, which is the rule this
+    // build ships.
+    if components.len() == 2
+        && components[1] == "*"
+        && spec != Some(MatchSpecName::DirectoriesNamed)
+    {
+        if let Some(name) = forbidden(components[0]) {
+            return Some(name);
+        }
+    }
+    None
+}
+
+/// The one wildcard a relative path may use.
+///
+/// A component is either a literal directory name or exactly this, and it
+/// matches exactly one directory name. Partial shapes (`com.apple.*`), recursive
+/// shapes (`**`) and a leading wildcard are refused: the first two mean the rule
+/// says something the scanner cannot enumerate safely, and a leading `*` would
+/// make one rule span every child of its anchor — for `~/Library` that is every
+/// application's data root, which is the shape
+/// [`FORBIDDEN_RULE_DIRECTORIES`] exists to prevent.
+pub const RELATIVE_PATH_WILDCARD: &str = "*";
+
+/// The largest number of directories one rule may expand to.
+///
+/// A wildcard enumerates a directory the rule author never saw. The bound keeps
+/// a pathological tree (or a rule pointed at one) from turning a scan into an
+/// unbounded enumeration; a rule that exceeds it contributes nothing rather than
+/// a partial, unpredictable set.
+pub const MAX_RULE_ROOTS: usize = 4096;
+
+/// True when a `relativePath` uses only the wildcard this build understands.
+pub fn relative_path_glob_is_valid(path: &str) -> bool {
+    let components: Vec<&str> = path
+        .split('/')
+        .filter(|component| !component.is_empty())
+        .collect();
+    if components.is_empty() {
+        return true;
+    }
+    if components[0] == RELATIVE_PATH_WILDCARD {
+        return false;
+    }
+    components
+        .iter()
+        .all(|component| !component.contains('*') || *component == RELATIVE_PATH_WILDCARD)
+}
+
+/// True when a `directoriesNamed` rule's name set can match a directory.
+///
+/// One or more names, each a single path component: no separator, no wildcard.
+/// An empty set matches nothing and a set carrying `/` or `*` is a path the
+/// author meant to put in `relativePath`, so both are refused where the file is
+/// read rather than silently finding nothing.
+pub fn directory_name_set_is_valid(names: &[String]) -> bool {
+    !names.is_empty()
+        && names.iter().all(|name| {
+            !name.is_empty()
+                && !name.contains('/')
+                && !name.contains('*')
+                && name != "."
+                && name != ".."
+        })
+}
+
+/// True when a relative path names at least one wildcard component.
+pub fn relative_path_has_wildcard(path: &str) -> bool {
+    path.split('/')
+        .any(|component| component == RELATIVE_PATH_WILDCARD)
+}
+
+/// Suffixes a directory name keeps on top of the application it belongs to.
+///
+/// `~/Library/Saved Application State/com.apple.Safari.savedState` is Safari's
+/// state, not the state of an application called `com.apple.Safari.savedState`.
+/// The suffix is part of the *name*, and on a case-insensitive volume it may
+/// come back in any case, which is why the comparison lower-cases both sides.
+/// The list is short on purpose: a suffix that only sometimes appears is worse
+/// than none, because it makes the answer depend on how the application was
+/// written rather than on which application it is.
+pub const APP_OWNED_NAME_SUFFIXES: &[&str] = &[".savedstate", ".savedapplicationstate"];
+
+/// True when any of `tokens` names `path`, judging by the path's components.
+///
+/// `tokens` are the aliases of the applications that are running right now: the
+/// bundle identifiers, the identifiers without their team prefix, the names the
+/// Finder shows, and the executable names. The caller collects them because Rust
+/// has no `NSWorkspace`; the Swift engine is handed exactly the same list, so the
+/// two engines downgrade exactly the same items.
+///
+/// Two comparisons, and the difference matters:
+///
+///  * **equality**, case-folded, against every component of the path — a bundle
+///    identifier names the directory it owns (`~/.Trash` aside, macOS names a
+///    cache directory after the application that writes it);
+///  * **prefix**, for aliases that contain a dot, so `com.apple.Safari` also
+///    claims `com.apple.Safari.SafeBrowsing`. An alias without a dot is an
+///    application name, and `Firefox` must not claim `Firefox Developer Edition`.
+///
+/// A component is compared twice when it carries one of
+/// [`APP_OWNED_NAME_SUFFIXES`]. Every component is compared, not just the last
+/// one, because the shape of the item differs by rule: the wildcard component in
+/// `Containers/*/Data/Library/Caches` is the owner, the last component in
+/// `Caches/<bundle-id>` is, and the rule has no way to say which. Matching too
+/// much costs a `safe` item its pre-selection; matching too little moves a
+/// directory out from under a running application.
+pub fn running_app_owns_path(path: &str, tokens: &[String]) -> bool {
+    let aliases: Vec<String> = tokens
+        .iter()
+        .map(|token| token.trim().to_lowercase())
+        .filter(|token| !token.is_empty())
+        .collect();
+    if aliases.is_empty() {
+        return false;
+    }
+
+    path.split('/')
+        .filter(|component| !component.is_empty())
+        .any(|component| {
+            let name = component.to_lowercase();
+            let trimmed = APP_OWNED_NAME_SUFFIXES
+                .iter()
+                .find_map(|suffix| name.strip_suffix(suffix));
+            let owned = |candidate: &str| {
+                aliases.iter().any(|alias| {
+                    candidate == alias
+                        || (alias.contains('.') && candidate.starts_with(&format!("{alias}.")))
+                })
+            };
+            owned(&name) || trimmed.is_some_and(owned)
+        })
+}
 
 /// Paths that are never scanned or cleaned, matched as `~/<child>` prefixes of
 /// the user's home directory. Compiled in: a rule file cannot remove them.
@@ -302,6 +556,20 @@ pub const PROTECTED_LIBRARY_USER_CONTENT: &[&str] = &["Library/Mobile Documents"
 /// Suffix of a photo library package, protected as one unit.
 pub const PROTECTED_PHOTOS_LIBRARY_SUFFIX: &str = ".photoslibrary";
 
+/// Directory names that mark a recycle bin, at any depth below any root.
+///
+/// Every removal this product performs moves an item *to* the Trash, and the
+/// undo it promises is the user emptying that Trash later. Offering the Trash
+/// itself turns that promise inside out: the item is moved into the bin it was
+/// already in, and the next empty makes the "undo" unrecoverable. `~/.Trash` is
+/// the usual spelling; a volume keeps `.Trashes` at its root, and a trash
+/// folder can also appear in a path the user selected by hand.
+///
+/// Matched as a whole component rather than as a prefix, because the two names
+/// are siblings and a directory called `.Trash-notes` is an ordinary folder.
+/// The comparison folds case for the same reason the rest of this list does.
+pub const PROTECTED_RECYCLE_BIN_NAMES: &[&str] = &[".Trash", ".Trashes"];
+
 /// The directory aliases macOS ships as symlinks.
 ///
 /// `/var` is a symlink to `/private/var`, `/tmp` to `/private/tmp` and `/etc` to
@@ -348,6 +616,16 @@ pub enum RuleError {
     DuplicateRuleID(String),
     #[error("rule `{id}` has a relativePath that leaves its anchor: {path}")]
     EscapingRelativePath { id: String, path: String },
+    #[error("rule `{id}` states minAgeDays {days}, this build accepts 0...{max}")]
+    MinAgeOutOfRange { id: String, days: u32, max: u32 },
+    #[error("rule `{id}` targets `{path}`, which holds the data of every application")]
+    ForbiddenRuleDirectory { id: String, path: String },
+    #[error("rule `{id}` matches any file without an age threshold")]
+    AnyFileWithoutMinAge { id: String },
+    #[error("rule `{id}` has a relativePath wildcard this build does not understand: {path}")]
+    UnsupportedRelativePathWildcard { id: String, path: String },
+    #[error("rule `{id}` is `directoriesNamed` without a usable name")]
+    DirectoriesNamedWithoutNames { id: String },
 }
 
 impl RuleSet {
@@ -378,6 +656,50 @@ impl RuleSet {
                     path: rule.relative_path.clone(),
                 });
             }
+            // The three checks below are what keeps a rule file from describing
+            // a rule the shipped table is not allowed to hold. They are refused
+            // here, where the user sees the reason, rather than dropped later,
+            // where a rule would silently stop applying.
+            if let Some(days) = rule.min_age_days {
+                if days > MAX_RULE_MIN_AGE_DAYS {
+                    return Err(RuleError::MinAgeOutOfRange {
+                        id: rule.id.clone(),
+                        days,
+                        max: MAX_RULE_MIN_AGE_DAYS,
+                    });
+                }
+            }
+            if let Some(forbidden) = forbidden_rule_directory(&rule.relative_path, rule.match_spec)
+            {
+                return Err(RuleError::ForbiddenRuleDirectory {
+                    id: rule.id.clone(),
+                    path: forbidden.to_string(),
+                });
+            }
+            if !relative_path_glob_is_valid(&rule.relative_path) {
+                return Err(RuleError::UnsupportedRelativePathWildcard {
+                    id: rule.id.clone(),
+                    path: rule.relative_path.clone(),
+                });
+            }
+            // A `directoriesNamed` rule with no name matches nothing, and a name
+            // carrying a separator or a wildcard is a path the author meant to
+            // write into `relativePath`: both are typos that would otherwise
+            // read as "the rule found nothing today".
+            if rule.match_spec == Some(MatchSpecName::DirectoriesNamed)
+                && !directory_name_set_is_valid(&rule.names)
+            {
+                return Err(RuleError::DirectoriesNamedWithoutNames {
+                    id: rule.id.clone(),
+                });
+            }
+            if rule.effective_match_spec() == MatchSpec::AnyFile && rule.min_age_days.is_none() {
+                // `anyFile` with no age is "every file under this root": no
+                // install of this product has a place where that is safe.
+                return Err(RuleError::AnyFileWithoutMinAge {
+                    id: rule.id.clone(),
+                });
+            }
         }
         Ok(parsed)
     }
@@ -400,6 +722,56 @@ impl RuleSet {
                 .collect(),
         }
     }
+}
+
+/// The ids this build ships.
+///
+/// Used to decide which rules a release reviewed: a rule whose id is not in
+/// this set came from a user rule file.
+pub fn shipped_rule_ids() -> std::collections::HashSet<String> {
+    default_rules().into_iter().map(|rule| rule.id).collect()
+}
+
+/// Applies the invariants every merged rule table must satisfy.
+///
+/// [`RuleSet::from_json`] already refuses a document that names a forbidden
+/// directory, pairs `anyFile` with no age, or states an out-of-range age, so
+/// this is the second line rather than the only one: it also covers the
+/// built-in table and a table assembled in code rather than read from a file.
+///
+/// The clamp is the part that needs to know what this build ships. `safe` is
+/// the level that arrives pre-selected, and only a rule a release reviewed
+/// earns it: a rule the user added is offered at `review`, which still lets it
+/// find things and leaves the decision with the user. A rule that *replaces* a
+/// shipped id keeps its level — retuning a reviewed rule is what an overlay is
+/// for, and refusing the level there would make the overlay useless.
+pub fn enforce_rule_invariants(
+    rules: Vec<Rule>,
+    shipped_ids: &std::collections::HashSet<String>,
+) -> Vec<Rule> {
+    rules
+        .into_iter()
+        .filter_map(|mut rule| {
+            if forbidden_rule_directory(&rule.relative_path, rule.match_spec).is_some() {
+                return None;
+            }
+            if !relative_path_glob_is_valid(&rule.relative_path) {
+                return None;
+            }
+            if rule.match_spec == Some(MatchSpecName::DirectoriesNamed)
+                && !directory_name_set_is_valid(&rule.names)
+            {
+                return None;
+            }
+            if rule.effective_match_spec() == MatchSpec::AnyFile && rule.min_age_days.is_none() {
+                return None;
+            }
+            if rule.risk == Risk::Safe && !shipped_ids.contains(&rule.id) {
+                rule.risk = Risk::Review;
+            }
+            Some(rule)
+        })
+        .collect()
 }
 
 /// A rule, with the localisation key of the sentence the user reads.
@@ -430,11 +802,13 @@ fn rule(
         relative_path: rel.to_string(),
         match_spec: None,
         extensions: Vec::new(),
+        names: Vec::new(),
         excludes: Vec::new(),
         min_age_days: None,
         uses_stale_threshold: false,
         package_extensions: Vec::new(),
         requires_full_disk_access: false,
+        needs_app_closed: false,
         explanation_key: explanation_key.to_string(),
         enabled: true,
     }
@@ -449,7 +823,18 @@ fn with_spec(mut r: Rule, spec: MatchSpec) -> Rule {
             r.match_spec = Some(MatchSpecName::FilesByExtension);
             r.extensions = extensions;
         }
+        MatchSpec::DirectoriesNamed { names } => {
+            r.match_spec = Some(MatchSpecName::DirectoriesNamed);
+            r.names = names;
+        }
     }
+    r
+}
+
+/// Marks a rule that matches child directories by name.
+fn with_names(mut r: Rule, names: &[&str]) -> Rule {
+    r.match_spec = Some(MatchSpecName::DirectoriesNamed);
+    r.names = names.iter().map(|name| (*name).to_string()).collect();
     r
 }
 
@@ -471,6 +856,13 @@ fn following_stale_threshold(mut r: Rule) -> Rule {
 
 fn with_fda(mut r: Rule) -> Rule {
     r.requires_full_disk_access = true;
+    r
+}
+
+/// Marks a rule whose items one application owns, so a scan checks whether that
+/// application is running before it calls an item `safe`.
+fn needing_app_closed(mut r: Rule) -> Rule {
+    r.needs_app_closed = true;
     r
 }
 
@@ -517,14 +909,14 @@ pub fn default_rules() -> Vec<Rule> {
     // --- Application caches ------------------------------------------------
     rules.push(with_spec(
         with_excludes(
-            rule(
+            needing_app_closed(rule(
                 "user-cache",
                 ApplicationCache,
                 Safe,
                 HomeLibrary,
                 "Caches",
                 "cleanup.explanation.cache",
-            ),
+            )),
             // CloudKit and container caches hold state that is expensive to
             // rebuild or that belongs to a sandboxed app's data directory.
             &[
@@ -535,6 +927,127 @@ pub fn default_rules() -> Vec<Rule> {
             ],
         ),
         MatchSpec::ChildDirectories,
+    ));
+
+    // --- Application caches inside an application's own data ---------------
+    //
+    // A sandboxed application keeps its cache inside its container, one level
+    // below a name the platform generated rather than one this rule can know.
+    // `*` is what makes that expressible without a rule per bundle identifier;
+    // see `RELATIVE_PATH_WILDCARD`. The container itself stays off limits
+    // (`FORBIDDEN_RULE_DIRECTORIES`), so what is offered is the cache directory
+    // one level deeper, never the application's data as a whole.
+    //
+    // `com.apple` is excluded: macOS keeps one container per system application,
+    // and there are hundreds of them holding a few kilobytes each, so offering
+    // them buries the two dozen third-party caches that actually carry weight.
+    // A rule file can override this id without the exclusion if a user wants
+    // them; the overlay replaces the rule rather than adding to it.
+    rules.push(with_spec(
+        with_excludes(
+            needing_app_closed(rule(
+                "container-caches",
+                ApplicationCache,
+                Safe,
+                HomeLibrary,
+                "Containers/*/Data/Library/Caches",
+                "cleanup.explanation.cache",
+            )),
+            &["com.apple"],
+        ),
+        MatchSpec::Directory,
+    ));
+
+    // `~/Library/Application Support/<app>/<name>` is named by the application,
+    // not by the platform, so the same name can hold a cache in one application
+    // and state the application cannot rebuild in another. The entries are
+    // offered at `review` for that reason.
+    //
+    // The names are the ones the frameworks actually use: `Cache` and `Caches`
+    // are the obvious pair, `GPUCache` and `Code Cache` are Chromium's. The set
+    // is part of the rule so a new spelling is a new entry here rather than a new
+    // rule that has to repeat the wildcard, the category and the explanation.
+    rules.push(with_names(
+        needing_app_closed(rule(
+            "app-support-caches",
+            ApplicationCache,
+            Review,
+            HomeLibrary,
+            "Application Support/*",
+            "cleanup.explanation.cache",
+        )),
+        &["Cache", "Caches", "GPUCache", "Code Cache"],
+    ));
+
+    // Chromium is not one application: it is a framework, and every browser
+    // built on it (Chrome, Edge, Brave, Electron applications) keeps its profile
+    // one level deeper than the vendor and product names — `Google/Chrome/<profile>`
+    // — so `app-support-caches` above cannot see its cache directories. This rule
+    // is the same idea with one more wildcard: the *names* still decide, and the
+    // three levels above them are whatever the vendor wrote.
+    //
+    // `Service Worker` is the large one in practice (a cached copy of every web
+    // app the profile has visited); `Cache` and `Caches` are the HTTP caches the
+    // older Chromium builds kept here rather than in `~/Library/Caches`.
+    rules.push(with_names(
+        needing_app_closed(rule(
+            "chromium-profile-caches",
+            ApplicationCache,
+            Review,
+            HomeLibrary,
+            "Application Support/*/*/*",
+            "cleanup.explanation.cache",
+        )),
+        &[
+            "Cache",
+            "Caches",
+            "Code Cache",
+            "GPUCache",
+            "Service Worker",
+            "DawnGraphiteCache",
+            "DawnWebGPUCache",
+            "GrShaderCache",
+        ],
+    ));
+
+    // --- Xcode build artifacts ---------------------------------------------
+    //
+    // `DerivedData` and `iOS DeviceSupport` are regenerated by Xcode on the next
+    // build or device connection. `~/Library/Developer/Xcode/Archives` is
+    // deliberately absent: an archive is the only copy of a build that was
+    // shipped, and no rule can tell one that matters from one that does not.
+    rules.push(with_spec(
+        rule(
+            "xcode-derived-data",
+            TemporaryFiles,
+            Safe,
+            HomeLibrary,
+            "Developer/Xcode/DerivedData",
+            "cleanup.explanation.temporary",
+        ),
+        MatchSpec::Directory,
+    ));
+    rules.push(with_spec(
+        rule(
+            "xcode-device-support",
+            TemporaryFiles,
+            Safe,
+            HomeLibrary,
+            "Developer/Xcode/iOS DeviceSupport",
+            "cleanup.explanation.temporary",
+        ),
+        MatchSpec::ChildDirectories,
+    ));
+    rules.push(with_spec(
+        rule(
+            "xcode-simulator-caches",
+            TemporaryFiles,
+            Safe,
+            HomeLibrary,
+            "Developer/CoreSimulator/Caches",
+            "cleanup.explanation.temporary",
+        ),
+        MatchSpec::Directory,
     ));
 
     // --- Logs --------------------------------------------------------------
@@ -629,6 +1142,180 @@ pub fn default_rules() -> Vec<Rule> {
         90,
     ));
 
+    // --- The per-user temporary root ---------------------------------------
+    //
+    // macOS gives every login session a private `/var/folders/<xx>/<hash>`,
+    // holding `T` (the temporary directory) and `C` (the per-user cache
+    // directory). Everything in `C` is reusable by definition: it is where the
+    // platform puts what an application may throw away (compiled shaders, the
+    // launch-services store, per-session conversion caches), and it survives
+    // logout, so on a Mac that has been up for months it is real space.
+    //
+    // `T` is deliberately **not** a rule. Live processes keep their sockets and
+    // mach ports there (`T/com.apple.launchd.*`), and a rule can only look at a
+    // name or an age; offering `T` would hand the user a directory whose
+    // removal breaks a running process. `T` is left to macOS, which clears it
+    // when the session ends.
+    //
+    // The age threshold is what makes this safe without knowing what is inside:
+    // a directory whose files have all been untouched for a week is not being
+    // written by anything. `review`, because the user should see what is being
+    // offered — the names are internal to the platform, not application names.
+    rules.push(with_min_age(
+        with_spec(
+            rule(
+                "user-temp-caches",
+                TemporaryFiles,
+                Review,
+                UserTemp,
+                "C",
+                "cleanup.explanation.temporary",
+            ),
+            MatchSpec::ChildDirectories,
+        ),
+        7,
+    ));
+
+    // --- Developer caches ---------------------------------------------------
+    //
+    // The toolchains that build software keep their own caches outside
+    // `~/Library/Caches`: each of these directories is documented by its tool as
+    // safe to delete and rebuilt on the next run. They sit under a dot-directory
+    // in the home folder, which is why the table had none of them — a rule could
+    // not say it, and the "hidden files" setting decides what a scan may see.
+    //
+    // `review` throughout, with an age threshold: a cache that has not been read
+    // in a month is not in use, and the user is asked before a build has to
+    // re-download the internet. The exceptions are logs, which are `safe`.
+    rules.push(with_spec(
+        with_min_age(
+            rule(
+                "user-xdg-cache",
+                ApplicationCache,
+                Review,
+                Home,
+                ".cache",
+                "cleanup.explanation.cache",
+            ),
+            30,
+        ),
+        MatchSpec::ChildDirectories,
+    ));
+    rules.push(with_spec(
+        with_min_age(
+            rule(
+                "user-gradle-caches",
+                ApplicationCache,
+                Review,
+                Home,
+                ".gradle/caches",
+                "cleanup.explanation.cache",
+            ),
+            30,
+        ),
+        // One item per cache family (`modules-2`, the version directory) rather
+        // than one for the whole tree: Gradle rewrites the journal on every run,
+        // and a single fresh file inside would hide a gigabyte of dependencies
+        // that no build has read since.
+        MatchSpec::ChildDirectories,
+    ));
+    rules.push(with_spec(
+        with_min_age(
+            rule(
+                "user-cargo-cache",
+                ApplicationCache,
+                Review,
+                Home,
+                ".cargo/registry/cache",
+                "cleanup.explanation.cache",
+            ),
+            30,
+        ),
+        MatchSpec::Directory,
+    ));
+    rules.push(with_spec(
+        with_min_age(
+            rule(
+                "user-npm-cache",
+                ApplicationCache,
+                Review,
+                Home,
+                ".npm/_cacache",
+                "cleanup.explanation.cache",
+            ),
+            30,
+        ),
+        MatchSpec::Directory,
+    ));
+    rules.push(with_spec(
+        with_min_age(
+            rule(
+                "android-device-cache",
+                ApplicationCache,
+                Review,
+                Home,
+                ".android/cache",
+                "cleanup.explanation.cache",
+            ),
+            30,
+        ),
+        MatchSpec::Directory,
+    ));
+    // Gradle's daemon logs are one file per build daemon, kept until the daemon
+    // is killed; `anyFile` with an age so a build running right now is not
+    // offered its own log.
+    rules.push(with_spec(
+        with_min_age(
+            rule(
+                "build-tool-logs",
+                Logs,
+                Safe,
+                Home,
+                ".gradle/daemon",
+                "cleanup.explanation.logsItem",
+            ),
+            7,
+        ),
+        MatchSpec::AnyFile,
+    ));
+    // The Android SDK is installed software, not junk: `emulator` and
+    // `platform-tools` are running binaries, and `avd` (next to it) is the user's
+    // own virtual devices, which no rule touches. What *is* reclaimable is a
+    // component nobody has read in a quarter — an NDK or build-tools version a
+    // project stopped pinning. The names are the components that exist per
+    // version, so the age test means "no file in this component was touched",
+    // and the download is repeatable through `sdkmanager`.
+    //
+    // 90 days rather than six months, and the number came from
+    // `Scripts/audit-coverage.py --age-sweep 7,30,90,180`: on a machine where
+    // Android was last built in August, the components split 8 items / 6.6 GB at
+    // a week, 4 / 2.0 GB at 90 days and nothing at all at 180. Six months found
+    // none of it, which is the same as having no rule; a quarter offers the two
+    // gigabytes that no build has read since, at `review`, unselected.
+    rules.push(with_names(
+        with_min_age(
+            rule(
+                "android-sdk-idle-components",
+                TemporaryFiles,
+                Review,
+                HomeLibrary,
+                "Android/sdk",
+                "cleanup.explanation.temporary",
+            ),
+            90,
+        ),
+        &[
+            "ndk",
+            "build-tools",
+            "platforms",
+            "system-images",
+            "cmake",
+            "sources",
+            "skins",
+            "cmdline-tools",
+        ],
+    ));
+
     // --- Temporary files ---------------------------------------------------
     //
     // There is deliberately no rule over `Application Support`: it holds the
@@ -636,14 +1323,14 @@ pub fn default_rules() -> Vec<Rule> {
     // rule can only match a name shape or an age. Saved window state is
     // rebuildable and remains the one shipped temporary-files rule.
     rules.push(with_spec(
-        rule(
+        needing_app_closed(rule(
             "user-saved-state",
             TemporaryFiles,
             Safe,
             HomeLibrary,
             "Saved Application State",
             "cleanup.explanation.savedState",
-        ),
+        )),
         MatchSpec::ChildDirectories,
     ));
 
@@ -738,9 +1425,16 @@ fn collapse_segments(path: &str) -> String {
 /// system resolves it to `/Users/Shared`. The check is per component, so a
 /// directory genuinely named `..notes` is still allowed.
 pub fn relative_path_stays_inside_anchor(path: &str) -> bool {
-    Path::new(path)
-        .components()
-        .all(|c| matches!(c, Component::Normal(_)))
+    // The raw-segment pass is not redundant: `Path::components()` normalises an
+    // interior `.` away, so `Logs/./x` would look like `Logs/x` here while the
+    // Swift decoder refuses it outright. Both engines have to accept the same
+    // documents — a file one accepts and the other refuses fails the whole scan
+    // with `invalidRequest`, and nothing in that error points at the rule file.
+    path.split('/')
+        .all(|segment| segment != "." && segment != "..")
+        && Path::new(path)
+            .components()
+            .all(|c| matches!(c, Component::Normal(_)))
 }
 
 /// True when `path` is `prefix` or sits below it.
@@ -806,6 +1500,22 @@ fn protected_library_reason(home: &str, path: &str) -> Option<ProtectedReason> {
     None
 }
 
+/// Returns the reason a path inside a recycle bin is protected, or `None`.
+///
+/// Checked as a whole component at any depth, so `~/.Trash/x`, an item already
+/// in `~/.Trash/` and `/Volumes/Backup/.Trashes/501/x` are all refused, while a
+/// user folder that merely starts with the name is not.
+fn recycle_bin_reason(path: &str) -> Option<ProtectedReason> {
+    path.split('/').find_map(|component| {
+        PROTECTED_RECYCLE_BIN_NAMES
+            .iter()
+            .any(|name| component.eq_ignore_ascii_case(name))
+            .then(|| ProtectedReason::UserContent {
+                child: component.to_string(),
+            })
+    })
+}
+
 /// Returns the reason a path is protected, or `None` when it is not.
 ///
 /// This is the last line of defence: it runs on every candidate before it can
@@ -829,6 +1539,10 @@ pub fn protection_reason(home: &str, path: &str) -> Option<ProtectedReason> {
                 prefix: (*prefix).to_string(),
             });
         }
+    }
+
+    if let Some(reason) = recycle_bin_reason(&path) {
+        return Some(reason);
     }
 
     protected_library_reason(&home, &path)
@@ -892,6 +1606,12 @@ pub fn protection_reason_authorized(
         }
     }
     if let Some(reason) = protected_library_reason(&home_normalized, &path_normalized) {
+        return Some(reason);
+    }
+
+    // Before the `/Volumes` grant is consulted: a grant opens a subtree the user
+    // added, and the Trash inside it is exactly the place their undo lives.
+    if let Some(reason) = recycle_bin_reason(&path_normalized) {
         return Some(reason);
     }
 
@@ -1623,5 +2343,567 @@ mod tests {
         assert_eq!(Risk::Safe.combine(Risk::Review), Risk::Review);
         assert_eq!(Risk::Review.combine(Risk::Protected), Risk::Protected);
         assert_eq!(Risk::Safe.combine(Risk::Safe), Risk::Safe);
+    }
+
+    #[test]
+    fn the_recycle_bin_is_protected_at_any_depth() {
+        // The product's undo is the Trash: every removal moves an item there,
+        // and the user's recovery is emptying it later. Offering its contents
+        // would move an item into the bin it is already in.
+        for path in [
+            format!("{HOME}/.Trash"),
+            format!("{HOME}/.Trash/old-report.pdf"),
+            format!("{HOME}/.Trash/folder/nested/file"),
+            // The per-volume spelling, which is a sibling rather than a prefix.
+            "/Volumes/Backup/.Trashes/501/item".to_string(),
+            "/Volumes/Backup/.Trashes/501".to_string(),
+        ] {
+            assert!(is_protected_path(HOME, &path), "{path} must be refused");
+        }
+
+        // An ordinary folder whose name merely starts with the bin's name is
+        // not a bin; whole-component matching is what keeps that true.
+        for path in [
+            format!("{HOME}/.Trash-notes/a.txt"),
+            format!("{HOME}/Library/Caches/.Trashy/x"),
+            format!("{HOME}/Documents/.Trashold/x"),
+        ] {
+            assert!(
+                recycle_bin_reason(&path).is_none(),
+                "{path} is an ordinary folder"
+            );
+        }
+    }
+
+    #[test]
+    fn a_grant_does_not_open_the_trash_inside_the_granted_volume() {
+        use std::path::PathBuf;
+        let grants = [PathBuf::from("/Volumes/Backup")];
+        assert!(is_protected_path_authorized(
+            HOME,
+            "/Volumes/Backup/.Trashes/501/item",
+            &grants
+        ));
+        assert!(
+            !is_protected_path_authorized(HOME, "/Volumes/Backup/Photos/a.jpg", &grants),
+            "the rest of the granted volume stays open"
+        );
+    }
+
+    fn one_rule_json(relative_path: &str, extra: &str) -> String {
+        format!(
+            r#"{{"schemaVersion":1,"rules":[
+                {{"id":"x","category":"temporaryFiles","risk":"review","root":"homeLibrary",
+                 "relativePath":"{relative_path}"{extra},"explanationKey":"k"}}
+            ]}}"#
+        )
+    }
+
+    #[test]
+    fn a_rule_file_cannot_name_a_container_of_every_application() {
+        // These three hold the live data of every application at once, and a
+        // rule can only match a name shape or an age. The shipped table is
+        // asserted against the same list; this is the other half, so the
+        // invariant covers a rule the user wrote as well.
+        for directory in FORBIDDEN_RULE_DIRECTORIES {
+            for spelling in [directory.to_string(), directory.to_lowercase()] {
+                let json = one_rule_json(&spelling, r#","matchSpec":"childDirectories""#);
+                assert!(
+                    matches!(
+                        RuleSet::from_json(&json),
+                        Err(RuleError::ForbiddenRuleDirectory { .. })
+                    ),
+                    "{spelling} must be refused"
+                );
+            }
+        }
+        // A path that merely contains the name as one component is a different
+        // directory and stays usable.
+        let deeper = one_rule_json(
+            "Containers/com.example.app/Data/Library/Caches",
+            r#","matchSpec":"childDirectories""#,
+        );
+        assert!(RuleSet::from_json(&deeper).is_ok());
+    }
+
+    #[test]
+    fn the_forbidden_directory_check_collapses_before_comparing() {
+        // `./Containers` and `//Application Support` name the same directory as
+        // the bare spelling, so refusing only the tidy one would be a check on
+        // formatting rather than on the target.
+        for spelling in [
+            "./Containers",
+            "//Containers",
+            "Containers/",
+            "Application Support/./",
+        ] {
+            assert!(
+                forbidden_rule_directory(spelling, None).is_some(),
+                "{spelling} names a forbidden directory"
+            );
+        }
+        for allowed in ["", "Caches", "Application Support/com.example.app/Cache"] {
+            assert!(
+                forbidden_rule_directory(allowed, None).is_none(),
+                "{allowed}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_rule_file_cannot_match_every_file_without_an_age() {
+        // `anyFile` with no threshold is "every file below this root", which no
+        // place in this product is safe to offer.
+        let json = one_rule_json("Caches", r#","matchSpec":"anyFile""#);
+        assert!(matches!(
+            RuleSet::from_json(&json),
+            Err(RuleError::AnyFileWithoutMinAge { .. })
+        ));
+        let aged = one_rule_json("Caches", r#","matchSpec":"anyFile","minAgeDays":30"#);
+        assert!(RuleSet::from_json(&aged).is_ok());
+    }
+
+    #[test]
+    fn a_rule_file_cannot_state_an_age_beyond_the_documented_range() {
+        // The Rust loader reads the field as a `u32`, so a negative age is a
+        // parse error here — and the Swift decoder has to refuse it too, or the
+        // scan fails with `invalidRequest` and nothing points at the rule file.
+        for days in [MAX_RULE_MIN_AGE_DAYS + 1, MAX_RULE_MIN_AGE_DAYS * 1000] {
+            let json = one_rule_json("Caches", &format!(r#","minAgeDays":{days}"#));
+            assert!(matches!(
+                RuleSet::from_json(&json),
+                Err(RuleError::MinAgeOutOfRange { .. })
+            ));
+        }
+        let boundary = one_rule_json(
+            "Caches",
+            &format!(r#","minAgeDays":{MAX_RULE_MIN_AGE_DAYS}"#),
+        );
+        assert!(RuleSet::from_json(&boundary).is_ok());
+    }
+
+    #[test]
+    fn a_rule_this_build_does_not_ship_is_offered_at_review() {
+        // `safe` is what arrives pre-selected. Only a review in a release earns
+        // it, so a rule the user added is shown at `review`: it still finds
+        // things, and the decision stays with the user.
+        let overlay = RuleSet::from_json(
+            r#"{"schemaVersion":1,"rules":[
+                {"id":"my-junk","category":"temporaryFiles","risk":"safe","root":"homeLibrary",
+                 "relativePath":"Caches/MyApp","matchSpec":"childDirectories","explanationKey":"k"}
+            ]}"#,
+        )
+        .expect("the file parses");
+        let shipped = shipped_rule_ids();
+        let merged = enforce_rule_invariants(
+            RuleSet {
+                schema_version: RULE_SCHEMA_VERSION,
+                rules: default_rules(),
+            }
+            .merge(overlay)
+            .rules,
+            &shipped,
+        );
+        let added = merged
+            .iter()
+            .find(|rule| rule.id == "my-junk")
+            .expect("the rule survives the merge");
+        assert_eq!(
+            added.risk,
+            Risk::Review,
+            "an unshipped rule may not say safe"
+        );
+
+        // A shipped rule keeps the level its release gave it.
+        for rule in merged.iter().filter(|rule| shipped.contains(&rule.id)) {
+            assert_eq!(
+                rule.risk,
+                default_rules()
+                    .into_iter()
+                    .find(|shipped_rule| shipped_rule.id == rule.id)
+                    .expect("shipped rule")
+                    .risk,
+                "rule `{}` changed level",
+                rule.id
+            );
+        }
+    }
+
+    #[test]
+    fn a_rule_that_replaces_a_shipped_id_keeps_its_level() {
+        // Retuning a reviewed rule is what an overlay is for; refusing `safe`
+        // there would make the feature useless.
+        let overlay = RuleSet::from_json(
+            r#"{"schemaVersion":1,"rules":[
+                {"id":"user-cache","category":"applicationCache","risk":"safe","root":"homeLibrary",
+                 "relativePath":"Caches","matchSpec":"childDirectories","explanationKey":"k"}
+            ]}"#,
+        )
+        .expect("the file parses");
+        let merged = enforce_rule_invariants(
+            RuleSet {
+                schema_version: RULE_SCHEMA_VERSION,
+                rules: default_rules(),
+            }
+            .merge(overlay)
+            .rules,
+            &shipped_rule_ids(),
+        );
+        let cache = merged
+            .iter()
+            .find(|rule| rule.id == "user-cache")
+            .expect("the shipped rule is still there");
+        assert_eq!(cache.risk, Risk::Safe);
+    }
+
+    #[test]
+    fn the_invariants_also_hold_for_a_table_built_in_code() {
+        // Defence in depth: `from_json` is not the only way a rule can reach the
+        // walker, and the shipped table itself must satisfy the same rules.
+        let mut forged = rule(
+            "forged",
+            Category::TemporaryFiles,
+            Risk::Review,
+            RootAnchor::HomeLibrary,
+            "Application Support",
+            "cleanup.explanation.cached",
+        );
+        forged.match_spec = Some(MatchSpecName::ChildDirectories);
+        let kept = enforce_rule_invariants(vec![forged], &shipped_rule_ids());
+        assert!(kept.is_empty(), "a container target is dropped");
+
+        let mut wide = rule(
+            "wide",
+            Category::TemporaryFiles,
+            Risk::Review,
+            RootAnchor::HomeLibrary,
+            "Caches",
+            "cleanup.explanation.cached",
+        );
+        wide.match_spec = Some(MatchSpecName::AnyFile);
+        assert!(
+            enforce_rule_invariants(vec![wide], &shipped_rule_ids()).is_empty(),
+            "an ageless anyFile rule is dropped"
+        );
+    }
+
+    #[test]
+    fn the_shared_rule_fixtures_are_decided_the_same_way() {
+        // One corpus, two decoders. The Swift engine validates a user rule file
+        // and hands the document to this loader, which parses it again: a
+        // document one accepts and the other refuses fails the whole scan with
+        // `invalidRequest`, and nothing in that error points at the rule file.
+        // Swift's counterpart is `test_theSharedRuleFixturesAreDecidedTheSameWay`.
+        let root =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../Tests/Fixtures/Rules");
+        let mut checked = 0;
+
+        for (directory, must_accept) in [("accept", true), ("reject", false)] {
+            let folder = root.join(directory);
+            let mut files: Vec<std::path::PathBuf> = std::fs::read_dir(&folder)
+                .unwrap_or_else(|error| panic!("{} must be readable: {error}", folder.display()))
+                .filter_map(|entry| entry.ok().map(|entry| entry.path()))
+                .filter(|path| path.extension().is_some_and(|ext| ext == "json"))
+                .collect();
+            files.sort();
+            assert!(
+                !files.is_empty(),
+                "the {directory} corpus must not be empty"
+            );
+
+            for file in files {
+                let json = std::fs::read_to_string(&file)
+                    .unwrap_or_else(|error| panic!("{} must be readable: {error}", file.display()));
+                let name = format!(
+                    "{directory}/{}",
+                    file.file_name().unwrap().to_string_lossy()
+                );
+                let verdict = RuleSet::from_json(&json);
+                if must_accept {
+                    assert!(verdict.is_ok(), "{name} must be accepted: {verdict:?}");
+                } else {
+                    assert!(verdict.is_err(), "{name} must be refused");
+                }
+                checked += 1;
+            }
+        }
+
+        assert!(checked >= 14, "the corpus is the point; keep it populated");
+    }
+
+    #[test]
+    fn an_interior_dot_component_is_refused_like_the_swift_decoder_refuses_it() {
+        // `Path::components()` drops an interior `.`, so `Logs/./x` looked like
+        // `Logs/x` here while the Swift decoder refused it. The direction was
+        // harmless (Swift refused, so the file never reached this loader), but
+        // the two decoders disagreeing about a document is the bug.
+        assert!(!relative_path_stays_inside_anchor("Logs/./x"));
+        assert!(relative_path_stays_inside_anchor("Logs/"));
+        assert!(relative_path_stays_inside_anchor("..notes/x"));
+        assert!(relative_path_stays_inside_anchor(""));
+    }
+
+    #[test]
+    fn a_wildcard_component_is_the_only_wildcard_this_build_accepts() {
+        // One component, matching one directory name: that is what makes
+        // `Containers/*/Data/Library/Caches` expressible without a rule per
+        // bundle identifier.
+        for accepted in [
+            "Containers/*/Data/Library/Caches",
+            "Application Support/*/Cache",
+            "*/Caches", // refused below: leading wildcard
+        ] {
+            let valid = relative_path_glob_is_valid(accepted);
+            assert_eq!(
+                valid,
+                accepted != "*/Caches",
+                "{accepted} must be judged on the leading-wildcard rule"
+            );
+        }
+
+        for refused in [
+            "Containers/com.apple.*", // partial: a substring match the scanner cannot do safely
+            "Containers/**",          // recursive: unbounded by construction
+            "**",                     // recursive and the whole anchor
+            "*/Caches",               // leading: one rule over every child of the anchor
+            "a/*/b/*/c/*/d",
+        ] {
+            if refused == "a/*/b/*/c/*/d" {
+                // Four single-segment wildcards are legal; the bound is on
+                // expansion, not on the number of components.
+                assert!(relative_path_glob_is_valid(refused), "{refused}");
+                continue;
+            }
+            assert!(!relative_path_glob_is_valid(refused), "{refused}");
+        }
+
+        // A literal-only path is unchanged by the rule.
+        for literal in ["", "Caches", "Application Support/com.example.app/Cache"] {
+            assert!(relative_path_glob_is_valid(literal), "{literal}");
+        }
+    }
+
+    #[test]
+    fn a_wildcard_directly_inside_a_container_is_refused() {
+        // `Containers/*` is one item per installed application: exactly the shape
+        // `FORBIDDEN_RULE_DIRECTORIES` exists to refuse, spelled with a wildcard.
+        // The specification decides: one that names what to look for inside the
+        // children (`directoriesNamed`) is a named location, not the container.
+        for refused in [
+            "Containers/*",
+            "Application Support/*",
+            "Group Containers/*",
+        ] {
+            for spec in [
+                None,
+                Some(MatchSpecName::ChildDirectories),
+                Some(MatchSpecName::Directory),
+                Some(MatchSpecName::AnyFile),
+                Some(MatchSpecName::FilesByExtension),
+            ] {
+                assert!(
+                    forbidden_rule_directory(refused, spec).is_some(),
+                    "{refused} with {spec:?} offers every application's data"
+                );
+            }
+            assert!(
+                forbidden_rule_directory(refused, Some(MatchSpecName::DirectoriesNamed)).is_none(),
+                "{refused} with a name set offers one named directory each"
+            );
+        }
+        // Descending *through* the container to a named location stays allowed
+        // whatever the specification is.
+        for allowed in [
+            "Containers/*/Data/Library/Caches",
+            "Application Support/*/Cache",
+            "Application Support/com.example.app/Cache",
+        ] {
+            for spec in [
+                None,
+                Some(MatchSpecName::ChildDirectories),
+                Some(MatchSpecName::DirectoriesNamed),
+            ] {
+                assert!(
+                    forbidden_rule_directory(allowed, spec).is_none(),
+                    "{allowed}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_name_set_is_part_of_the_document() {
+        // `names` is a sibling of `matchSpec`, the way `extensions` is, and the
+        // resolved specification carries it.
+        let json = r#"{"schemaVersion":1,"rules":[
+            {"id":"named","category":"applicationCache","risk":"review","root":"homeLibrary",
+             "relativePath":"Application Support/*","matchSpec":"directoriesNamed",
+             "names":["Cache","Caches"],"explanationKey":"cleanup.explanation.cache"}
+        ]}"#;
+        let rule = RuleSet::from_json(json).expect("the shape parses").rules[0].clone();
+        assert_eq!(
+            rule.effective_match_spec(),
+            MatchSpec::DirectoriesNamed {
+                names: vec!["Cache".to_string(), "Caches".to_string()]
+            }
+        );
+
+        // A set that cannot match a directory is refused where the file is read:
+        // an empty one finds nothing, and a name carrying a separator or a
+        // wildcard is a path the author meant to write in `relativePath`.
+        for names in ["[]", r#"[""]"#, r#"["Cache/Sub"]"#, r#"["*"]"#, r#"[".."]"#] {
+            let json = format!(
+                r#"{{"schemaVersion":1,"rules":[
+                    {{"id":"named","category":"applicationCache","risk":"review",
+                     "root":"homeLibrary","relativePath":"Application Support/*",
+                     "matchSpec":"directoriesNamed","names":{names},
+                     "explanationKey":"cleanup.explanation.cache"}}
+                ]}}"#
+            );
+            assert!(
+                matches!(
+                    RuleSet::from_json(&json),
+                    Err(RuleError::DirectoriesNamedWithoutNames { .. })
+                ),
+                "names {names} must be refused"
+            );
+        }
+    }
+
+    #[test]
+    fn a_rule_file_with_an_unsupported_wildcard_is_refused() {
+        for refused in ["Containers/com.apple.*", "Containers/**", "*/Caches"] {
+            let json = one_rule_json(refused, r#","matchSpec":"childDirectories""#);
+            assert!(
+                matches!(
+                    RuleSet::from_json(&json),
+                    Err(RuleError::UnsupportedRelativePathWildcard { .. })
+                ),
+                "{refused} must be refused"
+            );
+        }
+
+        // The shape the shipped table uses parses.
+        let accepted = one_rule_json(
+            "Containers/*/Data/Library/Caches",
+            r#","matchSpec":"directory""#,
+        );
+        assert!(RuleSet::from_json(&accepted).is_ok());
+    }
+
+    #[test]
+    fn every_shipped_rule_uses_a_wildcard_this_build_understands() {
+        for rule in default_rules() {
+            assert!(
+                relative_path_glob_is_valid(&rule.relative_path),
+                "rule `{}` uses `{}`",
+                rule.id,
+                rule.relative_path
+            );
+        }
+    }
+
+    #[test]
+    fn the_shipped_table_satisfies_every_rule_invariant() {
+        // The runtime enforcement is the second line; this asserts the shipped
+        // table never needs it.
+        let shipped = shipped_rule_ids();
+        let enforced = enforce_rule_invariants(default_rules(), &shipped);
+        assert_eq!(
+            enforced,
+            default_rules(),
+            "the built-in table must already satisfy the invariants"
+        );
+    }
+
+    #[test]
+    fn a_running_application_owns_the_paths_that_name_it() {
+        let tokens = vec![
+            "com.apple.safari".to_string(),
+            "com.spotify.client".to_string(),
+            "firefox".to_string(),
+            "visual studio code".to_string(),
+        ];
+
+        // The wildcard component in `Containers/*/Data/Library/Caches` names the
+        // owner, and so does the last component of a `Caches/<id>` rule.
+        for owned in [
+            "/Users/x/Library/Containers/com.apple.Safari/Data/Library/Caches",
+            "/Users/x/Library/Caches/com.apple.Safari",
+            "/Users/x/Library/Caches/com.spotify.client",
+            "/Users/x/Library/Caches/Firefox",
+            "/Users/x/Library/Application Support/Visual Studio Code/Code Cache",
+            // A bundle identifier claims the names below it, which is how a
+            // sandboxed application's own sub-container is recognised.
+            "/Users/x/Library/Caches/com.apple.Safari.SafeBrowsing",
+            // The suffix on a saved-state directory is not part of the name of
+            // the application it belongs to.
+            "/Users/x/Library/Saved Application State/com.apple.Safari.savedState",
+        ] {
+            assert!(
+                running_app_owns_path(owned, &tokens),
+                "{owned} belongs to a running application"
+            );
+        }
+
+        for unowned in [
+            // Another application that merely starts with a running one's name.
+            "/Users/x/Library/Caches/Firefox Developer Edition",
+            "/Users/x/Library/Caches/com.apple.SafariServices",
+            "/Users/x/Library/Containers/com.example.other/Data/Library/Caches",
+            "/Users/x/Library/Caches/Homebrew",
+        ] {
+            assert!(
+                !running_app_owns_path(unowned, &tokens),
+                "{unowned} must not be attributed to a running application"
+            );
+        }
+
+        // No running applications is the ordinary case, and it must never
+        // downgrade anything.
+        assert!(!running_app_owns_path(
+            "/Users/x/Library/Caches/com.apple.Safari",
+            &[]
+        ));
+        assert!(!running_app_owns_path(
+            "/Users/x/Library/Caches/com.apple.Safari",
+            &["  ".to_string()]
+        ));
+    }
+
+    #[test]
+    fn the_application_owned_rules_are_the_ones_that_ask_for_a_quit() {
+        // The flag decides whether a `safe` item survives a running application,
+        // so which rules carry it is a property of the table rather than a detail
+        // of the scanner. Every rule whose items one application owns carries it;
+        // the age- and extension-based rules do not, because no single
+        // application owns what they find.
+        let flagged: Vec<String> = default_rules()
+            .into_iter()
+            .filter(|rule| rule.needs_app_closed)
+            .map(|rule| rule.id)
+            .collect();
+        assert_eq!(
+            flagged,
+            vec![
+                "user-cache",
+                "container-caches",
+                "app-support-caches",
+                "chromium-profile-caches",
+                "user-saved-state"
+            ]
+        );
+
+        // The document carries it, and a rule file that omits it gets `false`.
+        let json = RuleSet::from_json(&shipped_rules_json()).expect("the shipped table parses");
+        assert!(json
+            .rules
+            .iter()
+            .any(|rule| rule.id == "user-cache" && rule.needs_app_closed));
+        let plain = one_rule_json("Caches", r#","matchSpec":"directory""#);
+        assert!(
+            !RuleSet::from_json(&plain).expect("the shape parses").rules[0].needs_app_closed,
+            "a rule file that says nothing must not claim application ownership"
+        );
     }
 }

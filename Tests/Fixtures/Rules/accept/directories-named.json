@@ -1,0 +1,6 @@
+{"schemaVersion":1,"rules":[
+  {"id":"named","category":"applicationCache","risk":"review","root":"homeLibrary",
+   "relativePath":"Application Support/*","matchSpec":"directoriesNamed",
+   "names":["Cache","Caches","GPUCache","Code Cache"],
+   "explanationKey":"cleanup.explanation.cache"}
+]}

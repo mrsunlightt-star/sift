@@ -15,6 +15,8 @@ public struct SettingsView: View {
     @State private var permissionHint = false
     @State private var hasStoredLicense = false
     @State private var isConfirmingReportDeletion = false
+    /// The coverage audit's page, opened from the diagnostics group.
+    @State private var isShowingCoverage = false
 
     public init() {}
 
@@ -40,6 +42,7 @@ public struct SettingsView: View {
                     privacySection
                     purchaseSection
                     diagnosticsSection
+                    coverageSection
                 }
                 .padding(.horizontal, SiftMetrics.pagePadding)
                 .padding(.vertical, SiftMetrics.pageSpacing)
@@ -462,6 +465,33 @@ public struct SettingsView: View {
     }
 
     // MARK: - Diagnostics
+
+    /// The coverage audit, opened from the diagnostics group.
+    ///
+    /// Its own page rather than a row here: it walks a whole home folder, and the
+    /// numbers are the point — a submenu of counts would read as decoration.
+    private var coverageSection: some View {
+        SettingsGroup(titleKey: .diagnosticsCoverageTitle) {
+            VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
+                Text(LocalizationKey.diagnosticsCoverageDetail.localized)
+                    .font(SiftFont.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button {
+                    isShowingCoverage = true
+                } label: {
+                    Text(LocalizationKey.diagnosticsCoverageRun.localized)
+                        .font(SiftFont.caption)
+                }
+                .buttonStyle(SiftLinkButtonStyle())
+                .disabled(environment.isScanInFlight || environment.cleanup.isWorking)
+            }
+        }
+        .sheet(isPresented: $isShowingCoverage) {
+            RuleCoverageSheet()
+                .environmentObject(environment)
+        }
+    }
 
     private var diagnosticsSection: some View {
         SettingsGroup(titleKey: .settingsGroupLogs) {

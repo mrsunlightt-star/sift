@@ -12,10 +12,29 @@ public struct CleanupResultView: View {
     let onAcknowledge: () -> Void
     let onExport: () -> Void
     let onOpenTrash: () -> Void
+    /// What the Trash holds, read when the page appears.
+    ///
+    /// The footer only offers to empty the bin when there is something in it, and
+    /// the confirmation says how much: an action that permanently removes files
+    /// has to state what it is about to remove.
+    let loadTrash: () async -> TrashService.Snapshot
+    /// Empties exactly the batch the confirmation described.
+    let onEmptyTrash: (TrashService.Snapshot) async -> TrashService.Outcome
     let onRevealFailed: (URL) -> Void
     let onRequestPurchase: () -> Void
     /// A failure the shell hit while exporting; the local report still exists.
     let statusMessage: String?
+
+    /// The Trash as it was when the page appeared.
+    ///
+    /// Empty until the first read, and empty again after a successful emptying:
+    /// a button that offers to empty a bin it just emptied is the state this
+    /// keeps out of the page.
+    @State private var trash: TrashService.Snapshot = .empty
+    @State private var isConfirmingEmptyTrash = false
+    @State private var isTrashBusy = false
+    /// What emptying the bin could not remove, if anything.
+    @State private var emptyTrashFailure: String?
 
     public init(
         outcome: CleanupOutcome,
@@ -23,6 +42,8 @@ public struct CleanupResultView: View {
         onAcknowledge: @escaping () -> Void,
         onExport: @escaping () -> Void,
         onOpenTrash: @escaping () -> Void,
+        loadTrash: @escaping () async -> TrashService.Snapshot = { .empty },
+        onEmptyTrash: @escaping (TrashService.Snapshot) async -> TrashService.Outcome = { _ in .none },
         onRevealFailed: @escaping (URL) -> Void,
         onRequestPurchase: @escaping () -> Void,
         statusMessage: String? = nil
@@ -32,6 +53,8 @@ public struct CleanupResultView: View {
         self.onAcknowledge = onAcknowledge
         self.onExport = onExport
         self.onOpenTrash = onOpenTrash
+        self.loadTrash = loadTrash
+        self.onEmptyTrash = onEmptyTrash
         self.onRevealFailed = onRevealFailed
         self.onRequestPurchase = onRequestPurchase
         self.statusMessage = statusMessage
@@ -51,6 +74,40 @@ public struct CleanupResultView: View {
         }
         .padding(SiftMetrics.spacingXL)
         .frame(maxWidth: 760, alignment: .leading)
+        .task {
+            // Read on appear rather than in `init`: the page is built before the
+            // files finish moving, and a snapshot taken then would describe the
+            // bin before this cleanup filled it.
+            trash = await loadTrash()
+        }
+        .alert(
+            LocalizationKey.trashEmptyAction.localized,
+            isPresented: $isConfirmingEmptyTrash
+        ) {
+            Button(LocalizationKey.commonRemove.localized, role: .destructive) {
+                Task { await emptyTrash() }
+            }
+            Button(LocalizationKey.commonClose.localized, role: .cancel) {}
+        } message: {
+            Text(LocalizationKey.trashEmptyMessage.localized(trashSummary))
+        }
+    }
+
+    /// "12 items · 1.2 GB", the sentence the confirmation is about.
+    private var trashSummary: String {
+        let items = LocalizationKey.commonItemCount.localized(trash.count)
+        let bytes = SiftFormat.bytes(trash.totalBytes)
+        return "\(items) · \(bytes)"
+    }
+
+    private func emptyTrash() async {
+        isTrashBusy = true
+        defer { isTrashBusy = false }
+        let outcome = await onEmptyTrash(trash)
+        trash = await loadTrash()
+        emptyTrashFailure = outcome.isComplete
+            ? nil
+            : LocalizationKey.cleanupFailurePartialFailure.localized
     }
 
     private var header: some View {
@@ -177,12 +234,29 @@ public struct CleanupResultView: View {
             if let statusMessage {
                 NoticeBanner(level: .warning, message: statusMessage)
             }
+            if let emptyTrashFailure {
+                NoticeBanner(level: .warning, message: emptyTrashFailure)
+            }
             HStack(spacing: SiftMetrics.spacingM) {
                 SiftSecondaryButton(
                     title: LocalizationKey.cleanupResultShowTrash.localized,
                     symbolName: "trash"
                 ) {
                     onOpenTrash()
+                }
+
+                // Emptied here rather than in the Finder: the undo this product
+                // promises is the Trash, and the space is only reclaimed when it
+                // is emptied — so the step belongs next to the result that filled
+                // it, with the count and the size stated before it happens.
+                if !trash.isEmpty {
+                    SiftSecondaryButton(
+                        title: LocalizationKey.trashEmptyAction.localized,
+                        symbolName: "trash.slash"
+                    ) {
+                        isConfirmingEmptyTrash = true
+                    }
+                    .disabled(isTrashBusy)
                 }
 
                 // The uninstaller has no stored report, and a failed local write

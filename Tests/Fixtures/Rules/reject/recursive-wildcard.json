@@ -1,0 +1,4 @@
+{"schemaVersion":1,"rules":[
+  {"id":"wide","category":"applicationCache","risk":"review","root":"homeLibrary",
+   "relativePath":"Containers/**","matchSpec":"childDirectories","explanationKey":"k"}
+]}

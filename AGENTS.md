@@ -140,6 +140,25 @@ the two things worth checking are that `xcodebuild -version` reports 16.x, and
 that `lsregister -dump | grep -A2 com.siftmac.cleaner` does not list a checkout
 of this repository that has since been deleted.
 
+**The exit code cannot answer "did a test run", so the stage asks the result
+bundle.** Both Xcode targets are launched with `-resultBundlePath`, and the
+counts come from `xcrun xcresulttool get test-results summary`: a target passes
+only when its bundle records cases that ran and none that failed. This is not
+defensive decoration — a UI attempt that stops before the first case exits 0 on
+this machine, and the first version of the stage printed `→ ok (UI target)` for a
+run whose bundle held zero tests. A unit target that executed nothing fails the
+run for the same reason: `-only-testing:` with a filter that matches nothing is
+otherwise a silent skip. The summary line states what executed —
+`XCUITest methods 8 (ran, 8 executed)` — and a bundle that is missing or
+unreadable counts as zero, because an answer that was not given is not an
+execution.
+
+The zero-execution path is exercised on purpose rather than trusted:
+`SIFT_UI_ONLY=SiftUITests/test_doesNotExist Scripts/verify.sh --quick` points the
+attempt at a test that does not exist. `xcodebuild` exits **0** for that run and
+its bundle records 0/0/0, which the old stage would have printed as `ok`; the
+stage must instead end with `at least one check failed`.
+
 ## Before changing code
 
 Run the bootstrap once per checkout:
@@ -158,9 +177,19 @@ through `-force_load` in the manifest's unsafe flags — so a rebuilt archive us
 to leave every already-linked product in place and the suite ran the previous
 core without saying so. `Scripts/build-rust-core.sh` now compares the archive it
 wrote against the one it replaced and touches `Core/RustBridge/RustScannerEngine.swift`
-when it changed, which makes the modules that import the bridge recompile and
-everything that force-loads the archive relink. That is why the file's timestamp
-moves after a Rust change: it is the notification, not an edit.
+when it changed, which makes the modules that import the bridge recompile. That is
+why the file's timestamp moves after a Rust change: it is the notification, not an
+edit.
+
+The touch recompiles; it does not by itself relink, and that was measured rather
+than assumed. With the archive changed and the source merely touched,
+`swift build --build-tests` printed "Compiling Core RustScannerEngine.swift …
+Build complete" and never ran its link step: the recompiled object files came out
+byte-identical, so the linked test bundle looked up to date and kept the previous
+core — a Rust-side regression passed the suite. The same step therefore deletes
+the products that force-load the archive (`.build/*/Sift`, `SiftSelfTest`,
+`SiftPackageTests.xctest`) so the link cannot be skipped. An Xcode build's
+`DerivedData` is a different build directory and gets the touch, not the sweep.
 
 After changing `project.yml`, install XcodeGen if needed (`brew install
 xcodegen`) and run `xcodegen generate --spec project.yml`. Commit the regenerated
@@ -172,7 +201,9 @@ its `.lproj` outputs with `python3 Scripts/generate-strings.py`. Never edit
 
 After changing `PROTECTED_HOME_CHILDREN`, `PROTECTED_PREFIXES`,
 `PROTECTED_LIBRARY_CHILDREN`, `PROTECTED_PHOTOS_LIBRARY_SUFFIX`,
-`SYMLINK_ALIASES` or `SYMLINK_ALIAS_TARGETS` in
+`PROTECTED_RECYCLE_BIN_NAMES`, `MAX_RULE_MIN_AGE_DAYS`, `MAX_RULE_ROOTS`,
+`RELATIVE_PATH_WILDCARD`, `FORBIDDEN_RULE_DIRECTORIES`, `SYMLINK_ALIASES` or
+`SYMLINK_ALIAS_TARGETS` in
 `RustCore/crates/sift-rules/src/lib.rs`, regenerate the Swift half with
 `python3 Scripts/generate-protection.py`. Never edit `Core/Rules/ProtectedPaths.swift`
 by hand: it exists so the two engines cannot protect different sets of paths, and
@@ -258,6 +289,10 @@ These are product promises, not implementation details. Each has tests behind it
     `RustCore/crates/sift-rules/src/lib.rs` is the source; the Swift list is
     generated from it. `Scripts/verify.sh` fails when the generated copy is stale,
     and both test suites assert every entry on the shared list is refused.
+    `PROTECTED_RECYCLE_BIN_NAMES` is matched as a whole path **component** at any
+    depth: every removal this product performs moves an item into the Trash, so
+    offering an item that is already there turns the promised undo into a second
+    move, and a grant for a volume does not open the `.Trashes` inside it.
 15. **A measurement stays inside the volume it started on.** A mount point below a
     volume root belongs to another disk, and `/System/Volumes` holds the system's
     own mount points on the same device as `/`, so both are excluded explicitly:
@@ -327,21 +362,69 @@ These are product promises, not implementation details. Each has tests behind it
     the single source; the shipped `CleaningRules.json` and the Swift fallback
     table are generated from it, and `Scripts/verify.sh` fails when either is
     stale. No shipped rule carries the `applicationResidue` category, and none
-    targets `~/Library/Containers`, `~/Library/Group Containers` or
-    `~/Library/Application Support`: a rule matches a name shape or an age and
-    cannot know whether an application is installed, so a rule over those
-    locations offered the live data of installed applications — every directory
-    under `Application Support` as "residue", and the whole store as one cleanup
-    item. Residue comes from `scan_application_residue`, which compares the name
-    against the installed bundle identifiers, and a container that belongs to a
-    live application belongs to the uninstaller instead.
+    *is* `~/Library/Containers`, `~/Library/Group Containers` or
+    `~/Library/Application Support`, nor any path ending in one, nor one of their
+    immediate children (`Containers/*`): a rule matches a name shape or an age and
+    cannot know whether an application is installed, so those shapes offered the
+    live data of installed applications — every directory under
+    `Application Support` as "residue", and the whole store as one cleanup item.
+    `FORBIDDEN_RULE_DIRECTORIES` is that list, and it is enforced at load time for
+    any rule file, not only asserted for the shipped table.
+
+    Descending *through* a container to a named location is a different thing and
+    is what the three cache/artifact families do:
+    `Containers/*/Data/Library/Caches` is one cache directory per application,
+    named by the platform rather than guessed. Residue still comes from
+    `scan_application_residue`, which compares the name against the installed
+    bundle identifiers, and a container that belongs to a live application belongs
+    to the uninstaller instead.
+
+    The specification decides whether `<container>/*` is that shape:
+    `childDirectories` there is one item per application's data root, so it is
+    refused; `directoriesNamed` there is one item per *named* directory inside
+    each application's data root, which is what `app-support-caches` uses, and it
+    is allowed. `forbidden_rule_directory` carries the specification for exactly
+    that reason.
 
     A child-directory rule with an age threshold is still allowed (the log rules
     use one), but the scanner may only offer a directory whose **every** file is
-    past the threshold. The item is moved whole, so a mixed directory would take
+    past the threshold.
+
+    `matchSpec: "directoriesNamed"` is `childDirectories` with the filter in the
+    rule instead of in the path: `names` (a sibling of `matchSpec`, like
+    `extensions`) lists the directory names that count, compared without case. It
+    exists because an application names its cache directory `Cache`, `Caches`,
+    `GPUCache` or `Code Cache` depending on the framework it was built with, and
+    one rule per spelling is a list that grows with every framework. A rule whose
+    name set cannot match a directory — empty, or carrying `/` or `*` — is
+    refused where the file is read, in both decoders.
+
+    `relativePath` may name `*` as a whole component, and only as a whole
+    component: it matches exactly one directory name, expanded from the disk by
+    `expand_relative_path` (Rust) and `RuleEngine.roots` (Swift), bounded by
+    `MAX_RULE_ROOTS`. Partial (`com.apple.*`), recursive (`**`) and leading
+    (`*/Caches`) wildcards are refused by both decoders, because the first two
+    say something the scanner cannot enumerate safely and the third makes one
+    rule span every child of its anchor. The item is moved whole, so a mixed directory would take
     fresh files the threshold did not count; both engines compare the filtered
     measurement with the whole-directory measurement and skip the directory when
     they differ.
+
+    The three shapes above are enforced, not merely asserted. `FORBIDDEN_RULE_DIRECTORIES`
+    is refused by `RuleSet::from_json` and by `RuleEngine.decode`, so a **user**
+    rule file that names one is rejected with the reason instead of reaching the
+    scanner, and `enforce_rule_invariants` (Rust) / `RuleEngine.sanitized`
+    (Swift) drop the same shapes from a merged table. A rule this build does not
+    ship is also capped at `review`: `safe` is the level that arrives
+    pre-selected, and a release has to review a rule before it earns that. A rule
+    that replaces a shipped id keeps the level the overlay states, because
+    retuning a reviewed rule is what an overlay is for.
+
+    `minAgeDays` has one domain (`0...MAX_RULE_MIN_AGE_DAYS`) in both decoders.
+    A document one accepts and the other refuses fails the whole scan with
+    `invalidRequest`, so `Tests/Fixtures/Rules/` holds one corpus that both
+    suites run: documents in `accept/` must decode, documents in `reject/` must
+    be refused. Add a case there rather than to one side alone.
 24. **Every explanation the scanner attaches resolves.** A rule names the key of
     the sentence the user reads and the row renders it with no arguments, so the
     key has to exist in the catalog and carry no `%d`/`%@`; the parameterised
@@ -406,6 +489,184 @@ These are product promises, not implementation details. Each has tests behind it
     remembered and never re-created from the files seen after the prune: that
     entry would state a partial total as the directory's whole size. Tests:
     `test_aPrunedRollupIsNotRecreatedFromLaterFiles`.
+31. **`safe` is not a promise about a live process.** A rule whose items one
+    application owns says so (`needsAppClosed`), and a scan takes such an item
+    from `safe` down to `review` while that application is running: the item is
+    still offered, it simply is not pre-selected, because the move would pull a
+    cache directory out from under the process writing into it. The matcher
+    compares every path component against the running applications' aliases
+    (bundle identifier, the identifier's last component, Finder name, executable
+    name), case-folded, with a bundle identifier also claiming the names below it
+    and the `.savedState` suffix stripped first. Pre-flight refuses the item with
+    `fileInUse` for the same reason, and execution re-asks with a fresh snapshot
+    because the confirmation panel may stay open while the user launches the
+    application. The list travels in `ScanRequest.runningApplicationTokens` — it
+    is collected once, on the main actor, and read by both engines, so they
+    downgrade the same rows. Tests:
+    `test_theTwoEnginesAgreeAboutARunningApplication`,
+    `a_running_application_takes_a_safe_cache_down_to_review`,
+    `test_preflightRefusesAnItemWhoseApplicationIsRunning`.
+32. **One anchor is not derived from the home directory.** `userTemp` is the
+    session's `/var/folders/<xx>/<hash>`, resolved once by `confstr` and passed
+    to both engines as a `ScanRoot` with `anchor: "userTemp"` — a rule cannot
+    spell it and the Rust core cannot ask for it. Its `C` is the shipped
+    `user-temp-caches` rule; `T` is deliberately not a rule, because live
+    processes keep their sockets there and a rule can only look at a name or an
+    age. A `userTemp` rule with no root named in the request resolves to
+    nothing, never to `/var/folders`.
+
+    That root is also the one scan root outside the home directory and outside
+    `/Volumes`, so the ABI gate in `Engine::start_scan` accepts it — and only in
+    the shape macOS produces, `anchor: "userTemp"` **and** exactly
+    `/var/folders/<two characters>/<hash>` after alias normalisation. The anchor
+    alone would let a caller name `/private/var` or `/var/folders` itself, which
+    is every session on the machine. Taking neither was a shipped defect: the
+    gate had no branch for the anchor, so every scan the app started was refused
+    with `invalidRequest` before the engine read a single directory, and no test
+    noticed because fixture homes put every root inside a tree the gate already
+    allowlisted. Tests:
+    `the_roots_the_app_builds_are_accepted`,
+    `a_user_temp_root_is_accepted_only_at_the_session_depth`,
+    `test_theRequestTheAppBuildsIsAcceptedByTheProductionEngine`,
+    `the_user_temp_rule_reaches_only_the_root_the_request_named`,
+    `test_theTwoEnginesAgreeAboutTheUserTempRoot`.
+33. **Emptying the Trash is the only permanent removal.** `TrashService` acts on
+    `~/.Trash` alone, rebuilds each entry's path from the bin and the entry's own
+    name (a path that does not rebuild to the entry is refused), removes exactly
+    the snapshot the confirmation described, and reports per entry. The
+    protection list cannot be consulted — every recycle-bin path is on it, which
+    is what keeps the bin's contents out of a cleanup — so the fixed root and the
+    rebuild are what stand in its place. No privileged helper, no shell. Tests:
+    `test_anEntryOutsideTheBinIsRefused`, `test_emptyRemovesExactlyTheSnapshotItWasGiven`.
+34. **APFS snapshots are reported, never deleted.** Reclaiming them needs an
+    administrator, so the storage page's snapshot card links to the Time Machine
+    pane instead of offering a button that cannot work; `APFSSnapshotProvider`
+    keeps reporting a count and the newest date, with `status: .protected`.
+35. **The "show hidden files" scope decides whether a dot-directory rule runs.**
+    The walkers skip hidden *entries*, and a rule's own `relativePath` never
+    reaches a walker — so `~/.cache` was offered with the setting turned off. Both
+    engines now drop a rule whose relative path names a dot-component before
+    expanding its roots (`rule_has_hidden_component` /
+    `ruleHasHiddenComponent`). The developer caches (`~/.cache`,
+    `~/.gradle/caches`, `~/.cargo/registry/cache`, `~/.npm/_cacache`,
+    `~/.android/cache`) are why the table now depends on it. Tests:
+    `a_rule_under_a_hidden_directory_follows_the_hidden_file_setting`,
+    `test_aRuleUnderAHiddenDirectoryFollowsTheHiddenFileSetting`.
+36. **A rule may use more than one wildcard, and the names still decide.**
+    `Application Support/*/*/*` + `directoriesNamed` is the Chromium profile
+    shape: the vendor, the product and the profile level are whatever the vendor
+    wrote, and only the cache directory's name is knowable. Multi-wildcard rules
+    are bounded by `MAX_RULE_ROOTS` like every other expansion, and the
+    invariant that a container's *direct child* is not an item still holds — the
+    wildcards are above the named level, never at the item.
+
+37. **Residue keeps its two claims apart.** `~/Library/Containers/<id>` is one
+    application's private data; `~/Library/Group Containers/<team-id>.<id>` is a
+    container an app group shares, and removing it can affect a sibling that is
+    still installed. That is why the uninstaller has always shown a group
+    container as "review" and a private one as confirmed, and why the scan page
+    now has `groupContainerResidue` as its own category rather than folding it
+    into `applicationResidue`: one heading for two different claims is how a
+    shared container came to look as safe as a private one. Both engines report
+    the same category for the same directory (`Category::GroupContainerResidue` /
+    `.groupContainerResidue`), and `junkCategories` carries both so the page and
+    its filter chips still read one list. Tests:
+    `a_private_container_and_a_shared_one_are_different_categories`,
+    `test_groupContainerResidueReadsBothSpellingsOfTheName`,
+    `test_junkCleanupOwnsOneDefinedSetOfCategories`.
+
+38. **A residue row says which application it belongs to, and whether another
+    one answers for it.** `RelatedFile.sharedWith` is filled only for a group
+    container, from LaunchServices: a container matched to one application by the
+    `<identifier>.` spelling belongs to an installed helper, and removing it takes
+    data that helper still uses, so the row says the name. The scan page's residue
+    rows carry `relatedBundleID`, and the row's lookup asks LaunchServices for the
+    application: found means it is revealed, not found means the identifier is
+    copied and the page says the application is not installed — residue is
+    normally an application that is gone, so "not found" is the usual answer and
+    the row says so instead of offering a button that appears to do nothing.
+    Tests: `test_aContainerNamedAfterAnotherInstalledApplicationIsMarkedShared`,
+    `test_aPrivateContainerIsNeverMarkedShared`.
+
+39. **A group container is claimed by the entitlement, not only by the name.**
+    `com.apple.security.application-groups` is the only statement macOS accepts
+    that an application may use a group container, and a container is named after
+    the group, so two applications sharing one cannot be found from the name at
+    all. `AppGroupEntitlements.read` reads that entitlement from the signature
+    (`SecCodeCopySigningInformation`, no prompt, no Full Disk Access), and
+    `AppGroupRegistry` answers "who declares this group" from one read per
+    installed bundle — 135 bundles take about half a second, so the map is built
+    once, lazily, and `groups(ofApplicationAt:)` caches a single bundle's answer
+    for the page being shown, and the map is rebuilt whenever the installed set
+    changes: every question is preceded by a fingerprint (bundle path, the bundle
+    directory's timestamp and `Contents/Info.plist`'s), so an installation, a
+    removal or an in-place update is noticed without reading a signature — the
+    plist is the second signal because replacing files inside `Contents` does not
+    necessarily touch the directory's own timestamp — a session outlives all three, and a user
+    who installs an application and then scans must not get the declarations of
+    the set that existed at launch. The uninstaller marks such a container
+    `MatchReason.appGroup`, fills `sharedWith` from the same declarations, and
+    keeps the group id on the row (`RelatedFile.groupIdentifier`) because that is
+    the string a user can check against `codesign -d --entitlements`. The read is
+    bounded (`AppGroupRegistry.defaultDeadline`, five seconds) and reports whether
+    it finished: `ScanRequest.appGroupIdentifiersComplete` /
+    `app_group_ids_complete` travels with the set, and when it is false both
+    engines report **no** group-container residue for that run — half a set is
+    worse than none, because every container whose owner went unread answers
+    "nothing declares this". The same set
+    decides scan residue: `ScanRequest.appGroupIdentifiers` /
+    `ScanRequest.app_group_ids` carries it into both engines, and a group
+    container whose whole name is a declared group is live, never a leftover —
+    the check runs before the name readings because a declaration is a statement
+    about the system and a name is a statement about spelling. Tests:
+    `test_aGroupContainerSharedByAnotherApplicationIsFoundThroughItsEntitlement`,
+    `test_aDeclaredAppGroupContainerIsNotResidue`,
+    `test_theTwoEnginesAgreeAboutADeclaredAppGroup`,
+    `residue_skips_a_container_an_app_group_declares`,
+    `test_theSignatureIsReadOncePerBundle`, `test_aGroupIsMatchedWhateverCaseItIsWrittenIn`.
+
+40. **The audit measures group containers, and says what the name alone misses.**
+    `Scripts/audit-coverage.py` classifies every directory in
+    `~/Library/Group Containers` as `declared` (an installed application's
+    entitlement names the group), `named` (the name contains an installed
+    application's identifier) or `residue` (neither), using `codesign -d
+    --entitlements` because the audit runs without building the product. The
+    number it exists to produce is `declaredWithoutAName` — the containers the
+    name-based scan reports as residue while an application still declares them.
+    It also ages each container from the same walk (`residueAges`, ladder
+    7/30/90/180 days), and keeps "no files at all" out of that ladder instead of
+    calling it zero days old. **No age filter is applied to residue, and that is a
+    decision with a number behind it**: `staleFilter` prints what a `--stale-days`
+    filter would do, and on the development machine 30 days would keep 17 of the
+    20 containers that hold anything (10.5 MB), hide 3 (140 KB), and none of the
+    hidden ones was written to within a week — they are the leftovers of
+    applications deleted a few weeks ago, which is exactly what the user is looking
+    for. The engines already skip a container that measures zero bytes, so an age
+    filter can only hide rows that had something in them.
+    On the development machine that is 34 containers, so the gap was real and not
+    hypothetical; it is now closed in both engines, and the number is what keeps
+    the claim honest (`--no-entitlements` reproduces the name-only view).
+    `--only-group-containers` prints this section alone, without measuring the
+    rule table; `--self-check` pins the classifier's three-way split.
+
+41. **The coverage page lists what the scan produced, not only what the table
+    contains, and knows which directories a scanner reads.** The residue scans and the threshold scans are code: they decide by
+    comparing a name with the installed applications, which no rule can express.
+    `RuleCoverageAnalyzer` used to drop their rows (`guard rules.rule(withID:) != nil`),
+    so the one page that says "what does the scan actually find" omitted both
+    residue claims entirely — including `groupContainerResidue`, the claim this
+    file's other invariants are about. Such rows now appear with
+    `Row.isSynthesized == true`, their own category and the most cautious risk
+    among them, and a rule's own totals are still not mixed with a strategy's.
+    `RuleCoverageAnalyzer.scannerCoveredDirectories` is the matching half of that:
+    a directory a scanner reads is not "uncovered" even when today's run found
+    nothing in it, because the page would otherwise offer a rule draft for a
+    container folder — which `RuleDraft.make` refuses. The threshold scans are
+    deliberately not in that list; they cover the whole tree and would empty the
+    section. Tests: `test_aStrategyThatIsNotARuleGetsItsOwnRow`,
+    `test_theTwoResidueClaimsAreSeparateRows`,
+    `test_aDirectoryABuiltInScannerReadsIsNotReportedAsUncovered`, and the
+    self-test's rule-coverage group.
 
 ## Layout notes
 
@@ -421,6 +682,32 @@ These are product promises, not implementation details. Each has tests behind it
   none of it. `Core/Rules/BuiltInRules.swift` is generated the same way
   (`Scripts/generate-rules.py`) from `default_rules()`, and is what
   `RuleEngine.builtInRules` reads.
+- `Scripts/audit-coverage.py` reports, per rule, how many items this Mac holds
+  and how much they occupy, then the top-level directories no rule reaches
+  (distinguishing "no rule exists" from "the rule exists and this Mac has
+  nothing"). It re-derives expansion and matching from the shipped
+  `CleaningRules.json`, so it is an estimate rather than the engines' answer: run
+  it to find a dead rule or an uncovered subtree, never to decide what is safe.
+  `--self-check` (part of `Scripts/verify.sh`) is what keeps its arithmetic
+  honest. `--age-sweep 7,30,90,180` prints the same measurement at several ages in
+  one pass, which is how a threshold gets chosen from data instead of a guess:
+  `android-sdk-idle-components` moved from 180 days to 90 because the sweep showed
+  six months found nothing at all on a machine whose Android build was a quarter
+  old, while a quarter offered 2.0 GB nothing had read since. Its last section
+  classifies `~/Library/Group Containers` by entitlement, by name, or as residue,
+  and prints `declaredWithoutAName`: the containers the name-based scan calls
+  residue while an installed application still declares their group.
+  `--skip-group-containers` avoids the signature reads, `--no-entitlements`
+  reproduces the engines' name-only view.
+- `Scripts/fix-ui-testrun.py` repairs the `.xctestrun` that `build-for-testing`
+  writes: its `UITargetAppPath` is `<products>/Debug/Sift`, without the `.app`
+  suffix, so the UI runner cannot read the bundle identifier and exits before a
+  case runs. `Scripts/verify.sh` runs the fixer and then launches the UI target
+  with `-xctestrun`, because `-scheme`/`-testPlan` regenerate the plan.
+- `Features/Settings/RuleCoverageSheet.swift` is the same audit in the app, built
+  from a real scan (`RuleCoverageAnalyzer`) rather than a second implementation,
+  and `Core/Rules/RuleDraft.swift` turns an uncovered folder into a validated
+  rule draft the user can paste into their own rule file.
 - `Core/Diagnostics/` is the read-only half of the product: providers that report
   what occupies space, an engine that applies protection and aggregates coverage,
   and a measurer of its own (`DiagnosticMeasurement.swift`) rather than
@@ -436,8 +723,19 @@ These are product promises, not implementation details. Each has tests behind it
   `Features/Scan`) only choose which categories of that one result are shown.
   A page never assembles a request.
 - `App/Shell/RootView.swift` is the icon rail: four primary destinations
-  (overview, scan, apps, storage) plus the language control and settings. The
-  category filters that used to be sidebar entries live in the scan page now.
+  (overview, scan, apps, storage) plus the appearance switcher, the account
+  entry, the language control and settings. Every entry is the same two pieces —
+  the label from `SiftRailItemLabel` and the hover/selection fill with its
+  leading selection mark from `siftRailItemChrome` — so the footer cannot drift
+  into a second style of button. A footer control that opens a popover passes
+  its open state as `isSelected`, so the item lights while its picker is up.
+  The category filters that used to be sidebar entries live in the scan page now.
+- Presentation goes on a concrete view, never on the conditional wrapper that
+  chooses a style. `LanguageMenu`'s popover was attached to
+  `Group { if case .rail … }` and, on `_ConditionalContent`, silently never
+  presented: the rail's language picker did nothing while the appearance
+  switcher's picker — attached to its own button — worked. `UITests` now presses
+  the control and looks for the picker's rows, not just for the control.
 - `Shared/DesignSystem/SiftTheme.swift` and `Shared/Components/SiftComponents.swift`
   are the design system. A page uses `SiftPageHeader`, `SiftGlassCard`,
   `SiftPrimaryButton`, `SiftSecondaryButton`, `SiftCheckbox` and

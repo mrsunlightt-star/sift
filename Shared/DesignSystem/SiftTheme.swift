@@ -140,6 +140,10 @@ public enum SiftColor {
               dark: NSColor(srgbRed: 0.643, green: 0.545, blue: 0.878, alpha: 1)),
         Color(light: NSColor(srgbRed: 0.431, green: 0.463, blue: 0.506, alpha: 1),
               dark: NSColor(srgbRed: 0.592, green: 0.627, blue: 0.671, alpha: 1)),
+        // Appended, never inserted: a palette index is written into the category
+        // list, and moving one would recolour every row on the page.
+        Color(light: NSColor(srgbRed: 0.404, green: 0.478, blue: 0.310, alpha: 1),
+              dark: NSColor(srgbRed: 0.596, green: 0.729, blue: 0.435, alpha: 1)),
     ]
 
     /// Colour for a risk level.

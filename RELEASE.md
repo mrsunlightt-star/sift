@@ -46,11 +46,20 @@ xcrun stapler validate Sift.app
 ## 3. UI 测试必须真的执行过
 
 `Scripts/verify.sh` 与 CI 把"某个测试失败"和"runner 根本没启动"分开，这是对的，但那意味着
-**绿色的运行不代表 UI 测试跑过**。发布的这次运行必须满足：
+**绿色的运行不代表 UI 测试跑过**。阶段 8 现在不靠退出码判断，而是读每个 Xcode 目标的结果包
+（`xcrun xcresulttool get test-results summary`），所以汇总行会写明实际执行了多少个用例。
+发布的这次运行必须满足：
 
-- `Scripts/verify.sh` 的汇总行是 `VERDICT: every check passed`，
-  而不是 `VERDICT: every check passed, but the XCUITest target did not run`；
+- `Scripts/verify.sh` 的汇总行是 `VERDICT: every check passed`；
+- 同一份汇总里 `XCUITest methods` 一行必须是 `(ran, N executed)` 且 N > 0
+  （本机最近一次：`8 (ran, 8 executed)`——7 个通过、1 个是用例内的 `XCTSkip`）；
+- 同一份汇总里 `Xcode unit target` 一行的数字必须非零；
 - CI 的 UI 步骤打印 `UI tests: ran`。
+
+`did not run` 的两种形态（runner 没启动、退出码 0 但结果包里没有用例）都按失败处理，
+因此那一次的 `VERDICT` 是 `at least one check failed`；只有装了命令行工具、没有 Xcode 的
+机器才会出现 `VERDICT: every check passed, but the XCUITest target did not run`，那种运行
+不能作为发布依据。
 
 runner 起不来是**间歇**的，不是这台机器的固有缺陷，而且有三种形态（找不到目标应用的
 `.../Debug/Sift`；`Timed out while enabling automation mode`，属于自动化授权；以及完全不返回、

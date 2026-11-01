@@ -1,3 +1,4 @@
+import AppKit
 import Core
 import Foundation
 import Shared
@@ -27,6 +28,8 @@ public struct ScanView: View {
     @State private var isLoading = false
     @State private var hasMore = false
     @State private var showsAllRows = false
+    /// What the owner lookup answered, shown above the list.
+    @State private var ownerLookupMessage: String?
 
     private let pageSize = 100
     private let collapsedRowsPerGroup = 4
@@ -398,8 +401,31 @@ public struct ScanView: View {
         }
     }
 
+    /// Asks LaunchServices which application a residue row belongs to.
+    ///
+    /// Residue is normally an application that is *gone*, so the usual answer is
+    /// "nothing is installed". That is reported, with the identifier copied to the
+    /// clipboard, because the identifier is the only handle the user has left for
+    /// support or a search — a button that silently revealed nothing would be
+    /// worse than no button.
+    private func lookUpOwner(_ bundleIdentifier: String) {
+        Task {
+            switch await environment.revealOwningApplication(bundleIdentifier: bundleIdentifier) {
+            case .revealed:
+                ownerLookupMessage = nil
+            case let .notInstalled(identifier):
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(identifier, forType: .string)
+                ownerLookupMessage = LocalizationKey.scanResultsOwnerMissing.localized(identifier)
+            }
+        }
+    }
+
     @ViewBuilder
     private var resultGroups: some View {
+        if let ownerLookupMessage {
+            NoticeBanner(level: .information, message: ownerLookupMessage)
+        }
         let safe = visible(groupItems(.safe))
         let review = visible(groupItems(.review))
         let protected = visible(groupItems(.protected))
@@ -412,7 +438,7 @@ public struct ScanView: View {
                 tint: SiftColor.safe
             )
             ForEach(safe, id: \.stableRowID) { item in
-                ScanItemRow(item: item, cleanup: cleanup)
+                ScanItemRow(item: item, cleanup: cleanup, onLookUpOwner: lookUpOwner)
                 Divider()
             }
         }
@@ -425,7 +451,7 @@ public struct ScanView: View {
                 tint: SiftColor.review
             )
             ForEach(review, id: \.stableRowID) { item in
-                ScanItemRow(item: item, cleanup: cleanup)
+                ScanItemRow(item: item, cleanup: cleanup, onLookUpOwner: lookUpOwner)
                 Divider()
             }
         }
@@ -438,7 +464,7 @@ public struct ScanView: View {
                 tint: SiftColor.danger
             )
             ForEach(protected, id: \.stableRowID) { item in
-                ScanItemRow(item: item, cleanup: cleanup)
+                ScanItemRow(item: item, cleanup: cleanup, onLookUpOwner: lookUpOwner)
                 Divider()
             }
         }
@@ -877,6 +903,12 @@ private extension ScanSort {
 struct ScanItemRow: View {
     let item: CleanupItemSummary
     @ObservedObject var cleanup: CleanupModel
+    /// Asks which application the row belongs to.
+    ///
+    /// Only residue rows carry a bundle identifier, and the answer is usually
+    /// "nothing is installed" — which is why the page says that instead of
+    /// offering a button that appears to do nothing.
+    var onLookUpOwner: ((String) -> Void)? = nil
 
     var body: some View {
         let domainItem = item.asCleanupItem()
@@ -905,6 +937,19 @@ struct ScanItemRow: View {
                     .font(SiftFont.caption)
                     .foregroundStyle(.tertiary)
                     .lineLimit(1)
+                if let bundleIdentifier = item.relatedBundleID,
+                   let onLookUpOwner,
+                   item.category == .applicationResidue
+                    || item.category == .groupContainerResidue {
+                    Button {
+                        onLookUpOwner(bundleIdentifier)
+                    } label: {
+                        Text(LocalizationKey.scanResultsOwnerAction.localized)
+                            .font(SiftFont.badge)
+                    }
+                    .buttonStyle(SiftLinkButtonStyle())
+                    .help(bundleIdentifier)
+                }
             }
 
             Spacer(minLength: SiftMetrics.spacingS)
@@ -924,6 +969,31 @@ struct ScanItemRow: View {
         }
         .padding(.vertical, SiftMetrics.spacingS)
         .contentShape(Rectangle())
+        // The same two actions the row offers as buttons, on every row of every
+        // group: a path the user can inspect is the cheapest way to judge a row
+        // the page cannot judge for them, and it was only reachable from the
+        // residue rows before.
+        .contextMenu {
+            Button {
+                NSWorkspace.shared.activateFileViewerSelecting([item.url])
+            } label: {
+                Label(
+                    LocalizationKey.filesRevealInFinder.localized,
+                    systemImage: "folder"
+                )
+            }
+            if let bundleIdentifier = item.relatedBundleID, let onLookUpOwner {
+                Button {
+                    onLookUpOwner(bundleIdentifier)
+                } label: {
+                    Label(
+                        LocalizationKey.scanResultsOwnerAction.localized,
+                        systemImage: "app.badge.checkmark"
+                    )
+                }
+                .help(bundleIdentifier)
+            }
+        }
     }
 
     private var itemDetail: String {

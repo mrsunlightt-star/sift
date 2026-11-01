@@ -734,7 +734,70 @@ enum ScanEvent: Sendable {
 }
 ```
 
-规则文件只能扩大“可识别范围”，不能绕过代码中的 protected 路径保护。
+`relativePath` 可以包含 `*` 作为**整段**路径分量，表示"匹配恰好一层目录名"，由扫描器展开到磁盘。它只允许整段出现：`com.apple.*` 这类部分通配、`**` 这类递归通配、以及 `*/…` 这类以通配开头的写法都会被拒绝——前两者无法安全枚举，后者会让一条规则覆盖锚点下的所有子目录。展开数量受 `MAX_RULE_ROOTS` 限制。
+
+```
+Containers/*/Data/Library/Caches        ← 每个沙盒应用各一个缓存目录
+```
+
+锚点（`root`）绝大多数由 home 推导：`home`、`homeLibrary`、`applications`、`systemLibrary`。
+还有两个不由 home 推导的：`authorized` / `externalVolume`（用户授权的位置），以及
+**`userTemp`**——登录会话私有的 `/var/folders/<xx>/<hash>`，由进程用 `confstr` 解析后作为
+`ScanRequest` 里的一个 `ScanRoot`（`anchor: "userTemp"`）传给两个引擎。规则表因此能写
+`root: "userTemp", relativePath: "C"`：`C` 是会话缓存目录，`T` 刻意不写（活动进程的 socket 与
+mach port 在里面）。
+
+`matchSpec` 还支持 `directoriesNamed`：按**目录名集合**匹配子目录，等价于把 `childDirectories` 的筛选条件写进规则，而不是写进路径。名字不区分大小写；`names` 与 `matchSpec` 平级（和 `extensions` 一样）。
+
+```json
+{
+  "id": "app-support-caches",
+  "category": "applicationCache",
+  "risk": "review",
+  "root": "homeLibrary",
+  "relativePath": "Application Support/*",
+  "matchSpec": "directoriesNamed",
+  "names": ["Cache", "Caches", "GPUCache", "Code Cache"],
+  "explanationKey": "cleanup.explanation.cache"
+}
+```
+
+存在这条 matchSpec 是因为应用各自的缓存目录名由它所用的框架决定（`Cache` / `Caches` / `GPUCache` / `Code Cache`），一条名字一个规则会随框架数量无限增长。空名字集合、或名字里带 `/` 或 `*`，都会在读取规则文件时被拒绝——那两种写法说明作者本意是写到 `relativePath` 里去。
+
+`relativePath` 可以出现**多个** `*`。当厂商名与产品名都不可知、只有最后一层的名字有意义时，多层通配是唯一能表达它的写法——`Application Support/*/*/*` 配 `directoriesNamed` 就是 Chromium 系的形状（`Google/Chrome/<profile>` 的缓存目录）。通配层数不影响不变量：容器（`Containers`、`Application Support`）仍不能是条目，`<container>/*` 仍只在 `directoriesNamed` 下允许，展开总量仍受 `MAX_RULE_ROOTS` 限制。
+
+开发者工具链的缓存放规则表时有一个额外约束：**“显示隐藏文件”关掉时，规则表里以 `.` 开头的相对路径整条不跑**。walk 只跳过隐藏*条目*，规则自己的 `relativePath` 从来不经过 walk，所以 `~/.cache` 曾在这个设置关闭时照样被列出——这是唯一一处“范围由哪条规则在问”决定的地方，现在两个引擎都在展开根之前就丢弃这类规则。
+
+规则文件只能扩大“可识别范围”，不能绕过代码中的 protected 路径保护；也**不能**把 `Containers`、`Group Containers`、`Application Support` 本身，或它们的直接子目录（`Containers/*`）当成清理目标——那等于把每个应用的数据各列一项。
+
+#### 运行中的应用与 `needsAppClosed`
+
+一条规则的条目如果**归某一个应用所有**，规则要写明 `needsAppClosed: true`。扫描时若该应用正在运行，条目从 `safe` 降到 `review`：仍然出现，但不再预选。
+
+```json
+{
+  "id": "user-cache",
+  "risk": "safe",
+  "root": "homeLibrary",
+  "relativePath": "Caches",
+  "matchSpec": "childDirectories",
+  "needsAppClosed": true,
+  "explanationKey": "cleanup.explanation.cache"
+}
+```
+
+为什么必须降级：`.app` bundle 被运行时会锁定，移动会失败；缓存目录不会——移动成功，应用继续往它记得的路径写，于是目录原地重建（空间没省下来），或者应用丢掉正在写的内容。用户看到的 `safe` 因此是一个应用兑现不了的承诺。
+
+判定“归属”只做字符串比较，两个引擎实现同一套规则：
+
+- 只看路径分量，大小写折叠后与运行中应用的**别名**逐一比较：bundle identifier、identifier 末段、Finder 显示名、可执行文件名；
+- 比较**每一个**分量，而不是最后一个——`Containers/*/Data/Library/Caches` 的归属在被 `*` 匹配的那一段，`Caches/<bundle-id>` 的归属在最后一段；
+- 含 `.` 的别名（identifier）额外按 `alias + "."` 前缀匹配，所以 `com.apple.Safari` 也认领 `com.apple.Safari.SafeBrowsing`；不含 `.` 的显示名只做相等比较，`Firefox` 不会认领 `Firefox Developer Edition`；
+- 分量先去掉 `APP_OWNED_NAME_SUFFIXES`（`.savedState`、`.savedApplicationState`）再比一次。
+
+别名列表由 Swift 收集（只有 AppKit 知道谁在运行），作为 `ScanRequest.runningApplicationTokens` 一次性传给两个引擎，保证同一份输入、同一份结果。预检阶段对这类条目直接以 `fileInUse` 拒绝（确认面板可能停留很久，期间用户可能刚启动该应用），执行前再取一次新鲜快照复核。
+
+`Group Containers/<TeamID>.group.<name>` 不参与匹配：目录名里没有应用的标识，猜它只会把无关应用的数据判成“正在使用”。
 
 ## 9. 文件操作与恢复
 
@@ -780,7 +843,67 @@ sequenceDiagram
 
 如果同时选中了一个目录和目录内的文件，只处理目录并在界面中说明，避免重复统计。
 
-### 9.3 失败处理
+### 9.3 清空废纸篓（唯一的永久删除）
+
+“移动到废纸篓”只是把空间挪了个位置：**只有清空废纸篓才真正释放空间**。此前这一步留给用户在 Finder
+里手工完成，而那时没有任何东西检查废纸篓里是不是只有 Sift 自己放进去的东西。所以产品自己提供这个动作，
+并把它的边界写死在代码里（`TrashService`）：
+
+- **只有一个目录**：`~/.Trash`。其他卷的 `.Trashes` 不做，路径也永远不由调用方拼装——服务只接受
+  “刚才展示给用户的那一份快照”，逐条按名字在废纸篓内重建路径；重建结果与条目路径不一致就拒绝。
+- **先枚举、再删除**：条目数量与体积在确认句中写明（“将永久删除 12 个项目 · 1.2 GB，无法恢复。”）。
+  确认期间新出现的条目不在快照里，因此不会被删；用户看过的条目一定在快照里。
+- **不用保护列表**：保护列表把所有废纸篓路径都列为拒绝，这正是清理流程不会把废纸篓内容当候选的原因；
+  在这里它是反过来的，所以由上面两条替代：固定根 + 根的直接子项。
+- **不做 root 提权**：不引入 privileged helper，也不 shell out。
+- **逐条报告**：一个条目删不掉不影响其他条目，也不回滚；已经消失的条目不算失败（用户的目的已达成）。
+
+#### 残留的两类条目
+
+`~/Library/Containers/<bundle-id>` 与 `~/Library/Group Containers/<team-id>.<bundle-id>`
+都只在「名字指向的应用已卸载」时成为清理条目，但**不是同一个陈述**：
+
+- 私有容器属于一个应用，卸载器按 `confirmed` 处理；
+- 共享容器属于一个 app group，删掉可能影响同队仍然安装的兄弟应用，所以卸载器始终按
+  `needsReview` 处理，扫描页也给它自己的分类 `groupContainerResidue` 与自己的总计，
+  而不是并进 `applicationResidue`。一个标题盖住两种陈述，正是共享容器看起来和私有容器一样安全的原因。
+
+两个引擎对同一目录给出同一分类（`Category::GroupContainerResidue` / `.groupContainerResidue`），
+`junkCategories` 同时包含两者，所以页面与筛选 chip 仍然只读一份列表。
+
+#### 残留条目的归属提示
+
+扫描页上的残留行带着 `relatedBundleID`（从目录名读出的标识符）。行上有一个「查看所属应用」入口：
+
+- 如果 LaunchServices 为这个标识符找到了已安装应用，就在访达中显示它；
+- 找不到（残留的常态——应用已经卸载），就把标识符复制到剪贴板并在页面上说明「该应用未安装」，因为标识符是用户唯一还能拿去搜索或报障的东西。一个按了什么都不发生、或者假装「已找到」的按钮，比没有按钮更糟。
+
+授权声明不是一次性的：`AppGroupRegistry` 每次回答之前先用「包路径 + 包目录时间戳 + `Contents/Info.plist` 时间戳」的指纹判断已安装集合有没有变（第二个信号是必要的：替换 `Contents` 里的文件不一定改动包目录自己的时间戳），变了就重建（装、卸、原地升级三种情况都覆盖）。指纹每个包一次 stat、不读签名，这是它存在的理由——会话比安装动作活得久，用户装完新应用再扫描不能拿到启动那一刻的声明集。行上的组 id 可以右键「拷贝组标识符」，因为它是用户能拿去和 `codesign -d --entitlements` 核对的字符串，而悬浮提示不可复制。
+
+卸载器的关联文件行则多一条「也被这些应用共用」：只对 `Group Containers` 出现。名字有两个来源，都是读到的事实，不是猜的：
+
+- **LaunchServices**：当容器名以 `<标识符>.` 的形式被匹配给一个应用、而该标识符本身属于另一个已安装的辅助应用时，删掉这个容器会带走辅助应用仍在使用的数据；
+- **应用组授权**：`com.apple.security.application-groups` 是 macOS 唯一接受「两个应用可以共用一个容器」的陈述。容器以组命名，名字里没有参与其中的任何一个应用，所以两个无关应用共用的容器**只能**从授权读出来。`AppGroupEntitlements.read` 从签名读（`SecCodeCopySigningInformation`，不弹窗、不需要完全磁盘访问），`AppGroupRegistry` 每个已安装包读一次（本机 135 个包约 0.5 秒），惰性构建一次；`groups(ofApplicationAt:)` 只读当前页那一个应用。命中时卸载器用 `MatchReason.appGroup` 标明理由，并把同一批声明里的其他应用写进 `sharedWith`。
+
+同一条授权**也参与**扫描端的残留判定：`AppEnvironment` 每次扫描把 `AppGroupRegistry.declaredGroups` 放进 `ScanRequest.appGroupIdentifiers`（Rust 侧 `app_group_ids`），两个引擎在判定顺序的**第一步**用它——容器名整体等于某个已声明组就是活的，不看名字怎么拼。这一条排在名字读数之前，因为声明是关于系统的陈述，名字只是关于拼写的陈述。
+
+为什么它必须走请求而不是在 Rust 核心里读：Rust 核心没有签名读取能力，也拿不到已安装应用列表；把它放进请求，两个引擎读同一份输入才可能给出同一份结果。空集表示「没有任何声明」，也就是退回只看名字的行为——一个不传这个字段的调用方行为不变。
+
+读取是有界的：`AppGroupRegistry.defaultDeadline` 五秒，超时或被取消时返回 `isComplete == false`，`ScanRequest.appGroupIdentifiersComplete`（Rust 侧 `app_group_ids_complete`）随集合一起传下去，两个引擎在这份集合不完整时**完全不报共享容器残留**——对"是否还有应用在用它"这个问题，半份集合比没有更糟：没被读到的那部分应用，其容器会被逐个判成"无人声明"。
+
+这一节的存在价值由 `Scripts/audit-coverage.py` 量出来：`declaredWithoutAName` 统计「名字指不到、但已安装应用仍声明」的容器（本机 34 个 / 7.8 MB），它们在修好之前会被报成残留。现在两个引擎都不再报，这个数字成了「这条修得对不对」的回归指标，而不是待办。
+
+### 9.4 规则草稿（把“没有规则覆盖”变成“你可以加一条”）
+
+覆盖诊断列出没有任何规则覆盖的大目录，但结论不是“Sift 以后会清理它”，而是**用户可以自己加一条**。因此草稿规则（`RuleDraft`）按以下方式生成，并在这几条边界上写死：
+
+- **`review` + 年龄**：对一无所知的目录不做预选，只提议其中 30 天没被碰过的子项；
+- **`childDirectories`**：命名的是目录的**子项**，不是目录本身——把厂商整棵树当一个条目，正是本产品在别处拒绝的形状；
+- **先验证再给出**：草稿用产品自己的解码器跑一遍，加载不了的草稿不会出现在界面上（“这段能加载”是可兑现的陈述）；
+- 容器（`Containers`、`Group Containers`、`Application Support`）、受保护目录、锚点本身一律拒绝并说明原因；
+- 只写入剪贴板，不写用户规则文件，也不改变当前规则表。
+
+### 9.5 失败处理
 
 单项失败不能回滚已成功的其他项。结果中要逐项说明：
 

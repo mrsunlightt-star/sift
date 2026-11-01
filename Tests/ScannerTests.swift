@@ -100,6 +100,53 @@ final class ScannerTests: XCTestCase, @unchecked Sendable {
         XCTAssertTrue(groups.isEmpty)
     }
 
+    /// A cache directory whose application is running is offered at `review`.
+    ///
+    /// The item is not dropped: the user can still choose it. What it loses is
+    /// the pre-selection, because a `safe` item that a live process is writing
+    /// into is the one case where "safe" would be a promise the app cannot keep —
+    /// the move succeeds, the directory comes back, and the space was never
+    /// reclaimed.
+    func test_aRunningApplicationTakesItsCacheRowsDownToReview() async throws {
+        fixture.write("Library/Caches/com.running.app/blob.bin", bytes: 8192)
+        fixture.write("Library/Caches/com.idle.app/blob.bin", bytes: 8192)
+
+        var request = makeRequest()
+        request.runningApplicationTokens = ["com.running.app"]
+        let (items, _, _) = try await runScan(request)
+
+        let running = items.first { $0.url.lastPathComponent == "com.running.app" }
+        let idle = items.first { $0.url.lastPathComponent == "com.idle.app" }
+        XCTAssertEqual(running?.risk, .review, "the running application's cache is a review item")
+        XCTAssertEqual(idle?.risk, .safe, "an idle application's cache keeps its level")
+        XCTAssertEqual(running?.sourceRuleID, "user-cache")
+    }
+
+    /// A rule inside a dot-directory follows the "show hidden files" setting.
+    ///
+    /// The walkers skip hidden entries, but a rule's own `relativePath` never
+    /// reaches a walker — so `~/.cache` used to be offered with the setting
+    /// turned off, which made the scope depend on which rule asked.
+    func test_aRuleUnderAHiddenDirectoryFollowsTheHiddenFileSetting() async throws {
+        let jar = fixture.write(".gradle/caches/jars/a.jar", bytes: 4096)
+        fixture.age(jar, days: 60)
+
+        var request = makeRequest()
+        request.includeHiddenFiles = true
+        let (visible, _, _) = try await runScan(request)
+        XCTAssertTrue(
+            visible.contains { $0.sourceRuleID == "user-gradle-caches" },
+            "a dot-directory rule runs while hidden files are in scope"
+        )
+
+        request.includeHiddenFiles = false
+        let (hidden, _, _) = try await runScan(request)
+        XCTAssertFalse(
+            hidden.contains { $0.sourceRuleID == "user-gradle-caches" },
+            "and contributes nothing when they are out of scope"
+        )
+    }
+
     /// The cache rule and the residue scan name the same directory. The page
     /// keeps one row, at the more cautious risk — the Rust core's merge.
     func test_onePathMatchedByTwoRulesIsOneRowAtTheMoreCautiousRisk() async throws {
@@ -521,6 +568,59 @@ final class ScannerTests: XCTestCase, @unchecked Sendable {
         )
     }
 
+    /// A container an installed application's app group declares is not residue.
+    ///
+    /// The container is named after the group, not after either application that
+    /// shares it, so no name reading resolves it: without the declared set this
+    /// live container was reported as a leftover of an application that is gone.
+    /// The set arrives in the request, and the Rust core reads the same field.
+    func test_aDeclaredAppGroupContainerIsNotResidue() async throws {
+        fixture.write("Library/Group Containers/group.com.vendor.shared/blob.bin", bytes: 4096)
+        fixture.write("Library/Group Containers/group.com.vendor.gone/blob.bin", bytes: 4096)
+
+        var request = makeRequest()
+        request.installedBundleIdentifiers = ["com.installed.app"]
+        request.appGroupIdentifiers = ["GROUP.com.vendor.shared"]
+        let residue = try await runScan(request).items
+            .filter { $0.category == .groupContainerResidue }
+            .map(\.displayName)
+
+        XCTAssertFalse(
+            residue.contains("group.com.vendor.shared"),
+            "a declared app group owns its container however its name reads"
+        )
+        XCTAssertTrue(
+            residue.contains("group.com.vendor.gone"),
+            "a container nothing declares is still residue"
+        )
+    }
+
+    /// An incomplete declared set means no group-container residue at all.
+    ///
+    /// A set that was cut short answers "nothing declares this" for every
+    /// container whose owner went unread, which is how a live container becomes a
+    /// cleanup row. Reporting nothing for the run is the safe answer, and the
+    /// private-container categories keep working.
+    func test_anIncompleteDeclaredSetReportsNoGroupContainerResidue() async throws {
+        fixture.write("Library/Group Containers/group.com.vendor.gone/blob.bin", bytes: 4096)
+        fixture.write("Library/Containers/com.gone.app/Data/blob.bin", bytes: 4096)
+
+        var request = makeRequest()
+        request.installedBundleIdentifiers = ["com.installed.app"]
+        request.appGroupIdentifiers = []
+        request.appGroupIdentifiersComplete = false
+        let items = try await runScan(request).items
+
+        XCTAssertFalse(
+            items.contains { $0.category == .groupContainerResidue },
+            "no container may be called a leftover while the set is unknown"
+        )
+        XCTAssertTrue(
+            items.contains { $0.category == .applicationResidue },
+            "the categories that do not depend on the set still report"
+        )
+    }
+
     /// A shared container is read in both spellings macOS writes.
     ///
     /// `TEAMID.com.example.app` never equals an installed identifier, so accepting
@@ -534,8 +634,12 @@ final class ScannerTests: XCTestCase, @unchecked Sendable {
 
         var request = makeRequest()
         request.installedBundleIdentifiers = ["com.installed.app"]
-        let residue = try await runScan(request).items
-            .filter { $0.category == .applicationResidue }
+        let items = try await runScan(request).items
+        // A shared container is its own category: it belongs to an app group, so
+        // it is not the same claim as a private container and the page keeps the
+        // two totals apart.
+        let residue = items
+            .filter { $0.category == .groupContainerResidue }
             .map(\.displayName)
 
         XCTAssertTrue(residue.contains("TEAM1.com.gone.app"))
@@ -551,6 +655,10 @@ final class ScannerTests: XCTestCase, @unchecked Sendable {
             residue.contains("UBF8T346G9.Office"),
             "a name in neither spelling is left alone"
         )
+        XCTAssertFalse(
+            items.contains { $0.category == .applicationResidue && $0.displayName.hasPrefix("TEAM1") },
+            "a shared container is not reported as per-application residue"
+        )
     }
 
     /// The walker stops at a mount point: `/` and `/dev` are different
@@ -561,5 +669,88 @@ final class ScannerTests: XCTestCase, @unchecked Sendable {
             FileWalker.device(of: URL(fileURLWithPath: "/")),
             FileWalker.device(of: URL(fileURLWithPath: "/dev"))
         )
+    }
+
+    /// The request the app builds is accepted by the production engine.
+    ///
+    /// `AppEnvironment.makeScanRequest` sends three roots on an ordinary Mac: the
+    /// home directory, `/Library/Logs`, and the session's `/var/folders/<xx>/<hash>`
+    /// with `anchor: .userTemp`. The Rust core's ABI gate had no branch for the
+    /// third one, so every scan the shipped app started was refused with
+    /// `invalidRequest` before the engine did any work — and no test noticed,
+    /// because a fixture home puts every root inside the tree that the gate
+    /// already allows. This asserts the acceptance, nothing about the walk: the
+    /// session is cancelled as soon as it exists.
+    func test_theRequestTheAppBuildsIsAcceptedByTheProductionEngine() async throws {
+        var roots: [ScanRoot] = [ScanRoot(url: fixture.url, anchor: .home)]
+        roots.append(
+            ScanRoot(
+                url: URL(fileURLWithPath: "/Library/Logs", isDirectory: true),
+                anchor: .systemLibrary,
+                isCleanable: true,
+                includesThresholdFiles: false
+            )
+        )
+        if let userTemp = RuleEngine.darwinUserTempRoot() {
+            roots.append(
+                ScanRoot(
+                    url: userTemp,
+                    anchor: .userTemp,
+                    isCleanable: true,
+                    includesThresholdFiles: false
+                )
+            )
+        }
+
+        let rules = RuleEngine(rules: RuleEngine.builtInRules, homeDirectory: fixture.url)
+        let engine = ScannerEngineFactory.makeDefault(rules: rules)
+        let request = ScanRequest(
+            homeDirectory: fixture.url,
+            roots: roots,
+            includeDuplicates: false
+        )
+        let session = try await engine.startScan(request)
+        await session.cancel()
+    }
+
+    /// Opening the engine empties its index directory, whatever is in it.
+    ///
+    /// The index holds every scanned path and file name, and a session removes its
+    /// own database when it ends — so what a launch finds is the debris of runs
+    /// that died without unwinding. The sweep used to spare anything younger than
+    /// a day, which kept exactly that debris: a morning of force-quit runs on this
+    /// machine left 60 databases holding 185 MB of full paths, and only a launch
+    /// would have deleted them.
+    func test_openingTheEngineSweepsTheIndexDirectory() throws {
+        #if canImport(SiftScanner)
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("sift-index-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        // A database, its WAL and shared-memory files, and one stray file: the
+        // sweep is by entry, not by suffix, because everything in this directory
+        // was written by this product.
+        for name in ["A.sqlite", "A.sqlite-wal", "A.sqlite-shm", "B.sqlite", "stray.txt"] {
+            XCTAssertTrue(
+                FileManager.default.createFile(
+                    atPath: directory.appendingPathComponent(name).path,
+                    contents: Data("x".utf8)
+                ),
+                "the fixture file \(name) is created"
+            )
+        }
+        let seeded = try FileManager.default.contentsOfDirectory(atPath: directory.path)
+        XCTAssertEqual(seeded.count, 5)
+
+        _ = RustScannerEngine(indexDirectory: directory)
+
+        let remaining = try FileManager.default.contentsOfDirectory(atPath: directory.path)
+        XCTAssertEqual(
+            remaining,
+            [],
+            "nothing in the index directory outlives the process that wrote it"
+        )
+        #endif
     }
 }

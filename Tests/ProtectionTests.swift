@@ -333,6 +333,44 @@ final class ProtectionTests: XCTestCase, @unchecked Sendable {
         XCTAssertEqual(engine.risk(for: "/Users/example/Documents/taxes.pdf"), .protected)
     }
 
+    func test_theRecycleBinIsProtectedAtAnyDepth() {
+        // Every removal moves an item to the Trash, and the undo the product
+        // promises is the user emptying that Trash later. Offering its contents
+        // would move an item into the bin it was already in.
+        for path in [
+            "/Users/example/.Trash",
+            "/Users/example/.Trash/old-report.pdf",
+            "/Users/example/.Trash/folder/nested/file",
+            "/Volumes/Backup/.Trashes/501/item",
+        ] {
+            XCTAssertNotNil(engine.protectionReason(for: path), "\(path) must be protected")
+            XCTAssertEqual(engine.risk(for: path), .protected)
+            XCTAssertFalse(engine.canAuthorize(url: URL(fileURLWithPath: path)))
+        }
+
+        // An ordinary folder whose name merely starts with the bin's name is
+        // not a bin: whole-component matching keeps that true.
+        for path in [
+            "/Users/example/.Trash-notes/a.txt",
+            "/Users/example/Library/Caches/.Trashy/x",
+        ] {
+            XCTAssertNil(engine.protectionReason(for: path), "\(path) is an ordinary folder")
+        }
+    }
+
+    func test_anExcludedLocationIsNeverSafeEvenWhenARuleReachesIt() {
+        // The scanner skips an excluded application's data, and pre-flight
+        // refuses it. `risk(for:)` used to answer `safe` for a path under
+        // `CloudKit`, which is how the two sides came to disagree about one
+        // path; the level is the answer a caller acts on, so it must agree.
+        for path in [
+            "/Users/example/Library/Caches/CloudKit/db.bin",
+            "/Users/example/Library/Caches/com.apple.cloudd/x",
+        ] {
+            XCTAssertEqual(engine.risk(for: path), .protected, "\(path)")
+        }
+    }
+
     func test_unclassifiedContentIsNeverSafe() {
         // A path no rule claims must not be pre-selected: the product only
         // pre-selects what it can explain.

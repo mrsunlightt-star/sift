@@ -1,0 +1,5 @@
+{"schemaVersion":1,"rules":[
+  {"id":"container-caches","category":"applicationCache","risk":"safe","root":"homeLibrary",
+   "relativePath":"Containers/*/Data/Library/Caches","matchSpec":"directory",
+   "explanationKey":"cleanup.explanation.cache"}
+]}

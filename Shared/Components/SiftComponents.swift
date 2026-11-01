@@ -1376,22 +1376,55 @@ public struct SiftMetricPill: View {
     }
 }
 
-/// The language control.
+/// A rail entry's label: the icon over its one-word caption.
 ///
-/// The rail footer and the settings page both render this view and both call the
-/// same selection closure, so the choice is written by one function and the two
-/// locations cannot disagree about how it is stored.
-/// The rail item's background chrome: selection fill, hover fill and hover
-/// tracking. The footer controls (language, appearance, account) wear it so
-/// pressing them reads exactly like the navigation items above — the hover
-/// fill is adaptive, so light and dark modes both get it.
+/// Every entry in the rail draws this same box — the four destinations and the
+/// footer controls — so the bottom of the rail cannot drift into a second scale
+/// of icon or type by being written somewhere else.
+public struct SiftRailItemLabel: View {
+    private let symbolName: String
+    private let title: String
+
+    public init(symbolName: String, title: String) {
+        self.symbolName = symbolName
+        self.title = title
+    }
+
+    public var body: some View {
+        VStack(spacing: 5) {
+            Image(systemName: symbolName)
+                .font(.system(size: 19, weight: .medium))
+                .frame(height: 22)
+            Text(title)
+                .font(SiftFont.railLabel)
+                .lineLimit(1)
+        }
+        .frame(width: SiftMetrics.railItemWidth, height: SiftMetrics.railItemHeight)
+        .contentShape(Rectangle())
+    }
+}
+
+/// The rail item's background chrome: the selection fill, the hover fill that
+/// tracks the pointer, and — for an entry that is a destination — the accent
+/// mark on its leading edge.
+///
+/// Every entry wears it: the four destinations, the appearance switcher, the
+/// account entry, the language control and settings. One implementation is what
+/// keeps a footer press reading exactly like a navigation press; the fills are
+/// adaptive, so light and dark modes both get them.
+///
+/// `isSelected` is also what a footer control passes while its popover is open,
+/// so an open appearance or language picker lights its own entry instead of
+/// looking like a button that did nothing.
 public struct SiftRailItemChrome: ViewModifier {
     public let isSelected: Bool
+    public let showsSelectionMark: Bool
     @State private var isHovering = false
     @Environment(\.siftReduceMotion) private var reduceMotion
 
-    public init(isSelected: Bool) {
+    public init(isSelected: Bool, showsSelectionMark: Bool = false) {
         self.isSelected = isSelected
+        self.showsSelectionMark = showsSelectionMark
     }
 
     public func body(content: Content) -> some View {
@@ -1400,17 +1433,34 @@ public struct SiftRailItemChrome: ViewModifier {
                 RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
                     .fill(isSelected ? SiftColor.selectedFill : (isHovering ? SiftColor.hoverFill : .clear))
                     .animation(reduceMotion ? nil : SiftMotion.quick, value: isHovering)
+                    .animation(reduceMotion ? nil : SiftMotion.quick, value: isSelected)
+            }
+            .overlay(alignment: .leading) {
+                // The selection mark: a bar on the item's left edge, so the
+                // page the window is showing reads without a border boxing the
+                // item in. Only a destination can be "the page you are on".
+                Capsule()
+                    .fill(SiftColor.accent)
+                    .frame(width: 3, height: 18)
+                    .padding(.leading, 3)
+                    .opacity(showsSelectionMark && isSelected ? 1 : 0)
+                    .allowsHitTesting(false)
             }
             .onHover { isHovering = $0 }
     }
 }
 
 public extension View {
-    func siftRailItemChrome(isSelected: Bool) -> some View {
-        modifier(SiftRailItemChrome(isSelected: isSelected))
+    func siftRailItemChrome(isSelected: Bool, showsSelectionMark: Bool = false) -> some View {
+        modifier(SiftRailItemChrome(isSelected: isSelected, showsSelectionMark: showsSelectionMark))
     }
 }
 
+/// The language control.
+///
+/// The rail footer and the settings page both render this view and both call the
+/// same selection closure, so the choice is written by one function and the two
+/// locations cannot disagree about how it is stored.
 public struct LanguageMenu: View {
     public enum Style: Sendable {
         /// The icon rail: a globe with the language's short name beside it.
@@ -1440,39 +1490,54 @@ public struct LanguageMenu: View {
     }
 
     public var body: some View {
-        let base = sized
-            .overlay { label.allowsHitTesting(false) }
         Group {
             if case .rail = style {
-                base.siftRailItemChrome(isSelected: false)
+                // While the picker is open the entry wears the selected fill and
+                // takes the accent, so the popover visibly belongs to it. It is
+                // not a destination, so it carries no selection mark.
+                sized.siftRailItemChrome(isSelected: isPickerPresented)
             } else {
-                base
+                sized
             }
         }
         .accessibilityIdentifier(identifier)
-            .accessibilityLabel(Text(LocalizationKey.settingsGroupLanguage.localized))
-            .accessibilityValue(Text(selection.displayName))
-            .popover(isPresented: $isPickerPresented, arrowEdge: popoverEdge) {
-                LanguagePickerView(selection: selection) { language in
-                    onSelect(language)
-                    isPickerPresented = false
-                }
-            }
+        .accessibilityLabel(Text(LocalizationKey.settingsGroupLanguage.localized))
+        .accessibilityValue(Text(selection.displayName))
+        .accessibilityAddTraits(isPickerPresented ? .isSelected : [])
     }
 
     /// A plain button rather than a `Menu`: 34 languages do not fit in a menu
     /// that the window has to grow for, and a menu cannot carry a search field.
     /// The label lives inside the button so the press style scales what the
-    /// user sees; it opts out of hit testing because the button handles the
-    /// events for the whole frame.
+    /// user sees.
+    ///
+    /// The label must **not** opt out of hit testing. It used to carry
+    /// `allowsHitTesting(false)` — "the button handles the events for the whole
+    /// frame" — and a label with hit testing off is what the button's hit region
+    /// is made of: the rail entry still tracked the pointer, so it lit up under
+    /// the cursor, but a click never reached the action and the picker never
+    /// opened. Nothing above this in the hierarchy can repair that; the click has
+    /// to land on the label.
+    ///
+    /// The popover is presented by the button itself, not by the view that
+    /// wraps it. Presentation attached to the style's conditional wrapper
+    /// (`Group { if case .rail … }`) never opened either: the modifier was
+    /// installed on content whose identity is `_ConditionalContent`, and the
+    /// picker silently failed to present while the appearance switcher's —
+    /// installed on its button — worked.
     private var trigger: some View {
         Button {
             isPickerPresented.toggle()
         } label: {
             label
-                .allowsHitTesting(false)
         }
         .buttonStyle(SiftPressButtonStyle())
+        .popover(isPresented: $isPickerPresented, arrowEdge: popoverEdge) {
+            LanguagePickerView(selection: selection) { language in
+                onSelect(language)
+                isPickerPresented = false
+            }
+        }
     }
 
     /// The picker opens toward the window's content, away from the rail edge.
@@ -1487,8 +1552,8 @@ public struct LanguageMenu: View {
     private var sized: some View {
         switch style {
         case .rail:
+            // The label already carries the rail item's box.
             trigger
-                .frame(width: SiftMetrics.railItemWidth, height: SiftMetrics.railItemHeight)
         case .sidebar:
             trigger
                 .frame(maxWidth: .infinity, minHeight: 30)
@@ -1505,17 +1570,8 @@ public struct LanguageMenu: View {
             // The rail variant is a rail item first: the same box, icon size
             // and label as the navigation entries above it, so the footer does
             // not introduce a second scale at the bottom of the rail.
-            VStack(spacing: 5) {
-                Image(systemName: "globe")
-                    .font(.system(size: 19, weight: .medium))
-                    .frame(height: 22)
-                Text(shortName)
-                    .font(SiftFont.railLabel)
-                    .lineLimit(1)
-            }
-            .foregroundStyle(.secondary)
-            .frame(width: SiftMetrics.railItemWidth, height: SiftMetrics.railItemHeight)
-            .contentShape(Rectangle())
+            SiftRailItemLabel(symbolName: "globe", title: shortName)
+                .foregroundStyle(isPickerPresented ? SiftColor.accent : Color.secondary)
 
         case .sidebar:
             HStack(spacing: SiftMetrics.spacingS) {

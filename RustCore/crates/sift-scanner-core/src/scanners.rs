@@ -21,8 +21,8 @@ const MEASURE_OPEN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs
 use sift_file_index::{GroupMemberRow, ItemRow};
 use sift_hasher::{hash_file, sample_fingerprint, CancelToken, FileIdentity};
 use sift_rules::{
-    collapse_path, default_rules, is_prefix_of, is_protected_path_authorized, Category, MatchSpec,
-    Risk, RootAnchor, Rule, RuleSet,
+    collapse_path, default_rules, is_prefix_of, is_protected_path_authorized,
+    running_app_owns_path, Category, MatchSpec, Risk, RootAnchor, Rule, RuleSet,
 };
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -102,20 +102,26 @@ impl ProgressSink<'_> {
 /// Builds the effective rule list for a scan request.
 ///
 /// The overlay is additive and can only retune or add rules: `protected` rules
-/// and the compiled-in protection list always win.
+/// and the compiled-in protection list always win. Both paths run the merged
+/// table through [`sift_rules::enforce_rule_invariants`], so a rule that would
+/// offer a container of every application's data — or claim `safe` without
+/// being shipped — cannot reach the walker even if it arrived some other way
+/// than `from_json`.
 pub fn effective_rules(extra_rules_json: Option<&str>) -> Result<Vec<Rule>, String> {
+    let shipped = sift_rules::shipped_rule_ids();
     let base = RuleSet {
         schema_version: sift_rules::RULE_SCHEMA_VERSION,
         rules: default_rules(),
     };
     let Some(json) = extra_rules_json else {
-        return Ok(base.rules);
+        return Ok(sift_rules::enforce_rule_invariants(base.rules, &shipped));
     };
     if json.trim().is_empty() {
-        return Ok(base.rules);
+        return Ok(sift_rules::enforce_rule_invariants(base.rules, &shipped));
     }
     let overlay = RuleSet::from_json(json).map_err(|e| e.to_string())?;
-    Ok(base.merge(overlay).rules)
+    let merged = base.merge(overlay).rules;
+    Ok(sift_rules::enforce_rule_invariants(merged, &shipped))
 }
 
 /// Turns a fixed rule anchor into an absolute directory.
@@ -130,7 +136,8 @@ pub fn resolve_root(anchor: RootAnchor, relative_path: &str, home: &Path) -> Opt
         RootAnchor::HomeLibrary => home.join("Library"),
         RootAnchor::Applications => PathBuf::from("/Applications"),
         RootAnchor::SystemLibrary => PathBuf::from("/Library"),
-        RootAnchor::Authorized | RootAnchor::ExternalVolume => return None,
+        // The per-user temporary root is named by the request, not by the anchor.
+        RootAnchor::UserTemp | RootAnchor::Authorized | RootAnchor::ExternalVolume => return None,
     };
     // An anchor is a place to look inside, never a cleanup item. A rule with an
     // empty relative path used to resolve to the home directory itself, or to
@@ -194,39 +201,139 @@ fn join_inside(base: &Path, relative_path: &str) -> Option<PathBuf> {
 /// location the user granted, with its relative path under each of them: the
 /// rule file cannot know those locations, and one rule has to cover the folder
 /// the user happens to have added.
-fn rule_roots(rule: &Rule, home: &Path, grants: &[PathBuf]) -> Vec<PathBuf> {
-    if !matches!(
-        rule.root,
-        RootAnchor::Authorized | RootAnchor::ExternalVolume
-    ) {
-        return resolve_root(rule.root, &rule.relative_path, home)
-            .into_iter()
-            .collect();
-    }
+///
+/// A `*` component is expanded against the disk — one directory listing per
+/// wildcard, never a substring or a recursive match — so `Containers/*/Data/Library/Caches`
+/// is one root per installed application. An empty relative path names the
+/// anchor itself, which is a container rather than an item, so it yields
+/// nothing; every expanded root is filtered through the same container check.
+fn rule_roots(
+    rule: &Rule,
+    home: &Path,
+    grants: &[PathBuf],
+    user_temp: Option<&Path>,
+) -> Vec<PathBuf> {
+    let bases: Vec<PathBuf> = match rule.root {
+        RootAnchor::Home => vec![home.to_path_buf()],
+        RootAnchor::HomeLibrary => vec![home.join("Library")],
+        RootAnchor::Applications => vec![PathBuf::from("/Applications")],
+        RootAnchor::SystemLibrary => vec![PathBuf::from("/Library")],
+        // The session directory the request named. Absent means this process has
+        // no per-user temporary root, which resolves to nothing rather than to a
+        // guess: `/var/folders` holds every session on the machine.
+        RootAnchor::UserTemp => user_temp.map(Path::to_path_buf).into_iter().collect(),
+        RootAnchor::Authorized => grants.to_vec(),
+        RootAnchor::ExternalVolume => grants
+            .iter()
+            .filter(|root| is_mounted_volume(root))
+            .cloned()
+            .collect(),
+    };
 
-    let volumes_only = rule.root == RootAnchor::ExternalVolume;
-    let mut roots: Vec<PathBuf> = grants
-        .iter()
-        .filter(|root| !volumes_only || is_mounted_volume(root))
-        // A rule under a grant descends from that grant and from nothing else:
-        // `join_inside` drops a root that would leave the location the user
-        // opened, and returns the collapsed form the walk should use. An empty
-        // relative path would make the grant itself the item, which is the same
-        // container mistake `resolve_root` refuses.
-        .filter_map(|root| {
-            if rule.relative_path.trim_matches('/').is_empty() {
-                return None;
+    let mut roots: Vec<PathBuf> = Vec::new();
+    for base in bases {
+        let is_excluded = |name: &str| exclude_matches(&rule.excludes, name);
+        for root in expand_relative_path(&base, &rule.relative_path, &is_excluded) {
+            // The anchor is a place to look inside. Granting `~/Library` as a
+            // rule target is the same container mistake as naming the home
+            // directory: one click would move every application's data.
+            if root == base || is_cleanup_container(&root, home) {
+                continue;
             }
-            let joined = join_inside(root, &rule.relative_path)?;
-            if is_cleanup_container(&joined, home) {
-                return None;
-            }
-            Some(joined)
-        })
-        .collect();
+            roots.push(root);
+        }
+    }
     roots.sort();
     roots.dedup();
     roots
+}
+
+/// Expands a rule's `relativePath` below one anchor.
+///
+/// Literal components are joined; a `*` component lists the directories at that
+/// position, once per candidate, and the expansion stops at
+/// [`sift_rules::MAX_RULE_ROOTS`]. The enumerated names are the only thing this
+/// function adds to the path, so a rule cannot reach outside the anchor it
+/// names — the components it supplies cannot be `..`, `.` or absolute (see
+/// [`sift_rules::relative_path_stays_inside_anchor`]).
+///
+/// Symlinks are skipped rather than followed: a link inside `Containers` is not
+/// a container, and following one would put a root outside the tree the rule
+/// named. Names are yielded in sorted order so one scan of one tree produces the
+/// same roots twice.
+fn expand_relative_path(
+    base: &Path,
+    relative_path: &str,
+    is_excluded: &dyn Fn(&str) -> bool,
+) -> Vec<PathBuf> {
+    let mut current = vec![base.to_path_buf()];
+
+    for component in relative_path
+        .split('/')
+        .filter(|component| !component.is_empty())
+    {
+        if component == sift_rules::RELATIVE_PATH_WILDCARD {
+            let mut next: Vec<PathBuf> = Vec::new();
+            for directory in &current {
+                for child in child_directories(directory) {
+                    // A name on the rule's `excludes` list is skipped here as
+                    // well as below the root: the wildcard is part of the path
+                    // the rule names, so `excludes: ["com.apple"]` has to cover
+                    // the container the `*` matched or it would only ever filter
+                    // what is inside it.
+                    if child
+                        .file_name()
+                        .is_some_and(|name| is_excluded(&name.to_string_lossy()))
+                    {
+                        continue;
+                    }
+                    next.push(child);
+                    if next.len() >= sift_rules::MAX_RULE_ROOTS {
+                        break;
+                    }
+                }
+                if next.len() >= sift_rules::MAX_RULE_ROOTS {
+                    break;
+                }
+            }
+            current = next;
+        } else {
+            if is_excluded(component) {
+                return Vec::new();
+            }
+            current = current
+                .into_iter()
+                .map(|directory| directory.join(component))
+                .collect();
+        }
+        if current.is_empty() {
+            break;
+        }
+    }
+
+    current
+}
+
+/// The directories directly inside `directory`, sorted, symlinks excluded.
+///
+/// An unreadable directory contributes nothing: the rule simply finds nothing
+/// there, the same way a walk of a tree the user cannot read does.
+fn child_directories(directory: &Path) -> Vec<PathBuf> {
+    let Ok(entries) = std::fs::read_dir(directory) else {
+        return Vec::new();
+    };
+    let mut children: Vec<PathBuf> = entries
+        .filter_map(|entry| entry.ok())
+        .filter_map(|entry| {
+            let metadata = std::fs::symlink_metadata(entry.path()).ok()?;
+            if metadata.file_type().is_symlink() || !metadata.is_dir() {
+                return None;
+            }
+            Some(entry.path())
+        })
+        .collect();
+    children.sort();
+    children
 }
 
 /// True when the path is the mount point of a volume rather than a folder on
@@ -301,12 +408,21 @@ pub fn scan_rules(
     let mut skips = WalkReport::default();
     let rules = context.rules.clone();
     let grants = authorized_paths(context);
+    let user_temp = user_temp_root(context.request);
 
     for rule in &rules {
         if cancel.is_cancelled() {
             break;
         }
-        for root in rule_roots(rule, &context.home_dir, &grants) {
+        // The "show hidden files" setting decides what a scan may see, so a rule
+        // that lives inside a dot-directory is out of scope when it is off. The
+        // walkers skip hidden *entries*; a rule's own relative path never reaches
+        // them, so `~/.cache` was offered with the setting turned off — the one
+        // shape where the scope was decided by which rule asked.
+        if skips_hidden(context) && rule_has_hidden_component(rule) {
+            continue;
+        }
+        for root in rule_roots(rule, &context.home_dir, &grants, user_temp.as_deref()) {
             if !root.exists() {
                 continue;
             }
@@ -341,6 +457,32 @@ fn home_is_cleanable(context: &ScanContext<'_>) -> bool {
     context.request.roots.iter().any(|root| {
         root.is_cleanable && (home == root.path || home.starts_with(&format!("{}/", root.path)))
     })
+}
+
+/// True when the rule's own relative path names a hidden directory.
+///
+/// `~/.cache`, `~/.gradle/caches`: the first component is a dot-entry, so the
+/// whole subtree is what the "show hidden files" preference hides. Both engines
+/// ask this the same way, because the answer decides whether a rule runs at all.
+fn rule_has_hidden_component(rule: &Rule) -> bool {
+    rule.relative_path
+        .split('/')
+        .any(|component| component.starts_with('.'))
+}
+
+/// The per-user temporary root the request named, if any.
+///
+/// It arrives as a scan root with `anchor: "userTemp"` because only the process
+/// that owns the session can resolve it: `confstr` answers on the Swift side and
+/// this core has no equivalent. Reading it from the root list also keeps it
+/// inside the same authorisation the rest of the scan uses — a `userTemp` rule
+/// cannot reach a directory the request did not name.
+fn user_temp_root(request: &ScanRequest) -> Option<PathBuf> {
+    request
+        .roots
+        .iter()
+        .find(|root| root.anchor == RootAnchor::UserTemp.as_str())
+        .map(|root| PathBuf::from(&root.path))
 }
 
 fn root_is_authorised(root: &Path, request: &ScanRequest) -> bool {
@@ -389,12 +531,34 @@ fn scan_one_rule(
                 .collect(),
             WalkReport::default(),
         ),
-        MatchSpec::ChildDirectories => child_directory_candidates(rule, root, context, cancel),
+        MatchSpec::ChildDirectories => {
+            child_directory_candidates(rule, root, None, context, cancel)
+        }
+        MatchSpec::DirectoriesNamed { names } => {
+            child_directory_candidates(rule, root, Some(&names), context, cancel)
+        }
         MatchSpec::FilesByExtension { extensions } => {
             file_candidates(rule, root, &extensions, true, context, cancel)
         }
         MatchSpec::AnyFile => file_candidates(rule, root, &[], false, context, cancel),
     }
+}
+
+/// The risk an item from `rule` carries in this scan.
+///
+/// A rule that says its items belong to one application (`needs_app_closed`)
+/// loses the `safe` level while that application is running. The item is still
+/// offered, so the user keeps the decision; it is simply no longer pre-selected.
+/// The rule's own level is the ceiling: a rule that is already `review` stays
+/// `review`, and one the loader refused keeps the level that refused it.
+fn candidate_risk(rule: &Rule, path: &Path, request: &ScanRequest) -> Risk {
+    if rule.risk == Risk::Safe
+        && rule.needs_app_closed
+        && running_app_owns_path(&path.to_string_lossy(), &request.running_app_tokens)
+    {
+        return Risk::Review;
+    }
+    rule.risk
 }
 
 fn directory_candidate(
@@ -420,14 +584,64 @@ fn directory_candidate(
         return None;
     }
     context.progress.note_path(path);
-    let (measured, report) = measure_directory(
-        path,
-        cancel,
-        &context.home_dir,
-        &authorized,
-        skips_hidden(context),
-        &ignored_paths(context),
-    );
+    let (measured, report, modified) = match rule
+        .effective_min_age_days(context.request.stale_threshold_days)
+    {
+        // A `directory` rule with an age threshold has to mean the same thing in
+        // both engines. Swift measured the directory through the filter from the
+        // start; this side offered it whatever its files' ages were, so one
+        // engine called a directory of fresh files a cleanup item and the other
+        // did not. The move is whole, so the same rule as the child-directory
+        // case applies: the threshold may decide eligibility, never which files
+        // move, and a mixed directory is therefore not a cleanup item.
+        Some(min_age_days) => {
+            let matching = measure_directory_matching(
+                path,
+                cancel,
+                &context.home_dir,
+                &authorized,
+                skips_hidden(context),
+                &ignored_paths(context),
+                &|modified| older_than_days(modified, min_age_days),
+            );
+            let (whole, report) = measure_directory(
+                path,
+                cancel,
+                &context.home_dir,
+                &authorized,
+                skips_hidden(context),
+                &ignored_paths(context),
+            );
+            if matching.bytes == 0 || matching.bytes != whole.bytes || matching.files != whole.files
+            {
+                return None;
+            }
+            let oldest = oldest_matching_modified_secs(
+                path,
+                cancel,
+                &context.home_dir,
+                &authorized,
+                skips_hidden(context),
+                min_age_days,
+            );
+            if oldest == 0 {
+                return None;
+            }
+            (whole, report, oldest)
+        }
+        None => {
+            let (measured, report) = measure_directory(
+                path,
+                cancel,
+                &context.home_dir,
+                &authorized,
+                skips_hidden(context),
+                &ignored_paths(context),
+            );
+            let metadata = std::fs::symlink_metadata(path).ok()?;
+            (measured, report, modified_secs(&metadata))
+        }
+    };
     context
         .progress
         .note_files(report.total_files, report.total_bytes);
@@ -437,6 +651,7 @@ fn directory_candidate(
         // zero-byte item labelled as a directory.
         return None;
     }
+    let risk = candidate_risk(rule, path, context.request);
     Some(Candidate {
         path: path.to_path_buf(),
         display_name: path
@@ -448,23 +663,29 @@ fn directory_candidate(
             .map(|p| p.to_string_lossy().to_string())
             .unwrap_or_default(),
         category: rule.category,
-        risk: rule.risk,
+        risk,
         size_bytes: measured.bytes,
         file_count: measured.files,
-        modified_secs: modified_secs(&metadata),
+        modified_secs: modified,
         created_secs: created_secs(&metadata),
         explanation_key: rule.explanation_key.clone(),
         rule_id: rule.id.clone(),
         bundle_id: None,
         is_directory: true,
-        selected_by_default: rule.risk == Risk::Safe,
+        selected_by_default: risk == Risk::Safe,
         note: None,
     })
 }
 
+/// Child-directory candidates, optionally restricted to a set of names.
+///
+/// `names` is what `directoriesNamed` adds: the walk is the same, and only the
+/// directory's own name decides without changing anything else about how the
+/// item is measured, aged or excluded.
 fn child_directory_candidates(
     rule: &Rule,
     root: &Path,
+    names: Option<&[String]>,
     context: &mut ScanContext<'_>,
     cancel: &CancelToken,
 ) -> (Vec<Candidate>, WalkReport) {
@@ -494,6 +715,16 @@ fn child_directory_candidates(
     for entry in &report.entries {
         if !entry.is_directory {
             continue;
+        }
+        if let Some(names) = names {
+            // The name is the whole point of the specification, so it is checked
+            // before anything is measured.
+            if !names
+                .iter()
+                .any(|name| entry.display_name().eq_ignore_ascii_case(name))
+            {
+                continue;
+            }
         }
         if cancelled_or_excluded(entry, rule, root, context) {
             continue;
@@ -595,12 +826,13 @@ fn child_directory_candidates(
             continue;
         }
 
+        let risk = candidate_risk(rule, &entry.path, context.request);
         candidates.push(Candidate {
             path: entry.path.clone(),
             display_name: entry.display_name(),
             parent_path: entry.parent_path(),
             category: rule.category,
-            risk: rule.risk,
+            risk,
             size_bytes: measured.bytes,
             file_count: measured.files,
             modified_secs: modified,
@@ -609,7 +841,7 @@ fn child_directory_candidates(
             rule_id: rule.id.clone(),
             bundle_id: None,
             is_directory: true,
-            selected_by_default: rule.risk == Risk::Safe,
+            selected_by_default: risk == Risk::Safe,
             note: None,
         });
     }
@@ -663,12 +895,13 @@ fn file_candidates(
             }
         }
         context.progress.note_path(&entry.path);
+        let risk = candidate_risk(rule, &entry.path, context.request);
         candidates.push(Candidate {
             path: entry.path.clone(),
             display_name: entry.display_name(),
             parent_path: entry.parent_path(),
             category: rule.category,
-            risk: rule.risk,
+            risk,
             size_bytes: entry.size_bytes.unwrap_or(0),
             file_count: 1,
             modified_secs: entry.modified_secs,
@@ -677,7 +910,7 @@ fn file_candidates(
             rule_id: rule.id.clone(),
             bundle_id: None,
             is_directory: false,
-            selected_by_default: rule.risk == Risk::Safe,
+            selected_by_default: risk == Risk::Safe,
             note: None,
         });
     }
@@ -862,12 +1095,20 @@ fn is_excluded_by_rule(rule: &Rule, path: &Path, root: &Path) -> bool {
     let Ok(relative) = path.strip_prefix(root) else {
         return false;
     };
-    relative.components().any(|component| {
-        let name = component.as_os_str().to_string_lossy();
-        rule.excludes
-            .iter()
-            .any(|exclude| name == exclude.as_str() || name.starts_with(&format!("{exclude}.")))
-    })
+    relative
+        .components()
+        .any(|component| exclude_matches(&rule.excludes, &component.as_os_str().to_string_lossy()))
+}
+
+/// True when a directory name is on a rule's `excludes` list.
+///
+/// A name matches whole, or as the prefix of a bundle identifier (`com.apple`
+/// covers `com.apple.Safari` but not `com.appleby`), which is the same
+/// comparison the excluded-application list uses.
+fn exclude_matches(excludes: &[String], name: &str) -> bool {
+    excludes
+        .iter()
+        .any(|exclude| name == exclude.as_str() || name.starts_with(&format!("{exclude}.")))
 }
 
 /// Adds the never-clean bundle directories to a walk's skip list.
@@ -1288,8 +1529,25 @@ pub fn scan_application_residue(
     // the name that is already a bundle identifier, `com.example.app`. What is
     // *not* accepted is a name that is neither, so a container with a bare name
     // is left alone.
+    //
+    // An app group is the second way a container stays in use: the group it is
+    // named after is declared in some installed application's entitlements, and
+    // then the name resolves to nothing even though the container is live. That
+    // set arrives in the request (this core does not read signatures); it is
+    // checked before the readings because it is a statement about the system
+    // rather than about how a name is spelled.
+    let declared_groups: Vec<String> = context
+        .request
+        .app_group_ids
+        .iter()
+        .map(|id| id.to_ascii_lowercase())
+        .collect();
     let group_containers = context.home_dir.join("Library/Group Containers");
-    if group_containers.is_dir() {
+    // Only with a complete list of declared groups: this block's question is "is
+    // no application using this container", and a set that was cut short answers
+    // "no" for every container whose owner was not read — which is how a live
+    // container becomes a cleanup row.
+    if group_containers.is_dir() && context.request.app_group_ids_complete {
         let mut options = WalkOptions::new(context.home_dir.clone(), WalkMode::ImmediateChildren)
             .with_max_depth(1);
         options.authorized_roots = authorized_paths(context);
@@ -1301,6 +1559,10 @@ pub fn scan_application_residue(
             }
             let name = entry.display_name();
             if is_excluded_bundle_name(&name) {
+                continue;
+            }
+            let lowered_name = name.to_ascii_lowercase();
+            if declared_groups.contains(&lowered_name) {
                 continue;
             }
             let readings = group_container_bundle_ids(&name);
@@ -1351,7 +1613,7 @@ pub fn scan_application_residue(
                 path: entry.path.clone(),
                 display_name: name,
                 parent_path: entry.parent_path(),
-                category: Category::ApplicationResidue,
+                category: Category::GroupContainerResidue,
                 risk: Risk::Review,
                 size_bytes: measured.bytes,
                 file_count: measured.files,
@@ -1983,6 +2245,497 @@ mod tests {
         .expect("one rule")
     }
 
+    /// A wildcard names one root per directory it finds, and nothing else.
+    ///
+    /// This is the shape the shipped `container-caches` rule uses: the platform
+    /// generates the middle component, so a rule cannot spell it and a rule per
+    /// bundle identifier would be a list that goes stale on the next install.
+    #[test]
+    fn a_wildcard_expands_to_one_root_per_directory() {
+        let harness = Harness::new("wildcard-roots");
+        harness
+            .tree
+            .file("Library/Containers/com.one/Data/Library/Caches/a.bin", 1024);
+        harness
+            .tree
+            .file("Library/Containers/com.two/Data/Library/Caches/b.bin", 2048);
+        // A container without the named directory, and a sibling of it, must not
+        // become a candidate: the wildcard matches one component, not a subtree.
+        harness.tree.file(
+            "Library/Containers/com.three/Data/Library/Preferences/p",
+            512,
+        );
+
+        let rule = wildcard_directory_rule("Containers/*/Data/Library/Caches");
+        let roots = rule_roots(&rule, &harness.tree.root, &[], None);
+        let mut sorted = roots.clone();
+        sorted.sort();
+        assert_eq!(roots, sorted, "roots are yielded in a stable order");
+
+        let found = scan_with_rule(&harness, &rule);
+        assert_eq!(
+            found,
+            vec![
+                "Library/Containers/com.one/Data/Library/Caches".to_string(),
+                "Library/Containers/com.two/Data/Library/Caches".to_string(),
+            ],
+            "one item per container that actually holds the named directory"
+        );
+        assert!(
+            !found.iter().any(|path| path.contains("com.three")),
+            "a container without the directory contributes nothing"
+        );
+    }
+
+    /// The wildcard does not follow a symlink out of the tree it names.
+    #[test]
+    fn a_wildcard_root_that_is_a_symlink_is_not_offered() {
+        let harness = Harness::new("wildcard-symlink");
+        harness
+            .tree
+            .file("Library/Containers/com.one/Data/Library/Caches/a.bin", 1024);
+        let outside = harness.tree.dir("Elsewhere/Caches");
+        harness
+            .tree
+            .symlink(&outside, "Library/Containers/com.two/Data/Library/Caches");
+
+        let rule = wildcard_directory_rule("Containers/*/Data/Library/Caches");
+        let found = scan_with_rule(&harness, &rule);
+
+        assert_eq!(
+            found,
+            vec!["Library/Containers/com.one/Data/Library/Caches".to_string()],
+            "a link is not the directory the rule named"
+        );
+    }
+
+    /// A `directory` rule over a wildcard path: the shape the shipped
+    /// `container-caches` rule uses.
+    fn wildcard_directory_rule(relative_path: &str) -> Rule {
+        RuleSet::from_json(&format!(
+            r#"{{"schemaVersion":1,"rules":[
+                 {{"id":"wildcard-directory","category":"applicationCache","risk":"safe",
+                  "root":"homeLibrary","relativePath":"{relative_path}","matchSpec":"directory",
+                  "explanationKey":"cleanup.explanation.cache"}}
+               ]}}"#
+        ))
+        .expect("the rule parses")
+        .rules
+        .into_iter()
+        .next()
+        .expect("one rule")
+    }
+
+    /// Runs one rule and returns its candidates as home-relative paths.
+    fn scan_with_rule(harness: &Harness, rule: &Rule) -> Vec<String> {
+        let cancel = CancelToken::new();
+        let mut files = |_: u64, _: u64| {};
+        let mut path = |_: &Path| {};
+        let mut context = harness.context(&mut files, &mut path);
+        context.rules = vec![rule.clone()];
+        let (candidates, _) = scan_rules(&mut context, &cancel);
+        let mut found: Vec<String> = candidates
+            .iter()
+            .map(|candidate| {
+                candidate
+                    .path
+                    .strip_prefix(&harness.tree.root)
+                    .unwrap_or(&candidate.path)
+                    .to_string_lossy()
+                    .to_string()
+            })
+            .collect();
+        found.sort();
+        found
+    }
+
+    /// An exclusion naming the wildcard's own directory drops that root.
+    ///
+    /// `container-caches` excludes `com.apple`, because macOS keeps hundreds of
+    /// system-application containers holding a few kilobytes each. The exclusion
+    /// has to apply to the name the `*` matched, which sits *above* the rule's
+    /// root, or it would only ever filter what is inside the cache directory.
+    #[test]
+    fn an_exclusion_filters_the_directory_a_wildcard_matched() {
+        let harness = Harness::new("wildcard-exclude");
+        harness.tree.file(
+            "Library/Containers/com.example.app/Data/Library/Caches/a.bin",
+            4096,
+        );
+        harness.tree.file(
+            "Library/Containers/com.apple.Safari/Data/Library/Caches/b.bin",
+            4096,
+        );
+        harness.tree.file(
+            "Library/Containers/com.appleby.app/Data/Library/Caches/c.bin",
+            4096,
+        );
+
+        let shipped = effective_rules(None)
+            .expect("the shipped rules load")
+            .into_iter()
+            .find(|rule| rule.id == "container-caches")
+            .expect("the shipped rule exists");
+        let found = scan_with_rule(&harness, &shipped);
+
+        assert_eq!(
+            found,
+            vec![
+                "Library/Containers/com.appleby.app/Data/Library/Caches".to_string(),
+                "Library/Containers/com.example.app/Data/Library/Caches".to_string(),
+            ],
+            "`com.apple` covers `com.apple.Safari`, and not `com.appleby.app`"
+        );
+    }
+
+    /// A `directory` rule with an age threshold means what it means in Swift.
+    ///
+    /// The move takes the whole directory, so the threshold may only decide
+    /// eligibility: a directory holding one fresh file is not a cleanup item,
+    /// and this side used to offer it regardless of age while the Swift engine
+    /// measured it through the filter.
+    #[test]
+    fn a_directory_rule_with_an_age_only_offers_a_wholly_stale_directory() {
+        let harness = Harness::new("directory-age");
+        let stale = harness.tree.file("Library/Caches/Old/blob.bin", 4096);
+        harness.tree.age(&stale, 60);
+        let fresh = harness.tree.file("Library/Caches/Mixed/blob.bin", 4096);
+        harness.tree.age(&fresh, 60);
+        harness.tree.file("Library/Caches/Mixed/new.bin", 4096);
+
+        let rule = RuleSet::from_json(
+            r#"{"schemaVersion":1,"rules":[
+                {"id":"aged-directory","category":"applicationCache","risk":"review",
+                 "root":"homeLibrary","relativePath":"Caches/*","matchSpec":"directory",
+                 "minAgeDays":30,"explanationKey":"cleanup.explanation.cache"}
+            ]}"#,
+        )
+        .expect("the rule parses")
+        .rules
+        .into_iter()
+        .next()
+        .expect("one rule");
+
+        let found = scan_with_rule(&harness, &rule);
+        assert_eq!(
+            found,
+            vec!["Library/Caches/Old".to_string()],
+            "only a directory whose every file is stale may be moved whole"
+        );
+    }
+
+    /// A name set decides which children are items, and nothing else changes.
+    ///
+    /// `directoriesNamed` is `childDirectories` with the filter in the rule: the
+    /// shipped `app-support-caches` rule uses it so `Cache`, `Caches`, `GPUCache`
+    /// and `Code Cache` are one rule instead of four.
+    #[test]
+    fn a_name_set_selects_the_child_directories_it_names() {
+        let harness = Harness::new("named-children");
+        harness
+            .tree
+            .file("Library/Application Support/com.one/Cache/a.bin", 1024);
+        harness
+            .tree
+            .file("Library/Application Support/com.one/Caches/b.bin", 2048);
+        harness
+            .tree
+            .file("Library/Application Support/com.one/GPUCache/c.bin", 4096);
+        harness
+            .tree
+            .file("Library/Application Support/com.one/Code Cache/d.bin", 4096);
+        harness
+            .tree
+            .file("Library/Application Support/com.one/State/e.bin", 1024);
+        // Case is not part of the identity: macOS compares these names without it.
+        harness
+            .tree
+            .file("Library/Application Support/com.two/cache/f.bin", 1024);
+
+        let rule = effective_rules(None)
+            .expect("the shipped rules load")
+            .into_iter()
+            .find(|rule| rule.id == "app-support-caches")
+            .expect("the shipped rule exists");
+        let found = scan_with_rule(&harness, &rule);
+
+        assert_eq!(
+            found,
+            vec![
+                "Library/Application Support/com.one/Cache".to_string(),
+                "Library/Application Support/com.one/Caches".to_string(),
+                "Library/Application Support/com.one/Code Cache".to_string(),
+                "Library/Application Support/com.one/GPUCache".to_string(),
+                "Library/Application Support/com.two/cache".to_string(),
+            ],
+            "the named directories, in path order, and nothing else"
+        );
+        assert!(
+            !found.iter().any(|path| path.ends_with("/State")),
+            "a sibling the set does not name is not offered"
+        );
+    }
+
+    /// The per-user temporary root is the directory the request named.
+    ///
+    /// `/var/folders/<xx>/<hash>` is generated per login session, so no rule can
+    /// spell it and this core cannot derive it: the request carries it as a scan
+    /// root with `anchor: "userTemp"`. Two things have to hold — the rule finds
+    /// the aged children of `C`, and it finds nothing at all when the request does
+    /// not name the root, which is what keeps a rule from reaching `/var/folders`
+    /// on its own.
+    #[test]
+    fn the_user_temp_rule_reaches_only_the_root_the_request_named() {
+        // Outside the home tree on purpose: a session directory inside it would
+        // be reachable through the home root, and the test would pass without the
+        // request ever naming it.
+        let session = TempTree::new("user-temp-session");
+        session.dir("C/stale.app");
+        let stale = session.file("C/stale.app/cache.bin", 4096);
+        session.age(&stale, 8);
+        session.dir("C/fresh.app");
+        session.file("C/fresh.app/cache.bin", 4096);
+
+        let mut harness = Harness::new("user-temp");
+        // Something the rule must not report: it is in `T`, not `C`, and live
+        // processes keep their sockets there.
+        session.dir("T/live/");
+        let live = session.file("T/live/port", 128);
+        session.age(&live, 30);
+
+        let rule = effective_rules(None)
+            .expect("the shipped rules load")
+            .into_iter()
+            .find(|rule| rule.id == "user-temp-caches")
+            .expect("the shipped rule exists");
+
+        // Without the root, the rule resolves to nothing.
+        assert!(
+            scan_with_rule(&harness, &rule).is_empty(),
+            "a rule may not reach the per-user temporary root on its own"
+        );
+
+        harness.request.roots.push(ScanRoot::new(
+            session.root.to_string_lossy().to_string(),
+            "userTemp",
+        ));
+
+        let found = scan_with_rule(&harness, &rule);
+        let relative: Vec<String> = found
+            .iter()
+            .map(|path| {
+                Path::new(path)
+                    .strip_prefix(&session.root)
+                    .unwrap_or(Path::new(path))
+                    .to_string_lossy()
+                    .to_string()
+            })
+            .collect();
+        assert_eq!(
+            relative,
+            vec!["C/stale.app".to_string()],
+            "only the aged child of `C`, and never `T`"
+        );
+    }
+
+    /// A rule inside a dot-directory follows the "show hidden files" setting.
+    ///
+    /// The walkers skip hidden entries; a rule's own `relativePath` never reaches
+    /// them, so `~/.cache` used to be offered with the setting turned off. The
+    /// scope is a property of the scan, so the rule has to be dropped rather than
+    /// its items filtered afterwards.
+    #[test]
+    fn a_rule_under_a_hidden_directory_follows_the_hidden_file_setting() {
+        let mut harness = Harness::new("hidden-rule-scope");
+        // Aged past the 30-day threshold both rules carry: a cache read this
+        // morning is not idle, and the rule would not offer it either way.
+        let jar = harness.tree.file(".gradle/caches/jars/a.jar", 4096);
+        harness.tree.age(&jar, 60);
+        let blob = harness.tree.file(".cache/thing/blob.bin", 4096);
+        harness.tree.age(&blob, 60);
+
+        let rules = effective_rules(None).expect("the shipped rules load");
+        let visible = |harness: &Harness| -> Vec<String> {
+            let cancel = CancelToken::new();
+            let mut files = |_: u64, _: u64| {};
+            let mut path = |_: &Path| {};
+            let mut context = harness.context(&mut files, &mut path);
+            context.rules = rules.clone();
+            let (candidates, _) = scan_rules(&mut context, &cancel);
+            let mut found: Vec<String> = candidates
+                .iter()
+                .map(|candidate| {
+                    candidate
+                        .path
+                        .strip_prefix(&harness.tree.root)
+                        .unwrap_or(&candidate.path)
+                        .to_string_lossy()
+                        .to_string()
+                })
+                .collect();
+            found.sort();
+            found
+        };
+
+        // Hidden entries in scope: both developer caches are offered.
+        let in_scope = visible(&harness);
+        assert!(
+            in_scope
+                .iter()
+                .any(|path| path.starts_with(".gradle/caches/")),
+            "a dot-directory rule runs while hidden files are in scope: {in_scope:?}"
+        );
+        assert!(in_scope.iter().any(|path| path == ".cache/thing"));
+
+        // Out of scope: the same rules contribute nothing.
+        harness.request.include_hidden_files = false;
+        let out_of_scope = visible(&harness);
+        assert!(
+            !out_of_scope.iter().any(|path| path.starts_with('.')),
+            "no hidden rule root is scanned with hidden files out of scope: {out_of_scope:?}"
+        );
+    }
+
+    /// A rule that owns one application's data loses `safe` while it runs.
+    ///
+    /// The item stays in the list — the user may still choose it — but it is no
+    /// longer pre-selected, because the move would pull a cache directory out
+    /// from under a live process. Both shapes the shipped table uses are covered:
+    /// the bundle identifier as the last component (`Caches/<id>`) and as the
+    /// component a wildcard matched (`Containers/<id>/...`).
+    #[test]
+    fn a_running_application_takes_a_safe_cache_down_to_review() {
+        let mut harness = Harness::new("running-app");
+        harness
+            .tree
+            .file("Library/Caches/com.running.app/a.bin", 4096);
+        harness.tree.file("Library/Caches/com.idle.app/b.bin", 2048);
+        harness.tree.file(
+            "Library/Containers/com.running.app/Data/Library/Caches/c.bin",
+            1024,
+        );
+        harness.request.running_app_tokens = vec!["com.running.app".to_string()];
+
+        let cancel = CancelToken::new();
+        let mut files = |_: u64, _: u64| {};
+        let mut path = |_: &Path| {};
+        let mut context = harness.context(&mut files, &mut path);
+        let (candidates, _) = scan_rules(&mut context, &cancel);
+
+        let mut rows: Vec<(String, Risk, bool)> = candidates
+            .iter()
+            .map(|candidate| {
+                (
+                    candidate
+                        .path
+                        .strip_prefix(&harness.tree.root)
+                        .unwrap_or(&candidate.path)
+                        .to_string_lossy()
+                        .to_string(),
+                    candidate.risk,
+                    candidate.selected_by_default,
+                )
+            })
+            .collect();
+        rows.sort();
+
+        assert_eq!(
+            rows,
+            vec![
+                ("Library/Caches/com.idle.app".to_string(), Risk::Safe, true),
+                (
+                    "Library/Caches/com.running.app".to_string(),
+                    Risk::Review,
+                    false
+                ),
+                (
+                    "Library/Containers/com.running.app/Data/Library/Caches".to_string(),
+                    Risk::Review,
+                    false
+                ),
+            ],
+            "only the running application's items lose their pre-selection"
+        );
+    }
+
+    /// A leading wildcard is refused at parse time, so there is no shape in which
+    /// one rule covers every child of `~/Library`.
+    #[test]
+    fn a_leading_wildcard_never_reaches_the_walker() {
+        let json = r#"{"schemaVersion":1,"rules":[
+            {"id":"everything","category":"applicationCache","risk":"review",
+             "root":"homeLibrary","relativePath":"*/Caches","matchSpec":"directory",
+             "explanationKey":"cleanup.explanation.cache"}
+        ]}"#;
+        assert!(RuleSet::from_json(json).is_err());
+    }
+
+    /// The three new rule families find what they name, through the shipped table.
+    #[test]
+    fn the_shipped_wildcard_and_xcode_rules_find_their_targets() {
+        let harness = Harness::new("shipped-wildcard-rules");
+        harness
+            .tree
+            .file("Library/Containers/com.one/Data/Library/Caches/a.bin", 1024);
+        harness
+            .tree
+            .file("Library/Application Support/com.two/Cache/c.bin", 2048);
+        harness
+            .tree
+            .file("Library/Application Support/com.two/Caches/d.bin", 4096);
+        harness
+            .tree
+            .file("Library/Application Support/com.two/State/e.bin", 8192);
+        harness
+            .tree
+            .file("Library/Developer/Xcode/DerivedData/Sift/Build/f.o", 1024);
+        harness.tree.file(
+            "Library/Developer/Xcode/iOS DeviceSupport/17.0/Symbols/arm64",
+            1024,
+        );
+        harness
+            .tree
+            .file("Library/Developer/CoreSimulator/Caches/dyld/g.bin", 1024);
+
+        let cancel = CancelToken::new();
+        let mut files = |_: u64, _: u64| {};
+        let mut path = |_: &Path| {};
+        let mut context = harness.context(&mut files, &mut path);
+        let (candidates, _) = scan_rules(&mut context, &cancel);
+
+        let found: Vec<String> = candidates
+            .iter()
+            .map(|candidate| {
+                candidate
+                    .path
+                    .strip_prefix(&harness.tree.root)
+                    .unwrap_or(&candidate.path)
+                    .to_string_lossy()
+                    .trim_start_matches('/')
+                    .to_string()
+            })
+            .collect();
+
+        for expected in [
+            "Library/Containers/com.one/Data/Library/Caches",
+            "Library/Application Support/com.two/Cache",
+            "Library/Application Support/com.two/Caches",
+            "Library/Developer/Xcode/DerivedData",
+            "Library/Developer/Xcode/iOS DeviceSupport/17.0",
+            "Library/Developer/CoreSimulator/Caches",
+        ] {
+            assert!(
+                found.iter().any(|path| path == expected),
+                "`{expected}` missing from {found:?}"
+            );
+        }
+        // `State` is a sibling of the caches and is not offered by any rule.
+        assert!(
+            !found.iter().any(|path| path.contains("com.two/State")),
+            "the rule names `Cache`, not every child of the application"
+        );
+    }
+
     #[test]
     fn an_authorised_anchor_expands_to_every_grant() {
         let home = Path::new("/Users/example");
@@ -1992,7 +2745,7 @@ mod tests {
         ];
         let rule = anchored_rule(RootAnchor::Authorized, "Caches");
         assert_eq!(
-            rule_roots(&rule, home, &grants),
+            rule_roots(&rule, home, &grants, None),
             vec![
                 PathBuf::from("/Volumes/Backup/Caches"),
                 PathBuf::from("/Volumes/Media/Caches"),
@@ -2010,7 +2763,7 @@ mod tests {
         ];
         let rule = anchored_rule(RootAnchor::ExternalVolume, "Caches");
         assert_eq!(
-            rule_roots(&rule, home, &grants),
+            rule_roots(&rule, home, &grants, None),
             vec![PathBuf::from("/Volumes/Backup/Caches")],
             "a folder inside a volume and a folder inside home are not volumes"
         );
@@ -2064,7 +2817,7 @@ mod tests {
         climbing.root = RootAnchor::Authorized;
         climbing.relative_path = "../..".to_string();
         assert!(
-            rule_roots(&climbing, home, &grants).is_empty(),
+            rule_roots(&climbing, home, &grants, None).is_empty(),
             "a rule that reaches the table anyway resolves to no root"
         );
 
@@ -2072,7 +2825,7 @@ mod tests {
         let mut inside = climbing.clone();
         inside.relative_path = "var/log".to_string();
         assert_eq!(
-            rule_roots(&inside, home, &grants),
+            rule_roots(&inside, home, &grants, None),
             vec![PathBuf::from("/Volumes/Backup/var/log")]
         );
     }
@@ -2133,12 +2886,12 @@ mod tests {
         let grants = vec![PathBuf::from("/Volumes/Backup")];
         let rule = anchored_rule(RootAnchor::Authorized, "");
         assert!(
-            rule_roots(&rule, home, &grants).is_empty(),
+            rule_roots(&rule, home, &grants, None).is_empty(),
             "an authorised rule with an empty relative path must not offer the volume itself"
         );
         let inside = anchored_rule(RootAnchor::Authorized, "Caches");
         assert_eq!(
-            rule_roots(&inside, home, &grants),
+            rule_roots(&inside, home, &grants, None),
             vec![PathBuf::from("/Volumes/Backup/Caches")]
         );
     }
@@ -2331,23 +3084,22 @@ mod tests {
         // directory is moved whole, so a mixed directory would take files the
         // age filter did not count. It must be skipped rather than offered with
         // a size smaller than the move.
+        //
+        // The fixture sits under `Caches` rather than `Application Support`:
+        // no rule may name that directory at all (see
+        // `FORBIDDEN_RULE_DIRECTORIES`), and the age-filter behaviour under
+        // test has nothing to do with which directory the rule points at.
         let harness = Harness::new("mixed-directory-age");
-        let old = harness
-            .tree
-            .file("Library/Application Support/Mixed/old.bin", 4096);
+        let old = harness.tree.file("Library/Caches/Mixed/old.bin", 4096);
         harness.tree.age(&old, 60);
-        harness
-            .tree
-            .file("Library/Application Support/Mixed/fresh.bin", 4096);
-        let all_old = harness
-            .tree
-            .file("Library/Application Support/AllOld/old.bin", 4096);
+        harness.tree.file("Library/Caches/Mixed/fresh.bin", 4096);
+        let all_old = harness.tree.file("Library/Caches/AllOld/old.bin", 4096);
         harness.tree.age(&all_old, 60);
 
         let rule = RuleSet::from_json(
             r#"{"schemaVersion":1,"rules":[
                 {"id":"mixed-age","category":"temporaryFiles","risk":"review",
-                 "root":"homeLibrary","relativePath":"Application Support",
+                 "root":"homeLibrary","relativePath":"Caches",
                  "matchSpec":"childDirectories","minAgeDays":30,
                  "explanationKey":"cleanup.explanation.temporary"}
             ]}"#,
@@ -2362,8 +3114,8 @@ mod tests {
         let mut files = |_: u64, _: u64| {};
         let mut path = |_: &Path| {};
         let mut context = harness.context(&mut files, &mut path);
-        let root = harness.tree.root.join("Library/Application Support");
-        let (candidates, _) = child_directory_candidates(&rule, &root, &mut context, &cancel);
+        let root = harness.tree.root.join("Library/Caches");
+        let (candidates, _) = child_directory_candidates(&rule, &root, None, &mut context, &cancel);
 
         let names: Vec<&str> = candidates
             .iter()
@@ -2942,6 +3694,69 @@ mod tests {
             .find(|c| c.path.to_string_lossy().contains("com.also-gone.app"))
             .expect("the bare-name container");
         assert_eq!(half.bundle_id.as_deref(), Some("com.also-gone.app"));
+
+        // A shared container is its own category on the scan page: it belongs to
+        // an app group rather than to one application, so it is not the same
+        // claim as a private container and the page keeps the two totals apart.
+        assert_eq!(
+            half.category,
+            Category::GroupContainerResidue,
+            "a group container residue has its own category"
+        );
+        assert_eq!(
+            half.explanation_key,
+            "cleanup.explanation.residueGroupContainer"
+        );
+    }
+
+    /// The two kinds of residue keep their own categories.
+    ///
+    /// `~/Library/Containers/<id>` is one application's private data;
+    /// `~/Library/Group Containers/<team-id>.<id>` is shared by an app group, and
+    /// the uninstaller has always treated them differently. The scan page reads
+    /// the same way, so one page cannot call them the same thing.
+    #[test]
+    fn a_private_container_and_a_shared_one_are_different_categories() {
+        let harness = Harness::new("residue-categories");
+        harness
+            .tree
+            .file("Library/Containers/com.gone.app/Data/blob.bin", 4096);
+        harness
+            .tree
+            .file("Library/Group Containers/TEAM1.com.gone.app/blob.bin", 4096);
+
+        let mut request = harness.request.clone();
+        request.installed_bundle_ids = vec!["com.installed.app".to_string()];
+        let cancel = CancelToken::new();
+        let mut files = |_: u64, _: u64| {};
+        let mut path = |_: &Path| {};
+        let mut context = ScanContext {
+            request: &request,
+            home_dir: harness.tree.root.clone(),
+            rules: effective_rules(None).unwrap(),
+            progress: ProgressSink {
+                on_files: &mut files,
+                on_current_path: &mut path,
+            },
+        };
+        let (candidates, _) = scan_application_residue(&mut context, &cancel);
+
+        let category = |name: &str| {
+            candidates
+                .iter()
+                .find(|candidate| candidate.path.to_string_lossy().contains(name))
+                .map(|candidate| candidate.category)
+        };
+        assert_eq!(
+            category("Library/Containers/com.gone.app"),
+            Some(Category::ApplicationResidue),
+            "a private container is per-application residue"
+        );
+        assert_eq!(
+            category("TEAM1.com.gone.app"),
+            Some(Category::GroupContainerResidue),
+            "a shared container is its own category"
+        );
     }
 
     #[test]
@@ -2996,6 +3811,111 @@ mod tests {
         assert!(
             !paths.iter().any(|p| p.contains("/Editor")),
             "a name that is not a bundle identifier must never be residue"
+        );
+    }
+
+    /// A container an installed application's app group declares is not residue.
+    ///
+    /// The group container is named after the group, so neither application that
+    /// shares it appears in the name: `readings` resolves to nothing and the
+    /// container was offered as a leftover of an uninstalled application. The
+    /// declared groups arrive in the request, and a container whose whole name
+    /// is one of them is live.
+    #[test]
+    fn residue_skips_a_container_an_app_group_declares() {
+        let harness = Harness::new("group-declared");
+        harness.tree.file(
+            "Library/Group Containers/group.com.vendor.shared/store.db",
+            4096,
+        );
+        harness.tree.file(
+            "Library/Group Containers/group.com.vendor.gone/store.db",
+            4096,
+        );
+
+        let mut request = harness.request.clone();
+        request.installed_bundle_ids = vec!["com.installed.app".to_string()];
+        request.app_group_ids = vec!["GROUP.com.vendor.shared".to_string()];
+        let cancel = CancelToken::new();
+        let mut files = |_: u64, _: u64| {};
+        let mut path = |_: &Path| {};
+        let mut context = ScanContext {
+            request: &request,
+            home_dir: harness.tree.root.clone(),
+            rules: effective_rules(None).unwrap(),
+            progress: ProgressSink {
+                on_files: &mut files,
+                on_current_path: &mut path,
+            },
+        };
+
+        let (candidates, _) = scan_application_residue(&mut context, &cancel);
+        let paths: Vec<String> = candidates
+            .iter()
+            .map(|c| c.path.to_string_lossy().to_string())
+            .collect();
+
+        assert!(
+            !paths.iter().any(|p| p.contains("group.com.vendor.shared")),
+            "a declared app group owns its container: {paths:?}"
+        );
+        assert!(
+            paths.iter().any(|p| p.contains("group.com.vendor.gone")),
+            "a container nothing declares is still residue: {paths:?}"
+        );
+        let shared = candidates
+            .iter()
+            .find(|c| c.path.to_string_lossy().contains("group.com.vendor.gone"))
+            .expect("the undeclared container is a candidate");
+        assert_eq!(shared.category, Category::GroupContainerResidue);
+    }
+
+    /// An incomplete declared set reports no group-container residue.
+    ///
+    /// The set answers "is no application using this container". A set cut short
+    /// by a deadline answers "no" for every container whose owner was not read, so
+    /// the safe answer is to offer none of them this run rather than a list that
+    /// may include live data.
+    #[test]
+    fn an_incomplete_app_group_set_reports_no_group_container_residue() {
+        let harness = Harness::new("group-incomplete");
+        harness.tree.file(
+            "Library/Group Containers/group.com.vendor.gone/store.db",
+            4096,
+        );
+        harness
+            .tree
+            .file("Library/Containers/com.gone.app/Data/blob.bin", 4096);
+
+        let mut request = harness.request.clone();
+        request.installed_bundle_ids = vec!["com.installed.app".to_string()];
+        request.app_group_ids = Vec::new();
+        request.app_group_ids_complete = false;
+        let cancel = CancelToken::new();
+        let mut files = |_: u64, _: u64| {};
+        let mut path = |_: &Path| {};
+        let mut context = ScanContext {
+            request: &request,
+            home_dir: harness.tree.root.clone(),
+            rules: effective_rules(None).unwrap(),
+            progress: ProgressSink {
+                on_files: &mut files,
+                on_current_path: &mut path,
+            },
+        };
+
+        let (candidates, _) = scan_application_residue(&mut context, &cancel);
+        assert!(
+            !candidates
+                .iter()
+                .any(|c| c.category == Category::GroupContainerResidue),
+            "no container is a leftover while the declared set is unknown"
+        );
+        assert!(
+            candidates
+                .iter()
+                .any(|c| c.category == Category::ApplicationResidue),
+            "the private container is still residue: it does not depend on the set"
         );
     }
 

@@ -1,0 +1,5 @@
+{"schemaVersion":1,"rules":[
+  {"id":"user-cache","category":"applicationCache","risk":"safe","root":"homeLibrary",
+   "relativePath":"Caches","matchSpec":"childDirectories","excludes":["CloudKit"],
+   "explanationKey":"cleanup.explanation.cache"}
+]}

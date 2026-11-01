@@ -78,7 +78,12 @@ public struct StorageAnalysisView: View {
 
                         findingsCard(titleKey: .diagnosticsSectionRebuildable, findings: report.rebuildableFindings)
                         findingsCard(titleKey: .diagnosticsSectionProtected, findings: report.protectedFindings)
-                        findingsCard(titleKey: .diagnosticsSectionSnapshots, findings: report.snapshotFindings)
+                        findingsCard(
+                            titleKey: .diagnosticsSectionSnapshots,
+                            findings: report.snapshotFindings,
+                            actionTitle: .diagnosticsSnapshotsOpenTimeMachine,
+                            action: { Task { await environment.openTimeMachineSettings() } }
+                        )
                         skippedCard
                         notes
                     } else if !isAnalyzing {
@@ -517,7 +522,12 @@ public struct StorageAnalysisView: View {
     // MARK: - Findings
 
     @ViewBuilder
-    private func findingsCard(titleKey: LocalizationKey, findings: [StorageFinding]) -> some View {
+    private func findingsCard(
+        titleKey: LocalizationKey,
+        findings: [StorageFinding],
+        actionTitle: LocalizationKey? = nil,
+        action: (() -> Void)? = nil
+    ) -> some View {
         if !findings.isEmpty {
             SiftGlassCard(padding: SiftMetrics.spacingL) {
                 VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
@@ -532,6 +542,18 @@ public struct StorageAnalysisView: View {
                                 Task { await environment.reveal(path) }
                             }
                         )
+                    }
+                    // Some categories have a follow-up that belongs to another
+                    // application: snapshots are managed by Time Machine, and
+                    // reclaiming them needs an administrator. The link says so
+                    // instead of offering a button that cannot.
+                    if let actionTitle, let action {
+                        Divider()
+                        Button(action: action) {
+                            Label(actionTitle.localized, systemImage: "arrow.up.forward.app")
+                                .font(SiftFont.caption)
+                        }
+                        .buttonStyle(SiftLinkButtonStyle())
                     }
                 }
             }

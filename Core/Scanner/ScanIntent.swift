@@ -89,6 +89,7 @@ public extension CleanupCategory {
     /// the user sees junk; the uninstaller reports residue for one chosen
     /// application, which is a different question.
     static let junkCategories: [CleanupCategory] = [
-        .applicationCache, .logs, .installers, .temporaryFiles, .applicationResidue,
+        .applicationCache, .logs, .installers, .temporaryFiles,
+        .applicationResidue, .groupContainerResidue,
     ]
 }

@@ -1,0 +1,4 @@
+{"schemaVersion":1,"rules":[
+  {"id":"wide","category":"applicationCache","risk":"review","root":"homeLibrary",
+   "relativePath":"Containers/com.apple.*/Data","matchSpec":"directory","explanationKey":"k"}
+]}

@@ -72,6 +72,42 @@ public enum ProtectedPaths {
     /// Suffix of a photo library package, protected as one unit.
     public static let photosLibrarySuffix = ".photoslibrary"
 
+    /// Directory names that mark a recycle bin, at any depth.
+    ///
+    /// Every removal this product performs moves an item *to* the Trash,
+    /// and the undo it promises is the user emptying that Trash later.
+    /// Offering the Trash itself inverts that promise, so the names are
+    /// refused as a whole component anywhere in a path. The Rust core
+    /// checks the same list.
+    public static let recycleBinNames: [String] = [
+        ".Trash",
+        ".Trashes",
+    ]
+
+    /// Rule-schema limits shared with the Rust rule loader.
+    ///
+    /// A rule file one engine accepts and the other refuses fails the whole
+    /// scan, so the domain of `minAgeDays` and the directories no rule may
+    /// name are read from the same Rust constants rather than restated here.
+    public static let maximumMinAgeDays = 3650
+
+    /// The one wildcard a `relativePath` may use, and the bound on how
+    /// many directories it may expand to.
+    ///
+    /// A component is a literal name or exactly this, and it matches one
+    /// directory name. A wildcard enumerates a tree the rule author never
+    /// saw, so the expansion is bounded; a rule that exceeds the bound
+    /// contributes nothing rather than an unpredictable subset.
+    public static let relativePathWildcard = "*"
+    public static let maximumRuleRoots = 4096
+
+    /// Directory names no rule may target, whoever wrote the rule file.
+    public static let forbiddenRuleDirectories: [String] = [
+        "Containers",
+        "Group Containers",
+        "Application Support",
+    ]
+
     /// The directory aliases macOS ships as symlinks.
     ///
     /// `/var` is a symlink to `/private/var`, so a path arriving as

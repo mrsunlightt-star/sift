@@ -1,0 +1,5 @@
+{"schemaVersion":1,"rules":[
+  {"id":"wide","category":"temporaryFiles","risk":"safe","root":"homeLibrary",
+   "relativePath":"Application Support","matchSpec":"childDirectories",
+   "explanationKey":"k"}
+]}

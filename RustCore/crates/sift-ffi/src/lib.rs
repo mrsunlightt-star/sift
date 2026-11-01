@@ -1826,10 +1826,26 @@ mod tests {
         }
         assert!(!sift_risk_is_cleanable(SiftString::EMPTY));
 
+        // `temporaryFiles` holds both levels now: the Xcode artifacts and the
+        // saved window state are `safe`, and the per-user temporary root is
+        // `review` because its directory names belong to the platform rather than
+        // to an application the user can recognise. The category default is the
+        // more cautious of the two, so a caller that has only a category never
+        // pre-selects on the strength of the safest rule in it.
+        let risk = sift_default_risk_for_category(string("temporaryFiles"));
+        let text = unsafe { as_str(&risk) }.unwrap().to_string();
+        unsafe { sift_string_free(risk) };
+        assert_eq!(text, "review");
+
+        // `applicationCache` holds both levels now: the shipped cache rules are
+        // `safe`, and the entries inside `Application Support` are `review`
+        // because the same name can hold state an application cannot rebuild.
+        // The category default is the more cautious one, which is also why the
+        // answer changed when those rules were added.
         let risk = sift_default_risk_for_category(string("applicationCache"));
         let text = unsafe { as_str(&risk) }.unwrap().to_string();
         unsafe { sift_string_free(risk) };
-        assert_eq!(text, "safe");
+        assert_eq!(text, "review");
 
         // `logs` holds both safe and review rules; the category default is the
         // more cautious one, or diagnostic reports would be preselected.

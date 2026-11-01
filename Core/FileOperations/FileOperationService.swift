@@ -64,6 +64,34 @@ public actor FileOperationService {
                 sourceRuleID: "preflight"
             )
         }
+
+        /// The same candidate at a more cautious risk level.
+        ///
+        /// Pre-flight uses this when the rule table no longer backs the level
+        /// the scan recorded. The item keeps its identity, size and the sentence
+        /// the scanner attached, and loses the pre-selection that made `safe`
+        /// convenient: a level this build does not vouch for is offered, not
+        /// queued.
+        func withRisk(_ newRisk: CleanupRisk) -> Candidate {
+            guard newRisk != risk else { return self }
+            let downgraded = CleanupItem(
+                url: url,
+                displayName: displayName,
+                category: category,
+                risk: newRisk,
+                sizeInBytes: sizeInBytes,
+                fileCount: original?.fileCount ?? 1,
+                explanationKey: original?.rawExplanationKey ?? "cleanup.explanation.temporary",
+                relatedBundleID: original?.relatedBundleID,
+                isRestorable: original?.isRestorable ?? true,
+                sourceRuleID: original?.sourceRuleID ?? "preflight",
+                modifiedAt: original?.modifiedAt,
+                isDirectory: original?.isDirectory ?? false,
+                isSelectedByDefault: false,
+                note: original?.note
+            )
+            return Candidate(item: downgraded)
+        }
     }
 
     private let rules: RuleEngine
@@ -77,11 +105,27 @@ public actor FileOperationService {
     private var simulatedOperations: [URL] = []
     /// Cached running-application snapshot, refreshed at most once per second.
     private var runningPathsCache: (Date, Set<String>)?
+    /// Cached aliases of the running applications, refreshed at most once per
+    /// second like the bundle paths.
+    private var runningTokensCache: (Date, [String])?
+    /// Where the aliases come from.
+    ///
+    /// Injected so a test can decide which applications are "running" without
+    /// launching one, and so this service never has to know about AppKit.
+    private let runningTokenProvider: @Sendable () async -> [String]
 
-    public init(rules: RuleEngine, fileManager: FileManager = .default, isDryRun: Bool = false) {
+    public init(
+        rules: RuleEngine,
+        fileManager: FileManager = .default,
+        isDryRun: Bool = false,
+        runningTokenProvider: @escaping @Sendable () async -> [String] = {
+            await WorkspaceActions.runningApplicationTokens()
+        }
+    ) {
         self.rules = rules
         self.fileManager = fileManager
         self.isDryRun = isDryRun
+        self.runningTokenProvider = runningTokenProvider
     }
 
     // MARK: - Pre-flight
@@ -105,7 +149,11 @@ public actor FileOperationService {
         // children having been queued already.
         let ordered = candidates.sorted { $0.url.pathComponents.count < $1.url.pathComponents.count }
 
-        for candidate in ordered {
+        for scanned in ordered {
+            // The level is re-derived below, so the loop works with a copy: what
+            // the scanner recorded and what this pass approves are two different
+            // statements, and the second is the one the plan carries.
+            var candidate = scanned
             let path = candidate.url.path
 
             // The scanner marks an item `protected` precisely so it can never be
@@ -142,6 +190,34 @@ public actor FileOperationService {
                 continue
             }
 
+            // Only a rule may call an item `safe`, and this is where that is
+            // checked rather than assumed. A scan result can be minutes old and
+            // the user's rule file can change between the scan and the click, so
+            // a `safe` level is re-derived from the table in force now:
+            //
+            //   * a path no rule may offer at all is refused, which is what keeps
+            //     "only a rule can say safe" from depending on every other
+            //     producer remembering to say `review`;
+            //   * a `safe` item the table no longer backs arrives at the user as
+            //     `review`, unselected, instead of pre-selected.
+            //
+            // `review` and `protected` items are not re-derived: the protection
+            // list, the excluded-location list and the container check above are
+            // the gates that decide those, and `review` is the level that asks
+            // the user anyway.
+            if candidate.risk == .safe {
+                let derivedRisk = rules.risk(for: path)
+                if derivedRisk == .protected {
+                    protected.append(candidate)
+                    logger.notice("Refused a location no rule may offer (re-derived at pre-flight)")
+                    continue
+                }
+                if derivedRisk != .safe {
+                    candidate = candidate.withRisk(.review)
+                    logger.notice("Lowered a stale `safe` level to `review` at pre-flight")
+                }
+            }
+
             // A symlink is never followed and never moved: its target may be
             // outside the authorised scope.
             let attributes = try? fileManager.attributesOfItem(atPath: path)
@@ -168,8 +244,19 @@ public actor FileOperationService {
                 continue
             }
 
+            // Two different meanings of "in use", and the item is refused for
+            // both: an `.app` bundle the user launched, and a cache directory
+            // whose owning application is running (see `needsAppClosed`). The
+            // second is the one that used to slip through — the move succeeded,
+            // the application wrote the directory back, and the space was never
+            // reclaimed.
             if await isInUse(candidate.url) {
                 skipped.append((candidate, .fileInUse, LocalizationKey.cleanupFailureFileInUse.localized))
+                continue
+            }
+            if await isOwnedByARunningApplication(candidate.url) {
+                skipped.append((candidate, .fileInUse, LocalizationKey.cleanupFailureFileInUse.localized))
+                logger.notice("Refused an item whose application is running")
                 continue
             }
 
@@ -255,6 +342,36 @@ public actor FileOperationService {
         guard url.pathExtension.lowercased() == "app" else { return false }
         let running = await cachedRunningBundlePaths(fresh: fresh)
         return running.contains(url.standardizedFileURL.resolvingSymlinksInPath().path)
+    }
+
+    /// True when the item belongs to an application that is running now.
+    ///
+    /// A cache directory is not locked the way a bundle is: the move succeeds
+    /// while the owner keeps writing into the path it remembers, so the directory
+    /// comes back after the cleanup, or the application loses what it was in the
+    /// middle of writing. Only a rule that says so (`needsAppClosed`) is asked
+    /// about, because the answer costs a walk over the running-application list.
+    private func isOwnedByARunningApplication(_ url: URL, fresh: Bool = false) async -> Bool {
+        guard rules.requiresAppClosed(for: url.path) else { return false }
+        let tokens = await cachedRunningTokens(fresh: fresh)
+        guard !tokens.isEmpty else { return false }
+        return RuleEngine.isOwnedByRunningApplication(url.path, tokens: tokens)
+    }
+
+    /// Aliases of the running applications, cached for one second.
+    ///
+    /// The pre-flight asks about every selected item; the answer is a snapshot
+    /// taken on the main actor, so it is taken once per batch rather than once
+    /// per row. Execution passes `fresh`, because the confirmation panel may have
+    /// been open long enough for the user to launch the application.
+    private func cachedRunningTokens(fresh: Bool = false) async -> [String] {
+        let now = Date()
+        if !fresh, let cached = runningTokensCache, now.timeIntervalSince(cached.0) < 1 {
+            return cached.1
+        }
+        let tokens = await runningTokenProvider()
+        runningTokensCache = (now, tokens)
+        return tokens
     }
 
     /// Why the path no longer names the item that was selected, if it does not.
@@ -469,7 +586,9 @@ public actor FileOperationService {
             // identity check cannot see: the object is the same, but its
             // application is now running. Moving it then would either fail
             // opaquely or pull a bundle out from under a live process.
-            if await isInUse(item.url, fresh: true) {
+            let bundleInUse = await isInUse(item.url, fresh: true)
+            let ownerRunning = await isOwnedByARunningApplication(item.url, fresh: true)
+            if bundleInUse || ownerRunning {
                 results.append(
                     FileOperationResult(
                         sourceURL: item.url,

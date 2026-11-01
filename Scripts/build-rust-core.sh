@@ -66,12 +66,25 @@ fi
 # the suite kept running the previous core without saying so — which is a silent
 # wrong answer in exactly the place it matters most, because `Scripts/verify.sh`
 # builds this archive and then runs the tests. Touching the bridge source makes
-# the modules that import it recompile and everything that force-loads the
-# archive relink. Xcode's build system has the same blind spot and is cured by
-# the same touch.
+# the modules that import it recompile. Xcode's build system has the same blind
+# spot and is cured by the same touch.
+#
+# The touch alone is not enough, and this is measured rather than assumed: with
+# the archive changed and the source merely touched, `swift build --build-tests`
+# reported "Compiling Core RustScannerEngine.swift … Build complete" and never
+# ran its link step, because the recompiled object files came out byte-identical
+# and the linker output therefore looked up to date. The test bundle kept the
+# previous core, and a regression in the Rust half passed the suite. Removing the
+# linked products makes the link mandatory. DerivedData from an Xcode build is a
+# separate build directory and gets the touch above, not this sweep.
 AFTER="$(shasum -a 256 "${OUTPUT}" | awk '{ print $1 }')"
 if [[ "${BEFORE}" != "${AFTER}" ]]; then
   touch "${REPO_ROOT}/Core/RustBridge/RustScannerEngine.swift"
+  if [[ -d "${REPO_ROOT}/.build" ]]; then
+    find "${REPO_ROOT}/.build" -maxdepth 5 \
+      \( -name "Sift" -o -name "SiftSelfTest" -o -name "SiftPackageTests.xctest" \) \
+      -exec rm -rf {} + 2>/dev/null || true
+  fi
 fi
 
 echo "==> ${OUTPUT}" >&2

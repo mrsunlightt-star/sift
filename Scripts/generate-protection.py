@@ -31,12 +31,19 @@ SWIFT_OUTPUT = REPO_ROOT / "Core" / "Rules" / "ProtectedPaths.swift"
 # The shape this script understands. Anything else is an error rather than a
 # silently empty list: a protection list that fails to parse must not become a
 # protection list with nothing in it.
+#
+# `\s*` after the `=`: rustfmt moves an array literal to the next line once the
+# declaration no longer fits, and a generator that only read the single-line
+# spelling would fail on a constant that is correct.
 ARRAY_CONST = re.compile(
-    r"pub const (?P<name>[A-Z_]+): &\[&str\] = &\[(?P<body>.*?)\];",
+    r"pub const (?P<name>[A-Z_]+): &\[&str\] =\s*&\[(?P<body>.*?)\];",
     re.DOTALL,
 )
 STRING_CONST = re.compile(
     r'pub const (?P<name>[A-Z_]+): &str = "(?P<value>[^"]*)";',
+)
+INT_CONST = re.compile(
+    r"pub const (?P<name>[A-Z_]+): (?:u32|usize|u64) = (?P<value>\d+);",
 )
 STRING_LITERAL = re.compile(r'"([^"]*)"')
 
@@ -55,6 +62,10 @@ def read_rust_constant(name: str) -> object:
         if match.group("name") == name:
             return match.group("value")
 
+    for match in INT_CONST.finditer(source):
+        if match.group("name") == name:
+            return int(match.group("value"))
+
     raise SystemExit(
         f"{name} is not declared in {RUST_SOURCE.relative_to(REPO_ROOT)} in the "
         "shape this script reads; update the script and the generated Swift file"
@@ -71,6 +82,11 @@ def swift_source() -> str:
     library_children = read_rust_constant("PROTECTED_LIBRARY_CHILDREN")
     user_content = read_rust_constant("PROTECTED_LIBRARY_USER_CONTENT")
     photos_suffix = read_rust_constant("PROTECTED_PHOTOS_LIBRARY_SUFFIX")
+    recycle_bin_names = read_rust_constant("PROTECTED_RECYCLE_BIN_NAMES")
+    max_min_age_days = read_rust_constant("MAX_RULE_MIN_AGE_DAYS")
+    max_rule_roots = read_rust_constant("MAX_RULE_ROOTS")
+    relative_path_wildcard = read_rust_constant("RELATIVE_PATH_WILDCARD")
+    forbidden_rule_dirs = read_rust_constant("FORBIDDEN_RULE_DIRECTORIES")
     aliases = read_rust_constant("SYMLINK_ALIASES")
     alias_targets = read_rust_constant("SYMLINK_ALIAS_TARGETS")
 
@@ -79,6 +95,11 @@ def swift_source() -> str:
     assert isinstance(library_children, list)
     assert isinstance(user_content, list)
     assert isinstance(photos_suffix, str)
+    assert isinstance(recycle_bin_names, list)
+    assert isinstance(max_min_age_days, int)
+    assert isinstance(max_rule_roots, int)
+    assert isinstance(relative_path_wildcard, str)
+    assert isinstance(forbidden_rule_dirs, list)
     assert isinstance(aliases, list)
     assert isinstance(alias_targets, list)
     if len(aliases) != len(alias_targets):
@@ -145,6 +166,39 @@ def swift_source() -> str:
         "\n"
         "    /// Suffix of a photo library package, protected as one unit.\n"
         f'    public static let photosLibrarySuffix = "{photos_suffix}"\n'
+        "\n"
+        "    /// Directory names that mark a recycle bin, at any depth.\n"
+        "    ///\n"
+        "    /// Every removal this product performs moves an item *to* the Trash,\n"
+        "    /// and the undo it promises is the user emptying that Trash later.\n"
+        "    /// Offering the Trash itself inverts that promise, so the names are\n"
+        "    /// refused as a whole component anywhere in a path. The Rust core\n"
+        "    /// checks the same list.\n"
+        "    public static let recycleBinNames: [String] = [\n"
+        f"{swift_string_list(recycle_bin_names, '        ')}"
+        "    ]\n"
+        "\n"
+        "    /// Rule-schema limits shared with the Rust rule loader.\n"
+        "    ///\n"
+        "    /// A rule file one engine accepts and the other refuses fails the whole\n"
+        "    /// scan, so the domain of `minAgeDays` and the directories no rule may\n"
+        "    /// name are read from the same Rust constants rather than restated here.\n"
+        f"    public static let maximumMinAgeDays = {max_min_age_days}\n"
+        "\n"
+        "    /// The one wildcard a `relativePath` may use, and the bound on how\n"
+        "    /// many directories it may expand to.\n"
+        "    ///\n"
+        "    /// A component is a literal name or exactly this, and it matches one\n"
+        "    /// directory name. A wildcard enumerates a tree the rule author never\n"
+        "    /// saw, so the expansion is bounded; a rule that exceeds the bound\n"
+        "    /// contributes nothing rather than an unpredictable subset.\n"
+        f'    public static let relativePathWildcard = "{relative_path_wildcard}"\n'
+        f"    public static let maximumRuleRoots = {max_rule_roots}\n"
+        "\n"
+        "    /// Directory names no rule may target, whoever wrote the rule file.\n"
+        "    public static let forbiddenRuleDirectories: [String] = [\n"
+        f"{swift_string_list(forbidden_rule_dirs, '        ')}"
+        "    ]\n"
         "\n"
         "    /// The directory aliases macOS ships as symlinks.\n"
         "    ///\n"

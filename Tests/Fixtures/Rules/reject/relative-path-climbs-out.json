@@ -1,0 +1,4 @@
+{"schemaVersion":1,"rules":[
+  {"id":"escape","category":"logs","risk":"review","root":"homeLibrary",
+   "relativePath":"Logs/../../Shared","matchSpec":"directory","explanationKey":"k"}
+]}

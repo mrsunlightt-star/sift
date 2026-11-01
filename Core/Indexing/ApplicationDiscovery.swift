@@ -22,14 +22,33 @@ public struct ApplicationDiscovery: @unchecked Sendable {
     /// Application directories, in the order the specification lists them (§5.3).
     private let applicationDirectories: [URL]
 
+    /// Resolves a bundle identifier to the installed application's name.
+    ///
+    /// Injected so a test can answer it without installing anything, and so the
+    /// LaunchServices call is in one place: a shared container is reported as
+    /// shared only when a *registered* application answers for the identifier.
+    private let appNameForBundleIdentifier: @Sendable (String) -> String?
+
+    /// Which installed applications declare which app groups.
+    ///
+    /// A group container is named after its group, so the name it carries belongs
+    /// to no application in particular. This is the entitlement-level answer to
+    /// "who else uses this container", and it is built at most once per instance.
+    private let appGroups: AppGroupRegistry
+
     public init(
         rules: RuleEngine,
         fileManager: FileManager = .default,
         additionalDirectories: [URL] = [],
-        includeDefaultDirectories: Bool = true
+        includeDefaultDirectories: Bool = true,
+        appNameForBundleIdentifier: @escaping @Sendable (String) -> String? = {
+            ApplicationDiscovery.installedApplicationName(forBundleIdentifier: $0)
+        },
+        readAppGroups: @escaping AppGroupEntitlements.Reader = AppGroupEntitlements.read
     ) {
         self.rules = rules
         self.fileManager = fileManager
+        self.appNameForBundleIdentifier = appNameForBundleIdentifier
         var directories: [URL] = []
         if includeDefaultDirectories {
             directories = [
@@ -45,6 +64,11 @@ public struct ApplicationDiscovery: @unchecked Sendable {
         }
         directories.append(contentsOf: additionalDirectories)
         self.applicationDirectories = directories
+        self.appGroups = AppGroupRegistry(
+            applicationDirectories: directories,
+            fileManager: fileManager,
+            read: readAppGroups
+        )
     }
 
     /// The directories this discovery searches, in order. Test-visible.
@@ -179,6 +203,16 @@ public struct ApplicationDiscovery: @unchecked Sendable {
             ("Library/Preferences", .confirmed),
         ]
 
+        // A group container is named after its group, so the entries in this one
+        // directory can belong to the application for a reason no name can show.
+        // Read the application's own declarations once, and only when there is a
+        // group container to ask about.
+        let groupContainers = "Library/Group Containers"
+        var declaredGroups: Set<String> = []
+        if fileManager.fileExists(atPath: home.appendingPathComponent(groupContainers).path) {
+            declaredGroups = appGroups.groups(ofApplicationAt: application.url)
+        }
+
         for (relative, confidence) in nameBasedLocations {
             let directory = home.appendingPathComponent(relative)
             guard let contents = try? fileManager.contentsOfDirectory(
@@ -186,9 +220,15 @@ public struct ApplicationDiscovery: @unchecked Sendable {
                 includingPropertiesForKeys: [.isDirectoryKey, .totalFileAllocatedSizeKey],
                 options: [.skipsHiddenFiles]
             ) else { continue }
+            let declaresGroups = relative == groupContainers ? declaredGroups : []
 
             for candidate in contents {
-                guard let match = match(candidate: candidate, identifier: identifier, appName: appName) else {
+                guard let match = match(
+                    candidate: candidate,
+                    identifier: identifier,
+                    appName: appName,
+                    declaredGroups: declaresGroups
+                ) else {
                     continue
                 }
                 if rules.protectionReason(for: candidate.path) != nil { continue }
@@ -198,7 +238,17 @@ public struct ApplicationDiscovery: @unchecked Sendable {
                     url: candidate,
                     sizeInBytes: size,
                     confidence: Self.combine(confidence, match.confidence),
-                    reason: match.reason
+                    reason: match.reason,
+                    // A group container is shared by an app group: name the other
+                    // installed applications that answer for it, so the row itself
+                    // says that removing it may affect them.
+                    sharedWith: relative == groupContainers
+                        ? sharedApplications(for: candidate, besides: appName)
+                        : [],
+                    // The group is the container's name, kept as it is spelled on
+                    // disk: it is what the entitlement says, and what the row can
+                    // show when its own name is truncated.
+                    groupIdentifier: match.reason == .appGroup ? candidate.lastPathComponent : nil
                 )
                 // Only a precise match in a location macOS itself names after an
                 // application enters the removal batch on Sift's judgement. A
@@ -217,6 +267,58 @@ public struct ApplicationDiscovery: @unchecked Sendable {
         return UninstallPlan(application: application, confirmedFiles: confirmed, reviewFiles: review)
     }
 
+    /// The other installed applications that share the same container.
+    ///
+    /// Two facts, and the row states whichever it finds:
+    ///
+    /// - an installed application answers for one of the container's name
+    ///   readings (LaunchServices), which is how a helper's container is claimed
+    ///   for the parent that named it;
+    /// - an installed application declares the container's group in its
+    ///   entitlements, which is the only way a container shared by two unrelated
+    ///   applications can be found at all — the name belongs to the group, not to
+    ///   either of them.
+    ///
+    /// Both are facts read from the system. A container nothing installed answers
+    /// for produces no names, and the row then says only what it knows.
+    private func sharedApplications(for candidate: URL, besides appName: String) -> [String] {
+        var names: [String] = []
+        func add(_ name: String) {
+            if name.caseInsensitiveCompare(appName) == .orderedSame { return }
+            if names.contains(where: { $0.caseInsensitiveCompare(name) == .orderedSame }) { return }
+            names.append(name)
+        }
+
+        for reading in BundleNameReadings.identifiers(candidate.lastPathComponent) {
+            if let name = appNameForBundleIdentifier(reading) { add(name) }
+        }
+        for name in appGroups.applications(declaring: candidate.lastPathComponent, excluding: appName) {
+            add(name)
+        }
+        return names.sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+    }
+
+    /// The application LaunchServices has registered for an identifier.
+    ///
+    /// The residue scanner uses this to decide whether a container still belongs
+    /// to something installed, and the uninstaller uses it to name the other
+    /// applications a shared container belongs to. Both want the same answer, so
+    /// there is one lookup.
+    public static func applicationURL(forBundleIdentifier identifier: String) -> URL? {
+        guard !identifier.isEmpty else { return nil }
+        return NSWorkspace.shared.urlForApplication(withBundleIdentifier: identifier)
+    }
+
+    /// The name of the installed application that answers for an identifier.
+    ///
+    /// `nil` when nothing is registered: a container whose application is gone
+    /// has no name to show, and inventing one from the identifier is the guess
+    /// this type exists to refuse.
+    public static func installedApplicationName(forBundleIdentifier identifier: String) -> String? {
+        guard let url = applicationURL(forBundleIdentifier: identifier) else { return nil }
+        return url.deletingPathExtension().lastPathComponent
+    }
+
     /// Decides whether a candidate belongs to an application, and why.
     ///
     /// Returns `nil` unless the match is exact: the bundle identifier, the full
@@ -232,10 +334,20 @@ public struct ApplicationDiscovery: @unchecked Sendable {
     private func match(
         candidate: URL,
         identifier: String,
-        appName: String
+        appName: String,
+        declaredGroups: Set<String> = []
     ) -> (reason: RelatedFile.MatchReason, confidence: RelatedFile.Confidence)? {
         let name = candidate.lastPathComponent
         let stem = name.contains(".") ? String(name.split(separator: ".").first ?? "") : name
+
+        // The strongest evidence there is for a group container, and the only one
+        // that exists when two applications share it: the container is named after
+        // the group, and this application's signature declares that group. It is
+        // checked first because it is a statement about this application rather
+        // than about a name that could belong to anyone.
+        if declaredGroups.contains(name.lowercased()) {
+            return (.appGroup, .confirmed)
+        }
 
         if !identifier.isEmpty {
             // Exact identifier, or `<identifier>.<something>` (caches, plists).
@@ -244,6 +356,13 @@ public struct ApplicationDiscovery: @unchecked Sendable {
             }
             if name.lowercased().hasPrefix(identifier.lowercased() + ".") {
                 return (.identifierPrefix, .confirmed)
+            }
+            // A group container is `<team-id>.<identifier>`: the identifier is not
+            // a prefix of the name, it is what follows the team id. Comparing the
+            // whole name missed every one of them, so an installed application's
+            // shared container was never associated with it.
+            if BundleNameReadings.names(name, identifier: identifier) {
+                return (.bundleIdentifier, .confirmed)
             }
         }
 
@@ -280,6 +399,28 @@ public struct ApplicationDiscovery: @unchecked Sendable {
         }
         let values = try? url.resourceValues(forKeys: [.totalFileAllocatedSizeKey, .fileSizeKey])
         return FileWalker.allocatedSize(values: values, url: url)
+    }
+
+    /// The app groups installed applications declare, for the scan request.
+    ///
+    /// A group container is named after its group, so a container two installed
+    /// applications share resolves to no identifier. The scan needs this set to
+    /// keep such a container out of the residue list, and it reads no signature
+    /// when there is no group container to decide about.
+    ///
+    /// The answer carries whether it is the whole set: a read that runs out of
+    /// time returns `isComplete == false`, and the request then tells both engines
+    /// not to report group-container residue at all for that run. Half a set is
+    /// worse than none — every container whose owner went unread would be offered
+    /// as a leftover.
+    public func declaredAppGroupIdentifiers(
+        deadline: Date? = Date().addingTimeInterval(AppGroupRegistry.defaultDeadline)
+    ) async -> DeclaredAppGroups {
+        let containers = URL(fileURLWithPath: rules.homeDirectory)
+            .appendingPathComponent("Library/Group Containers", isDirectory: true)
+        let names = (try? fileManager.contentsOfDirectory(atPath: containers.path)) ?? []
+        guard !names.isEmpty else { return .empty }
+        return appGroups.declaredGroups(deadline: deadline)
     }
 
     /// Bundle identifiers of every installed application, for residue detection.
@@ -331,7 +472,7 @@ public struct ApplicationDiscovery: @unchecked Sendable {
                 continue
             }
             for name in names {
-                for reading in Self.bundleReadings(Self.bundleStem(name))
+                for reading in BundleNameReadings.identifiers(BundleNameReadings.stem(name))
                 where rules.looksLikeBundleIdentifier(reading)
                     && NSWorkspace.shared.urlForApplication(withBundleIdentifier: reading) != nil {
                     installed.insert(reading)
@@ -339,32 +480,6 @@ public struct ApplicationDiscovery: @unchecked Sendable {
             }
         }
         return Array(installed)
-    }
-
-    /// Strips the suffixes macOS puts on per-application files.
-    private static func bundleStem(_ name: String) -> String {
-        if name.hasSuffix(".plist") { return String(name.dropLast(6)) }
-        if name.hasSuffix(".binarycookies") { return String(name.dropLast(14)) }
-        return name
-    }
-
-    /// The bundle identifiers a directory name could stand for.
-    ///
-    /// A group container is `<team-id>.<bundle-id>` or the bundle identifier on
-    /// its own; both readings are checked, in lower case because that is how
-    /// the scanners compare them.
-    private static func bundleReadings(_ name: String) -> [String] {
-        let lowered = name.lowercased()
-        var readings: [String] = []
-        if let dot = lowered.firstIndex(of: ".") {
-            let prefix = lowered[..<dot]
-            let suffix = lowered[lowered.index(after: dot)...]
-            if !prefix.contains("."), !suffix.isEmpty {
-                readings.append(String(suffix))
-            }
-        }
-        readings.append(lowered)
-        return readings
     }
 
     /// Every `.app` bundle below an application directory.

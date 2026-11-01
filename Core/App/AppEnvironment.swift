@@ -85,6 +85,9 @@ public final class AppEnvironment: ObservableObject {
     /// The locations the user authorised, shared with the rule engine.
     public let authorizedScope: AuthorizedScope
     public let authorization: AuthorizationService
+    /// The one permanent removal in the product: emptying the Trash the cleaner
+    /// itself fills.
+    public let trash: TrashService
     public private(set) var applications: ApplicationDiscovery
     public private(set) var volumes: VolumeEnumerator
     /// The read-only diagnostics. It shares the rule engine, so a location that is
@@ -211,6 +214,7 @@ public final class AppEnvironment: ObservableObject {
             },
             defaults: entitlementDefaults
         )
+        self.trash = TrashService()
         self.applications = ApplicationDiscovery(rules: rules)
         self.volumes = VolumeEnumerator(rules: rules)
         self.diagnostics = StorageDiagnosticEngine()
@@ -507,6 +511,23 @@ public final class AppEnvironment: ObservableObject {
                 )
             )
         }
+        // The per-user temporary root: `/var/folders/<xx>/<hash>`, whose `C` is
+        // the session cache directory the `user-temp-caches` rule offers. It is a
+        // scan root because a rule root has to sit inside one the caller marked
+        // cleanable, and it is excluded from the threshold scans because a large
+        // file in a temporary directory is that rule's decision, not the
+        // "anything large" scan's.
+        if let userTemp = RuleEngine.darwinUserTempRoot(),
+           FileManager.default.fileExists(atPath: userTemp.path) {
+            roots.append(
+                ScanRoot(
+                    url: userTemp,
+                    anchor: .userTemp,
+                    isCleanable: true,
+                    includesThresholdFiles: false
+                )
+            )
+        }
         for url in authorizedURLs {
             // A grant inside the home folder is already covered by the home
             // root. Adding it again would walk the same tree twice — and, for
@@ -530,6 +551,13 @@ public final class AppEnvironment: ObservableObject {
         let bundleIdentifiers = Array(
             Set(discovered.map { $0.lowercased() } + resident)
         )
+        // The app groups those applications declare. A group container is named
+        // after its group, so without this set a container two applications share
+        // is reported as a leftover of an uninstalled application. Read from the
+        // signatures once (the registry caches it), and empty when there is no
+        // group container on the machine, so a scan pays nothing for a feature it
+        // cannot use.
+        let declaredGroups = await applications.declaredAppGroupIdentifiers()
         // Duplicate roots follow the same frozen grants: `defaultDuplicateRoots`
         // reads the live registry, and asking it here would reintroduce the
         // mismatch this builder exists to remove. `Desktop` is on the
@@ -549,6 +577,13 @@ public final class AppEnvironment: ObservableObject {
             ignoredPaths: current.ignoredPaths,
             authorizedRoots: authorizedURLs.map(\.path),
             installedBundleIdentifiers: bundleIdentifiers,
+            appGroupIdentifiers: declaredGroups.identifiers,
+            appGroupIdentifiersComplete: declaredGroups.isComplete,
+            // Which applications are running decides whether a rule that owns
+            // one application's data may call an item `safe`. Collected here
+            // rather than inside an engine: only AppKit knows, and the Rust core
+            // has no AppKit, so both engines read the same list from the request.
+            runningApplicationTokens: await WorkspaceActions.runningApplicationTokens(),
             // The preference is a scan scope, so it is applied by the engines
             // rather than filtered out of the list afterwards.
             includeHiddenFiles: current.showHiddenFiles,
@@ -1149,6 +1184,72 @@ public final class AppEnvironment: ObservableObject {
     /// Opens the Trash.
     public func openTrash() async {
         await WorkspaceActions.openTrash()
+    }
+
+    /// What the Trash holds, measured the way the scanner measures.
+    ///
+    /// Read before the page offers to empty it: the button states the count and
+    /// the size it is about to remove, and a number the user cannot see is not a
+    /// confirmation.
+    public func trashSnapshot() async -> TrashService.Snapshot {
+        await trash.inspect()
+    }
+
+    /// Empties the Trash the user was just shown.
+    ///
+    /// The snapshot is passed back in rather than re-read here, so what is removed
+    /// is exactly what the confirmation described.
+    public func emptyTrash(_ snapshot: TrashService.Snapshot) async -> TrashService.Outcome {
+        let outcome = await trash.empty(snapshot)
+        if outcome.isComplete {
+            logger.info("Trash emptied (\(outcome.removedCount) entries)")
+        } else {
+            logger.notice("Trash emptied partially (\(outcome.failures.count) entries left)")
+        }
+        return outcome
+    }
+
+    /// What happened when the user asked which application a residue row is.
+    public enum OwnerLookup: Sendable, Equatable {
+        /// An installed application answers for the identifier; it was revealed.
+        case revealed(URL)
+        /// Nothing is installed for it. The identifier is all there is, and the
+        /// caller says so rather than offering a second dead button.
+        case notInstalled(String)
+    }
+
+    /// Reveals the application a residue, or a shared container, belongs to.
+    ///
+    /// The identifier comes from the row, which the scanner filled in from the
+    /// directory name; the answer comes from LaunchServices. A container whose
+    /// application is gone is the normal case for residue, so "not installed" is
+    /// an outcome rather than an error.
+    public func revealOwningApplication(bundleIdentifier: String) async -> OwnerLookup {
+        guard let url = ApplicationDiscovery.applicationURL(forBundleIdentifier: bundleIdentifier) else {
+            return .notInstalled(bundleIdentifier)
+        }
+        await WorkspaceActions.reveal(url)
+        return .revealed(url)
+    }
+
+    /// Runs the coverage audit (§5.6 diagnostics).
+    ///
+    /// One real scan through the reference engine, grouped by the rule that
+    /// produced each row, plus the large directories nothing claimed. Slow by
+    /// nature — it walks the same tree a scan does — so it is an explicit action
+    /// rather than something a page does when it appears.
+    public func ruleCoverage() async -> RuleCoverageAnalyzer.Report {
+        let request = await makeScanRequest(includeDuplicates: false)
+        return await RuleCoverageAnalyzer(rules: rules, request: request).run()
+    }
+
+    /// Opens the Time Machine pane, where APFS local snapshots are managed.
+    ///
+    /// The storage page's snapshot finding offers this instead of a delete
+    /// button: reclaiming that space needs an administrator, and a button that
+    /// cannot do what it says is worse than a sentence that says where to go.
+    public func openTimeMachineSettings() async {
+        await WorkspaceActions.openTimeMachineSettings()
     }
 
     /// Opens the Full Disk Access pane.

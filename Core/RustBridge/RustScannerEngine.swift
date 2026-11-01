@@ -30,14 +30,24 @@ actor RustScannerEngine: ScannerEngine {
         SiftABILayout.verify()
     }
 
-    /// Creates the index directory with owner-only permissions and removes the
-    /// artifacts a crashed session left behind.
+    /// Creates the index directory with owner-only permissions and empties it.
     ///
-    /// The database and its WAL carry every scanned path and file name. The
-    /// directory is 0700 and the files 0600 so another account cannot read them;
-    /// a sweep at launch is what stops an interrupted run from keeping that data
-    /// indefinitely. Only files older than a day are removed, so a scan that is
-    /// still running is never touched.
+    /// The database and its WAL carry every scanned path and file name, which is
+    /// the one thing on disk this product must never keep: the directory is 0700
+    /// and the files 0600 so another account cannot read them, and nothing in it
+    /// outlives the process that wrote it.
+    ///
+    /// The sweep is unconditional. It used to spare anything younger than a day,
+    /// so that a scan still running in another process was never touched — but a
+    /// session removes its own index when it ends, so what the age test actually
+    /// kept was the debris of a session that died without unwinding: force quit,
+    /// a debugger stop, a rebuild while the app was scanning. One day of that on
+    /// this machine left 60 databases holding 185 MB of full paths, and they
+    /// stayed because a launch is what would have deleted them. A second running
+    /// instance is now the only case the sweep reaches into: its database is
+    /// unlinked, and its SQLite handle — the one its scan and its paging read
+    /// through — stays valid on the deleted inode, so the run is unaffected and
+    /// only the file it would have removed itself is gone.
     private static func prepareIndexDirectory(_ directory: URL) {
         let fileManager = FileManager.default
         try? fileManager.createDirectory(
@@ -50,25 +60,16 @@ actor RustScannerEngine: ScannerEngine {
 
         guard let entries = try? fileManager.contentsOfDirectory(
             at: directory,
-            includingPropertiesForKeys: [.contentModificationDateKey],
+            includingPropertiesForKeys: nil,
             options: [.skipsHiddenFiles]
         ) else { return }
-        let cutoff = Date().addingTimeInterval(-24 * 60 * 60)
-        var bases = Set<URL>()
         for entry in entries {
-            let name = entry.lastPathComponent
-            guard name.contains(".sqlite") else { continue }
-            let baseName = name.hasSuffix("-wal") || name.hasSuffix("-shm")
-                ? String(name.dropLast(4))
-                : name
-            bases.insert(directory.appendingPathComponent(baseName))
-        }
-        for base in bases {
-            let attributes = try? fileManager.attributesOfItem(atPath: base.path)
-            let modified = (attributes?[.modificationDate] as? Date) ?? .distantPast
-            if modified < cutoff {
-                removeIndexArtifacts(at: base)
-            }
+            // Every entry here was written by this product — the directory is the
+            // app's own `Index` folder — so a leftover is removed under its own
+            // name rather than by matching a `.sqlite` suffix. A path this sweep
+            // cannot remove (a permission error, a volume that went away) is left
+            // for the next launch instead of failing the one.
+            try? fileManager.removeItem(at: entry)
         }
     }
 
@@ -646,6 +647,9 @@ private struct RustScanRequest: Encodable {
     let ignorePaths: [String]
     let authorizedRoots: [String]
     let installedBundleIds: [String]
+    let appGroupIds: [String]
+    let appGroupIdsComplete: Bool
+    let runningAppTokens: [String]
     let includeHiddenFiles: Bool
     let extraRulesJson: String?
     let includeDuplicates: Bool
@@ -687,6 +691,14 @@ private struct RustScanRequest: Encodable {
         self.ignorePaths = request.ignoredPaths
         self.authorizedRoots = request.authorizedRoots
         self.installedBundleIds = request.installedBundleIdentifiers
+        // The groups installed applications declare: a container named after one
+        // of them is live however its name reads.
+        self.appGroupIds = request.appGroupIdentifiers
+        self.appGroupIdsComplete = request.appGroupIdentifiersComplete
+        // A rule that owns one application's data reads this to decide whether
+        // its items may stay `safe`. The Swift engine reads the same request
+        // field, so both engines downgrade the same items.
+        self.runningAppTokens = request.runningApplicationTokens
         self.includeHiddenFiles = request.includeHiddenFiles
         self.extraRulesJson = request.extraRulesJSON
         self.includeDuplicates = request.includeDuplicates

@@ -81,6 +81,7 @@ final class Harness: @unchecked Sendable {
         await scanPolicyTests()
         await authorizationTests()
         await diagnosticsTests()
+        await coverageTests()
         await reportAccuracyTests()
         await productionEngineTests()
 
@@ -391,6 +392,11 @@ final class Harness: @unchecked Sendable {
             let installer = fixture.write("Downloads/Old.dmg", bytes: 4096)
             fixture.age(installer, days: 60)
             fixture.write("Downloads/Fresh.dmg", bytes: 4096)
+            // Two group containers: one an installed application's app group
+            // declares, one nothing claims. A group container is named after its
+            // group, so only the declared set can tell them apart.
+            fixture.write("Library/Group Containers/group.com.declared.app/blob.bin", bytes: 4096)
+            fixture.write("Library/Group Containers/TEAM1.com.gone.app/blob.bin", bytes: 4096)
 
             let engine = SwiftScannerEngine(rules: RuleEngine(rules: RuleEngine.builtInRules, homeDirectory: home))
             let request = ScanRequest(
@@ -401,6 +407,7 @@ final class Harness: @unchecked Sendable {
                 staleThresholdDays: 30,
                 ignoredPaths: [],
                 installedBundleIdentifiers: ["com.example.app", "com.other.app"],
+                appGroupIdentifiers: ["group.com.declared.app"],
                 includeDuplicates: false,
                 duplicateRoots: []
             )
@@ -478,6 +485,16 @@ final class Harness: @unchecked Sendable {
             check(
                 !page.items.contains(where: { $0.url.path.contains("/Documents/") }),
                 "user documents never appear in the results"
+            )
+            check(
+                !page.items.contains { $0.displayName == "group.com.declared.app" },
+                "a container an installed app group declares is not residue"
+            )
+            check(
+                page.items.contains {
+                    $0.displayName == "TEAM1.com.gone.app" && $0.category == .groupContainerResidue
+                },
+                "a container nothing declares is reported as shared-container residue"
             )
             check(
                 page.items.allSatisfy { !$0.sourceRuleID.isEmpty },
@@ -1542,6 +1559,65 @@ final class Harness: @unchecked Sendable {
             equal(coreBatch.findings.count, 1, "an unreadable search index is still reported")
             equal(coreBatch.coverage, .permissionDenied, "and the coverage says access is missing")
             equal(coreBatch.findings.first?.fileCount, nil, "an unreadable store has no count, not zero")
+        }
+    }
+
+    // MARK: - Rule coverage
+
+    /// The coverage audit, end to end.
+    ///
+    /// `RuleCoverageTests` covers the counting; this runs the whole thing — a real
+    /// scan through the reference engine, grouped by rule, then the measure of the
+    /// folders nothing claimed — because that is what the settings page runs.
+    private func coverageTests() async {
+        await group("Rule coverage") {
+            let fixture = TempFixture(tag: "coverage")
+            defer { fixture.cleanup() }
+            fixture.write("Library/Caches/com.example.app/blob.bin", bytes: 8192)
+            fixture.write("Library/Huawei/Sdk/blob.bin", bytes: 4096)
+            // A container of an application that is not installed: the residue
+            // scan, which is code rather than a rule, produces a row for it.
+            fixture.write("Library/Containers/com.gone.app/Data/blob.bin", bytes: 2048)
+
+            let rules = RuleEngine(rules: RuleEngine.builtInRules, homeDirectory: fixture.root)
+            let request = ScanRequest(
+                homeDirectory: fixture.root,
+                roots: [ScanRoot(url: fixture.root, anchor: .home)],
+                staleThresholdDays: 30,
+                installedBundleIdentifiers: ["com.example.app"],
+                includeDuplicates: false
+            )
+            let report = await RuleCoverageAnalyzer(rules: rules, request: request).run()
+
+            equal(
+                report.rows.filter { !$0.isSynthesized }.count,
+                rules.rules.filter(\.isEnabled).count,
+                "every enabled rule is a row, including the ones that found nothing"
+            )
+            check(
+                report.rows.contains { $0.isSynthesized && $0.category == .applicationResidue },
+                "the residue scan appears as its own row instead of vanishing from the page"
+            )
+            let cache = report.rows.first { $0.ruleID == "user-cache" }
+            equal(cache?.itemCount, 1, "the cache rule found the one cache directory")
+            equal(cache?.totalBytes, 8192, "at the size the file occupies")
+            check(
+                report.rows.contains { $0.isIdle },
+                "the rules for data this Mac does not have are listed as idle"
+            )
+            check(
+                report.uncovered.contains { $0.url.lastPathComponent == "Huawei" },
+                "a folder no rule reaches is reported"
+            )
+            check(
+                !report.uncovered.contains { $0.url.lastPathComponent == "Caches" },
+                "a folder holding a rule's item is not reported as uncovered"
+            )
+            equal(
+                report.totalBytes,
+                report.rows.reduce(0) { $0 + $1.totalBytes },
+                "the total is the sum of the rows"
+            )
         }
     }
 

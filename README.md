@@ -274,6 +274,11 @@ Swift（245 项自检 + 219 个 XCTest）：
   成为「应用残留」候选（含 `Google`、`Editor` 这类仍在使用的应用数据）。
 - **`Scripts/verify.sh` 需要 Xcode 16 才能跑 UI 测试。** 只装 Command Line Tools 时，Xcode 阶段
   会跳过并明确打印「skipped」，其余阶段照常执行。
+- **XCUITest 的 `Debug/Sift` 路径问题已修在工具链里。** `xcodebuild build-for-testing`
+  写进 `.xctestrun` 的 `UITargetAppPath` 是 `<products>/Debug/Sift`——没有 `.app` 后缀，于是
+  runner 读不到 bundle id，一个用例都不跑就退出，重试也救不回来（此前是间歇的，现在每次都是）。
+  `Scripts/fix-ui-testrun.py` 在构建之后把该字段改成实际存在的 `Sift.app`，`verify.sh` 随后用
+  `-xctestrun` 直接从这个文件启动 UI 目标（用 `-scheme`/`-testPlan` 会重新生成计划、把修正冲掉）。
 - **XCUITest runner 起不来的三种形态，都是间歇的、都不是仓库的问题。** Xcode 16.4 的 UI 测试
   runner 会在三种情况下**在第一个用例执行之前**就退出：一是寻找目标应用时去找
   `.../Debug/Sift`——没有 `.app` 后缀的路径——而 bundle 就在旁边的 `Sift.app`，于是报

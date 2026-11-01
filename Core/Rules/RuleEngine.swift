@@ -1,3 +1,6 @@
+#if canImport(Darwin)
+import Darwin
+#endif
 import Foundation
 import OSLog
 import Shared
@@ -36,6 +39,15 @@ public struct RuleEngine: Sendable {
         /// however the setting is moved.
         public let usesStaleThreshold: Bool
         public let requiresFullDiskAccess: Bool
+        /// Whether the items this rule finds belong to one application, so that
+        /// application must not be running while they are removed.
+        ///
+        /// A cache directory is not locked the way an `.app` bundle is: the move
+        /// succeeds and the application keeps writing into the path it
+        /// remembers, so the directory comes back — or loses the state it was in
+        /// the middle of writing. The Rust core reads the same flag and applies
+        /// the same test, so both engines call the same item `review`.
+        public let needsAppClosed: Bool
         public let explanationKey: String
         public let isEnabled: Bool
 
@@ -50,6 +62,7 @@ public struct RuleEngine: Sendable {
             minAgeDays: Int?,
             usesStaleThreshold: Bool = false,
             requiresFullDiskAccess: Bool,
+            needsAppClosed: Bool = false,
             explanationKey: String,
             isEnabled: Bool
         ) {
@@ -63,6 +76,7 @@ public struct RuleEngine: Sendable {
             self.minAgeDays = minAgeDays
             self.usesStaleThreshold = usesStaleThreshold
             self.requiresFullDiskAccess = requiresFullDiskAccess
+            self.needsAppClosed = needsAppClosed
             self.explanationKey = explanationKey
             self.isEnabled = isEnabled
         }
@@ -79,6 +93,29 @@ public struct RuleEngine: Sendable {
             }
             return staleThresholdDays
         }
+
+        /// The same rule at a different risk level.
+        ///
+        /// Used when a merged table has to be brought down to what this build
+        /// reviewed; every other field, including the explanation key the user
+        /// reads, is preserved.
+        public func withRisk(_ risk: CleanupRisk) -> Rule {
+            Rule(
+                id: id,
+                category: category,
+                risk: risk,
+                root: root,
+                relativePath: relativePath,
+                matchSpec: matchSpec,
+                excludes: excludes,
+                minAgeDays: minAgeDays,
+                usesStaleThreshold: usesStaleThreshold,
+                requiresFullDiskAccess: requiresFullDiskAccess,
+                needsAppClosed: needsAppClosed,
+                explanationKey: explanationKey,
+                isEnabled: isEnabled
+            )
+        }
     }
 
     /// Where a rule's relative path is anchored.
@@ -87,6 +124,19 @@ public struct RuleEngine: Sendable {
         case homeLibrary
         case applications
         case systemLibrary
+        /// The per-user temporary root macOS gives this login session.
+        ///
+        /// `/var/folders/<two>/<hash>` — the parent of `$TMPDIR`, holding `T`
+        /// (the temporary directory) and `C` (the per-user cache directory).
+        /// Unlike every other fixed anchor it is not derived from the home
+        /// directory, so the engine carries the resolved path (`userTempDirectory`)
+        /// rather than computing it: `confstr` answers on macOS, and the value has
+        /// to be the same one the Rust core is handed.
+        ///
+        /// `T` is deliberately out of the shipped rules: live processes keep
+        /// their sockets and mach ports there (`T/com.apple.launchd.*`), and a
+        /// rule can only look at a name or an age.
+        case userTemp
         case authorized
         case externalVolume
     }
@@ -97,6 +147,14 @@ public struct RuleEngine: Sendable {
         case childDirectories
         case filesByExtension([String])
         case anyFile
+        /// Direct child directories whose own name is in the set.
+        ///
+        /// `childDirectories` with the filter in the rule instead of in the path:
+        /// an application names its cache directory `Cache`, `Caches`, `GPUCache`
+        /// or `Code Cache` depending on the framework it was built with, and one
+        /// rule per spelling is a list that grows with every framework. The Rust
+        /// loader reads the same `names` field.
+        case directoriesNamed([String])
     }
 
     /// Rule file schema version understood by this build.
@@ -138,6 +196,15 @@ public struct RuleEngine: Sendable {
     /// snapshot. A live engine reads the shared scope; a scan must not see a
     /// grant added halfway through its walk.
     private let authorizedSnapshot: [String]?
+    /// The per-user temporary root a `userTemp` rule is anchored to.
+    ///
+    /// Resolved once, by whichever process builds the engine, and handed to the
+    /// Rust core in the request's roots: the path is generated per login session,
+    /// so a rule cannot spell it and the two engines must not each work it out.
+    /// `nil` when this process has no such directory, in which case a `userTemp`
+    /// rule resolves to nothing.
+    public let userTempDirectory: String?
+
     /// The home directory every path comparison is made against.
     ///
     /// Exposed because the scanners, the storage analysis and the file
@@ -156,12 +223,14 @@ public struct RuleEngine: Sendable {
         homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser,
         userRuleURL: URL? = nil,
         authorized: AuthorizedScope = AuthorizedScope(),
-        authorizedSnapshot: [String]? = nil
+        authorizedSnapshot: [String]? = nil,
+        userTempDirectory: URL? = RuleEngine.darwinUserTempRoot()
     ) {
         // Resolved on the way in so every later comparison uses one spelling of
         // the path. `URL.resolvingSymlinksInPath` is used rather than
         // `FileManager` so a path that does not exist yet still resolves.
         self.homeDirectory = Self.normalize(homeDirectory.resolvingSymlinksInPath().path)
+        self.userTempDirectory = userTempDirectory.map { Self.normalize($0.path) }
         self.authorized = authorized
         self.authorizedSnapshot = authorizedSnapshot?.map(Self.normalize)
 
@@ -195,10 +264,12 @@ public struct RuleEngine: Sendable {
         homeDirectory: URL,
         authorized: AuthorizedScope = AuthorizedScope(),
         userRulesJSON: String? = nil,
-        authorizedSnapshot: [String]? = nil
+        authorizedSnapshot: [String]? = nil,
+        userTempDirectory: URL? = RuleEngine.darwinUserTempRoot()
     ) {
         self.rules = rules
         self.homeDirectory = Self.normalize(homeDirectory.path)
+        self.userTempDirectory = userTempDirectory.map { Self.normalize($0.path) }
         self.authorized = authorized
         self.userRulesJSON = userRulesJSON
         self.authorizedSnapshot = authorizedSnapshot?.map(Self.normalize)
@@ -216,7 +287,8 @@ public struct RuleEngine: Sendable {
             homeDirectory: URL(fileURLWithPath: homeDirectory),
             authorized: authorized,
             userRulesJSON: userRulesJSON,
-            authorizedSnapshot: paths
+            authorizedSnapshot: paths,
+            userTempDirectory: userTempDirectory.map { URL(fileURLWithPath: $0) }
         )
     }
 
@@ -232,6 +304,40 @@ public struct RuleEngine: Sendable {
     /// it needs the same grants; without them an authorised volume would be
     /// measured as a protected `/Volumes` tree.
     public var authorizedRoots: [String] { effectiveAuthorizedPaths }
+
+    // MARK: - The per-user temporary root
+
+    /// `/var/folders/<two>/<hash>` for this login session, or `nil`.
+    ///
+    /// The parent of the process's own temporary directory. `confstr` is asked
+    /// rather than `$TMPDIR`, because the variable is inherited: a shell that
+    /// exports its own `TMPDIR` would point the rule at a directory that belongs
+    /// to no session, and the Rust core — handed this same value — would then
+    /// scan the tree the app named while a rule claimed a different one.
+    public static func darwinUserTempRoot() -> URL? {
+        #if canImport(Darwin)
+        var buffer = [CChar](repeating: 0, count: Int(PATH_MAX))
+        let length = confstr(_CS_DARWIN_USER_TEMP_DIR, &buffer, buffer.count)
+        guard length > 0 else { return nil }
+        // `String(cString:)` is deprecated for an array buffer; truncating at the
+        // terminator and decoding explicitly says the same thing without it.
+        let path = String(decoding: buffer.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) }, as: UTF8.self)
+        guard !path.isEmpty else { return nil }
+        // The temporary directory itself is `…/T/`; the root the rules anchor to
+        // is the session directory above it. Resolved, so the path this engine
+        // matches against and the scan root the Rust core is handed are the same
+        // string: `confstr` answers `/var/folders/…`, whose `/var` is a symlink to
+        // `/private/var`, and two spellings of one directory would make the two
+        // engines report the same item under different paths.
+        let root = URL(fileURLWithPath: path)
+            .standardizedFileURL
+            .resolvingSymlinksInPath()
+            .deletingLastPathComponent()
+        return root
+        #else
+        return nil
+        #endif
+    }
 
     // MARK: - Protection
 
@@ -280,6 +386,16 @@ public struct RuleEngine: Sendable {
         if Self.isPhotoLibrary(resolved) {
             return .photosLibrary
         }
+        // A recycle bin is refused wherever it appears: `~/.Trash`, an item
+        // already inside it, and the `.Trashes` a volume keeps at its root. The
+        // product's undo *is* the Trash, so offering its contents turns "moved
+        // to the Trash" into "moved into the bin it was in", and the next empty
+        // makes that unrecoverable. Checked before the `/Volumes` grant below,
+        // because a grant opens a subtree and the bin inside it is the place
+        // the user's undo lives.
+        if let bin = Self.recycleBinComponent(resolved) {
+            return .userContent(bin)
+        }
         // A grant may lift the blanket `/Volumes` guard for exactly the subtree
         // the user added. It must never lift a real system prefix: granting
         // `/Library` or `/private/var` would otherwise expose launch daemons and
@@ -307,6 +423,13 @@ public struct RuleEngine: Sendable {
     public func canAuthorize(url: URL) -> Bool {
         let path = Self.normalize(url.resolvingSymlinksInPath().path)
         let components = path.split(separator: "/")
+
+        // A grant that the protection list would then ignore leaves the settings
+        // page showing access the user does not actually have. A recycle bin is
+        // refused by `protectionReason` before any grant is consulted, so it is
+        // refused here as well — including the `.Trashes` of a volume the user
+        // may otherwise add.
+        if Self.recycleBinComponent(path) != nil { return false }
 
         // An explicit allowlist: a grant is either one concrete volume or a
         // folder inside the user's own home. Nothing else is authorisable, which
@@ -356,9 +479,14 @@ public struct RuleEngine: Sendable {
     /// The risk level for a path: the most cautious level any matching rule assigns.
     ///
     /// Returns `protected` for a protected path, so a caller that only looks at
-    /// the risk level still refuses to act.
+    /// the risk level still refuses to act. A path inside an excluded
+    /// application's data (`~/Library/Caches/CloudKit`) is `protected` too: no
+    /// rule may offer it, and answering `safe` here while the scanner and the
+    /// pre-flight both refuse it is how the two sides came to disagree about
+    /// one path.
     public func risk(for path: String) -> CleanupRisk {
         if protectionReason(for: path) != nil { return .protected }
+        if isInExcludedLocation(path) { return .protected }
         let matching = rules.filter { matches(rule: $0, path: path) }
         guard let mostCautious = matching.map(\.risk).max(by: { rank($0) < rank($1) }) else {
             // No rule claims the path: unclassified content is never `safe`.
@@ -370,6 +498,68 @@ public struct RuleEngine: Sendable {
     /// The rule that produced an item, used to look up its explanation.
     public func rule(withID id: String) -> Rule? {
         rules.first { $0.id == id }
+    }
+
+    /// True when a rule that owns application data claims this path.
+    ///
+    /// The scanner uses this to decide whether an item needs a running-
+    /// application check at all, and the pre-flight uses it together with
+    /// [`isOwnedByRunningApplication`] to refuse an item whose owner is running.
+    /// A path no rule claims is `false`: an item nothing checked is already at
+    /// `review`, so there is no pre-selection to take away.
+    public func requiresAppClosed(for path: String) -> Bool {
+        rules.contains { $0.needsAppClosed && matches(rule: $0, path: path) }
+    }
+
+    /// Suffixes a directory name keeps on top of the application it belongs to.
+    ///
+    /// `~/Library/Saved Application State/com.apple.Safari.savedState` belongs to
+    /// Safari, not to an application called `com.apple.Safari.savedState`. The
+    /// Rust core carries the same list.
+    public static let appOwnedNameSuffixes = [".savedstate", ".savedapplicationstate"]
+
+    /// True when one of `tokens` names `path`, judged by the path's components.
+    ///
+    /// `tokens` are the aliases of the applications running right now: bundle
+    /// identifiers, the Finder name, the executable name. The Rust core is handed
+    /// exactly this list in the scan request, so both engines downgrade exactly
+    /// the same items.
+    ///
+    /// Two comparisons, and the difference matters:
+    ///
+    ///  * **equality**, case-folded, against every component — macOS names a
+    ///    cache directory after the application that writes it;
+    ///  * **prefix**, only for aliases containing a dot, so `com.apple.Safari`
+    ///    also claims `com.apple.Safari.SafeBrowsing`, while the name `Firefox`
+    ///    does not claim `Firefox Developer Edition`.
+    ///
+    /// Every component is compared rather than the last one, because the shape
+    /// differs by rule: the wildcard component in
+    /// `Containers/*/Data/Library/Caches` is the owner, while in
+    /// `Caches/<bundle-id>` the last component is. Matching too much costs a
+    /// `safe` item its pre-selection; matching too little moves a directory out
+    /// from under a running application.
+    public static func isOwnedByRunningApplication(_ path: String, tokens: [String]) -> Bool {
+        let aliases = tokens
+            .map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
+            .filter { !$0.isEmpty }
+        guard !aliases.isEmpty else { return false }
+        return normalize(path).split(separator: "/").contains { component in
+            let name = String(component).lowercased()
+            // A suffixed name is compared both as it is written and without the
+            // suffix, so `com.apple.Safari.savedState` matches the identifier.
+            let trimmed = Self.appOwnedNameSuffixes
+                .first { name.hasSuffix($0) }
+                .map { String(name.dropLast($0.count)) }
+            func owned(_ candidate: String) -> Bool {
+                aliases.contains { alias in
+                    candidate == alias
+                        || (alias.contains(".") && candidate.hasPrefix("\(alias)."))
+                }
+            }
+            if owned(name) { return true }
+            return trimmed.map(owned) ?? false
+        }
     }
 
     /// True when the path is a macOS package that must be handled as one unit.
@@ -417,6 +607,30 @@ public struct RuleEngine: Sendable {
         }
     }
 
+    /// True when offering the children of `relativePath` would expose the data
+    /// root of an application.
+    ///
+    /// The loader already refuses a rule whose *item* is a container, and
+    /// `<container>/*` with anything but `directoriesNamed`. Those two checks do
+    /// not cover the shape a generated draft uses — `childDirectories` over
+    /// `Application Support/<vendor>` offers `Application Support/<vendor>/<app>`,
+    /// which is an application's whole data root — so a draft asks this before it
+    /// is written, and the page refuses instead of handing over a rule that would
+    /// move someone's browser profile in one item.
+    public static func childrenWouldExposeApplicationData(_ relativePath: String) -> Bool {
+        let components = relativePath
+            .split(separator: "/", omittingEmptySubsequences: true)
+            .map(String.init)
+        guard let first = components.first else { return false }
+        let isContainer = ProtectedPaths.forbiddenRuleDirectories.contains {
+            $0.caseInsensitiveCompare(first) == .orderedSame
+        }
+        // One component: the items are the container's children. Two: the items are
+        // the products inside a vendor folder, which is the same shape one level
+        // down.
+        return isContainer && components.count <= 2
+    }
+
     /// True when the path names a photo library package.
     ///
     /// Case-insensitive on purpose. A protection rule that only matched
@@ -427,6 +641,94 @@ public struct RuleEngine: Sendable {
         let lowered = path.lowercased()
         let suffix = ProtectedPaths.photosLibrarySuffix.lowercased()
         return lowered.hasSuffix(suffix) || lowered.contains("\(suffix)/")
+    }
+
+    /// The recycle-bin component a path names, or `nil` when it names none.
+    ///
+    /// Whole-component and case-folded, like the Rust check: `.Trash` and
+    /// `.Trashes` are two names of one thing, `/Volumes/Backup/.Trashes/501` is
+    /// the same bin as the one in the home folder, and a folder called
+    /// `.Trash-notes` is an ordinary folder.
+    public static func recycleBinComponent(_ path: String) -> String? {
+        normalize(path).split(separator: "/").lazy
+            .map(String.init)
+            .first { component in
+                ProtectedPaths.recycleBinNames.contains {
+                    $0.caseInsensitiveCompare(component) == .orderedSame
+                }
+            }
+    }
+
+    /// The forbidden directory a rule's relative path names, if it names one.
+    ///
+    /// These hold the live data of *every* application at once, and a rule can
+    /// only match a name shape or an age — it cannot know whether an
+    /// application is installed. The shipped table is asserted against this
+    /// list; `decode` refuses a rule file that names one, so the same invariant
+    /// covers a rule this build does not ship. The Rust loader reads the list
+    /// from the same constants.
+    public static func forbiddenRuleDirectory(
+        _ relativePath: String,
+        matchSpec: MatchSpec? = nil
+    ) -> String? {
+        let components = relativePath
+            .split(separator: "/", omittingEmptySubsequences: true)
+            .filter { $0 != "." }
+            .map(String.init)
+        let forbidden: (String) -> String? = { name in
+            ProtectedPaths.forbiddenRuleDirectories.first {
+                $0.caseInsensitiveCompare(name) == .orderedSame
+            }
+        }
+        // The container is the item — `Containers`, or any path ending in it.
+        if let last = components.last, let name = forbidden(last) { return name }
+        // `<container>/*`: the container's own children, one item per installed
+        // application — unless the specification names what to look for inside
+        // them, which is what `directoriesNamed` does. `Application Support/*`
+        // with `childDirectories` offers every application's data root; with
+        // `directoriesNamed ["Cache"]` it offers one named cache directory per
+        // application, which is the rule this build ships.
+        if components.count == 2, components[1] == ProtectedPaths.relativePathWildcard,
+           case .directoriesNamed = matchSpec {
+            return nil
+        }
+        if components.count == 2, components[1] == ProtectedPaths.relativePathWildcard,
+           let name = forbidden(components[0]) {
+            return name
+        }
+        return nil
+    }
+
+    /// True when a `directoriesNamed` rule's name set can match a directory.
+    ///
+    /// One or more names, each a single path component: no separator, no
+    /// wildcard. An empty set matches nothing and a name carrying `/` or `*` is a
+    /// path the author meant to put in `relativePath`, so both are refused where
+    /// the file is read rather than silently finding nothing.
+    public static func directoryNameSetIsValid(_ names: [String]) -> Bool {
+        !names.isEmpty && names.allSatisfy { name in
+            !name.isEmpty
+                && !name.contains("/")
+                && !name.contains("*")
+                && name != "."
+                && name != ".."
+        }
+    }
+
+    /// True when a `relativePath` uses only the wildcard this build understands.
+    ///
+    /// A component is either a literal name or exactly `*`, matching one
+    /// directory name. Partial shapes (`com.apple.*`), recursive shapes (`**`)
+    /// and a leading wildcard are refused: the first two say something the
+    /// scanner cannot enumerate safely, and a leading `*` would make one rule
+    /// span every child of its anchor. The Rust loader applies the same rule.
+    public static func relativePathGlobIsValid(_ path: String) -> Bool {
+        let components = path.split(separator: "/", omittingEmptySubsequences: true)
+        guard let first = components.first else { return true }
+        guard first != ProtectedPaths.relativePathWildcard else { return false }
+        return components.allSatisfy {
+            !$0.contains("*") || $0 == ProtectedPaths.relativePathWildcard
+        }
     }
 
     /// True when a name can only be a reverse-DNS bundle identifier.
@@ -456,19 +758,47 @@ public struct RuleEngine: Sendable {
     /// a folder inside home are grants, but they are not volumes, and treating
     /// them as one would apply a volume-wide rule to a folder.
     public func resolvedRoots(for rule: Rule) -> [URL] {
+        let isExcluded = { (name: String) in
+            rule.excludes.contains { name == $0 || name.hasPrefix($0 + ".") }
+        }
         let roots: [URL]
         switch rule.root {
         case .home:
-            roots = Self.roots(under: homeDirectory, relativePath: rule.relativePath)
+            roots = Self.roots(
+                under: homeDirectory,
+                relativePath: rule.relativePath,
+                isExcluded: isExcluded
+            )
         case .homeLibrary:
             roots = Self.roots(
                 under: "\(homeDirectory)/Library",
-                relativePath: rule.relativePath
+                relativePath: rule.relativePath,
+                isExcluded: isExcluded
             )
         case .applications:
-            roots = Self.roots(under: "/Applications", relativePath: rule.relativePath)
+            roots = Self.roots(
+                under: "/Applications",
+                relativePath: rule.relativePath,
+                isExcluded: isExcluded
+            )
         case .systemLibrary:
-            roots = Self.roots(under: "/Library", relativePath: rule.relativePath)
+            roots = Self.roots(
+                under: "/Library",
+                relativePath: rule.relativePath,
+                isExcluded: isExcluded
+            )
+        case .userTemp:
+            // The session directory, resolved once by the process and handed to
+            // the Rust core in the request's roots. `nil` means this session has
+            // no such directory, which resolves to nothing rather than to a
+            // guess: `/var/folders` holds every user's session.
+            roots = (userTempDirectory.map { [$0] } ?? []).flatMap { base in
+                Self.roots(
+                    under: base,
+                    relativePath: rule.relativePath,
+                    isExcluded: isExcluded
+                )
+            }
         case .authorized, .externalVolume:
             // Never guessed from a mount point name: only roots the user
             // actually authorised are considered (§8.3).
@@ -476,7 +806,11 @@ public struct RuleEngine: Sendable {
                 ? effectiveAuthorizedPaths.filter { Self.isMountedVolume($0) }
                 : effectiveAuthorizedPaths
             roots = grants.sorted().flatMap { grant in
-                Self.roots(under: grant, relativePath: rule.relativePath)
+                Self.roots(
+                    under: grant,
+                    relativePath: rule.relativePath,
+                    isExcluded: isExcluded
+                )
             }
         }
         // An anchor is a place to look inside, never a cleanup item. This also
@@ -514,23 +848,79 @@ public struct RuleEngine: Sendable {
     /// `/Users/alice/Library/../../Shared` is checked as `/Users/Shared` and
     /// walked as written.
     ///
-    /// Only lexical collapsing — `.`, `..`, duplicate separators. The alias
-    /// mapping stays out of it: rewriting `/var/folders/...` to its `/private`
-    /// spelling here would leave a root that no longer matches the request that
-    /// authorised it.
-    static func roots(under base: String, relativePath: String) -> [URL] {
+    /// Only lexical collapsing — `.`, `..`, duplicate separators — plus the
+    /// `*` expansion described below. The alias mapping stays out of it:
+    /// rewriting `/var/folders/...` to its `/private` spelling here would leave a
+    /// root that no longer matches the request that authorised it.
+    ///
+    /// A `*` component is expanded against the disk: one directory listing per
+    /// wildcard, never a substring or a recursive match, so
+    /// `Containers/*/Data/Library/Caches` is one root per installed application.
+    /// The enumerated names are the only thing this adds to the path, so a rule
+    /// still cannot reach outside its anchor. The Rust core expands the same
+    /// wildcard with the same bound (`expand_relative_path`).
+    /// - Parameter isExcluded: names the rule's `excludes` list covers, checked
+    ///   against every component the rule itself supplies. A wildcard is part of
+    ///   the path a rule names, so `excludes: ["com.apple"]` has to cover the
+    ///   directory the `*` matched, not only what is inside it.
+    static func roots(
+        under base: String,
+        relativePath: String,
+        isExcluded: (String) -> Bool = { _ in false }
+    ) -> [URL] {
         // An absolute relative path is not a descendant. The join here is
         // textual, so it *reads* as a child named `etc`, while on the Rust side
         // `Path::join` replaces the anchor with it outright: refusing it is what
         // keeps one rule from meaning two things.
         guard !relativePath.hasPrefix("/") else { return [] }
-        guard !relativePath.trimmingCharacters(in: CharacterSet(charactersIn: "/")).isEmpty else {
-            return []
-        }
+        let components = relativePath
+            .split(separator: "/", omittingEmptySubsequences: true)
+            .map(String.init)
+        guard !components.isEmpty else { return [] }
+
         let basePath = collapse(base)
-        let joined = collapse("\(basePath)/\(relativePath)")
-        guard isPrefix(basePath, joined) else { return [] }
-        return [URL(fileURLWithPath: joined)]
+        var current = [basePath]
+        for component in components {
+            if component == ProtectedPaths.relativePathWildcard {
+                var next: [String] = []
+                for directory in current {
+                    next.append(
+                        contentsOf: childDirectories(of: directory).filter { path in
+                            !isExcluded((path as NSString).lastPathComponent)
+                        }
+                    )
+                    if next.count >= ProtectedPaths.maximumRuleRoots { break }
+                }
+                current = next
+            } else {
+                if isExcluded(component) { return [] }
+                current = current.map { collapse("\($0)/\(component)") }
+            }
+            if current.isEmpty { break }
+        }
+        return current
+            .filter { isPrefix(basePath, $0) }
+            .map { URL(fileURLWithPath: $0) }
+    }
+
+    /// The directories directly inside `directory`, sorted, symlinks excluded.
+    ///
+    /// A link inside `Containers` is not a container, and following one would put
+    /// a root outside the tree the rule named. An unreadable directory
+    /// contributes nothing: the rule simply finds nothing there.
+    static func childDirectories(of directory: String) -> [String] {
+        let manager = FileManager.default
+        guard let names = try? manager.contentsOfDirectory(atPath: directory) else { return [] }
+        return names.sorted().compactMap { name in
+            let path = collapse("\(directory)/\(name)")
+            var isDirectory: ObjCBool = false
+            guard manager.fileExists(atPath: path, isDirectory: &isDirectory),
+                  isDirectory.boolValue,
+                  let attributes = try? manager.attributesOfItem(atPath: path),
+                  (attributes[.type] as? FileAttributeType) != .typeSymbolicLink
+            else { return nil }
+            return path
+        }
     }
 
     /// True for the mount point of a volume rather than a folder on one.
@@ -541,32 +931,115 @@ public struct RuleEngine: Sendable {
 
     // MARK: - Rule matching
 
+    /// True when `rule` claims `path`.
+    ///
+    /// Matched against the rule's *pattern* rather than against roots resolved on
+    /// disk: `risk(for:)` runs for every row of a pre-flight, and resolving a
+    /// wildcard there would list directories once per candidate. The components
+    /// compared are the ones `resolvedRoots` walks, so both agree on what a rule
+    /// covers — one by naming roots, the other by matching a path against them.
     private func matches(rule: Rule, path: String) -> Bool {
         guard rule.isEnabled, rule.risk != .protected else { return false }
-        // A rule can apply under several roots once it names an authorised
-        // anchor; the first one the path sits under decides.
-        let rootPaths = resolvedRoots(for: rule).map { Self.normalize($0.path) }
-        guard let rootPath = rootPaths.first(where: { Self.isPrefix($0, path) }) else { return false }
 
-        if isExcludedByRule(rule, path: path, under: rootPath) { return false }
+        let pattern = rule.relativePath
+            .split(separator: "/", omittingEmptySubsequences: true)
+            .map(String.init)
+        // An empty relative path names the anchor, which is a container rather
+        // than an item: `resolvedRoots` answers nothing for it, and so does this.
+        guard !pattern.isEmpty else { return false }
 
-        switch rule.matchSpec {
-        case .directory:
-            return path == rootPath
-        case .childDirectories:
-            return Self.relativeDepth(of: path, under: rootPath) == 1
-        case let .filesByExtension(extensions):
-            let fileExtension = (path as NSString).pathExtension.lowercased()
-            return extensions.contains(fileExtension)
-        case .anyFile:
-            return true
-        case nil:
-            // Default follows the rule shape: a relative path means the directory
-            // itself, no relative path means its children.
-            return rule.relativePath.isEmpty
-                ? Self.relativeDepth(of: path, under: rootPath) == 1
-                : path == rootPath
+        let pathComponents = Self.normalize(path).split(separator: "/").map(String.init)
+
+        for base in anchorBases(for: rule) {
+            let baseComponents = Self.normalize(base).split(separator: "/").map(String.init)
+            guard pathComponents.count >= baseComponents.count,
+                  Array(pathComponents.prefix(baseComponents.count)) == baseComponents
+            else { continue }
+
+            let relative = Array(pathComponents.dropFirst(baseComponents.count))
+            guard let matchedCount = Self.matchedComponents(pattern, against: relative) else {
+                continue
+            }
+
+            let rootPath = Self.path(
+                from: baseComponents + Array(relative.prefix(matchedCount))
+            )
+            // The rule's own components count as well: an exclusion naming the
+            // directory a `*` matched (`com.apple`) has to drop the whole root,
+            // exactly as `resolvedRoots` drops it.
+            if isExcludedByRule(rule, path: rootPath, under: base) { return false }
+            if isExcludedByRule(rule, path: path, under: rootPath) { return false }
+
+            switch rule.matchSpec {
+            case .directory:
+                return Self.normalize(path) == rootPath
+            case .childDirectories:
+                return relative.count == pattern.count + 1
+            case let .directoriesNamed(names):
+                guard relative.count == pattern.count + 1 else { return false }
+                guard let name = relative.last else { return false }
+                return names.contains { $0.caseInsensitiveCompare(name) == .orderedSame }
+            case let .filesByExtension(extensions):
+                let fileExtension = (path as NSString).pathExtension.lowercased()
+                return extensions.contains(fileExtension)
+            case .anyFile:
+                return true
+            case nil:
+                // Default follows the rule shape: a relative path means the
+                // directory itself, no relative path means its children (which
+                // the guard above already refused as a container).
+                return Self.normalize(path) == rootPath
+            }
         }
+        return false
+    }
+
+    /// The anchor directories a rule can apply under, as paths.
+    ///
+    /// The two authorised anchors mean "the locations the user granted", which a
+    /// rule file never sees; the rest are fixed. Nothing is read from the disk:
+    /// this is the set the filesystem expansion starts from.
+    private func anchorBases(for rule: Rule) -> [String] {
+        switch rule.root {
+        case .home:
+            return [homeDirectory]
+        case .homeLibrary:
+            return ["\(homeDirectory)/Library"]
+        case .applications:
+            return ["/Applications"]
+        case .systemLibrary:
+            return ["/Library"]
+        case .userTemp:
+            return userTempDirectory.map { [$0] } ?? []
+        case .authorized:
+            return effectiveAuthorizedPaths.sorted()
+        case .externalVolume:
+            return effectiveAuthorizedPaths.filter { Self.isMountedVolume($0) }.sorted()
+        }
+    }
+
+    /// How many components of `pattern` match `relative`, or `nil` when they do
+    /// not.
+    ///
+    /// A `*` component matches exactly one directory name. The returned count is
+    /// the length of the pattern, so the caller can turn the matched prefix back
+    /// into the root path the rule names.
+    static func matchedComponents(_ pattern: [String], against relative: [String]) -> Int? {
+        guard relative.count >= pattern.count else { return nil }
+        for (expected, actual) in zip(pattern, relative) {
+            if expected == ProtectedPaths.relativePathWildcard {
+                if actual.isEmpty { return nil }
+                continue
+            }
+            guard expected == actual else { return nil }
+        }
+        return pattern.count
+    }
+
+    /// A filesystem path from its components, spelled the way `normalize` spells
+    /// one.
+    static func path(from components: [String]) -> String {
+        "/" + components.filter { !$0.isEmpty }.joined(separator: "/")
     }
 
     private func rank(_ risk: CleanupRisk) -> Int {
@@ -623,6 +1096,34 @@ public struct RuleEngine: Sendable {
             guard Self.relativePathStaysInsideAnchor(rule.relativePath) else {
                 throw RuleError.escapingRelativePath(rule.relativePath)
             }
+            // The three checks below are what keeps a rule file from describing
+            // a rule the shipped table is not allowed to hold. They are refused
+            // here, where the user is told the reason, rather than dropped when
+            // the table is merged, where a rule would silently stop applying.
+            // The Rust loader performs the same three checks against the same
+            // constants, because a document one engine accepts and the other
+            // refuses fails the whole scan.
+            if let age = rule.minAgeDays, !(0...ProtectedPaths.maximumMinAgeDays).contains(age) {
+                throw RuleError.invalidMinAgeDays(age)
+            }
+            if let forbidden = Self.forbiddenRuleDirectory(
+                rule.relativePath,
+                matchSpec: rule.matchSpec
+            ) {
+                throw RuleError.forbiddenRuleDirectory(forbidden)
+            }
+            if case let .directoriesNamed(names) = rule.matchSpec,
+               !Self.directoryNameSetIsValid(names) {
+                throw RuleError.directoriesNamedWithoutNames
+            }
+            guard Self.relativePathGlobIsValid(rule.relativePath) else {
+                throw RuleError.unsupportedRelativePathWildcard(rule.relativePath)
+            }
+            if rule.matchSpec == .anyFile, rule.minAgeDays == nil {
+                // `anyFile` with no age is "every file under this root": no
+                // install of this product has a place where that is safe.
+                throw RuleError.anyFileWithoutMinAge
+            }
         }
         return file.rules
     }
@@ -661,9 +1162,39 @@ public struct RuleEngine: Sendable {
         return sanitized(merged)
     }
 
-    /// The rules that may run: enabled, and not `protected`.
+    /// The rules that may run: enabled, not `protected`, naming no forbidden
+    /// directory, and never a `safe` level this build did not review.
+    ///
+    /// `decode` already refuses a file that names a forbidden directory or
+    /// pairs `anyFile` with no age, so this is the second line rather than the
+    /// only one: it also covers the shipped table, which arrives as a literal
+    /// rather than through a decoder. The Rust core applies the same three
+    /// checks in `effective_rules` via `enforce_rule_invariants`.
+    ///
+    /// The clamp is the part that needs to know what this build ships. `safe`
+    /// is the level that arrives pre-selected, and only a rule a release
+    /// reviewed earns it: a rule the user added is offered at `review`, which
+    /// still lets it find things and leaves the decision with the user. A rule
+    /// that *replaces* a shipped id keeps its level — retuning a reviewed rule
+    /// is what an overlay is for.
+    ///
+    /// The explicit-rule initialiser (`init(rules:homeDirectory:)`) bypasses
+    /// this on purpose: it is the preview and test entry point, and a caller
+    /// that hands the engine a table is the one deciding what it holds.
     private static func sanitized(_ rules: [Rule]) -> [Rule] {
-        rules.filter { $0.isEnabled && $0.risk != .protected }
+        let shipped = Set(builtInRules.map(\.id))
+        return rules.compactMap { rule in
+            guard rule.isEnabled, rule.risk != .protected else { return nil }
+            guard Self.forbiddenRuleDirectory(rule.relativePath, matchSpec: rule.matchSpec) == nil
+            else { return nil }
+            guard !(rule.matchSpec == .anyFile && rule.minAgeDays == nil) else { return nil }
+            if case let .directoriesNamed(names) = rule.matchSpec,
+               !Self.directoryNameSetIsValid(names) {
+                return nil
+            }
+            guard rule.risk == .safe, !shipped.contains(rule.id) else { return rule }
+            return rule.withRisk(.review)
+        }
     }
 
     /// Errors a malformed rule file can produce.
@@ -679,6 +1210,21 @@ public struct RuleEngine: Sendable {
         /// rule over every file below the root, changing what the rule means
         /// instead of reporting that it could not be read.
         case unknownMatchSpec(String)
+        /// A `minAgeDays` outside the range both engines accept.
+        ///
+        /// The Rust loader reads the field as a `u32` and refuses a negative
+        /// one, so a value this decoder accepted and that engine could not
+        /// parse would fail the whole scan with `invalidRequest` — the app would
+        /// show "scan failed" with nothing pointing at the rule file.
+        case invalidMinAgeDays(Int)
+        /// A rule that targets a directory holding every application's data.
+        case forbiddenRuleDirectory(String)
+        /// A rule that matches every file with no age to limit it.
+        case anyFileWithoutMinAge
+        /// A `relativePath` wildcard this build does not understand.
+        case unsupportedRelativePathWildcard(String)
+        /// A `directoriesNamed` rule with no usable name.
+        case directoriesNamedWithoutNames
     }
 
     // MARK: - Path helpers
@@ -778,10 +1324,12 @@ extension RuleEngine.Rule: Decodable {
         case relativePath
         case matchSpec
         case extensions
+        case names
         case excludes
         case minAgeDays
         case usesStaleThreshold
         case requiresFullDiskAccess
+        case needsAppClosed
         case explanationKey
         case enabled
     }
@@ -797,6 +1345,7 @@ extension RuleEngine.Rule: Decodable {
         minAgeDays = try container.decodeIfPresent(Int.self, forKey: .minAgeDays)
         usesStaleThreshold = try container.decodeIfPresent(Bool.self, forKey: .usesStaleThreshold) ?? false
         requiresFullDiskAccess = try container.decodeIfPresent(Bool.self, forKey: .requiresFullDiskAccess) ?? false
+        needsAppClosed = try container.decodeIfPresent(Bool.self, forKey: .needsAppClosed) ?? false
         explanationKey = try container.decode(String.self, forKey: .explanationKey)
         isEnabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
 
@@ -805,6 +1354,7 @@ extension RuleEngine.Rule: Decodable {
         // fallback derived from `relativePath` would quietly widen a misspelled
         // `filesByExtension` rule to every file under its root.
         let extensions = try container.decodeIfPresent([String].self, forKey: .extensions) ?? []
+        let names = try container.decodeIfPresent([String].self, forKey: .names) ?? []
         if let spec = try container.decodeIfPresent(String.self, forKey: .matchSpec) {
             switch spec {
             case "directory":
@@ -815,6 +1365,8 @@ extension RuleEngine.Rule: Decodable {
                 matchSpec = .filesByExtension(extensions.map { $0.lowercased() })
             case "anyFile":
                 matchSpec = .anyFile
+            case "directoriesNamed":
+                matchSpec = .directoriesNamed(names)
             default:
                 throw RuleEngine.RuleError.unknownMatchSpec(spec)
             }

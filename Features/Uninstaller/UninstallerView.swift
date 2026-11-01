@@ -469,6 +469,26 @@ public struct UninstallerView: View {
                         .font(SiftFont.badge)
                         .foregroundStyle(SiftColor.review)
                         .lineLimit(2)
+                        // The group id is what the entitlement actually says. It is
+                        // not printed as a second line because the container's own
+                        // name *is* the group — repeating it would be noise — but
+                        // it is the string the user can check against
+                        // `codesign -d --entitlements`, so it belongs on the row's
+                        // hover instead of nowhere.
+                        .help(file.groupIdentifier ?? file.reason.titleKey.localized)
+                }
+                // A group container can be shared by several applications of one
+                // team; removing it with this one takes data the others still use.
+                // The names come from LaunchServices, so the row states a fact
+                // rather than a suspicion.
+                if !file.sharedWith.isEmpty {
+                    Text(
+                        LocalizationKey.uninstallSharedContainer
+                            .localized(file.sharedWith.joined(separator: ", "))
+                    )
+                    .font(SiftFont.badge)
+                    .foregroundStyle(SiftColor.review)
+                    .lineLimit(2)
                 }
             }
             Spacer(minLength: SiftMetrics.spacingS)
@@ -479,6 +499,30 @@ public struct UninstallerView: View {
         }
         .opacity(isEnabled ? 1 : 0.55)
         .accessibilityElement(children: .combine)
+        // The same two actions the row can offer, and the group id as something
+        // the user can take away: it is the string they can check against
+        // `codesign -d --entitlements`, and a tooltip is not copyable.
+        .contextMenu {
+            Button {
+                NSWorkspace.shared.activateFileViewerSelecting([file.url])
+            } label: {
+                Label(
+                    LocalizationKey.filesRevealInFinder.localized,
+                    systemImage: "folder"
+                )
+            }
+            if let group = file.groupIdentifier {
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(group, forType: .string)
+                } label: {
+                    Label(
+                        LocalizationKey.uninstallCopyGroupIdentifier.localized,
+                        systemImage: "doc.on.doc"
+                    )
+                }
+            }
+        }
     }
 
     private func uninstallButton(_ plan: UninstallPlan) -> some View {
@@ -561,6 +605,8 @@ public struct UninstallerView: View {
                         }
                     },
                     onOpenTrash: { Task { await environment.openTrash() } },
+                    loadTrash: { await environment.trashSnapshot() },
+                    onEmptyTrash: { snapshot in await environment.emptyTrash(snapshot) },
                     onRevealFailed: { url in Task { await environment.reveal(url) } },
                     onRequestPurchase: onRequestPurchase,
                     statusMessage: environment.reportExportMessage

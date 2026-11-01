@@ -176,6 +176,11 @@ let package = Package(
             name: "SiftTests",
             dependencies: ["Shared", "Core"],
             path: "Tests",
+            // `Fixtures/` holds the shared rule-file corpus: documents read from
+            // disk by both this suite and `sift-rules`, so they are data rather
+            // than part of the target. SwiftPM would otherwise report them as
+            // unhandled files on every build.
+            exclude: ["Fixtures"],
             swiftSettings: [.swiftLanguageMode(.v6)] + runtimeSwiftSettings,
             linkerSettings: runtimeLinkerSettings
         ),

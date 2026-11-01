@@ -171,8 +171,6 @@ private struct ConfirmationHost: View {
 struct IconRailView: View {
     @EnvironmentObject private var environment: AppEnvironment
     @EnvironmentObject private var router: AppRouter
-    @Environment(\.siftReduceMotion) private var reduceMotion
-    @State private var hovered: AppDestination?
 
     var body: some View {
         VStack(spacing: SiftMetrics.spacingXS) {
@@ -238,40 +236,26 @@ struct IconRailView: View {
         }
     }
 
+    /// One rail entry.
+    ///
+    /// The box, the label, the hover and press feedback and the selection fill
+    /// all come from `SiftRailItemLabel` and `siftRailItemChrome`, which the
+    /// footer controls wear too — so "the buttons at the bottom do not look like
+    /// the buttons at the top" cannot come back from two hand-written styles
+    /// drifting apart.
     private func railItem(_ destination: AppDestination) -> some View {
         let isSelected = router.destination == destination
-        let isHovering = hovered == destination
         return Button {
             router.go(to: destination)
         } label: {
-            VStack(spacing: 5) {
-                Image(systemName: destination.symbolName)
-                    .font(.system(size: 19, weight: .medium))
-                    .frame(height: 22)
-                Text(destination.titleKey.localized)
-                    .font(SiftFont.railLabel)
-                    .lineLimit(1)
-            }
+            SiftRailItemLabel(
+                symbolName: destination.symbolName,
+                title: destination.titleKey.localized
+            )
             .foregroundStyle(isSelected ? SiftColor.accent : Color.secondary)
-            .frame(width: SiftMetrics.railItemWidth, height: SiftMetrics.railItemHeight)
-            .background {
-                RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
-                    .fill(isSelected ? SiftColor.selectedFill : (isHovering ? SiftColor.hoverFill : .clear))
-            }
-            .overlay(alignment: .leading) {
-                // The selection mark: a jade bar on the item's left edge, so the
-                // selected destination reads without a border boxing it in.
-                Capsule()
-                    .fill(SiftColor.accent)
-                    .frame(width: 3, height: 18)
-                    .padding(.leading, 3)
-                    .opacity(isSelected ? 1 : 0)
-            }
-            .contentShape(Rectangle())
-            .animation(reduceMotion ? nil : SiftMotion.quick, value: isSelected)
         }
         .buttonStyle(SiftPressButtonStyle())
-        .onHover { hovered = $0 ? destination : (hovered == destination ? nil : hovered) }
+        .siftRailItemChrome(isSelected: isSelected, showsSelectionMark: true)
         .accessibilityLabel(Text(destination.titleKey.localized))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
         .accessibilityIdentifier("sidebar.\(destination.rawValue)")
@@ -284,23 +268,14 @@ struct IconRailView: View {
             // The one accent-tinted entry in the rail, but the same item box,
             // icon size and label as every other rail entry: the footer reads
             // as one column, not three controls that arrived separately.
-            VStack(spacing: 5) {
-                Image(systemName: "lock.open")
-                    .font(.system(size: 19, weight: .medium))
-                    .frame(height: 22)
-                Text(LocalizationKey.purchaseTitle.localized)
-                    .font(SiftFont.railLabel)
-                    .lineLimit(1)
-            }
+            SiftRailItemLabel(
+                symbolName: "lock.open",
+                title: LocalizationKey.purchaseTitle.localized
+            )
             .foregroundStyle(SiftColor.accent)
-            .frame(width: SiftMetrics.railItemWidth, height: SiftMetrics.railItemHeight)
-            .background {
-                RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
-                    .fill(SiftColor.selectedFill)
-            }
-            .contentShape(Rectangle())
         }
         .buttonStyle(SiftPressButtonStyle())
+        .siftRailItemChrome(isSelected: true)
         .accessibilityIdentifier("sidebar.purchase")
         .help(LocalizationKey.purchaseTitle.localized)
     }
@@ -314,20 +289,14 @@ struct IconRailView: View {
         return Button {
             router.go(to: .purchase)
         } label: {
-            VStack(spacing: 5) {
-                Image(systemName: "person.crop.circle")
-                    .font(.system(size: 19, weight: .medium))
-                    .frame(height: 22)
-                Text(LocalizationKey.navAccount.localized)
-                    .font(SiftFont.railLabel)
-                    .lineLimit(1)
-            }
+            SiftRailItemLabel(
+                symbolName: "person.crop.circle",
+                title: LocalizationKey.navAccount.localized
+            )
             .foregroundStyle(isSelected ? SiftColor.accent : Color.secondary)
-            .frame(width: SiftMetrics.railItemWidth, height: SiftMetrics.railItemHeight)
-            .contentShape(Rectangle())
         }
         .buttonStyle(SiftPressButtonStyle())
-        .siftRailItemChrome(isSelected: isSelected)
+        .siftRailItemChrome(isSelected: isSelected, showsSelectionMark: true)
         .accessibilityIdentifier("sidebar.account")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
         .help(LocalizationKey.navAccount.localized)
@@ -436,6 +405,16 @@ extension PaywallReason {
 /// footer reads as one column of identically-styled items and no control
 /// carries the system menu's accent tint. The current mode names the item, so
 /// the state reads without opening it.
+///
+/// It wears the same `siftRailItemChrome` as the navigation entries, and passes
+/// `isSelected` while its popover is open: before that, this was the one entry
+/// in the rail with no hover fill and no press state at all, which is what made
+/// the bottom of the rail look like a different set of controls.
+///
+/// Its label does not opt out of hit testing. It did — and a label with hit
+/// testing off leaves the button with nothing to hit, so the entry lit up under
+/// the pointer and ignored the click. `LanguageMenu` carried the same defect and
+/// it is fixed in the same place.
 struct AppearanceRailMenu: View {
     let selection: AppSettings.Appearance
     let onSelect: (AppSettings.Appearance) -> Void
@@ -446,32 +425,19 @@ struct AppearanceRailMenu: View {
         Button {
             isPresented.toggle()
         } label: {
-            label
-                .allowsHitTesting(false)
+            SiftRailItemLabel(symbolName: icon, title: selection.titleKey.localized)
+                .foregroundStyle(isPresented ? SiftColor.accent : Color.secondary)
         }
         .buttonStyle(SiftPressButtonStyle())
-        .frame(width: SiftMetrics.railItemWidth, height: SiftMetrics.railItemHeight)
+        .siftRailItemChrome(isSelected: isPresented)
         .popover(isPresented: $isPresented, arrowEdge: .trailing) {
             picker
         }
         .accessibilityIdentifier("sidebar.appearance")
         .accessibilityLabel(Text(LocalizationKey.settingsGroupAppearance.localized))
         .accessibilityValue(Text(selection.titleKey.localized))
+        .accessibilityAddTraits(isPresented ? .isSelected : [])
         .help(LocalizationKey.settingsGroupAppearance.localized)
-    }
-
-    private var label: some View {
-        VStack(spacing: 5) {
-            Image(systemName: icon)
-                .font(.system(size: 19, weight: .medium))
-                .frame(height: 22)
-            Text(selection.titleKey.localized)
-                .font(SiftFont.railLabel)
-                .lineLimit(1)
-        }
-        .foregroundStyle(.secondary)
-        .frame(width: SiftMetrics.railItemWidth, height: SiftMetrics.railItemHeight)
-        .contentShape(Rectangle())
     }
 
     private var icon: String {

@@ -196,6 +196,10 @@ actor SwiftScanSession: ScanSession {
         setPhase(.scanning)
         for rule in rules.rules {
             if cancelled { break }
+            // A rule that lives inside a dot-directory is out of scope when
+            // hidden entries are: the setting decides what a scan may see, and
+            // the walkers only skip hidden *entries*, never a rule's own path.
+            if skipsHiddenEntries, Self.ruleHasHiddenComponent(rule) { continue }
             // One rule can apply under several roots when it names an authorised
             // anchor, so each is scanned rather than only the first.
             for root in rules.resolvedRoots(for: rule) {
@@ -266,17 +270,9 @@ actor SwiftScanSession: ScanSession {
     /// on a single reading is how a shared container of an installed application
     /// gets offered for removal. The Rust scanner reads the same two spellings.
     static func groupContainerBundleIdentifiers(_ name: String) -> [String] {
-        let lowered = name.lowercased()
-        var readings: [String] = []
-        if let dot = lowered.firstIndex(of: ".") {
-            let prefix = String(lowered[lowered.startIndex..<dot])
-            let suffix = String(lowered[lowered.index(after: dot)...])
-            if !prefix.contains("."), !suffix.isEmpty {
-                readings.append(suffix)
-            }
-        }
-        readings.append(lowered)
-        return readings
+        // One implementation, shared with the uninstaller's matcher: the two had
+        // copies and only one of them was ever used to *associate* a container.
+        BundleNameReadings.identifiers(name)
     }
 
     private func options(for mode: FileWalker.Mode, maxDepth: Int? = nil, home: URL) -> FileWalker.Options {
@@ -307,29 +303,19 @@ actor SwiftScanSession: ScanSession {
             }
 
         case .childDirectories:
-            let report = FileWalker.walk(
-                root: root,
-                options: options(for: .immediateChildren, maxDepth: 1, home: home),
-                rules: rules,
-                isCancelled: { self.cancelledSync },
-                onFile: nil
+            add(
+                childDirectoryItems(rule: rule, root: root, names: nil, minimumAgeDays: minimumAgeDays),
+                dedupeParents: true
             )
-            recordSkips(report.skips)
-            var found: [CleanupItemSummary] = []
-            for entry in report.entries where entry.isDirectory {
-                if rules.isExcludedByRule(rule, path: entry.url.path, under: root.path) {
-                    continue
-                }
-                if rules.isExcludedBundleName(entry.displayName) { continue }
-                // A child that is a container (`~/Library` from a home rule) is
-                // never a single item.
-                if rules.isCleanupContainer(entry.url.path) { continue }
-                guard let item = directoryItem(rule: rule, url: entry.url, minimumAgeDays: minimumAgeDays) else {
-                    continue
-                }
-                found.append(item)
-            }
-            add(found, dedupeParents: true)
+
+        case let .directoriesNamed(names):
+            // The same walk as `childDirectories`, with the name deciding first:
+            // what is measured, aged and excluded afterwards is identical, which
+            // is why one implementation serves both specifications.
+            add(
+                childDirectoryItems(rule: rule, root: root, names: names, minimumAgeDays: minimumAgeDays),
+                dedupeParents: true
+            )
 
         case let .filesByExtension(extensions):
             let report = FileWalker.walk(
@@ -392,9 +378,81 @@ actor SwiftScanSession: ScanSession {
     /// the same rule.
     private var skipsHiddenEntries: Bool { !request.includeHiddenFiles }
 
+    /// True when the rule's own relative path names a hidden directory.
+    ///
+    /// `~/.cache`, `~/.gradle/caches`: the whole subtree is what the "show hidden
+    /// files" preference hides, so the rule does not run. The Rust core asks the
+    /// same question, because the answer decides whether a rule runs at all.
+    static func ruleHasHiddenComponent(_ rule: RuleEngine.Rule) -> Bool {
+        rule.relativePath.split(separator: "/").contains { $0.hasPrefix(".") }
+    }
+
     /// True when a name is one this scan must not report.
     private func isOutOfScope(_ name: String) -> Bool {
         skipsHiddenEntries && name.hasPrefix(".")
+    }
+
+    /// Child directories of `root`, optionally restricted to a set of names.
+    ///
+    /// `directoriesNamed` differs from `childDirectories` only by the filter, so
+    /// the walk, the exclusion checks and the measurement stay one implementation
+    /// — and so both specifications age and measure a directory the same way.
+    private func childDirectoryItems(
+        rule: RuleEngine.Rule,
+        root: URL,
+        names: [String]?,
+        minimumAgeDays: Int?
+    ) -> [CleanupItemSummary] {
+        let home = URL(fileURLWithPath: rules.homeDirectory)
+        let report = FileWalker.walk(
+            root: root,
+            options: options(for: .immediateChildren, maxDepth: 1, home: home),
+            rules: rules,
+            isCancelled: { self.cancelledSync },
+            onFile: nil
+        )
+        recordSkips(report.skips)
+
+        var found: [CleanupItemSummary] = []
+        for entry in report.entries where entry.isDirectory {
+            if let names {
+                guard names.contains(where: {
+                    $0.caseInsensitiveCompare(entry.displayName) == .orderedSame
+                }) else { continue }
+            }
+            if rules.isExcludedByRule(rule, path: entry.url.path, under: root.path) {
+                continue
+            }
+            if rules.isExcludedBundleName(entry.displayName) { continue }
+            // A child that is a container (`~/Library` from a home rule) is
+            // never a single item.
+            if rules.isCleanupContainer(entry.url.path) { continue }
+            guard let item = directoryItem(
+                rule: rule,
+                url: entry.url,
+                minimumAgeDays: minimumAgeDays
+            ) else {
+                continue
+            }
+            found.append(item)
+        }
+        return found
+    }
+
+    /// The risk an item from `rule` carries in this scan.
+    ///
+    /// A rule that says its items belong to one application (`needsAppClosed`)
+    /// loses the `safe` level while that application is running: the item is
+    /// still offered so the user keeps the decision, but it is no longer
+    /// pre-selected. The rule's own level is the ceiling, and the Rust core
+    /// applies the same test to the same request field, so both engines report
+    /// the same level for the same path.
+    private func risk(for rule: RuleEngine.Rule, path: String) -> CleanupRisk {
+        guard rule.risk == .safe,
+              rule.needsAppClosed,
+              RuleEngine.isOwnedByRunningApplication(path, tokens: request.runningApplicationTokens)
+        else { return rule.risk }
+        return .review
     }
 
     /// A directory candidate, measured through the age filter when the rule has one.
@@ -458,7 +516,7 @@ actor SwiftScanSession: ScanSession {
             displayName: url.lastPathComponent,
             parentPath: url.deletingLastPathComponent().path,
             category: rule.category,
-            risk: rule.risk,
+            risk: risk(for: rule, path: url.path),
             sizeInBytes: measured.bytes,
             fileCount: measured.files,
             explanationKey: rule.explanationKey,
@@ -522,7 +580,7 @@ actor SwiftScanSession: ScanSession {
             displayName: entry.displayName,
             parentPath: entry.parentPath,
             category: rule.category,
-            risk: rule.risk,
+            risk: risk(for: rule, path: entry.url.path),
             sizeInBytes: entry.sizeBytes ?? 0,
             fileCount: 1,
             explanationKey: rule.explanationKey,
@@ -542,6 +600,10 @@ actor SwiftScanSession: ScanSession {
         guard homeIsCleanable, !request.installedBundleIdentifiers.isEmpty else { return }
         let home = URL(fileURLWithPath: rules.homeDirectory)
         let installed = Set(request.installedBundleIdentifiers.map { $0.lowercased() })
+        // The app groups installed applications declare. A group container is
+        // named after its group, so this is the only evidence a container two
+        // applications share is still in use: neither of them appears in the name.
+        let declaredGroups = Set(request.appGroupIdentifiers.map { $0.lowercased() })
         var found: [CleanupItemSummary] = []
 
         // The locations residue may live in, mirroring the Rust scanner. A
@@ -622,7 +684,10 @@ actor SwiftScanSession: ScanSession {
         // offers the shared container of an installed application for removal, as
         // `TEAMID.com.example.app` never equals an installed identifier.
         let groupContainers = home.appendingPathComponent("Library/Group Containers")
-        if directoryExists(groupContainers) {
+        // Only with a complete declared set, for the same reason the Rust core
+        // refuses the same run: a set cut short makes every unread application's
+        // container look like a leftover.
+        if directoryExists(groupContainers), request.appGroupIdentifiersComplete {
             let report = FileWalker.walk(
                 root: groupContainers,
                 options: options(for: .immediateChildren, maxDepth: 1, home: home),
@@ -633,6 +698,10 @@ actor SwiftScanSession: ScanSession {
             for entry in report.entries where entry.isDirectory {
                 let name = entry.displayName
                 if rules.isExcludedBundleName(name) { continue }
+                // Checked before the name readings, exactly as the Rust core
+                // does: the declaration is a statement about the system, the
+                // readings are a statement about how a name is spelled.
+                if declaredGroups.contains(name.lowercased()) { continue }
                 let readings = Self.groupContainerBundleIdentifiers(name)
                 if readings.contains(where: { installed.contains($0) }) { continue }
                 guard let bundleID = readings.first(where: { rules.looksLikeBundleIdentifier($0) })
@@ -654,7 +723,7 @@ actor SwiftScanSession: ScanSession {
                         url: entry.url,
                         displayName: name,
                         parentPath: entry.parentPath,
-                        category: .applicationResidue,
+                        category: .groupContainerResidue,
                         risk: .review,
                         sizeInBytes: measured.bytes,
                         fileCount: measured.files,

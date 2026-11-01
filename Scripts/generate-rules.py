@@ -99,6 +99,11 @@ def swift_rule(rule: dict) -> str:
     if spec == "filesByExtension":
         extensions = ", ".join(swift_string_literal(e) for e in rule.get("extensions", []))
         match_spec = f".filesByExtension([{extensions}])"
+    elif spec == "directoriesNamed":
+        # The name set is a sibling of `matchSpec` in the document, the same way
+        # `extensions` is, so it renders into the member the Swift enum carries.
+        names = ", ".join(swift_string_literal(n) for n in rule.get("names", []))
+        match_spec = f".directoriesNamed([{names}])"
     elif spec in MATCH_SPECS:
         match_spec = MATCH_SPECS[spec]
     else:
@@ -121,6 +126,7 @@ def swift_rule(rule: dict) -> str:
         f"            minAgeDays: {min_age if min_age is not None else 'nil'},\n"
         f"            usesStaleThreshold: {str(rule.get('usesStaleThreshold', False)).lower()},\n"
         f"            requiresFullDiskAccess: {str(rule.get('requiresFullDiskAccess', False)).lower()},\n"
+        f"            needsAppClosed: {str(rule.get('needsAppClosed', False)).lower()},\n"
         f"            explanationKey: {swift_string_literal(rule['explanationKey'])},\n"
         f"            isEnabled: {str(rule.get('enabled', True)).lower()}\n"
         "        ),\n"

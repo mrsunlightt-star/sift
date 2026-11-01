@@ -66,6 +66,7 @@ final class EngineAgreementTests: XCTestCase, @unchecked Sendable {
     /// The production engine and the reference engine, over one fixture.
     private func compare(
         _ request: ScanRequest,
+        rules: RuleEngine? = nil,
         file: StaticString = #filePath,
         line: UInt = #line
     ) async throws {
@@ -75,8 +76,9 @@ final class EngineAgreementTests: XCTestCase, @unchecked Sendable {
             file: file,
             line: line
         )
-        let production = ScannerEngineFactory.makeDefault(rules: makeRules())
-        let reference = SwiftScannerEngine(rules: makeRules())
+        let table = rules ?? makeRules()
+        let production = ScannerEngineFactory.makeDefault(rules: table)
+        let reference = SwiftScannerEngine(rules: table)
 
         let fromProduction = try await scan(production, request)
         let fromReference = try await scan(reference, request)
@@ -133,8 +135,12 @@ final class EngineAgreementTests: XCTestCase, @unchecked Sendable {
         )
     }
 
-    private func makeRules() -> RuleEngine {
-        RuleEngine(rules: RuleEngine.builtInRules, homeDirectory: fixture.url)
+    private func makeRules(userTempDirectory: URL? = RuleEngine.darwinUserTempRoot()) -> RuleEngine {
+        RuleEngine(
+            rules: RuleEngine.builtInRules,
+            homeDirectory: fixture.url,
+            userTempDirectory: userTempDirectory
+        )
     }
 
     private func makeRequest(
@@ -158,6 +164,9 @@ final class EngineAgreementTests: XCTestCase, @unchecked Sendable {
             staleThresholdDays: 30,
             ignoredPaths: [],
             installedBundleIdentifiers: ["com.installed.app"],
+            // Declared app groups travel in the request, exactly as the app builds
+            // them: a container named after one of these is live in both engines.
+            appGroupIdentifiers: ["group.com.declared.app"],
             includeHiddenFiles: includeHiddenFiles,
             includeDuplicates: includeDuplicates,
             duplicateRoots: []
@@ -230,9 +239,45 @@ final class EngineAgreementTests: XCTestCase, @unchecked Sendable {
         fixture.write("Library/Group Containers/TEAM1.com.gone.app/blob.bin", bytes: 4096)
         fixture.write("Library/Group Containers/TEAM2.com.installed.app/blob.bin", bytes: 4096)
         fixture.write("Library/Group Containers/UBF8T346G9.Office/blob.bin", bytes: 4096)
+        // A container an installed application's app group declares: the name
+        // resolves to no installed identifier, so only the entitlement set keeps
+        // it out of the residue list.
+        fixture.write("Library/Group Containers/group.com.declared.app/blob.bin", bytes: 4096)
         fixture.write("Library/Saved Application State/com.gone.app/savedState/data.bin", bytes: 4096)
         fixture.write("Library/Preferences/com.gone.app.plist", bytes: 512)
         fixture.write("Library/Preferences/com.installed.app.plist", bytes: 512)
+
+        // The wildcard families: a cache inside a container the platform named,
+        // the two `Cache(s)` spellings inside an application's support directory,
+        // and the Xcode artifacts. Each engine resolves the `*` itself — one by
+        // expanding roots, the other by matching the path — so a fixture here is
+        // what proves the two agree about the result rather than about the idea.
+        fixture.write("Library/Containers/com.installed.app/Data/Library/Caches/blob.bin", bytes: 8192)
+        // `container-caches` excludes `com.apple`: the exclusion names the
+        // directory the `*` matched, so both expanders have to drop it for the
+        // same reason and at the same step.
+        fixture.write("Library/Containers/com.apple.Safari/Data/Library/Caches/blob.bin", bytes: 4096)
+        fixture.write(
+            "Library/Containers/com.installed.app/Data/Library/Preferences/keep.bin",
+            bytes: 2048
+        )
+        fixture.write("Library/Application Support/com.installed.app/Cache/blob.bin", bytes: 4096)
+        fixture.write("Library/Application Support/com.installed.app/Caches/blob.bin", bytes: 2048)
+        // A third spelling the name set covers, and a sibling it must not: both
+        // engines read the same `names` list, so the two sets have to agree
+        // about the boundary as well as about the members.
+        fixture.write("Library/Application Support/com.installed.app/GPUCache/blob.bin", bytes: 1024)
+        fixture.write("Library/Application Support/com.installed.app/State/blob.bin", bytes: 1024)
+        fixture.write("Library/Developer/Xcode/DerivedData/Sift/Build/obj.o", bytes: 4096)
+        fixture.write("Library/Developer/Xcode/iOS DeviceSupport/17.0/Symbols/arm64", bytes: 4096)
+        fixture.write("Library/Developer/CoreSimulator/Caches/dyld/map.bin", bytes: 1024)
+
+        // The developer caches: hidden rules, which the "show hidden files"
+        // scope decides for both engines.
+        let jar = fixture.write(".gradle/caches/jars/a.jar", bytes: 4096)
+        fixture.age(jar, days: 60)
+        let blob = fixture.write(".cache/thing/blob.bin", bytes: 4096)
+        fixture.age(blob, days: 60)
 
         // A path the protection list refuses, which neither engine may report.
         fixture.write("Documents/taxes.pdf", bytes: 4096)
@@ -258,6 +303,77 @@ final class EngineAgreementTests: XCTestCase, @unchecked Sendable {
     func test_theTwoEnginesFindTheSameItems() async throws {
         writeHazards()
         try await compare(makeRequest())
+    }
+
+    /// The per-user temporary root resolves to the same items in both engines.
+    ///
+    /// The anchor is the one place a rule's directory cannot be derived from the
+    /// home directory: the request names the session root and both engines read it
+    /// from there. `T` is not a rule — live processes keep their sockets in it —
+    /// so only the aged children of `C` may appear, from either engine.
+    func test_theTwoEnginesAgreeAboutTheUserTempRoot() async throws {
+        writeHazards()
+        let session = fixture.url.appendingPathComponent("var/folders/xx/hash")
+        fixture.write("var/folders/xx/hash/C/stale.app/cache.bin", bytes: 4096)
+        fixture.age(
+            fixture.url.appendingPathComponent("var/folders/xx/hash/C/stale.app/cache.bin"),
+            days: 10
+        )
+        fixture.write("var/folders/xx/hash/C/fresh.app/cache.bin", bytes: 4096)
+        fixture.write("var/folders/xx/hash/T/live/port", bytes: 64)
+
+        var request = makeRequest()
+        request.roots.append(
+            ScanRoot(
+                url: session,
+                anchor: .userTemp,
+                isCleanable: true,
+                includesThresholdFiles: false
+            )
+        )
+        try await compare(request, rules: makeRules(userTempDirectory: session))
+    }
+
+    /// A running application changes the level of an item in both engines.
+    ///
+    /// The list of running applications travels in the request, so both engines
+    /// read the same one and neither has to know how it was collected. What this
+    /// pins down is that the *decision* — which component names the owner, which
+    /// levels the rule allows — is the same on both sides, because otherwise one
+    /// build pre-selects a cache directory a live process is writing into and
+    /// the next does not.
+    func test_theTwoEnginesAgreeAboutARunningApplication() async throws {
+        writeHazards()
+        var request = makeRequest()
+        request.runningApplicationTokens = ["com.example.app", "com.gone.app"]
+        try await compare(request)
+    }
+
+    /// A declared app group keeps its container out of the residue list in both
+    /// engines.
+    ///
+    /// The container is named after the group, so nothing about the name resolves
+    /// to an installed application: this is the case the name-based test cannot
+    /// see, and both engines have to read the same request field to agree.
+    func test_theTwoEnginesAgreeAboutADeclaredAppGroup() async throws {
+        writeHazards()
+
+        XCTAssertTrue(ScannerEngineFactory.hasRustCore)
+        let request = makeRequest()
+        let production = try await scan(ScannerEngineFactory.makeDefault(rules: makeRules()), request)
+        let reference = try await scan(SwiftScannerEngine(rules: makeRules()), request)
+
+        for items in [production, reference] {
+            let names = items.map(\.displayName)
+            XCTAssertFalse(
+                names.contains("group.com.declared.app"),
+                "a declared app group owns its container: \(names.filter { $0.contains("declared") })"
+            )
+            XCTAssertTrue(
+                names.contains("TEAM1.com.gone.app"),
+                "an undeclared container is still residue in both engines"
+            )
+        }
     }
 
     /// The hidden-file preference is a scan scope, so it changes what both

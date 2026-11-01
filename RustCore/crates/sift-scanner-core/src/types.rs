@@ -104,6 +104,46 @@ pub struct ScanRequest {
     pub authorized_roots: Vec<String>,
     /// Bundle identifiers of installed applications, used for residue matching.
     pub installed_bundle_ids: Vec<String>,
+    /// App groups declared by installed applications' entitlements.
+    ///
+    /// A group container is named after its group, not after the application
+    /// that uses it, so a container two applications share cannot be recognised
+    /// from any name. Swift reads `com.apple.security.application-groups` from
+    /// every installed signature and sends the set here; a container whose name
+    /// is one of these groups belongs to something installed and is not residue.
+    ///
+    /// It travels in the request for the same reason `installed_bundle_ids`
+    /// does: this core has no signature reader, and the Swift engine must reach
+    /// the same verdict from the same request. Empty means "nothing declared",
+    /// which keeps the name-only behaviour for a caller that sends nothing.
+    #[serde(default)]
+    pub app_group_ids: Vec<String>,
+    /// Whether `app_group_ids` is the complete set.
+    ///
+    /// `false` means the caller could not finish reading the signatures — a
+    /// deadline, a cancelled scan, a volume that stopped answering. An incomplete
+    /// set is worse than an empty one for the question it is used for: a group
+    /// container is reported as residue when no application declares it, so an
+    /// unread application would make a live container look like a leftover. When
+    /// the set is incomplete this core reports no group-container residue at all
+    /// for that run, which is the safe answer, and the name-based residue
+    /// categories are unaffected.
+    #[serde(default = "complete_by_default")]
+    pub app_group_ids_complete: bool,
+    /// Aliases of the applications running when the scan started.
+    ///
+    /// Bundle identifiers, Finder names and executable names, lower-cased by the
+    /// engine that compares them. A rule that marks its items as owned by one
+    /// application (`needs_app_closed`) takes a `safe` item down to `review`
+    /// while its owner is running, so the move cannot pull a cache directory out
+    /// from under a live process.
+    ///
+    /// It travels here rather than being read inside the scanner because this
+    /// core has no `NSWorkspace`. Swift collects the list once and sends it, and
+    /// the Swift engine scans from the same request, so the two engines see the
+    /// same list.
+    #[serde(default)]
+    pub running_app_tokens: Vec<String>,
     /// Whether entries whose name starts with `.` are part of the scan.
     ///
     /// A scope, not a display filter: the "show hidden files" setting decides
@@ -120,6 +160,14 @@ pub struct ScanRequest {
     pub event_batch_items: u32,
     /// Filesystem path of the SQLite index for this session.
     pub index_path: String,
+}
+
+/// A request that says nothing about the completeness of its group list.
+///
+/// True: a caller that sends nothing gets the name-only behaviour it always had,
+/// and the field exists for the caller that knows its read was cut short.
+fn complete_by_default() -> bool {
+    true
 }
 
 /// The default for a request that does not mention hidden files.
@@ -139,6 +187,9 @@ impl Default for ScanRequest {
             ignore_paths: Vec::new(),
             authorized_roots: Vec::new(),
             installed_bundle_ids: Vec::new(),
+            app_group_ids: Vec::new(),
+            app_group_ids_complete: true,
+            running_app_tokens: Vec::new(),
             include_hidden_files: true,
             extra_rules_json: None,
             include_duplicates: true,

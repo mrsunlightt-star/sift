@@ -46,7 +46,10 @@ final class ScanIntentTests: XCTestCase, @unchecked Sendable {
         // never offer a category the page does not show.
         XCTAssertEqual(
             Set(CleanupCategory.junkCategories),
-            [.applicationCache, .logs, .installers, .temporaryFiles, .applicationResidue]
+            [
+                .applicationCache, .logs, .installers, .temporaryFiles,
+                .applicationResidue, .groupContainerResidue,
+            ]
         )
         XCTAssertFalse(CleanupCategory.junkCategories.contains(.largeFiles))
     }
