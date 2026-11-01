@@ -400,36 +400,58 @@ Swift 的穷尽 `switch`、本地化 key 与 `Scripts/check-explanation-keys.py`
 
 只能读 plist，**不能**执行 `launchctl`（不变式 18：诊断只读，只有 `mdutil` / `tmutil` 两个白名单程序）。
 
-### P1-1 排除器升级成带逻辑的匹配器
-```
-filter: { op: contains | suffix | prefix | regex, value, logicLevel: and | or }
-```
-落点：`Rule.excludes: Vec<String>` → `Rule.excludes: Vec<Exclusion>`，Rust `sift-rules` 与
-Swift `RuleEngine.decode` **同时**改；`Tests/Fixtures/Rules/accept|reject/` 各加语料（不变式 23 要求这份
-两套测试共用的语料库是唯一裁判）。正则要用有限制的引擎（`regex` crate 已经是默认特性，确认没开 backtracking）。
+### P1-1 排除器升级成带逻辑的匹配器 ✅ 已落地
 
-现状 `excludes` 只按名字。`user-cache` 排掉 `CloudKit` 是够的，但「排除所有 `com.apple.*` 开头的」
-就只能逐条列——`container-caches` 那条注释里已经承认了这一点。
+`Rule.excludes` 从 `Vec<String>` 变成 `Vec<Exclusion>`，条目可以是裸字符串（保持原语义：整名，
+或 bundle id 前缀），也可以是 `{"match": "exact"|"prefix"|"suffix"|"contains"|"glob", "value": …}`。
 
-### P1-2 `Xcode/Archives` + `CoreSimulator/Devices` ✅ 已落地（runtimes 暂缓）
+三个和原计划不同的决定：
 
-`xcode-archives` 与 `xcode-simulator-devices` 两条已进 `default_rules()`（现在 23 条规则），
-`CleaningRules.json` / `BuiltInRules.swift` 已重新生成，两个本地化 key 补了 34 种语言。
-细节见第 8 节。
+- **不做 `and`/`or` 组。** 一个条目就是「命中就排除」，多个条目天然是 or；`and` 的唯一用途是
+  「同时满足两个名字条件」，而一个名字只有一个值，那个组要么等价于单个条件，要么永远为空。
+  多一层嵌套只会让两个 decoder 多一处可以走偏的地方。
+- **`regex` 换成 `glob`。** 规则文件里的正则会走进一个回溯引擎：Rust 的 `regex` crate 是线性的，
+  Swift 的 `NSRegularExpression` 不是，于是同一条规则在两端可以有不同代价——甚至一端卡死。
+  `glob` 是 `*` 两指针扫描，三处（Rust / Swift / 覆盖审计）同一份算法，答案按构造一致。
+- **裸字符串保留隐式点，描述形式不带。** 前者是既有语义（`com.apple` 覆盖 `com.apple.Safari`），
+  后者是字面比较；一个名字与其含义悄悄不一致，就是两端对同一份文档给出两个答案的开始。
 
-`CoreSimulator/Profiles/Runtimes` **故意没发**：它在 `/Library` 下，属主是 root，
-移进废纸篓需要管理员授权，`trashItem` 会失败。发一条注定失败的规则，比不发更糟——
-用户会看到「清理了 3 项」和 3 个失败。要做就先用 `xcrun simctl runtime list` 拿真实列表收窄
-（它就是这么做的），并把「不可写」在 pre-flight 报成失败，而不是当成成功（不变式 28）。
+值里带 `/` 或在文件读取时无法成为目录名的，直接拒绝（`UnusableExclusion`），而不是留给它「永不命中」——
+一条永不命中的排除读起来就像「今天没找到东西」。
 
-### P1-3 谨慎组
-把「用户数据语义」的规则（邮件附件、微信文件、浏览器数据）收进一个 `Risk::Review` 的子组，
-UI 上单独一栏、默认折叠、批量勾选要二次确认。落点：`ScanFilter`（`Features/Scan`）+ 本地化。
+语料：`Tests/Fixtures/Rules/accept/structured-exclusions.json` +
+`reject/exclusion-with-{a-path,an-empty-value,an-unknown-comparison}.json`。
 
-### P2-1 版本门控
-`Rule` 加 `app_version_range: Option<String>` + `bundle_id`，命中时先读应用的
-`CFBundleShortVersionString` 再决定是否出条目。抄它的 `appversion` / `buildversion`。
-注意：这会让规则依赖 LaunchServices，和 `AppGroupRegistry` 的读法同源，可以复用它的缓存与指纹机制（不变式 39）。
+### P1-3 谨慎组 ✅ 已落地
+
+结果列表本来就把 `safe` / `review` / `protected` 分成三栏，缺的是「这一栏要不要默认摊开」和
+「一键全选这一栏算不算一次表态」。现在：
+
+- `review` **默认折叠**，表头仍然报「N 项 · X MB」和那句「每一条都需要你确认」，所以折叠是摘要不是隐藏；
+  用户展开/收起的选择在页面生命周期内被记住。
+- 展开后有一个「全选已显示 (N)」，点了先弹确认——整组一键选中是这个分组存在要让它变得**刻意**的动作。
+- 只选**列表显示中**的行：列表还没摊出来的行，不是用户展开分组时同意过的东西。
+- 页脚「还有 N 项」的算术只统计展开的分组：折叠分组的表头已经说过它装了什么，再算一遍会让页脚
+  为一个用户没要求看的组提供「显示全部」。
+
+没有新加本地化 key——复用 `scan.selectAllShown`、`scan.selectAll`、`cleanup.confirm.riskWarning`、
+`cleanup.confirm.cancel`，都是既有句子，不需要再翻 34 种语言。
+
+### P2-1 版本门控 —— 设计就绪，暂不落地
+
+要做的是：`Rule` 加 `bundle_id` + `minimum_app_version` / `maximum_app_version`，扫描时用
+请求里带的版本表（和 `runningApplicationTokens`、`installed_bundle_ids` 同一套做法：应用在主线程读一次，
+两个引擎读同一份）决定这条规则今天出不出现。版本比较按分量数值比，缺的分量补 0。
+
+**为什么停在这里**：我们的表里没有一条规则是版本敏感的。Lemon 需要它，是因为它的规则在追微信、
+邮件这些应用的数据格式变迁；我们明确不碰应用数据（微信容器那条在报告里就被判为不做）。
+在没有消费者的前提下把 `bundle_id` + 两个版本字段加进**唯一一份、双端生成、还要过语料库**的规则表，
+等于给表加三个永远为 `None` 的字段——这与本仓「机制要被强制，而不是被断言」的取向相反，
+和对 `CoreSimulator/Profiles/Runtimes` 那条「注定失败的规则不如不发」是同一个判断。
+
+真正的触发条件很具体：**当我们要发第一条跨应用数据格式的规则时**（比如真的做邮件附件清理，
+或者微信容器在某个版本换了布局）。那时的改动清单是上面这一份，加上把 `ApplicationDiscovery`
+已经读到的 `InstalledApplication.version` 汇成 `[bundleID: version]` 塞进 `ScanRequest`。
 
 ### P2-2 大小口径做成类型
 `SizeBasis::{Logical, Allocated}` 显式进 `FileWalker` / `DiagnosticMeasurement` / FFI 请求，
