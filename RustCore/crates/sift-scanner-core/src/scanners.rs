@@ -113,6 +113,36 @@ pub struct ScanContext<'a> {
 pub struct ProgressSink<'a> {
     pub on_files: &'a mut dyn FnMut(u64, u64),
     pub on_current_path: &'a mut dyn FnMut(&Path),
+    /// The same counter, reachable without a borrow.
+    ///
+    /// `on_files` is an `&mut` borrow of the caller's counters, so a walk that
+    /// wants to report *while* it walks cannot use it: the closure would hold
+    /// the whole `ScanContext` borrowed for the length of the walk, and every
+    /// other argument of that call reads the context too. This handle is a
+    /// clone of the counter with no lifetime, which is what lets
+    /// [`walker::walk_reporting`] tick the page during the sixteen seconds a
+    /// whole-home walk used to spend silent.
+    pub reporter: Option<ProgressReporter>,
+}
+
+/// A cloneable counter handle, so a walk can report without borrowing.
+#[derive(Clone)]
+pub struct ProgressReporter(std::sync::Arc<dyn Fn(u64, u64) + Send + Sync>);
+
+impl ProgressReporter {
+    pub fn new(report: impl Fn(u64, u64) + Send + Sync + 'static) -> Self {
+        Self(std::sync::Arc::new(report))
+    }
+
+    pub fn note(&self, files: u64, bytes: u64) {
+        (self.0)(files, bytes);
+    }
+}
+
+impl std::fmt::Debug for ProgressReporter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("ProgressReporter")
+    }
 }
 
 impl ProgressSink<'_> {
@@ -123,6 +153,11 @@ impl ProgressSink<'_> {
     pub fn note_path(&mut self, path: &Path) {
         (self.on_current_path)(path);
     }
+}
+
+/// The cloneable counter the walk can tick while it is still walking.
+fn progress_reporter(context: &ScanContext<'_>) -> Option<ProgressReporter> {
+    context.progress.reporter.clone()
 }
 
 /// Builds the effective rule list for a scan request.
@@ -438,6 +473,34 @@ pub fn measure_directory(
     skip_hidden: bool,
     skip_paths: &[PathBuf],
 ) -> (Measured, WalkReport) {
+    measure_directory_reporting(
+        path,
+        cancel,
+        home,
+        authorized_roots,
+        skip_hidden,
+        skip_paths,
+        &mut |_, _| {},
+    )
+}
+
+/// Measures a directory tree and reports the files it passes while measuring.
+///
+/// A measurement is the longest single silence in a scan — one `Caches`
+/// subdirectory, one application support tree, the whole home directory for the
+/// threshold scans can each take seconds — and until this existed the page had
+/// nothing to show for that time. The totals are reported through
+/// [`walker::walk_reporting`], so they arrive about ten times a second.
+#[allow(clippy::too_many_arguments)]
+pub fn measure_directory_reporting(
+    path: &Path,
+    cancel: &CancelToken,
+    home: &Path,
+    authorized_roots: &[PathBuf],
+    skip_hidden: bool,
+    skip_paths: &[PathBuf],
+    on_progress: &mut dyn FnMut(u64, u64),
+) -> (Measured, WalkReport) {
     // Only the totals are read from this walk, so the entry budget bounds the
     // vector it builds rather than the answer; a measurement that hits it reports
     // the bytes it saw instead of waiting for a tree it cannot hold.
@@ -450,7 +513,7 @@ pub fn measure_directory(
     options.stop_at_packages = true;
     skip_excluded_directories(&mut options);
     let _ = &mut options;
-    let report = walker::walk(path, &options, cancel);
+    let report = walker::walk_reporting(path, &options, cancel, on_progress);
     let measured = Measured {
         bytes: report.total_bytes,
         files: report.total_files,
@@ -680,13 +743,19 @@ fn directory_candidate(
                 &ignored_paths(context),
                 &|modified| older_than_days(modified, min_age_days),
             );
-            let (whole, report) = measure_directory(
+            let reporter = progress_reporter(context);
+            let (whole, report) = measure_directory_reporting(
                 path,
                 cancel,
                 &context.home_dir,
                 &authorized,
                 skips_hidden(context),
                 &ignored_paths(context),
+                &mut |files, bytes| {
+                    if let Some(reporter) = &reporter {
+                        reporter.note(files, bytes);
+                    }
+                },
             );
             if matching.bytes == 0 || matching.bytes != whole.bytes || matching.files != whole.files
             {
@@ -706,13 +775,19 @@ fn directory_candidate(
             (whole, report, oldest)
         }
         None => {
-            let (measured, report) = measure_directory(
+            let reporter = progress_reporter(context);
+            let (measured, report) = measure_directory_reporting(
                 path,
                 cancel,
                 &context.home_dir,
                 &authorized,
                 skips_hidden(context),
                 &ignored_paths(context),
+                &mut |files, bytes| {
+                    if let Some(reporter) = &reporter {
+                        reporter.note(files, bytes);
+                    }
+                },
             );
             let metadata = std::fs::symlink_metadata(path).ok()?;
             (measured, report, modified_secs(&metadata))
@@ -788,7 +863,12 @@ fn child_directory_candidates(
     // other rule keeps the age its own definition states.
     let min_age_days = rule.effective_min_age_days(context.request.stale_threshold_days);
 
-    let report = walker::walk(root, &options, cancel);
+    let reporter = progress_reporter(context);
+    let report = walker::walk_reporting(root, &options, cancel, &mut |files, bytes| {
+        if let Some(reporter) = &reporter {
+            reporter.note(files, bytes);
+        }
+    });
     let mut candidates = Vec::new();
 
     for entry in &report.entries {
@@ -842,13 +922,19 @@ fn child_directory_candidates(
                 // files move: a directory with one stale file next to fresh
                 // ones is not a cleanup item, because the move would take the
                 // fresh files too.
-                let (whole, _) = measure_directory(
+                let reporter = progress_reporter(context);
+                let (whole, _) = measure_directory_reporting(
                     &entry.path,
                     cancel,
                     &context.home_dir,
                     &authorized,
                     skips_hidden(context),
                     &ignored_paths(context),
+                    &mut |files, bytes| {
+                        if let Some(reporter) = &reporter {
+                            reporter.note(files, bytes);
+                        }
+                    },
                 );
                 if matching.bytes != whole.bytes || matching.files != whole.files {
                     continue;
@@ -862,13 +948,19 @@ fn child_directory_candidates(
                     .iter()
                     .map(PathBuf::from)
                     .collect();
-                measure_directory(
+                let reporter = progress_reporter(context);
+                measure_directory_reporting(
                     &entry.path,
                     cancel,
                     &context.home_dir,
                     &authorized,
                     skips_hidden(context),
                     &ignored_paths(context),
+                    &mut |files, bytes| {
+                        if let Some(reporter) = &reporter {
+                            reporter.note(files, bytes);
+                        }
+                    },
                 )
                 .0
             }
@@ -955,7 +1047,12 @@ fn file_candidates(
     // stale threshold reads its age from the request.
     let min_age_days = rule.effective_min_age_days(context.request.stale_threshold_days);
 
-    let report = walker::walk(root, &options, cancel);
+    let reporter = progress_reporter(context);
+    let report = walker::walk_reporting(root, &options, cancel, &mut |files, bytes| {
+        if let Some(reporter) = &reporter {
+            reporter.note(files, bytes);
+        }
+    });
     let mut candidates = Vec::new();
 
     for entry in &report.entries {
@@ -1378,7 +1475,12 @@ fn file_threshold_scan(
             .extend(threshold_excluded_paths(&context.home_dir));
         options.skip_hidden = skips_hidden(context);
 
-        let report = walker::walk(&root, &options, cancel);
+        let reporter = progress_reporter(context);
+        let report = walker::walk_reporting(&root, &options, cancel, &mut |files, bytes| {
+            if let Some(reporter) = &reporter {
+                reporter.note(files, bytes);
+            }
+        });
         combined.total_files += report.total_files;
         combined.total_bytes += report.total_bytes;
         combined.truncated |= report.truncated;
@@ -1547,7 +1649,12 @@ pub fn scan_application_residue(
         .with_max_depth(1);
         options.authorized_roots = authorized_paths(context);
         options.skip_hidden = skips_hidden(context);
-        let report = walker::walk(&directory, &options, cancel);
+        let reporter = progress_reporter(context);
+        let report = walker::walk_reporting(&directory, &options, cancel, &mut |files, bytes| {
+            if let Some(reporter) = &reporter {
+                reporter.note(files, bytes);
+            }
+        });
         combined.skips.extend(report.skips.iter().cloned());
         combined.truncated |= report.truncated;
 
@@ -1661,7 +1768,13 @@ pub fn scan_application_residue(
         .with_max_depth(1);
         options.authorized_roots = authorized_paths(context);
         options.skip_hidden = skips_hidden(context);
-        let report = walker::walk(&group_containers, &options, cancel);
+        let reporter = progress_reporter(context);
+        let report =
+            walker::walk_reporting(&group_containers, &options, cancel, &mut |files, bytes| {
+                if let Some(reporter) = &reporter {
+                    reporter.note(files, bytes);
+                }
+            });
         combined.truncated |= report.truncated;
         for entry in &report.entries {
             if !entry.is_directory {
@@ -1767,7 +1880,12 @@ pub fn scan_application_residue(
                 .with_max_depth(1);
         options.authorized_roots = authorized_paths(context);
         options.skip_hidden = skips_hidden(context);
-        let report = walker::walk(&directory, &options, cancel);
+        let reporter = progress_reporter(context);
+        let report = walker::walk_reporting(&directory, &options, cancel, &mut |files, bytes| {
+            if let Some(reporter) = &reporter {
+                reporter.note(files, bytes);
+            }
+        });
         combined.truncated |= report.truncated;
         for entry in &report.entries {
             let name = entry.display_name();
@@ -2408,6 +2526,7 @@ mod tests {
                 progress: ProgressSink {
                     on_files,
                     on_current_path: on_path,
+                    reporter: None,
                 },
             }
         }
@@ -3243,6 +3362,7 @@ mod tests {
             progress: ProgressSink {
                 on_files: &mut files,
                 on_current_path: &mut path,
+                reporter: None,
             },
         };
         let (candidates, _) = scan_rules(&mut context, &cancel);
@@ -3283,6 +3403,7 @@ mod tests {
             progress: ProgressSink {
                 on_files: &mut files,
                 on_current_path: &mut path,
+                reporter: None,
             },
         };
 
@@ -3317,6 +3438,7 @@ mod tests {
             progress: ProgressSink {
                 on_files: &mut files,
                 on_current_path: &mut path,
+                reporter: None,
             },
         };
 
@@ -3483,6 +3605,8 @@ mod tests {
                 progress: ProgressSink {
                     on_files: &mut files,
                     on_current_path: &mut path,
+
+                    reporter: None,
                 },
             };
             let (candidates, _) = scan_rules(&mut context, &cancel);
@@ -3614,6 +3738,7 @@ mod tests {
             progress: ProgressSink {
                 on_files: &mut files,
                 on_current_path: &mut path,
+                reporter: None,
             },
         };
         let (candidates, _) = scan_rules(&mut context, &cancel);
@@ -3719,6 +3844,7 @@ mod tests {
             progress: ProgressSink {
                 on_files: &mut files,
                 on_current_path: &mut path,
+                reporter: None,
             },
         };
         let (candidates, _) = scan_application_residue(&mut context, &cancel);
@@ -3764,6 +3890,7 @@ mod tests {
             progress: ProgressSink {
                 on_files: &mut files,
                 on_current_path: &mut path,
+                reporter: None,
             },
         };
         let (candidates, _) = scan_application_residue(&mut context, &cancel);
@@ -3821,6 +3948,7 @@ mod tests {
             progress: ProgressSink {
                 on_files: &mut files,
                 on_current_path: &mut path,
+                reporter: None,
             },
         };
         let (candidates, _) = scan_application_residue(&mut context, &cancel);
@@ -3859,6 +3987,8 @@ mod tests {
                 progress: ProgressSink {
                     on_files: &mut files,
                     on_current_path: &mut path,
+
+                    reporter: None,
                 },
             };
             let (candidates, _) = scan_rules(&mut context, &cancel);
@@ -4037,6 +4167,7 @@ mod tests {
             progress: ProgressSink {
                 on_files: &mut files,
                 on_current_path: &mut path,
+                reporter: None,
             },
         };
 
@@ -4093,6 +4224,7 @@ mod tests {
             progress: ProgressSink {
                 on_files: &mut files,
                 on_current_path: &mut path,
+                reporter: None,
             },
         };
 
@@ -4171,6 +4303,7 @@ mod tests {
             progress: ProgressSink {
                 on_files: &mut files,
                 on_current_path: &mut path,
+                reporter: None,
             },
         };
         let (candidates, _) = scan_application_residue(&mut context, &cancel);
@@ -4225,6 +4358,7 @@ mod tests {
             progress: ProgressSink {
                 on_files: &mut files,
                 on_current_path: &mut path,
+                reporter: None,
             },
         };
 
@@ -4280,6 +4414,7 @@ mod tests {
             progress: ProgressSink {
                 on_files: &mut files,
                 on_current_path: &mut path,
+                reporter: None,
             },
         };
 
@@ -4335,6 +4470,7 @@ mod tests {
             progress: ProgressSink {
                 on_files: &mut files,
                 on_current_path: &mut path,
+                reporter: None,
             },
         };
 
@@ -4398,6 +4534,8 @@ mod tests {
                 progress: ProgressSink {
                     on_files: &mut files,
                     on_current_path: &mut path,
+
+                    reporter: None,
                 },
             };
             let (candidates, _) = scan_application_residue(&mut context, &cancel);
@@ -4449,6 +4587,7 @@ mod tests {
             progress: ProgressSink {
                 on_files: &mut files,
                 on_current_path: &mut path,
+                reporter: None,
             },
         };
         let (candidates, _) = scan_large_files(&mut context, &cancel, 1024 * 1024);

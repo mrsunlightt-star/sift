@@ -168,6 +168,73 @@ final class ScanModelTests: XCTestCase, @unchecked Sendable {
         )
     }
 
+
+    /// A row a cleanup moved is not a row any more.
+    ///
+    /// The page used to show it again as soon as the result sheet closed: the
+    /// rows come from the core's index, and a move does not rewrite it. The
+    /// model now drops what moved, from the list and from the totals both, and
+    /// keeps everything the batch did not touch.
+    func test_aCleanedItemLeavesThePageAndTheTotals() async throws {
+        let fixture = TemporaryDirectory(tag: "scan-model-cleanup-sync")
+        fixture.write("Library/Caches/com.example.a/blob.bin", bytes: 8192)
+        fixture.write("Library/Caches/com.example.b/blob.bin", bytes: 4096)
+        let model = await makeModel(home: fixture.url)
+        await model.start(makeRequest(home: fixture.url))
+        await model.waitUntilSettled()
+
+        let before = await model.page(offset: 0, limit: 50, sort: .size, category: nil)
+        XCTAssertEqual(before.items.count, 2, "two cache items before the cleanup")
+        let reportBefore = await model.report
+        let victim = before.items[0]
+
+        await model.applyCleanup([
+            FileOperationResult(
+                sourceURL: victim.url,
+                status: .movedToTrash,
+                sizeInBytes: victim.sizeInBytes,
+                category: victim.category
+            )
+        ])
+
+        let after = await model.page(offset: 0, limit: 50, sort: .size, category: nil)
+        XCTAssertEqual(after.items.count, 1, "the moved item is gone from the list")
+        XCTAssertFalse(
+            after.items.contains { $0.url.standardizedFileURL.path == victim.url.standardizedFileURL.path },
+            "the row that moved must not come back"
+        )
+
+        let reportAfter = await model.report
+        XCTAssertEqual(reportAfter?.itemCount, (reportBefore?.itemCount ?? 0) - 1)
+        XCTAssertEqual(reportAfter?.itemBytes, (reportBefore?.itemBytes ?? 0) - victim.sizeInBytes)
+        let totals = await model.categoryTotals
+        let cache = totals.first { $0.category == victim.category }
+        XCTAssertEqual(cache?.itemCount, 1, "the category total counts only what is still there")
+    }
+
+    /// A batch that moved nothing changes nothing.
+    func test_aCleanupThatMovedNothingLeavesTheResultAlone() async throws {
+        let fixture = TemporaryDirectory(tag: "scan-model-cleanup-noop")
+        fixture.write("Library/Caches/com.example.app/blob.bin", bytes: 8192)
+        let model = await makeModel(home: fixture.url)
+        await model.start(makeRequest(home: fixture.url))
+        await model.waitUntilSettled()
+
+        let before = await model.page(offset: 0, limit: 50, sort: .size, category: nil)
+        let reportBefore = await model.report
+        await model.applyCleanup([
+            FileOperationResult(
+                sourceURL: before.items[0].url,
+                status: .skipped,
+                message: "in use"
+            )
+        ])
+        let after = await model.page(offset: 0, limit: 50, sort: .size, category: nil)
+        XCTAssertEqual(after.items.count, before.items.count)
+        let reportAfter = await model.report
+        XCTAssertEqual(reportAfter?.itemCount, reportBefore?.itemCount)
+    }
+
     /// A scan that finds more duplicate groups than one page can show.
     ///
     /// The list is paged, so the model has to know the total the scan reported

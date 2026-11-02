@@ -1080,7 +1080,12 @@ public struct ScanView: View {
     /// click produced a screenful of "already gone".
     private var reloadKey: String {
         let session = scan.report?.sessionID ?? "none"
-        return "\(session)-\(filter.rawValue)-\(sort.rawValue)-\(cleanup.listGeneration)"
+        // `cleanedPaths` is the list of rows a cleanup moved. It is in the key as
+        // well as `listGeneration`: the generation bumps when the batch starts,
+        // which is a moment before the model knows what moved, so a reload
+        // driven by it alone could fetch the index while the moved rows were
+        // still in it.
+        return "\(session)-\(filter.rawValue)-\(sort.rawValue)-\(cleanup.listGeneration)-\(scan.cleanedPaths.count)"
     }
 
     private func reload() async {

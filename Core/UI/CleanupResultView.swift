@@ -424,6 +424,35 @@ public struct CleanupResultView: View {
                     }
                 }
             }
+            // One row when the window can hold it, two when it cannot. With the
+            // undo, the Trash and the report actions plus a Full Disk Access
+            // explainer, a single row in a normal window compressed every label
+            // into "撤…", "在访达中…", "导出…" — a button nobody can read is a
+            // button nobody presses.
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: SiftMetrics.spacingM) {
+                    actionButtons
+                    Spacer(minLength: SiftMetrics.spacingM)
+                    doneButton
+                }
+                VStack(alignment: .trailing, spacing: SiftMetrics.spacingM) {
+                    HStack(spacing: SiftMetrics.spacingM) {
+                        actionButtons
+                    }
+                    doneButton
+                }
+            }
+            Text(LocalizationKey.reportPrivacyNote.localized)
+                .font(SiftFont.caption)
+                .foregroundStyle(SiftColor.subtleText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// The secondary actions, each at its natural width.
+    @ViewBuilder
+    private var actionButtons: some View {
+        Group {
             HStack(spacing: SiftMetrics.spacingM) {
                 if let onUndo {
                     SiftSecondaryButton(
@@ -475,17 +504,15 @@ public struct CleanupResultView: View {
                     }
                 }
 
-                Spacer()
-
-                SiftPrimaryButton(title: LocalizationKey.commonDone.localized) {
-                    onAcknowledge()
-                }
-                .keyboardShortcut(.defaultAction)
             }
-            Text(LocalizationKey.reportPrivacyNote.localized)
-                .font(SiftFont.caption)
-                .foregroundStyle(SiftColor.subtleText)
-                .fixedSize(horizontal: false, vertical: true)
         }
+        .fixedSize(horizontal: true, vertical: false)
+    }
+
+    private var doneButton: some View {
+        SiftPrimaryButton(title: LocalizationKey.commonDone.localized) {
+            onAcknowledge()
+        }
+        .keyboardShortcut(.defaultAction)
     }
 }

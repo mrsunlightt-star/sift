@@ -41,6 +41,15 @@ public final class ScanModel: ObservableObject {
     @Published public private(set) var report: ScanReport?
     @Published public private(set) var duplicateGroups: [DuplicateGroup] = []
     @Published public private(set) var failure: (code: ErrorCode, message: String)?
+
+    /// Paths a cleanup has already moved out of this result.
+    ///
+    /// The page used to show them again the moment the user came back from the
+    /// result sheet: the rows live in the core's index, which a move does not
+    /// touch, so the scan page kept offering items that were already in the
+    /// Trash. This is what the page subtracts, and it is per-run because `reset`
+    /// and a new scan both start from a tree that has changed.
+    @Published public private(set) var cleanedPaths: Set<String> = []
     /// When this run began, for the elapsed clock on the running page. Cleared
     /// with the rest of the run's state.
     @Published public private(set) var runStartedAt: Date?
@@ -276,6 +285,71 @@ public final class ScanModel: ObservableObject {
     static let cancelSettleTimeout: TimeInterval = 2.5
 
     /// Clears the previous run so a new scan starts from a clean slate.
+    /// Removes what a cleanup moved from the result the page is showing.
+    ///
+    /// Called once, when the operation reports its per-item results: a row that
+    /// was moved to the Trash is not a row any more, and a total that still
+    /// counts it is a total the user cannot reconcile with the space they got
+    /// back. Items the batch refused or skipped stay, because they are still
+    /// there.
+    public func applyCleanup(_ results: [FileOperationResult]) {
+        let moved = results.filter { $0.status == .movedToTrash }
+        guard !moved.isEmpty else { return }
+
+        var removed: [CleanupCategory: (count: Int, bytes: Int64)] = [:]
+        for result in moved {
+            cleanedPaths.insert(Self.cleanedKey(result.sourceURL))
+            guard let category = result.category else { continue }
+            var entry = removed[category] ?? (count: 0, bytes: 0)
+            entry.count += 1
+            entry.bytes += result.sizeInBytes
+            removed[category] = entry
+        }
+
+        recentItems.removeAll { cleanedPaths.contains(Self.cleanedKey($0.url)) }
+
+        categoryTotals = categoryTotals.compactMap { total in
+            guard let entry = removed[total.category] else { return total }
+            let count = total.itemCount - entry.count
+            guard count > 0 else { return nil }
+            return CategoryTotal(
+                category: total.category,
+                itemCount: count,
+                totalBytes: max(0, total.totalBytes - entry.bytes)
+            )
+        }
+
+        if let report {
+            let movedBytes = moved.reduce(Int64(0)) { $0 + $1.sizeInBytes }
+            self.report = ScanReport(
+                id: report.id,
+                sessionID: report.sessionID,
+                startedAt: report.startedAt,
+                finishedAt: report.finishedAt,
+                phase: report.phase,
+                scannedFileCount: report.scannedFileCount,
+                scannedByteCount: report.scannedByteCount,
+                scannedLocationCount: report.scannedLocationCount,
+                itemCount: max(0, report.itemCount - moved.count),
+                itemBytes: max(0, report.itemBytes - movedBytes),
+                categoryTotals: categoryTotals,
+                duplicateGroupCount: report.duplicateGroupCount,
+                duplicateReclaimableBytes: report.duplicateReclaimableBytes,
+                skippedLocations: report.skippedLocations
+            )
+        }
+
+        // The risk totals were loaded from the rows that just left; they are
+        // recomputed on the next read rather than left describing a batch that
+        // has already moved.
+        riskTotalsComplete = false
+    }
+
+    /// One spelling per path, so a row and a result agree about what moved.
+    static func cleanedKey(_ url: URL) -> String {
+        url.standardizedFileURL.path
+    }
+
     public func reset() {
         phase = .idle
         progress = ScanProgress()
@@ -298,6 +372,9 @@ public final class ScanModel: ObservableObject {
         riskTotalsComplete = false
         resultLoadFailure = nil
         terminalReceived = false
+        // A new run sees the tree as it is now, so what an earlier cleanup moved
+        // must not be subtracted from it a second time.
+        cleanedPaths = []
     }
 
     // MARK: - Paging
@@ -313,11 +390,23 @@ public final class ScanModel: ObservableObject {
             return ScanPage(items: [], remaining: 0)
         }
         do {
-            return try await session.page(
+            let page = try await session.page(
                 offset: offset,
                 limit: limit,
                 sort: sort,
                 category: category
+            )
+            // The index still holds a row a cleanup moved; dropping it here is
+            // what keeps the list honest without asking the core to rewrite
+            // itself mid-run. `offset` still counts index rows, so paging stays
+            // aligned, and `remaining` is reduced by what was dropped so the
+            // footer does not promise rows this page cannot show.
+            guard !cleanedPaths.isEmpty else { return page }
+            let kept = page.items.filter { !cleanedPaths.contains(Self.cleanedKey($0.url)) }
+            guard kept.count != page.items.count else { return page }
+            return ScanPage(
+                items: kept,
+                remaining: max(0, page.remaining - (page.items.count - kept.count))
             )
         } catch {
             // An index that cannot be read is not an empty result. Keep the

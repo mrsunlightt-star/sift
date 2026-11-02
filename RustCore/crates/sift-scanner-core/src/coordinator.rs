@@ -11,6 +11,7 @@
 //! What the coordinator deliberately does *not* do: it never deletes, moves or
 //! trashes anything, and it holds no purchase or entitlement state.
 
+use crate::scanners::ProgressReporter;
 use crate::scanners::{self, Candidate, ProgressSink, ScanContext};
 use crate::types::{
     CategoryTotal, EngineError, Event, EventBatch, PhaseName, ScanItemSummary, ScanProgress,
@@ -628,6 +629,27 @@ fn run_scan(handle: &Arc<ScanHandle>, request: &ScanRequest) {
             state.files_seen.fetch_add(files as i64, Ordering::Relaxed);
             state.bytes_seen.fetch_add(bytes as i64, Ordering::Relaxed);
         };
+        // The same two counters behind an `Arc`, for the walks that report while
+        // they run: they cannot borrow `on_files`, and borrowing the context
+        // instead would make every argument of the call read what the closure
+        // holds.
+        // Publishes as it counts, not only between strategies. `scan_rules` walks
+        // the whole tree in one call, so a publish that waits for it to return is
+        // one event sixteen seconds after the phase changed and none before —
+        // which is what the page showed as "0 files" followed by a number nobody
+        // could believe. `Weak` because the handle owns this closure through the
+        // context it builds.
+        let reporter = {
+            let state = Arc::clone(&handle.state);
+            let handle = Arc::downgrade(handle);
+            ProgressReporter::new(move |files: u64, bytes: u64| {
+                state.files_seen.fetch_add(files as i64, Ordering::Relaxed);
+                state.bytes_seen.fetch_add(bytes as i64, Ordering::Relaxed);
+                if let Some(handle) = handle.upgrade() {
+                    publish_if_due(&handle);
+                }
+            })
+        };
         let state_path = Arc::clone(&handle.state);
         let mut on_path = |path: &Path| {
             state_path.set_current_path(path);
@@ -640,6 +662,7 @@ fn run_scan(handle: &Arc<ScanHandle>, request: &ScanRequest) {
             progress: ProgressSink {
                 on_files: &mut on_files,
                 on_current_path: &mut on_path,
+                reporter: Some(reporter),
             },
         };
 

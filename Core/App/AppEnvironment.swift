@@ -893,6 +893,10 @@ public final class AppEnvironment: ObservableObject {
         }
         guard let outcome = await cleanup.executePrepared(operation: operation, scanReport: scanReport)
         else { return .nothingToDo }
+        // What moved is no longer a result. Without this the scan page kept
+        // offering the rows the user had just cleared, because the core's index
+        // is not rewritten by a move and the page reads its rows from there.
+        scan.applyCleanup(outcome.results)
         RecentHistory.recordCleanup(outcome)
         if !preferences.hasCompletedCleanup {
             await updateSettings { $0.hasCompletedCleanup = true }

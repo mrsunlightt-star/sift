@@ -21,7 +21,7 @@ use sift_rules::{
 pub use sift_rules::is_package_directory as is_package_directory_export;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::dir_lister::DirLister;
 
@@ -274,6 +274,66 @@ pub fn walk(root: &Path, options: &WalkOptions, cancel: &CancelToken) -> WalkRep
     report.entries = entries;
     report
 }
+
+/// Walks `root` and reports the files it passes while it is still walking.
+///
+/// The plain [`walk`] answers once, at the end: on this Mac the first progress
+/// event of a home scan arrived 16 seconds in and carried 55,608 files, so the
+/// page showed "0 files" for the whole first stretch and then a number nobody
+/// could believe. The count was never wrong — it was reported once. Here the
+/// totals are handed to `on_progress` at most every [`PROGRESS_STEP`], as
+/// `(files, bytes)` sighted since the previous call, and the report is the one
+/// [`walk`] returns.
+///
+/// The interval is measured on the clock rather than counted in entries: a tree
+/// of small files and a tree of large ones take the same fraction of a second to
+/// produce a visible number, and a walk that is fast enough to finish inside one
+/// interval reports once at the end, which is what it did before.
+pub fn walk_reporting(
+    root: &Path,
+    options: &WalkOptions,
+    cancel: &CancelToken,
+    on_progress: &mut dyn FnMut(u64, u64),
+) -> WalkReport {
+    walk_reporting_every(root, options, cancel, PROGRESS_STEP, on_progress)
+}
+
+/// [`walk_reporting`] with the interval given, for a caller that needs another
+/// one — or a test that needs a tick per entry on a fixture that walks in
+/// microseconds.
+pub fn walk_reporting_every(
+    root: &Path,
+    options: &WalkOptions,
+    cancel: &CancelToken,
+    step: Duration,
+    on_progress: &mut dyn FnMut(u64, u64),
+) -> WalkReport {
+    let mut entries: Vec<WalkEntry> = Vec::new();
+    let mut files: u64 = 0;
+    let mut bytes: u64 = 0;
+    let mut last = Instant::now();
+    let mut report = walk_with(root, options, cancel, &mut |entry| {
+        if !entry.is_directory {
+            files += 1;
+            bytes += entry.size_bytes.unwrap_or(0);
+        }
+        if last.elapsed() >= step {
+            on_progress(files, bytes);
+            files = 0;
+            bytes = 0;
+            last = Instant::now();
+        }
+        entries.push(entry);
+    });
+    if files > 0 || bytes > 0 {
+        on_progress(files, bytes);
+    }
+    report.entries = entries;
+    report
+}
+
+/// How often [`walk_reporting`] hands its totals to the caller.
+pub const PROGRESS_STEP: Duration = Duration::from_millis(100);
 
 /// Walks `root` and hands every entry to `on_entry` instead of collecting them.
 ///
@@ -1374,5 +1434,42 @@ mod tests {
             Some(report.total_bytes),
             "the entry and the total are the same figure"
         );
+    }
+
+    #[test]
+    fn a_reporting_walk_ticks_before_it_finishes_and_totals_the_same() {
+        // The page showed "0 files" for sixteen seconds because the walk
+        // answered once, at the end. With a zero interval every entry ticks, so
+        // the two halves of the promise can be checked on a fixture that walks
+        // in microseconds: the caller hears about the tree while it is being
+        // walked, and the totals are still the ones the silent walk produces.
+        let tree = TempTree::new("walk-reporting");
+        for i in 0..6 {
+            tree.file(&format!("f{i}.bin"), 4096);
+        }
+        let options = self::options(&tree.root);
+        let cancel = CancelToken::new();
+
+        let plain = walk(&tree.root, &options, &cancel);
+        let mut ticks: Vec<(u64, u64)> = Vec::new();
+        let reporting = walk_reporting_every(
+            &tree.root,
+            &options,
+            &cancel,
+            Duration::ZERO,
+            &mut |f, b| {
+                ticks.push((f, b));
+            },
+        );
+
+        assert_eq!(reporting.total_files, plain.total_files);
+        assert_eq!(reporting.total_bytes, plain.total_bytes);
+        assert_eq!(reporting.entries.len(), plain.entries.len());
+        assert!(
+            ticks.len() > 1,
+            "a reporting walk must tick more than once for the page to move"
+        );
+        let sum: u64 = ticks.iter().map(|(f, _)| f).sum();
+        assert_eq!(sum, reporting.total_files, "the ticks add up to the total");
     }
 }
