@@ -178,6 +178,7 @@
 "files.duplicateGroups" = "%d مجموعات مكررة، %@ قابل للاستعادة";
 "files.duplicateGroupsShown" = "عرض %d من %d مجموعات";
 "files.groupMembers" = "%d نسخًا";
+"files.keepHint" = "يحتفظ Sift في البداية بأقدم نسخة. اختر «الاحتفاظ بهذا» على نسخة أخرى للاحتفاظ بها بدلًا منها؛ النسخ التي لا تحتفظ بها تبقى محددة للحذف.";
 "files.keepThis" = "الاحتفاظ بهذا";
 "files.manageScope" = "إدارة في الإعدادات";
 "files.mode.duplicates" = "مكررات";

@@ -178,6 +178,7 @@
 "files.duplicateGroups" = "%d kumpulan pendua, %@ boleh dituntut semula";
 "files.duplicateGroupsShown" = "Memaparkan %d daripada %d kumpulan";
 "files.groupMembers" = "%d salinan";
+"files.keepHint" = "Pada mulanya Sift menyimpan salinan tertua. Pilih «Simpan yang ini» pada salinan lain untuk menyimpannya; salinan yang tidak anda simpan kekal dipilih untuk dipadam.";
 "files.keepThis" = "Simpan yang ini";
 "files.manageScope" = "Urus dalam Tetapan";
 "files.mode.duplicates" = "Pendua";

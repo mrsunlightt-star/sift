@@ -178,6 +178,7 @@
 "files.duplicateGroups" = "%d Duplikatgruppen, %@ freigebbar";
 "files.duplicateGroupsShown" = "%d von %d Gruppen angezeigt";
 "files.groupMembers" = "%d Kopien";
+"files.keepHint" = "Sift behält zunächst die älteste Kopie. Wählen Sie bei einer anderen Kopie „Diese behalten“, um sie zu behalten; alle Kopien, die Sie nicht behalten, bleiben zum Entfernen ausgewählt.";
 "files.keepThis" = "Diese behalten";
 "files.manageScope" = "In den Einstellungen verwalten";
 "files.mode.duplicates" = "Duplikate";

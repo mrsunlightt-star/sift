@@ -178,6 +178,7 @@
 "files.duplicateGroups" = "重複グループ %d 件、%@ を解放可能";
 "files.duplicateGroupsShown" = "%d / %d グループを表示";
 "files.groupMembers" = "%d 個のコピー";
+"files.keepHint" = "Sift は最初に最も古いコピーを残します。別のコピーで「これを残す」を選ぶと、そちらを残せます。残さなかったコピーは削除対象として選択されたままです。";
 "files.keepThis" = "これを残す";
 "files.manageScope" = "設定で管理";
 "files.mode.duplicates" = "重複ファイル";

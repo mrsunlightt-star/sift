@@ -178,6 +178,7 @@
 "files.duplicateGroups" = "중복 그룹 %d개, %@ 확보 가능";
 "files.duplicateGroupsShown" = "%d / %d 그룹 표시";
 "files.groupMembers" = "%d개 사본";
+"files.keepHint" = "Sift는 기본적으로 가장 오래된 복사본을 남깁니다. 다른 복사본에서 “이 항목 유지”를 선택하면 그 복사본을 남깁니다. 남기지 않은 복사본은 삭제 대상으로 선택된 상태로 유지됩니다.";
 "files.keepThis" = "이 항목 유지";
 "files.manageScope" = "설정에서 관리";
 "files.mode.duplicates" = "중복 파일";

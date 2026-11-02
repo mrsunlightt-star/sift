@@ -37171,6 +37171,216 @@
         }
       }
     },
+    "files.keepHint": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sift starts by keeping the oldest copy. Use “Keep this one” on any other copy to keep that one instead; the copies you do not keep stay selected for removal."
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sift 默认保留最早的那一份。在任意其他副本上点选“保留此项”，即可改为保留它；你没有保留的副本会保持选中，等待删除。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sift는 기본적으로 가장 오래된 복사본을 남깁니다. 다른 복사본에서 “이 항목 유지”를 선택하면 그 복사본을 남깁니다. 남기지 않은 복사본은 삭제 대상으로 선택된 상태로 유지됩니다."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "По умолчанию Sift оставляет самую старую копию. Выберите «Оставить этот» у другой копии, чтобы оставить её; копии, которые вы не оставили, остаются отмеченными для удаления."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sift conserva al principio la copia más antigua. Elige «Conservar este» en otra copia para conservar esa; las copias que no conserves siguen marcadas para eliminarse."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sift は最初に最も古いコピーを残します。別のコピーで「これを残す」を選ぶと、そちらを残せます。残さなかったコピーは削除対象として選択されたままです。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sift conserve d’abord la copie la plus ancienne. Choisissez « Conserver celui-ci » sur une autre copie pour la conserver ; les copies que vous ne conservez pas restent sélectionnées pour la suppression."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sift behält zunächst die älteste Kopie. Wählen Sie bei einer anderen Kopie „Diese behalten“, um sie zu behalten; alle Kopien, die Sie nicht behalten, bleiben zum Entfernen ausgewählt."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All’inizio Sift conserva la copia più vecchia. Scegli «Conserva questo» su un’altra copia per conservare quella; le copie che non conservi restano selezionate per la rimozione."
+          }
+        },
+        "pt-br": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No início o Sift mantém a cópia mais antiga. Escolha «Manter este» em outra cópia para manter essa; as cópias que você não mantiver continuam selecionadas para remoção."
+          }
+        },
+        "zh-hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sift 預設保留最舊的那一份。在任一其他副本上點選「保留此項」，即可改為保留它；你沒有保留的副本會保持選取，等待刪除。"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sift başlangıçta en eski kopyayı tutar. Başka bir kopyada «Bunu tut» seçeneğini seçerek onu tutabilirsiniz; tutmadığınız kopyalar silinmek üzere seçili kalır."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Na początku Sift zachowuje najstarszą kopię. Wybierz „Zachowaj ten” przy innej kopii, aby zachować ją; kopie, których nie zachowasz, pozostają zaznaczone do usunięcia."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sift bewaart eerst de oudste kopie. Kies ‘Deze bewaren’ bij een andere kopie om die te bewaren; kopieën die je niet bewaart, blijven geselecteerd om te verwijderen."
+          }
+        },
+        "lo": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ຕອນເລີ່ມຕົ້ນ Sift ຈະເກັບສຳເນົາທີ່ເກົ່າທີ່ສຸດໄວ້. ເລືອກ „ເກັບອັນນີ້ໄວ້“ ຢູ່ສຳເນົາອື່ນ ເພື່ອເກັບອັນນັ້ນແທນ; ສຳເນົາທີ່ທ່ານບໍ່ໄດ້ເກັບໄວ້ ຈະຖືກເລືອກໄວ້ເພື່ອລຶບ."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يحتفظ Sift في البداية بأقدم نسخة. اختر «الاحتفاظ بهذا» على نسخة أخرى للاحتفاظ بها بدلًا منها؛ النسخ التي لا تحتفظ بها تبقى محددة للحذف."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "בהתחלה Sift שומר את העותק הישן ביותר. בחרו „לשמור על זה” בעותק אחר כדי לשמור אותו במקומו; עותקים שלא תשמרו יישארו מסומנים למחיקה."
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sift در ابتدا قدیمیترین نسخه را نگه میدارد. با انتخاب «این را نگه دار» روی نسخهای دیگر، همان را نگه میدارید؛ نسخههایی که نگه نمیدارید برای حذف انتخابشده میمانند."
+          }
+        },
+        "bg": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Първоначално Sift запазва най-старото копие. Изберете „Запазете това“ на друго копие, за да запазите него; копията, които не запазите, остават избрани за изтриване."
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sift nejprve zachová nejstarší kopii. Zvolte „Ponechat tuto“ u jiné kopie, chcete-li zachovat ji; kopie, které nezachováte, zůstanou označené k odstranění."
+          }
+        },
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sift beholder først den ældste kopi. Vælg »Behold denne« på en anden kopi for at beholde den i stedet; kopier, du ikke beholder, forbliver valgt til sletning."
+          }
+        },
+        "el": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Αρχικά το Sift διατηρεί το παλαιότερο αντίγραφο. Επιλέξτε «Διατήρηση αυτού» σε άλλο αντίγραφο για να διατηρήσετε εκείνο· τα αντίγραφα που δεν διατηρείτε παραμένουν επιλεγμένα για διαγραφή."
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Al principio Sift conserva la copia más antigua. Elige «Conservar esta» en otra copia para conservar esa; las copias que no conserves siguen seleccionadas para eliminarse."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aluksi Sift säilyttää vanhimman kopion. Valitse toisesta kopiosta ”Säilytä tämä”, jos haluat säilyttää sen; kopiot, joita et säilytä, pysyvät poistettaviksi valittuina."
+          }
+        },
+        "hu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A Sift először a legrégebbi példányt tartja meg. Válasszon egy másik példánynál „Ezt tartsa meg” lehetőséget, hogy azt tartsa meg; a meg nem tartott példányok kijelölve maradnak törlésre."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Awalnya Sift menyimpan salinan tertua. Pilih «Simpan yang ini» pada salinan lain untuk menyimpannya; salinan yang tidak Anda simpan tetap dipilih untuk dihapus."
+          }
+        },
+        "ms": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pada mulanya Sift menyimpan salinan tertua. Pilih «Simpan yang ini» pada salinan lain untuk menyimpannya; salinan yang tidak anda simpan kekal dipilih untuk dipadam."
+          }
+        },
+        "nb": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sift beholder først den eldste kopien. Velg «Behold denne» på en annen kopi for å beholde den i stedet; kopier du ikke beholder, forblir valgt for sletting."
+          }
+        },
+        "pt-pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ao início o Sift mantém a cópia mais antiga. Escolha «Manter esta» noutra cópia para manter essa; as cópias que não mantiver continuam selecionadas para remoção."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La început Sift păstrează cea mai veche copie. Alegeți „Păstrează aceasta” la altă copie pentru a o păstra pe aceea; copiile pe care nu le păstrați rămân selectate pentru ștergere."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Till en början behåller Sift den äldsta kopian. Välj ”Behåll den här” på en annan kopia för att behålla den i stället; kopior du inte behåller förblir valda för borttagning."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ตอนแรก Sift จะเก็บสำเนาที่เก่าที่สุด เลือก «เก็บชุดนี้» ที่สำเนาอื่นเพื่อเก็บชุดนั้นแทน สำเนาที่คุณไม่ได้เก็บไว้จะยังถูกเลือกไว้ให้ลบ"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Спочатку Sift зберігає найстарішу копію. Виберіть «Залишити цю» на іншій копії, щоб зберегти її; копії, які ви не зберегли, залишаються позначеними для видалення."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ban đầu Sift giữ bản sao cũ nhất. Chọn «Giữ bản này» ở bản sao khác để giữ bản đó thay thế; những bản sao bạn không giữ vẫn được chọn để xoá."
+          }
+        }
+      }
+    },
     "files.keepThis": {
       "comment": null,
       "extractionState": "manual",

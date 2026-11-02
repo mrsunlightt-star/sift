@@ -178,6 +178,7 @@
 "files.duplicateGroups" = "%d گروه تکراری، %@ قابل آزادسازی";
 "files.duplicateGroupsShown" = "نمایش %d از %d گروه";
 "files.groupMembers" = "%d نسخه";
+"files.keepHint" = "Sift در ابتدا قدیمیترین نسخه را نگه میدارد. با انتخاب «این را نگه دار» روی نسخهای دیگر، همان را نگه میدارید؛ نسخههایی که نگه نمیدارید برای حذف انتخابشده میمانند.";
 "files.keepThis" = "این را نگه دار";
 "files.manageScope" = "مدیریت در تنظیمات";
 "files.mode.duplicates" = "تکراری‌ها";

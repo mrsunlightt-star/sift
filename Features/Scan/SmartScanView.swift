@@ -44,10 +44,6 @@ public struct ScanView: View {
     /// rows behave the way every other list in macOS does.
     @FocusState private var focusedRow: String?
 
-    /// Reduce Motion is honoured by every page-level re-flow, not only by the
-    /// components that draw their own animation.
-    @Environment(\.siftReduceMotion) private var reduceMotion
-
     /// Moves the keyboard cursor by one row, clamped at both ends.
     private func moveCursor(_ direction: MoveCommandDirection, from rowID: String) {
         let rows = orderedRowIDs
@@ -301,18 +297,20 @@ public struct ScanView: View {
                             }
                         } else {
                             resultsCard
-                            // The card is a second, self-contained result set.
-                            // Showing it under "Junk" or "Large" claimed the
-                            // duplicate files were part of that filter.
-                            if !scan.duplicateGroups.isEmpty, filter == .all {
-                                DuplicateGroupsCard(
-                                    groups: scan.duplicateGroups,
-                                    scan: scan,
-                                    cleanup: cleanup
-                                )
-                            }
                         }
                         supplementalMessages
+                        // Duplicates come last in "All". They are a second,
+                        // self-contained result set — and the one result whose
+                        // rows the user has to read before deciding anything —
+                        // so they belong after the junk that is already
+                        // judged, not in front of it.
+                        if !scan.duplicateGroups.isEmpty, filter == .all {
+                            DuplicateGroupsCard(
+                                groups: scan.duplicateGroups,
+                                scan: scan,
+                                cleanup: cleanup
+                            )
+                        }
                     }
                     .padding(.horizontal, SiftMetrics.pagePadding)
                     .padding(.bottom, SiftMetrics.spacingXL)
@@ -771,22 +769,12 @@ public struct ScanView: View {
     /// value this size only trips on "show all", where the page inserts every
     /// row it holds. Animating a page of inserts is the one case where the curve
     /// is not the cost: the layout is.
-    private let animatedInsertRowLimit = 24
-
     private func toggleExpansion(_ risk: CleanupRisk) {
-        // A group opening is a layout re-flow, not a state change: 0.24 s of
-        // smooth motion so the eye can follow where the rows came from. Past a
-        // screenful there is nothing to follow — the list is longer than the
-        // viewport — so the rows land and the scroll position is the feedback.
-        let opening = !isExpanded(risk)
-        let inserted = opening ? visible(groupItems(risk)).count : 0
-        let animation = reduceMotion || inserted > animatedInsertRowLimit
-            ? nil
-            : SiftMotion.expand
-
-        withAnimation(animation) {
-            groupExpansion[risk] = opening
-        }
+        // A disclosure is a fact about what is on screen, not a performance.
+        // The rows were animated for 0.24 s to show where they came from; the
+        // only thing the animation reliably produced was a wait between the
+        // click and the rows. Clicking now inserts them in the same frame.
+        groupExpansion[risk] = !isExpanded(risk)
     }
 
     /// The review group's header: a disclosure, not a decoration.

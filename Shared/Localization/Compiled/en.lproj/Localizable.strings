@@ -178,6 +178,7 @@
 "files.duplicateGroups" = "%d duplicate groups, %@ reclaimable";
 "files.duplicateGroupsShown" = "Showing %d of %d groups";
 "files.groupMembers" = "%d copies";
+"files.keepHint" = "Sift starts by keeping the oldest copy. Use “Keep this one” on any other copy to keep that one instead; the copies you do not keep stay selected for removal.";
 "files.keepThis" = "Keep this one";
 "files.manageScope" = "Manage in Settings";
 "files.mode.duplicates" = "Duplicates";

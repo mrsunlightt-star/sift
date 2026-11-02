@@ -178,6 +178,7 @@
 "files.duplicateGroups" = "%d kopya grubu, %@ kazanılabilir";
 "files.duplicateGroupsShown" = "%d / %d grup gösteriliyor";
 "files.groupMembers" = "%d kopya";
+"files.keepHint" = "Sift başlangıçta en eski kopyayı tutar. Başka bir kopyada «Bunu tut» seçeneğini seçerek onu tutabilirsiniz; tutmadığınız kopyalar silinmek üzere seçili kalır.";
 "files.keepThis" = "Bunu tut";
 "files.manageScope" = "Ayarlar’da yönet";
 "files.mode.duplicates" = "Kopyalar";

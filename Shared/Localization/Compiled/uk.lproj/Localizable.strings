@@ -178,6 +178,7 @@
 "files.duplicateGroups" = "Груп дублікатів: %d, можна звільнити %@";
 "files.duplicateGroupsShown" = "Показано %d із %d груп";
 "files.groupMembers" = "Копій: %d";
+"files.keepHint" = "Спочатку Sift зберігає найстарішу копію. Виберіть «Залишити цю» на іншій копії, щоб зберегти її; копії, які ви не зберегли, залишаються позначеними для видалення.";
 "files.keepThis" = "Залишити цю";
 "files.manageScope" = "Керувати в Налаштуваннях";
 "files.mode.duplicates" = "Дублікати";

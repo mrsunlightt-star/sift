@@ -178,6 +178,7 @@
 "files.duplicateGroups" = "%d กลุ่มไฟล์ซ้ำ กู้คืนได้ %@";
 "files.duplicateGroupsShown" = "แสดง %d จาก %d กลุ่ม";
 "files.groupMembers" = "%d ชุด";
+"files.keepHint" = "ตอนแรก Sift จะเก็บสำเนาที่เก่าที่สุด เลือก «เก็บชุดนี้» ที่สำเนาอื่นเพื่อเก็บชุดนั้นแทน สำเนาที่คุณไม่ได้เก็บไว้จะยังถูกเลือกไว้ให้ลบ";
 "files.keepThis" = "เก็บชุดนี้";
 "files.manageScope" = "จัดการในการตั้งค่า";
 "files.mode.duplicates" = "ไฟล์ซ้ำ";

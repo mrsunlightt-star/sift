@@ -178,6 +178,7 @@
 "files.duplicateGroups" = "%d grup duplikatów, %@ do odzyskania";
 "files.duplicateGroupsShown" = "Wyświetlono %d z %d grup";
 "files.groupMembers" = "%d kopii";
+"files.keepHint" = "Na początku Sift zachowuje najstarszą kopię. Wybierz „Zachowaj ten” przy innej kopii, aby zachować ją; kopie, których nie zachowasz, pozostają zaznaczone do usunięcia.";
 "files.keepThis" = "Zachowaj ten";
 "files.manageScope" = "Zarządzaj w ustawieniach";
 "files.mode.duplicates" = "Duplikaty";

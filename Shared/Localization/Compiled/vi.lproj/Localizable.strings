@@ -178,6 +178,7 @@
 "files.duplicateGroups" = "%d nhóm tệp trùng, có thể thu hồi %@";
 "files.duplicateGroupsShown" = "Đang hiển thị %d trong %d nhóm";
 "files.groupMembers" = "%d bản sao";
+"files.keepHint" = "Ban đầu Sift giữ bản sao cũ nhất. Chọn «Giữ bản này» ở bản sao khác để giữ bản đó thay thế; những bản sao bạn không giữ vẫn được chọn để xoá.";
 "files.keepThis" = "Giữ bản này";
 "files.manageScope" = "Quản lý trong Cài đặt";
 "files.mode.duplicates" = "Tệp trùng";

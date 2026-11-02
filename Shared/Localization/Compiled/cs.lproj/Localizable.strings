@@ -178,6 +178,7 @@
 "files.duplicateGroups" = "Skupiny duplikátů: %d, uvolnitelné %@";
 "files.duplicateGroupsShown" = "Zobrazeno %d z %d skupin";
 "files.groupMembers" = "Kopie: %d";
+"files.keepHint" = "Sift nejprve zachová nejstarší kopii. Zvolte „Ponechat tuto“ u jiné kopie, chcete-li zachovat ji; kopie, které nezachováte, zůstanou označené k odstranění.";
 "files.keepThis" = "Ponechat tuto";
 "files.manageScope" = "Spravovat v Nastavení";
 "files.mode.duplicates" = "Duplikáty";

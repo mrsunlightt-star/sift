@@ -1,20 +1,27 @@
+import AppKit
 import Shared
 import SwiftUI
 
 /// Duplicate groups, largest reclaimable first.
 ///
-/// Each group shows its keeper and the copies that would be removed, and the
-/// removal set is per group: §5.5 forbids a single "delete duplicates" action
-/// that hides which copy survives.
+/// Each group shows the copy it keeps and the copies that would be removed, and
+/// the removal set is per group: §5.5 forbids a single "delete duplicates"
+/// action that hides which copy survives.
+///
+/// Which copy survives is the user's decision. The scanner proposes one — the
+/// oldest — but a proposal is all it is, and a page that rendered it as a fixed
+/// green tick left the user with no way to say "keep the one in my project
+/// folder instead". The card now records the choice per group and starts from
+/// the proposal, so the first render still states which copy is kept.
 public struct DuplicateGroupsCard: View {
     let groups: [DuplicateGroup]
     @ObservedObject var scan: ScanModel
     @ObservedObject var cleanup: CleanupModel
     @State private var expanded: Set<Int64> = []
     @State private var loadedMembers: [Int64: [DuplicateMember]] = [:]
-    @State private var loadingMembers: Set<Int64> = []
-
-    @Environment(\.siftReduceMotion) private var reduceMotion
+    /// Which copy each group keeps. The scanner's proposal until the user makes
+    /// one; `DuplicateKeeperSelection` holds the rule.
+    @State private var keepers = DuplicateKeeperSelection()
 
     public init(groups: [DuplicateGroup], scan: ScanModel, cleanup: CleanupModel) {
         self.groups = groups
@@ -49,21 +56,30 @@ public struct DuplicateGroupsCard: View {
                     .buttonStyle(SiftLinkButtonStyle())
                 }
 
+                // Said once, above the list: the green copy is a starting point,
+                // not a verdict, and the control that changes it is a word in a
+                // row the user has not opened yet.
+                Text(LocalizationKey.filesKeepHint.localized)
+                    .font(SiftFont.caption)
+                    .foregroundStyle(SiftColor.subtleText)
+                    .fixedSize(horizontal: false, vertical: true)
+
                 Divider()
 
                 // Lazy: a duplicate result is hundreds of groups, and an eager
                 // VStack laid every one of them out on each frame of an
-                // expansion animation. That re-layout — not the curve — is what
-                // made opening a group feel slow.
+                // expansion. That re-layout — not the curve — is what made
+                // opening a group feel slow.
                 LazyVStack(alignment: .leading, spacing: 0) {
                     ForEach(groups) { group in
                         DuplicateGroupRow(
                             group: group,
-                            members: loadedMembers[group.id] ?? group.members,
+                            members: members(of: group),
+                            keeper: keeper(of: group),
                             isExpanded: expanded.contains(group.id),
-                            isLoading: loadingMembers.contains(group.id),
                             cleanup: cleanup,
-                            onToggle: { toggle(group) }
+                            onToggle: { toggle(group) },
+                            onKeep: { member in keep(member, in: group) }
                         )
                         if group.id != groups.last?.id { Divider() }
                     }
@@ -99,61 +115,88 @@ public struct DuplicateGroupsCard: View {
         }
     }
 
-    /// Opens or closes one group.
+    /// Opens or closes one group, in the frame the click happened in.
     ///
-    /// A group's copies are read *before* it opens, so the height animates once
-    /// over content that is already there. The previous order animated an empty
-    /// container and filled it in afterwards, which reads as a slow row that
-    /// eventually produces something.
+    /// A disclosure is a fact about what is on screen, not a performance: the
+    /// rows were previously animated for 0.24 s, and the only thing that
+    /// animation reliably produced was a wait between the click and the rows.
+    /// The group's copies still load in the background — but they no longer
+    /// gate the expansion, so the row opens onto the members the page already
+    /// holds and the full list replaces them when it arrives.
     private func toggle(_ group: DuplicateGroup) {
         if expanded.contains(group.id) {
-            withAnimation(reduceMotion ? nil : SiftMotion.expand) { _ = expanded.remove(group.id) }
+            expanded.remove(group.id)
             return
         }
-        Task { await open(group) }
-    }
-
-    private func open(_ group: DuplicateGroup) async {
-        if loadedMembers[group.id] == nil, !loadingMembers.contains(group.id) {
-            loadingMembers.insert(group.id)
+        expanded.insert(group.id)
+        guard loadedMembers[group.id] == nil else { return }
+        Task {
             let members = await scan.duplicateMembers(for: group)
+            guard !members.isEmpty else { return }
             loadedMembers[group.id] = members
-            loadingMembers.remove(group.id)
         }
-        withAnimation(reduceMotion ? nil : SiftMotion.expand) { _ = expanded.insert(group.id) }
     }
 
-    /// Selects every copy the scanner recommends removing, never the keepers.
+    private func members(of group: DuplicateGroup) -> [DuplicateMember] {
+        loadedMembers[group.id] ?? group.members
+    }
+
+    /// The copy this group keeps: the user's choice, or the scanner's proposal
+    /// until the user makes one.
+    private func keeper(of group: DuplicateGroup) -> URL? {
+        keepers.keeper(of: group)
+    }
+
+    /// Makes `member` the copy this group keeps.
+    ///
+    /// Only the two rows whose meaning changed are touched: the copy the user
+    /// just kept leaves the removal set and the copy it replaced joins it.
+    /// Rebuilding the whole group's selection would discard the individual
+    /// choices the user had already made in it.
+    private func keep(_ member: DuplicateMember, in group: DuplicateGroup) {
+        guard let change = keepers.choose(member.url, in: group) else { return }
+        cleanup.setSelected(false, for: item(for: member))
+        if let released = change.released,
+           let previous = members(of: group).first(where: { $0.url == released }) {
+            cleanup.setSelected(true, for: item(for: previous))
+        }
+    }
+
+    /// Selects every copy except the one each group keeps.
     private func selectAllRemovable() {
         for group in groups {
-            let members = loadedMembers[group.id] ?? group.members
-            for member in members where !member.isRecommendedToKeep {
-                let item = CleanupItem(
-                    url: member.url,
-                    displayName: member.displayName,
-                    category: .duplicateFiles,
-                    risk: .review,
-                    sizeInBytes: member.sizeInBytes,
-                    fileCount: 1,
-                    explanationKey: "cleanup.explanation.duplicates",
-                    sourceRuleID: "duplicate-files",
-                    modifiedAt: member.modifiedAt
-                )
-                cleanup.setSelected(true, for: item)
-                cleanup.appendItems([item])
+            let keeperURL = keeper(of: group)
+            for member in members(of: group) where member.url != keeperURL {
+                cleanup.setSelected(true, for: item(for: member))
             }
         }
     }
+
+    /// The cleanup item a member maps to, so selection survives re-renders.
+    private func item(for member: DuplicateMember) -> CleanupItem {
+        CleanupItem(
+            url: member.url,
+            displayName: member.displayName,
+            category: .duplicateFiles,
+            risk: .review,
+            sizeInBytes: member.sizeInBytes,
+            fileCount: 1,
+            explanationKey: "cleanup.explanation.duplicates",
+            sourceRuleID: "duplicate-files",
+            modifiedAt: member.modifiedAt
+        )
+    }
 }
 
-/// One duplicate group: the keeper, then the removable copies.
+/// One duplicate group: the copy it keeps, then the copies that would go.
 struct DuplicateGroupRow: View {
     let group: DuplicateGroup
     let members: [DuplicateMember]
+    let keeper: URL?
     let isExpanded: Bool
-    var isLoading: Bool = false
     @ObservedObject var cleanup: CleanupModel
     let onToggle: () -> Void
+    let onKeep: (DuplicateMember) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
@@ -191,70 +234,120 @@ struct DuplicateGroupRow: View {
             .accessibilityLabel(Text(representativeName))
             .accessibilityValue(Text(group.formattedReclaimable))
 
-            if isLoading && !isExpanded {
-                Text(LocalizationKey.commonLoading.localized)
-                    .font(SiftFont.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.leading, SiftMetrics.spacingL + 10)
-            }
-
             if isExpanded {
                 LazyVStack(alignment: .leading, spacing: SiftMetrics.spacingXS) {
                     ForEach(members) { member in
-                        HStack(spacing: SiftMetrics.spacingM) {
-                            if member.isRecommendedToKeep {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(SiftColor.safe)
-                                    .accessibilityLabel(Text(LocalizationKey.filesKeepThis.localized))
-                            } else {
-                                Toggle(
-                                    isOn: Binding(
-                                        get: { cleanup.isSelected(item(for: member)) },
-                                        set: { cleanup.setSelected($0, for: item(for: member)) }
-                                    )
-                                ) {
-                                    EmptyView()
-                                }
-                                .labelsHidden()
-                                .toggleStyle(.checkbox)
-                                .accessibilityLabel(Text(member.displayName))
-                            }
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(member.displayName)
-                                    .font(SiftFont.body)
-                                    .lineLimit(1)
-                                    .truncationMode(.middle)
-                                Text(member.displayPath)
-                                    .font(SiftFont.caption)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                                    .truncationMode(.middle)
-                            }
-                            // A copy that is not the keeper is a checkbox; its
-                            // name is the thing the user reads, so clicking the
-                            // name has to do what clicking the box does.
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                guard !member.isRecommendedToKeep else { return }
-                                let item = item(for: member)
-                                cleanup.setSelected(!cleanup.isSelected(item), for: item)
-                            }
-                            Spacer(minLength: SiftMetrics.spacingS)
-                            if member.isRecommendedToKeep {
-                                Text(LocalizationKey.filesKeepThis.localized)
-                                    .font(SiftFont.caption)
-                                    .foregroundStyle(SiftColor.safe)
-                            } else {
-                                Text(member.formattedSize)
-                                    .font(SiftFont.monospacedNumber)
-                            }
-                        }
-                        .padding(.leading, SiftMetrics.spacingL)
+                        memberRow(member)
                     }
                 }
             }
         }
         .padding(.vertical, SiftMetrics.spacingXS)
+    }
+
+    @ViewBuilder
+    private func memberRow(_ member: DuplicateMember) -> some View {
+        let isKeeper = keeper == member.url
+        HStack(spacing: SiftMetrics.spacingM) {
+            if isKeeper {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(SiftColor.safe)
+                    .accessibilityLabel(Text(LocalizationKey.filesKeepThis.localized))
+            } else {
+                Toggle(
+                    isOn: Binding(
+                        get: { cleanup.isSelected(item(for: member)) },
+                        set: { cleanup.setSelected($0, for: item(for: member)) }
+                    )
+                ) {
+                    EmptyView()
+                }
+                .labelsHidden()
+                .toggleStyle(.checkbox)
+                .accessibilityLabel(Text(member.displayName))
+            }
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(member.displayName)
+                    .font(SiftFont.body)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Text(member.displayPath)
+                    .font(SiftFont.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            // A copy that is not the keeper is a checkbox; its name is the thing
+            // the user reads, so clicking the name has to do what clicking the
+            // box does.
+            .contentShape(Rectangle())
+            .onTapGesture {
+                guard !isKeeper else { return }
+                let item = item(for: member)
+                cleanup.setSelected(!cleanup.isSelected(item), for: item)
+            }
+
+            Spacer(minLength: SiftMetrics.spacingS)
+
+            // The same entry point every other row on this page has: the path is
+            // the only thing that tells two copies of one file apart, so a
+            // duplicate the page cannot judge has to be reachable in the Finder.
+            Button {
+                NSWorkspace.shared.activateFileViewerSelecting([member.url])
+            } label: {
+                Image(systemName: "folder")
+                    .font(.system(size: 10, weight: .semibold))
+            }
+            .buttonStyle(SiftLinkButtonStyle())
+            .help(LocalizationKey.filesRevealInFinder.localized)
+            .accessibilityLabel(Text(LocalizationKey.filesRevealInFinder.localized))
+
+            Text(member.formattedSize)
+                .font(SiftFont.monospacedNumber)
+                .foregroundStyle(.secondary)
+
+            // Keeping this copy is a choice, not a label: the green text on the
+            // kept row is the current state, and the same words on any other row
+            // are the control that moves it there.
+            if isKeeper {
+                Text(LocalizationKey.filesKeepThis.localized)
+                    .font(SiftFont.caption)
+                    .foregroundStyle(SiftColor.safe)
+            } else {
+                Button {
+                    onKeep(member)
+                } label: {
+                    Text(LocalizationKey.filesKeepThis.localized)
+                        .font(SiftFont.caption)
+                }
+                .buttonStyle(SiftLinkButtonStyle())
+                .help(member.displayPath)
+                .accessibilityLabel(Text(LocalizationKey.filesKeepThis.localized))
+            }
+        }
+        .padding(.leading, SiftMetrics.spacingL)
+        .contentShape(Rectangle())
+        .contextMenu {
+            Button {
+                NSWorkspace.shared.activateFileViewerSelecting([member.url])
+            } label: {
+                Label(
+                    LocalizationKey.filesRevealInFinder.localized,
+                    systemImage: "folder"
+                )
+            }
+            if !isKeeper {
+                Button {
+                    onKeep(member)
+                } label: {
+                    Label(
+                        LocalizationKey.filesKeepThis.localized,
+                        systemImage: "checkmark.circle"
+                    )
+                }
+            }
+        }
     }
 
     private var representativeName: String {

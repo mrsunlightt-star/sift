@@ -185,6 +185,7 @@ public enum LocalizationKey: String, Sendable, CaseIterable {
     case filesDuplicateGroups = "files.duplicateGroups"
     case filesDuplicateGroupsShown = "files.duplicateGroupsShown"
     case filesGroupMembers = "files.groupMembers"
+    case filesKeepHint = "files.keepHint"
     case filesKeepThis = "files.keepThis"
     case filesManageScope = "files.manageScope"
     case filesModeDuplicates = "files.mode.duplicates"

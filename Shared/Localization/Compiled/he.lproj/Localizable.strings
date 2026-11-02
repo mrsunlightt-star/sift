@@ -178,6 +178,7 @@
 "files.duplicateGroups" = "%d קבוצות כפילויות, %@ לפינוי";
 "files.duplicateGroupsShown" = "מוצגות %d מתוך %d קבוצות";
 "files.groupMembers" = "%d עותקים";
+"files.keepHint" = "בהתחלה Sift שומר את העותק הישן ביותר. בחרו „לשמור על זה” בעותק אחר כדי לשמור אותו במקומו; עותקים שלא תשמרו יישארו מסומנים למחיקה.";
 "files.keepThis" = "לשמור על זה";
 "files.manageScope" = "לנהל בהגדרות";
 "files.mode.duplicates" = "כפילויות";

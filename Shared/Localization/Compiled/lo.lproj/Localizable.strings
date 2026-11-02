@@ -178,6 +178,7 @@
 "files.duplicateGroups" = "%d ກຸ່ມໄຟລ໌ຊ້ຳ, ສ້າງພື້ນທີ່ໄດ້ %@";
 "files.duplicateGroupsShown" = "ສະແດງ %d / %d ກຸ່ມ";
 "files.groupMembers" = "%d ສຳເນົາ";
+"files.keepHint" = "ຕອນເລີ່ມຕົ້ນ Sift ຈະເກັບສຳເນົາທີ່ເກົ່າທີ່ສຸດໄວ້. ເລືອກ „ເກັບອັນນີ້ໄວ້“ ຢູ່ສຳເນົາອື່ນ ເພື່ອເກັບອັນນັ້ນແທນ; ສຳເນົາທີ່ທ່ານບໍ່ໄດ້ເກັບໄວ້ ຈະຖືກເລືອກໄວ້ເພື່ອລຶບ.";
 "files.keepThis" = "ເກັບອັນນີ້ໄວ້";
 "files.manageScope" = "ຈັດການໃນການຕັ້ງຄ່າ";
 "files.mode.duplicates" = "ໄຟລ໌ຊ້ຳ";

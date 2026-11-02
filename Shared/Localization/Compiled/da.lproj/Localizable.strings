@@ -178,6 +178,7 @@
 "files.duplicateGroups" = "%d dubletgrupper, %@ kan frigives";
 "files.duplicateGroupsShown" = "Viser %d af %d grupper";
 "files.groupMembers" = "%d kopier";
+"files.keepHint" = "Sift beholder først den ældste kopi. Vælg »Behold denne« på en anden kopi for at beholde den i stedet; kopier, du ikke beholder, forbliver valgt til sletning.";
 "files.keepThis" = "Behold denne";
 "files.manageScope" = "Administrer i Indstillinger";
 "files.mode.duplicates" = "Dubletter";

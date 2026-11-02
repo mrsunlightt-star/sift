@@ -178,6 +178,7 @@
 "files.duplicateGroups" = "%d duplikatgrupper, %@ kan frigjøres";
 "files.duplicateGroupsShown" = "Viser %d av %d grupper";
 "files.groupMembers" = "%d kopier";
+"files.keepHint" = "Sift beholder først den eldste kopien. Velg «Behold denne» på en annen kopi for å beholde den i stedet; kopier du ikke beholder, forblir valgt for sletting.";
 "files.keepThis" = "Behold denne";
 "files.manageScope" = "Administrer i Innstillinger";
 "files.mode.duplicates" = "Duplikater";

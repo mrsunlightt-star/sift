@@ -178,6 +178,7 @@
 "files.duplicateGroups" = "%d groupes de doublons, %@ récupérables";
 "files.duplicateGroupsShown" = "%d groupes sur %d affichés";
 "files.groupMembers" = "%d copies";
+"files.keepHint" = "Sift conserve d’abord la copie la plus ancienne. Choisissez « Conserver celui-ci » sur une autre copie pour la conserver ; les copies que vous ne conservez pas restent sélectionnées pour la suppression.";
 "files.keepThis" = "Conserver celui-ci";
 "files.manageScope" = "Gérer dans les Réglages";
 "files.mode.duplicates" = "Doublons";

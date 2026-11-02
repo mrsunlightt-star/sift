@@ -712,6 +712,37 @@ These are product promises, not implementation details. Each has tests behind it
     `a_tcc_denial_stays_actionable`,
     `a_denial_without_an_errno_is_not_called_system_restricted`.
 
+44. **Which copy of a duplicate group survives is the user's decision.** The
+    scanner proposes a keeper — the oldest copy, then the shorter path — and the
+    page renders that proposal as a *starting point*: every other copy carries a
+    "Keep this one" control, and choosing it takes that copy out of the removal
+    set and puts the copy it replaced in. `DuplicateKeeperSelection` holds the
+    rule (`Core/Models/DuplicateKeeperSelection.swift`), and only the pair whose
+    meaning changed is touched — rebuilding a whole group's selection would
+    discard the individual choices already made in it. A choice is keyed by the
+    group's content hash, not by its id: ids are positions in the run that
+    produced them, so a choice stored under one would be applied to a group of
+    different files after a rescan; a choice whose copy is no longer a member
+    falls back to the proposal rather than to no keeper at all. The kept copy is
+    never in `CleanupModel.selection` — the model's `setSelected(false, …)` is
+    what enforces it, so "select all" cannot remove the copy the user kept.
+    Tests: `test_theScannerProposalIsTheStartingKeeper`,
+    `test_choosingAnotherCopySwapsOnePair`,
+    `test_choosingTheCurrentKeeperChangesNothing`,
+    `test_aCopyOutsideTheGroupIsNotKeepable`,
+    `test_aChoiceFollowsTheContentAndNotTheGroupId`,
+    `test_aChoiceForACopyThatIsGoneFallsBackToTheProposal`.
+
+45. **A disclosure opens in the frame the click landed in.** Group rows on the
+    scan page and duplicate groups in the results insert their rows immediately;
+    no expansion is animated, and the "animate up to N inserted rows" rule that
+    used to govern this is gone with it. A duplicate group's members are still
+    read from the session in the background, but the read no longer gates the
+    expansion: the row opens onto the members the page already holds and the
+    full list replaces them when it arrives. Both duplicate group rows also
+    carry the reveal-in-Finder control every result row has, because the path is
+    the only thing that tells two copies of one file apart.
+
 ## Layout notes
 
 - `Core/` is one library; `Features/` are separate libraries so a change to one

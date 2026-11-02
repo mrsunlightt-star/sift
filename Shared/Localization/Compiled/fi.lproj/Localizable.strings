@@ -178,6 +178,7 @@
 "files.duplicateGroups" = "%d kaksoiskappaleryhmää, %@ vapautettavissa";
 "files.duplicateGroupsShown" = "Näytetään %d / %d ryhmää";
 "files.groupMembers" = "%d kopiota";
+"files.keepHint" = "Aluksi Sift säilyttää vanhimman kopion. Valitse toisesta kopiosta ”Säilytä tämä”, jos haluat säilyttää sen; kopiot, joita et säilytä, pysyvät poistettaviksi valittuina.";
 "files.keepThis" = "Säilytä tämä";
 "files.manageScope" = "Hallitse asetuksissa";
 "files.mode.duplicates" = "Kaksoiskappaleet";

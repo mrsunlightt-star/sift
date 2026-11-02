@@ -148,4 +148,92 @@ final class DuplicateTests: XCTestCase, @unchecked Sendable {
         XCTAssertEqual(members.count, 2)
         XCTAssertEqual(members.filter(\.isRecommendedToKeep).count, 1)
     }
+
+    // MARK: - Which copy is kept
+
+    /// A group of three copies, one of which the scanner proposes keeping.
+    private func proposedGroup() -> DuplicateGroup {
+        let base = fixture.url.appendingPathComponent("Downloads")
+        func member(_ name: String, keep: Bool) -> DuplicateMember {
+            DuplicateMember(
+                url: base.appendingPathComponent(name),
+                sizeInBytes: 1024,
+                modifiedAt: nil,
+                isRecommendedToKeep: keep
+            )
+        }
+        return DuplicateGroup(
+            id: 7,
+            contentHash: "d1g3st",
+            fileSizeInBytes: 1024,
+            members: [member("one.bin", keep: true), member("two.bin", keep: false), member("three.bin", keep: false)],
+            reclaimableSizeInBytes: 2048
+        )
+    }
+
+    func test_theScannerProposalIsTheStartingKeeper() {
+        let group = proposedGroup()
+        let selection = DuplicateKeeperSelection()
+        XCTAssertEqual(selection.keeper(of: group), group.members[0].url)
+    }
+
+    func test_choosingAnotherCopySwapsOnePair() {
+        let group = proposedGroup()
+        var selection = DuplicateKeeperSelection()
+        let chosen = group.members[1].url
+
+        let change = selection.choose(chosen, in: group)
+        XCTAssertEqual(change?.kept, chosen)
+        XCTAssertEqual(change?.released, group.members[0].url, "the copy it replaced joins the removal set")
+        XCTAssertEqual(selection.keeper(of: group), chosen)
+    }
+
+    func test_choosingTheCurrentKeeperChangesNothing() {
+        let group = proposedGroup()
+        var selection = DuplicateKeeperSelection()
+        XCTAssertNil(selection.choose(group.members[0].url, in: group))
+        XCTAssertEqual(selection.keeper(of: group), group.members[0].url)
+    }
+
+    func test_aCopyOutsideTheGroupIsNotKeepable() {
+        let group = proposedGroup()
+        var selection = DuplicateKeeperSelection()
+        let stranger = fixture.url.appendingPathComponent("Downloads/elsewhere.bin")
+        XCTAssertNil(selection.choose(stranger, in: group))
+        XCTAssertEqual(selection.keeper(of: group), group.members[0].url)
+    }
+
+    /// Ids are positions in the run that produced them, so a choice keyed by id
+    /// would be applied to a different group after a rescan. The content hash is
+    /// what the choice is about.
+    func test_aChoiceFollowsTheContentAndNotTheGroupId() {
+        let group = proposedGroup()
+        var selection = DuplicateKeeperSelection()
+        let chosen = group.members[2].url
+        selection.choose(chosen, in: group)
+
+        let rescanned = DuplicateGroup(
+            id: 1,
+            contentHash: group.contentHash,
+            fileSizeInBytes: group.fileSizeInBytes,
+            members: group.members,
+            reclaimableSizeInBytes: group.reclaimableSizeInBytes
+        )
+        XCTAssertEqual(selection.keeper(of: rescanned), chosen)
+    }
+
+    func test_aChoiceForACopyThatIsGoneFallsBackToTheProposal() {
+        let group = proposedGroup()
+        var selection = DuplicateKeeperSelection()
+        selection.choose(group.members[2].url, in: group)
+
+        let reduced = DuplicateGroup(
+            id: group.id,
+            contentHash: group.contentHash,
+            fileSizeInBytes: group.fileSizeInBytes,
+            members: [group.members[1]],
+            reclaimableSizeInBytes: 0
+        )
+        XCTAssertEqual(selection.keeper(of: reduced), group.members[1].url)
+    }
 }

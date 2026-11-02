@@ -178,6 +178,7 @@
 "files.duplicateGroups" = "%d duplicaatgroepen, %@ vrij te maken";
 "files.duplicateGroupsShown" = "%d van %d groepen getoond";
 "files.groupMembers" = "%d exemplaren";
+"files.keepHint" = "Sift bewaart eerst de oudste kopie. Kies ‘Deze bewaren’ bij een andere kopie om die te bewaren; kopieën die je niet bewaart, blijven geselecteerd om te verwijderen.";
 "files.keepThis" = "Deze bewaren";
 "files.manageScope" = "Beheer in Instellingen";
 "files.mode.duplicates" = "Duplicaten";
