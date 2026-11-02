@@ -351,25 +351,61 @@ enum FileWalker {
         return info.st_flags & 0x4000_0000 != 0
     }
 
+    /// The errno a Foundation error carries, if it carries one.
+    ///
+    /// Foundation wraps a POSIX refusal in `NSCocoaErrorDomain` and keeps the
+    /// real cause in `NSUnderlyingErrorKey`; reading only the outer code is how
+    /// every `EACCES` used to pass for a missing grant.
+    static func posixCode(of error: Error) -> Int32? {
+        func raw(_ error: NSError) -> Int32? {
+            if error.domain == NSPOSIXErrorDomain { return Int32(error.code) }
+            if let underlying = error.userInfo[NSUnderlyingErrorKey] as? NSError {
+                return underlying.domain == NSPOSIXErrorDomain
+                    ? Int32(underlying.code)
+                    : nil
+            }
+            return nil
+        }
+        return raw(error as NSError)
+    }
+
+    /// Whether a permission denial is the POSIX kind no grant can lift.
+    ///
+    /// macOS refuses a TCC-protected location with `EPERM`, and that is exactly
+    /// the denial Full Disk Access lifts. A location whose own mode bits refuse
+    /// this account (`EACCES`, typically a `0700` directory owned by `root` or a
+    /// system daemon) needs the owning account or an administrator instead.
+    /// Reporting both as `permissionDenied` sent the user to a switch that
+    /// changes nothing.
+    static func isSystemRestricted(_ url: URL, error: Error) -> Bool {
+        switch posixCode(of: error) {
+        case .some(EACCES): return true
+        case .some(EPERM): return false
+        // No errno to read: ask who owns the path. A location this account does
+        // not own is not one a grant made to this account could open.
+        default: return !isOwnedByCurrentUser(url)
+        }
+    }
+
+    static func isOwnedByCurrentUser(_ url: URL) -> Bool {
+        var info = stat()
+        guard lstat(url.path, &info) == 0 else {
+            // An unreadable path is not evidence of ownership; the denial is
+            // then reported as the kind a grant can lift, the safer claim.
+            return true
+        }
+        return info.st_uid == geteuid()
+    }
+
     /// Maps a filesystem error onto the product error table.
     static func skip(for url: URL, error: Error) -> Skip {
         let nsError = error as NSError
         if nsError.domain == NSCocoaErrorDomain,
            nsError.code == NSFileReadNoPermissionError || nsError.code == NSFileReadUnknownError {
-            return Skip(
-                url: url,
-                code: .permissionDenied,
-                message: LocalizationKey.scanSkippedReasonPermissionDenied.localized,
-                needsFullDiskAccess: true
-            )
+            return permissionSkip(for: url, error: error)
         }
         if nsError.domain == NSPOSIXErrorDomain, Int32(nsError.code) == EACCES || Int32(nsError.code) == EPERM {
-            return Skip(
-                url: url,
-                code: .permissionDenied,
-                message: LocalizationKey.scanSkippedReasonPermissionDenied.localized,
-                needsFullDiskAccess: true
-            )
+            return permissionSkip(for: url, error: error)
         }
         if nsError.domain == NSCocoaErrorDomain, nsError.code == NSFileNoSuchFileError {
             return Skip(
@@ -384,6 +420,24 @@ enum FileWalker {
             code: .partialFailure,
             message: LocalizationKey.scanSkippedReasonPartialFailure.localized,
             needsFullDiskAccess: false
+        )
+    }
+
+    /// A permission denial, split by the kind of refusal it is.
+    private static func permissionSkip(for url: URL, error: Error) -> Skip {
+        if isSystemRestricted(url, error: error) {
+            return Skip(
+                url: url,
+                code: .systemRestricted,
+                message: LocalizationKey.scanSkippedReasonSystemRestricted.localized,
+                needsFullDiskAccess: false
+            )
+        }
+        return Skip(
+            url: url,
+            code: .permissionDenied,
+            message: LocalizationKey.scanSkippedReasonPermissionDenied.localized,
+            needsFullDiskAccess: true
         )
     }
 }

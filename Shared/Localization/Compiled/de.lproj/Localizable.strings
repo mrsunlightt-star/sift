@@ -231,6 +231,8 @@
 "permission.openedSettings" = "Die Systemeinstellungen sind offen. Kommen Sie zurück und scannen Sie erneut.";
 "permission.partialAccess" = "Einige Orte nicht lesbar";
 "permission.protectedTitle" = "Von Sift geschützt";
+"permission.restartHint" = "Wenn „Vollständiger Festplattenzugriff“ bereits aktiv ist, beende Sift und öffne es erneut – macOS wendet die Freigabe beim Start einer App an.";
+"permission.systemProtectedTitle" = "Von macOS geschützte Orte";
 "permission.whyBody" = "Er umfasst Systemprotokolle und App-Support-Ordner, die macOS schützt. Alles andere funktioniert auch ohne.";
 "permission.whyRevoke" = "Sie können ihn jederzeit unter Systemeinstellungen → Datenschutz & Sicherheit abschalten.";
 "permission.whyTitle" = "Warum vollständiger Festplattenzugriff";
@@ -348,6 +350,7 @@
 "scan.skippedReason.partialFailure" = "Ein Teil dieses Ortes konnte nicht gelesen werden.";
 "scan.skippedReason.permissionDenied" = "Für diesen Ort ist eine zusätzliche Berechtigung nötig.";
 "scan.skippedReason.protectedLocation" = "Sift lässt diesen Ort zum Schutz Ihrer Dateien unberührt.";
+"scan.skippedReason.systemRestricted" = "Dieser Ort gehört macOS oder einem anderen Benutzer, daher kann Sift ihn nicht lesen.";
 "scan.skippedReason.timedOut" = "Dieses Verzeichnis hat nicht geantwortet und wurde übersprungen.";
 "scan.stopped.detail" = "Vor dem Stopp wurden %d Objekte (%@) gefunden. Sie können sie weiterhin bereinigen.";
 "scan.stopped.title" = "Scan gestoppt";

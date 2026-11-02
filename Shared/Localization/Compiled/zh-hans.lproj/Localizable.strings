@@ -231,6 +231,8 @@
 "permission.openedSettings" = "已打开系统设置，授权后回来重新扫描。";
 "permission.partialAccess" = "部分位置无法访问";
 "permission.protectedTitle" = "Sift 保护的路径";
+"permission.restartHint" = "如果已经打开完全磁盘访问权限，请退出 Sift 后重新打开；macOS 只在应用启动时应用该授权。";
+"permission.systemProtectedTitle" = "系统保护的位置";
 "permission.whyBody" = "它能读取系统日志与应用支持目录，这些位置受 macOS 保护。其他功能无需该权限。";
 "permission.whyRevoke" = "可随时在系统设置 → 隐私与安全性中关闭。";
 "permission.whyTitle" = "为什么需要完全磁盘访问权限";
@@ -348,6 +350,7 @@
 "scan.skippedReason.partialFailure" = "此位置的一部分无法读取。";
 "scan.skippedReason.permissionDenied" = "这个位置需要额外权限。";
 "scan.skippedReason.protectedLocation" = "为保护你的文件，Sift 不会处理此位置。";
+"scan.skippedReason.systemRestricted" = "这个位置属于 macOS 或其他用户，Sift 无法读取。";
 "scan.skippedReason.timedOut" = "该目录长时间无响应，已跳过。";
 "scan.stopped.detail" = "停止前已找到 %d 项（%@），仍可清理。";
 "scan.stopped.title" = "扫描已停止";

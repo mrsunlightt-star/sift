@@ -231,6 +231,8 @@
 "permission.openedSettings" = "Системни настройки е отворен. Върнете се и сканирайте отново.";
 "permission.partialAccess" = "Някои места не можаха да бъдат прочетени";
 "permission.protectedTitle" = "Защитено от Sift";
+"permission.restartHint" = "Ако „Пълен достъп до диска“ вече е включен, затворете Sift и го отворете отново — macOS прилага разрешението при стартиране на приложението.";
+"permission.systemProtectedTitle" = "Папки, затворени от macOS";
 "permission.whyBody" = "Обхваща системни журнали и папки за поддръжка на приложения, които macOS защитава. Всичко останало работи и без него.";
 "permission.whyRevoke" = "Можете да го изключите по всяко време в Системни настройки → Поверителност и сигурност.";
 "permission.whyTitle" = "Защо Пълен достъп до диска";
@@ -348,6 +350,7 @@
 "scan.skippedReason.partialFailure" = "Част от това място не можа да бъде прочетена.";
 "scan.skippedReason.permissionDenied" = "Sift се нуждае от допълнително разрешение за това място.";
 "scan.skippedReason.protectedLocation" = "Sift никога не докосва това място, за да защити вашите файлове.";
+"scan.skippedReason.systemRestricted" = "Тази папка принадлежи на macOS или на друг потребител, затова Sift не може да я прочете.";
 "scan.skippedReason.timedOut" = "Тази папка не отговори, затова беше пропусната.";
 "scan.stopped.detail" = "Преди да спрете бяха намерени %d елемента (%@). Все още можете да ги почистите.";
 "scan.stopped.title" = "Сканирането е спряно";

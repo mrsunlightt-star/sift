@@ -231,6 +231,8 @@
 "permission.openedSettings" = "Configurările sistemului sunt deschise. Revino și scanează din nou.";
 "permission.partialAccess" = "Unele locații nu au putut fi citite";
 "permission.protectedTitle" = "Protejat de Sift";
+"permission.restartHint" = "Dacă Accesul complet la disc este deja activ, închideți Sift și redeschideți-l — macOS aplică permisiunea la pornirea aplicației.";
+"permission.systemProtectedTitle" = "Locații închise de macOS";
 "permission.whyBody" = "Acoperă jurnalele de sistem și folderele de suport ale aplicațiilor, pe care macOS le protejează. Restul funcționează fără el.";
 "permission.whyRevoke" = "Îl poți dezactiva oricând în Configurările sistemului → Confidențialitate și securitate.";
 "permission.whyTitle" = "De ce Acces complet la disc";
@@ -348,6 +350,7 @@
 "scan.skippedReason.partialFailure" = "O parte a acestei locații nu a putut fi citită.";
 "scan.skippedReason.permissionDenied" = "Sift are nevoie de o permisiune suplimentară pentru această locație.";
 "scan.skippedReason.protectedLocation" = "Sift nu atinge niciodată această locație, pentru a-ți proteja fișierele.";
+"scan.skippedReason.systemRestricted" = "Această locație aparține macOS sau altui utilizator, așa că Sift nu o poate citi.";
 "scan.skippedReason.timedOut" = "Acest dosar nu a răspuns, deci a fost ignorat.";
 "scan.stopped.detail" = "S-au găsit %d elemente (%@) înainte de a opri. Le poți curăța în continuare.";
 "scan.stopped.title" = "Scanare oprită";

@@ -753,6 +753,9 @@ fn scanner_error_codes_match_the_product_error_table() {
     // The specification's error table; the scanner must not invent new codes.
     let table = [
         "permissionDenied",
+        // A location whose own mode bits refuse this account: reported, but
+        // never as something a Full Disk Access grant would open.
+        "systemRestricted",
         "fileNotFound",
         "fileInUse",
         "volumeUnavailable",
@@ -765,6 +768,7 @@ fn scanner_error_codes_match_the_product_error_table() {
     // `invalidRequest` codes used by the FFI layer.
     let engine_codes = [
         "permissionDenied",
+        "systemRestricted",
         "fileNotFound",
         "protectedLocation",
         "partialFailure",

@@ -231,6 +231,8 @@
 "permission.openedSettings" = "A Rendszerbeállítások meg van nyitva. Térjen vissza, és vizsgáljon újra.";
 "permission.partialAccess" = "Néhány helyet nem sikerült beolvasni";
 "permission.protectedTitle" = "A Sift által védett";
+"permission.restartHint" = "Ha a Teljes lemezhozzáférés már be van kapcsolva, lépjen ki a Siftből, és nyissa meg újra — a macOS az engedélyt az app indításakor alkalmazza.";
+"permission.systemProtectedTitle" = "A macOS által zárt helyek";
 "permission.whyBody" = "A rendszernaplókat és az alkalmazástámogató mappákat fedi le, amelyeket a macOS véd. Minden más működik nélküle.";
 "permission.whyRevoke" = "Bármikor kikapcsolhatja a Rendszerbeállítások → Adatvédelem és biztonság alatt.";
 "permission.whyTitle" = "Miért kell Teljes lemezhozzáférés";
@@ -348,6 +350,7 @@
 "scan.skippedReason.partialFailure" = "A hely egy részét nem sikerült beolvasni.";
 "scan.skippedReason.permissionDenied" = "A Siftnek további engedélyre van szüksége ehhez a helyhez.";
 "scan.skippedReason.protectedLocation" = "A Sift soha nem nyúl ehhez a helyhez, hogy védje a fájljait.";
+"scan.skippedReason.systemRestricted" = "Ez a hely a macOS vagy egy másik felhasználó tulajdona, ezért a Sift nem tudja beolvasni.";
 "scan.skippedReason.timedOut" = "Ez a mappa nem válaszolt, ezért ki lett hagyva.";
 "scan.stopped.detail" = "%d elem (%@) található a leállítás előtt. Még mindig megtisztíthatja őket.";
 "scan.stopped.title" = "Vizsgálat leállítva";

@@ -231,6 +231,8 @@
 "permission.openedSettings" = "Nastavení systému je otevřené. Vraťte se a skenujte znovu.";
 "permission.partialAccess" = "Některá místa nebylo možné načíst";
 "permission.protectedTitle" = "Chráněno Siftem";
+"permission.restartHint" = "Pokud je Úplný přístup k disku už zapnutý, ukončete Sift a znovu ho otevřete — macOS uplatní oprávnění při spuštění aplikace.";
+"permission.systemProtectedTitle" = "Umístění, která macOS uzavírá";
 "permission.whyBody" = "Pokrývá systémové protokoly a složky podpory aplikací, které macOS chrání. Vše ostatní funguje i bez něj.";
 "permission.whyRevoke" = "Vypnout ho můžete kdykoli v Nastavení systému → Soukromí a zabezpečení.";
 "permission.whyTitle" = "Proč Úplný přístup k disku";
@@ -348,6 +350,7 @@
 "scan.skippedReason.partialFailure" = "Část tohoto místa nebylo možné načíst.";
 "scan.skippedReason.permissionDenied" = "Sift potřebuje pro toto místo zvláštní oprávnění.";
 "scan.skippedReason.protectedLocation" = "Sift toto místo nikdy neupravuje, aby ochránil vaše soubory.";
+"scan.skippedReason.systemRestricted" = "Toto umístění patří macOS nebo jinému uživateli, takže je Sift nemůže přečíst.";
 "scan.skippedReason.timedOut" = "Tato složka neodpověděla, a byla proto přeskočena.";
 "scan.stopped.detail" = "Než jste skenování zastavili, našlo se %d položek (%@). Stále je můžete vyčistit.";
 "scan.stopped.title" = "Skenování zastaveno";

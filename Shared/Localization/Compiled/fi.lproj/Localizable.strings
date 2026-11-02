@@ -231,6 +231,8 @@
 "permission.openedSettings" = "Järjestelmäasetukset ovat auki. Palaa takaisin ja skannaa uudelleen.";
 "permission.partialAccess" = "Joitakin sijainteja ei voitu lukea";
 "permission.protectedTitle" = "Siftin suojaama";
+"permission.restartHint" = "Jos Täysi levynkäyttöoikeus on jo päällä, sulje Sift ja avaa se uudelleen — macOS ottaa oikeuden käyttöön sovelluksen käynnistyessä.";
+"permission.systemProtectedTitle" = "macOS:n sulkemina pitämät sijainnit";
 "permission.whyBody" = "Se kattaa järjestelmän lokit ja sovellusten tukikansiot, joita macOS suojaa. Kaikki muu toimii ilman sitä.";
 "permission.whyRevoke" = "Voit poistaa sen käytöstä milloin tahansa kohdassa Järjestelmäasetukset → Tietosuoja ja turvallisuus.";
 "permission.whyTitle" = "Miksi täysi levynkäyttöoikeus";
@@ -348,6 +350,7 @@
 "scan.skippedReason.partialFailure" = "Osaa tästä sijainnista ei voitu lukea.";
 "scan.skippedReason.permissionDenied" = "Sift tarvitsee lisäkäyttöoikeuden tähän sijaintiin.";
 "scan.skippedReason.protectedLocation" = "Sift ei koskaan koske tähän sijaintiin tiedostojesi suojaamiseksi.";
+"scan.skippedReason.systemRestricted" = "Tämä sijainti kuuluu macOS:lle tai toiselle käyttäjälle, joten Sift ei voi lukea sitä.";
 "scan.skippedReason.timedOut" = "Tämä kansio ei vastannut, joten se ohitettiin.";
 "scan.stopped.detail" = "Ennen pysäytystä löytyi %d kohdetta (%@). Voit silti siivota ne.";
 "scan.stopped.title" = "Skannaus pysäytetty";

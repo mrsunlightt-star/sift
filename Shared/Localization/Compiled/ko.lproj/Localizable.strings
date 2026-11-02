@@ -231,6 +231,8 @@
 "permission.openedSettings" = "시스템 설정을 열었습니다. 권한을 준 뒤 돌아와 다시 검사하세요.";
 "permission.partialAccess" = "일부 위치를 읽을 수 없습니다";
 "permission.protectedTitle" = "Sift가 보호하는 경로";
+"permission.restartHint" = "전체 디스크 접근 권한이 이미 켜져 있다면 Sift를 종료한 뒤 다시 여십시오. macOS는 앱이 시작될 때 권한을 적용합니다.";
+"permission.systemProtectedTitle" = "macOS가 보호하는 위치";
 "permission.whyBody" = "시스템 로그와 앱 지원 폴더는 macOS가 보호하고 있어 이 권한이 있어야 읽을 수 있습니다. 나머지 기능은 없어도 동작합니다.";
 "permission.whyRevoke" = "언제든 시스템 설정 → 개인정보 보호 및 보안에서 끌 수 있습니다.";
 "permission.whyTitle" = "전체 디스크 접근 권한이 필요한 이유";
@@ -348,6 +350,7 @@
 "scan.skippedReason.partialFailure" = "이 위치의 일부를 읽을 수 없습니다.";
 "scan.skippedReason.permissionDenied" = "이 위치에는 추가 권한이 필요합니다.";
 "scan.skippedReason.protectedLocation" = "파일 보호를 위해 이 위치는 처리하지 않습니다.";
+"scan.skippedReason.systemRestricted" = "이 위치는 macOS 또는 다른 사용자 소유여서 Sift가 읽을 수 없습니다.";
 "scan.skippedReason.timedOut" = "이 디렉터리가 응답하지 않아 건너뛰었습니다.";
 "scan.stopped.detail" = "중지하기 전에 %d개 항목(%@)을 찾았습니다. 계속 정리할 수 있습니다.";
 "scan.stopped.title" = "검사 중지됨";

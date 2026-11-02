@@ -231,6 +231,8 @@
 "permission.openedSettings" = "已打開系統設定，回來後請重新掃描。";
 "permission.partialAccess" = "部分位置無法存取";
 "permission.protectedTitle" = "Sift 保護的項目";
+"permission.restartHint" = "如果已經開啟完全磁碟存取權限，請結束 Sift 後重新開啟；macOS 只在應用程式啟動時套用該授權。";
+"permission.systemProtectedTitle" = "系統保護的位置";
 "permission.whyBody" = "它涵蓋系統記錄檔與應用程式支援資料夾，這些位置受 macOS 保護。其他功能不需要這項權限。";
 "permission.whyRevoke" = "可隨時在系統設定 → 隱私權與安全性中關閉。";
 "permission.whyTitle" = "為什麼需要「完全磁碟存取權限」";
@@ -348,6 +350,7 @@
 "scan.skippedReason.partialFailure" = "此位置的一部分無法讀取。";
 "scan.skippedReason.permissionDenied" = "這個位置需要額外權限。";
 "scan.skippedReason.protectedLocation" = "為保護你的檔案，Sift 不會處理此位置。";
+"scan.skippedReason.systemRestricted" = "這個位置屬於 macOS 或其他使用者，Sift 無法讀取。";
 "scan.skippedReason.timedOut" = "此目錄長時間無回應，已跳過。";
 "scan.stopped.detail" = "掃描停止前找到 %d 個項目（%@），仍可清理。";
 "scan.stopped.title" = "掃描停止";

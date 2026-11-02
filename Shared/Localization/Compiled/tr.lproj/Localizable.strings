@@ -231,6 +231,8 @@
 "permission.openedSettings" = "Sistem Ayarları açık. Buraya dönüp yeniden tarayın.";
 "permission.partialAccess" = "Bazı konumlar okunamadı";
 "permission.protectedTitle" = "Sift tarafından korunuyor";
+"permission.restartHint" = "Tam Disk Erişimi zaten açıksa Sift'i kapatıp yeniden açın — macOS izni uygulama başlatılırken uygular.";
+"permission.systemProtectedTitle" = "macOS'un kapalı tuttuğu konumlar";
 "permission.whyBody" = "Sistem günlüklerini ve macOS’un koruduğu uygulama destek klasörlerini kapsar. Diğer her şey bu izin olmadan çalışır.";
 "permission.whyRevoke" = "Sistem Ayarları → Gizlilik ve Güvenlik bölümünden istediğiniz zaman kapatabilirsiniz.";
 "permission.whyTitle" = "Neden Tam Disk Erişimi";
@@ -348,6 +350,7 @@
 "scan.skippedReason.partialFailure" = "Bu konumun bir kısmı okunamadı.";
 "scan.skippedReason.permissionDenied" = "Bu konum için ek izin gerekiyor.";
 "scan.skippedReason.protectedLocation" = "Dosyalarınızı korumak için Sift bu konuma hiç dokunmaz.";
+"scan.skippedReason.systemRestricted" = "Bu konum macOS'a veya başka bir kullanıcıya ait, bu yüzden Sift burayı okuyamıyor.";
 "scan.skippedReason.timedOut" = "Bu klasör yanıt vermedi, bu yüzden atlandı.";
 "scan.stopped.detail" = "Durdurmadan önce %d öğe (%@) bulundu. Bunları yine de temizleyebilirsiniz.";
 "scan.stopped.title" = "Tarama durduruldu";

@@ -12,6 +12,9 @@ public struct DuplicateGroupsCard: View {
     @ObservedObject var cleanup: CleanupModel
     @State private var expanded: Set<Int64> = []
     @State private var loadedMembers: [Int64: [DuplicateMember]] = [:]
+    @State private var loadingMembers: Set<Int64> = []
+
+    @Environment(\.siftReduceMotion) private var reduceMotion
 
     public init(groups: [DuplicateGroup], scan: ScanModel, cleanup: CleanupModel) {
         self.groups = groups
@@ -48,15 +51,22 @@ public struct DuplicateGroupsCard: View {
 
                 Divider()
 
-                ForEach(groups) { group in
-                    DuplicateGroupRow(
-                        group: group,
-                        members: loadedMembers[group.id] ?? group.members,
-                        isExpanded: expanded.contains(group.id),
-                        cleanup: cleanup,
-                        onToggle: { Task { await toggle(group) } }
-                    )
-                    if group.id != groups.last?.id { Divider() }
+                // Lazy: a duplicate result is hundreds of groups, and an eager
+                // VStack laid every one of them out on each frame of an
+                // expansion animation. That re-layout — not the curve — is what
+                // made opening a group feel slow.
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    ForEach(groups) { group in
+                        DuplicateGroupRow(
+                            group: group,
+                            members: loadedMembers[group.id] ?? group.members,
+                            isExpanded: expanded.contains(group.id),
+                            isLoading: loadingMembers.contains(group.id),
+                            cleanup: cleanup,
+                            onToggle: { toggle(group) }
+                        )
+                        if group.id != groups.last?.id { Divider() }
+                    }
                 }
 
                 // The list is paged, so it has to say how much of the result it
@@ -89,17 +99,28 @@ public struct DuplicateGroupsCard: View {
         }
     }
 
-    private func toggle(_ group: DuplicateGroup) async {
-        withAnimation(SiftMotion.expand) {
-            if expanded.contains(group.id) {
-                expanded.remove(group.id)
-            } else {
-                expanded.insert(group.id)
-            }
+    /// Opens or closes one group.
+    ///
+    /// A group's copies are read *before* it opens, so the height animates once
+    /// over content that is already there. The previous order animated an empty
+    /// container and filled it in afterwards, which reads as a slow row that
+    /// eventually produces something.
+    private func toggle(_ group: DuplicateGroup) {
+        if expanded.contains(group.id) {
+            withAnimation(reduceMotion ? nil : SiftMotion.expand) { _ = expanded.remove(group.id) }
+            return
         }
-        if expanded.contains(group.id), loadedMembers[group.id] == nil {
-            loadedMembers[group.id] = await scan.duplicateMembers(for: group)
+        Task { await open(group) }
+    }
+
+    private func open(_ group: DuplicateGroup) async {
+        if loadedMembers[group.id] == nil, !loadingMembers.contains(group.id) {
+            loadingMembers.insert(group.id)
+            let members = await scan.duplicateMembers(for: group)
+            loadedMembers[group.id] = members
+            loadingMembers.remove(group.id)
         }
+        withAnimation(reduceMotion ? nil : SiftMotion.expand) { _ = expanded.insert(group.id) }
     }
 
     /// Selects every copy the scanner recommends removing, never the keepers.
@@ -130,6 +151,7 @@ struct DuplicateGroupRow: View {
     let group: DuplicateGroup
     let members: [DuplicateMember]
     let isExpanded: Bool
+    var isLoading: Bool = false
     @ObservedObject var cleanup: CleanupModel
     let onToggle: () -> Void
 
@@ -141,7 +163,6 @@ struct DuplicateGroupRow: View {
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(.secondary)
                         .rotationEffect(.degrees(isExpanded ? 0 : -90))
-                        .animation(SiftMotion.expand, value: isExpanded)
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(representativeName)
@@ -158,13 +179,27 @@ struct DuplicateGroupRow: View {
                         .foregroundStyle(SiftColor.review)
                     RiskBadge(risk: .review)
                 }
+                // The row is a target across its whole width, not only where
+                // it happens to draw a glyph: without a content shape the space
+                // between the name and the size was dead, which is why clicking
+                // the row appeared to do nothing unless the pointer landed on
+                // the file name or the chevron.
+                .contentShape(Rectangle())
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .buttonStyle(.plain)
             .accessibilityLabel(Text(representativeName))
             .accessibilityValue(Text(group.formattedReclaimable))
 
+            if isLoading && !isExpanded {
+                Text(LocalizationKey.commonLoading.localized)
+                    .font(SiftFont.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, SiftMetrics.spacingL + 10)
+            }
+
             if isExpanded {
-                VStack(alignment: .leading, spacing: SiftMetrics.spacingXS) {
+                LazyVStack(alignment: .leading, spacing: SiftMetrics.spacingXS) {
                     ForEach(members) { member in
                         HStack(spacing: SiftMetrics.spacingM) {
                             if member.isRecommendedToKeep {
@@ -194,6 +229,15 @@ struct DuplicateGroupRow: View {
                                     .foregroundStyle(.secondary)
                                     .lineLimit(1)
                                     .truncationMode(.middle)
+                            }
+                            // A copy that is not the keeper is a checkbox; its
+                            // name is the thing the user reads, so clicking the
+                            // name has to do what clicking the box does.
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                guard !member.isRecommendedToKeep else { return }
+                                let item = item(for: member)
+                                cleanup.setSelected(!cleanup.isSelected(item), for: item)
                             }
                             Spacer(minLength: SiftMetrics.spacingS)
                             if member.isRecommendedToKeep {

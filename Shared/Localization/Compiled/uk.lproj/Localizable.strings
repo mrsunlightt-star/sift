@@ -231,6 +231,8 @@
 "permission.openedSettings" = "Системні налаштування відкрито. Поверніться й скануйте знову.";
 "permission.partialAccess" = "Деякі місця не вдалося прочитати";
 "permission.protectedTitle" = "Захищено Sift";
+"permission.restartHint" = "Якщо «Повний доступ до диска» вже ввімкнено, закрийте Sift і відкрийте його знову — macOS застосовує дозвіл під час запуску програми.";
+"permission.systemProtectedTitle" = "Папки, закриті в macOS";
 "permission.whyBody" = "Він охоплює системні журнали й папки підтримки програм, які захищає macOS. Усе інше працює й без нього.";
 "permission.whyRevoke" = "Вимкнути його можна будь-коли в Системних налаштуваннях → Конфіденційність і безпека.";
 "permission.whyTitle" = "Навіщо Повний доступ до диска";
@@ -348,6 +350,7 @@
 "scan.skippedReason.partialFailure" = "Частину цього місця не вдалося прочитати.";
 "scan.skippedReason.permissionDenied" = "Sift потрібен додатковий дозвіл для цього місця.";
 "scan.skippedReason.protectedLocation" = "Sift ніколи не торкається цього місця, щоб захистити ваші файли.";
+"scan.skippedReason.systemRestricted" = "Ця папка належить macOS або іншому користувачу, тому Sift не може її прочитати.";
 "scan.skippedReason.timedOut" = "Ця папка не відповіла, тому її пропущено.";
 "scan.stopped.detail" = "До зупинки знайдено %d елементів (%@). Ви все ще можете їх очистити.";
 "scan.stopped.title" = "Сканування зупинено";

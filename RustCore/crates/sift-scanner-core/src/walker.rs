@@ -791,8 +791,44 @@ impl MetadataSizeExt {
     }
 }
 
+/// Whether a permission denial is the POSIX kind no grant can lift.
+///
+/// macOS refuses a TCC-protected location with `EPERM`, and that is exactly the
+/// denial Full Disk Access lifts. A location whose own mode bits refuse this
+/// account (`EACCES`, typically a `0700` directory owned by `root` or by a
+/// system daemon) needs the owning account or an administrator, so telling the
+/// user to grant Full Disk Access for it sends them to a switch that changes
+/// nothing: on the development machine that was 145 of `/var`'s 198 refusals.
+/// The two are therefore different codes, and only `permissionDenied` offers
+/// the settings button.
+fn is_system_restricted(path: &Path, error: &std::io::Error) -> bool {
+    match error.raw_os_error() {
+        Some(libc::EACCES) => true,
+        Some(libc::EPERM) => false,
+        // No errno to read: ask who owns the path. A location this account does
+        // not own is not one a grant made to this account could open.
+        _ => !owned_by_current_process(path),
+    }
+}
+
+fn owned_by_current_process(path: &Path) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    match std::fs::symlink_metadata(path) {
+        Ok(metadata) => metadata.uid() == unsafe { libc::geteuid() },
+        // An unreadable path is not evidence of ownership; the denial is then
+        // reported as the kind a grant can lift, which is the safer claim.
+        Err(_) => true,
+    }
+}
+
 fn skip_for(path: &Path, error: &std::io::Error) -> WalkSkip {
     match error.kind() {
+        std::io::ErrorKind::PermissionDenied if is_system_restricted(path, error) => WalkSkip {
+            path: path.to_path_buf(),
+            code: "systemRestricted",
+            message: "This location belongs to macOS or another user.".to_string(),
+            needs_full_disk_access: false,
+        },
         std::io::ErrorKind::PermissionDenied => WalkSkip {
             path: path.to_path_buf(),
             code: "permissionDenied",
@@ -1471,5 +1507,90 @@ mod tests {
         );
         let sum: u64 = ticks.iter().map(|(f, _)| f).sum();
         assert_eq!(sum, reporting.total_files, "the ticks add up to the total");
+    }
+}
+
+#[cfg(test)]
+mod skip_classification_tests {
+    use super::fixtures::TempTree;
+    use super::*;
+
+    fn options(root: &Path) -> WalkOptions {
+        WalkOptions::new(root.to_path_buf(), WalkMode::Files)
+    }
+
+    /// `EACCES` is the POSIX refusal: the mode bits say who may read, and no
+    /// grant made to this account changes that.
+    #[test]
+    fn a_posix_denial_is_a_system_location_not_something_to_grant() {
+        let tree = TempTree::new("walk-eacces");
+        let skip = skip_for(
+            &tree.root.join("spool"),
+            &std::io::Error::from_raw_os_error(libc::EACCES),
+        );
+
+        assert_eq!(skip.code, "systemRestricted");
+        assert!(
+            !skip.needs_full_disk_access,
+            "Full Disk Access cannot open a directory only its owner may read"
+        );
+    }
+
+    /// `EPERM` is what macOS answers a TCC refusal with, and Full Disk Access
+    /// is the grant that lifts it, so this one keeps the settings button.
+    #[test]
+    fn a_tcc_denial_stays_actionable() {
+        let tree = TempTree::new("walk-eperm");
+        let skip = skip_for(
+            &tree.root.join("TCC"),
+            &std::io::Error::from_raw_os_error(libc::EPERM),
+        );
+
+        assert_eq!(skip.code, "permissionDenied");
+        assert!(skip.needs_full_disk_access);
+    }
+
+    /// A denial with no errno is not evidence of ownership, so it is reported
+    /// as the kind a grant can lift: the safer of the two claims.
+    #[test]
+    fn a_denial_without_an_errno_is_not_called_system_restricted() {
+        let tree = TempTree::new("walk-no-errno");
+        let skip = skip_for(
+            &tree.root.join("missing"),
+            &std::io::Error::new(std::io::ErrorKind::PermissionDenied, "denied"),
+        );
+
+        assert_eq!(skip.code, "permissionDenied");
+    }
+
+    /// The whole path, end to end: a directory whose mode refuses its own
+    /// owner comes back as `systemRestricted`, not as a missing grant.
+    #[test]
+    fn a_walk_reports_an_owner_only_directory_as_system_restricted() {
+        use std::os::unix::fs::PermissionsExt;
+        if unsafe { libc::geteuid() } == 0 {
+            // root reads a 0000 directory; there is nothing to observe.
+            return;
+        }
+        let tree = TempTree::new("walk-owner-only");
+        let closed = tree.dir("closed");
+        tree.file("closed/hidden.txt", 10);
+        std::fs::set_permissions(&closed, std::fs::Permissions::from_mode(0o000))
+            .expect("close the directory");
+
+        let report = walk(&tree.root, &options(&tree.root), &CancelToken::new());
+
+        // Restore the mode before the fixture's drop, which cannot remove a
+        // directory it may not list.
+        std::fs::set_permissions(&closed, std::fs::Permissions::from_mode(0o755))
+            .expect("reopen the directory");
+
+        let skip = report
+            .skips
+            .iter()
+            .find(|skip| skip.path == closed)
+            .expect("the walk reports the directory it could not list");
+        assert_eq!(skip.code, "systemRestricted");
+        assert!(!skip.needs_full_disk_access);
     }
 }

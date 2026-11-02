@@ -227,6 +227,15 @@ public enum CleanupOperationName: String, Codable, Sendable, CaseIterable {
 /// Stable error codes shared with the scanner and the product error table (§14).
 public enum ErrorCode: String, Codable, Sendable, CaseIterable {
     case permissionDenied
+    /// A location whose own mode bits refuse this account — a `0700` directory
+    /// owned by `root` or by a system daemon.
+    ///
+    /// Distinct from `permissionDenied` because the two answer different
+    /// questions. macOS refuses a TCC-protected location with `EPERM`, which is
+    /// what Full Disk Access lifts; a POSIX refusal is `EACCES`, and no grant
+    /// made to this account can open it. Offering the settings button for the
+    /// second kind sent the user to a switch that changes nothing.
+    case systemRestricted
     case fileNotFound
     case fileInUse
     /// The path no longer resolves to the item the user selected.
@@ -248,6 +257,7 @@ public enum ErrorCode: String, Codable, Sendable, CaseIterable {
     public var localizedTitle: LocalizationKey {
         switch self {
         case .permissionDenied: .cleanupFailurePermissionDenied
+        case .systemRestricted: .scanSkippedReasonSystemRestricted
         case .fileNotFound: .cleanupFailureFileNotFound
         case .fileInUse: .cleanupFailureFileInUse
         case .itemChanged: .cleanupFailureItemChanged

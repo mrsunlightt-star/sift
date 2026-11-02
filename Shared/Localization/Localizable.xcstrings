@@ -48301,6 +48301,426 @@
         }
       }
     },
+    "permission.restartHint": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If Full Disk Access is already on, quit Sift and open it again — macOS applies the grant when an app starts."
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "如果已经打开完全磁盘访问权限，请退出 Sift 后重新打开；macOS 只在应用启动时应用该授权。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "전체 디스크 접근 권한이 이미 켜져 있다면 Sift를 종료한 뒤 다시 여십시오. macOS는 앱이 시작될 때 권한을 적용합니다."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Если «Полный доступ к диску» уже включён, закройте Sift и откройте его снова: macOS применяет разрешение при запуске приложения."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Si el acceso al disco completo ya está activado, cierra Sift y vuelve a abrirlo: macOS aplica el permiso al iniciar la app."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "フルディスクアクセスがすでにオンなら、Sift を終了してから開き直してください。macOS はアプリの起動時に権限を適用します。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Si l'accès complet au disque est déjà activé, quittez Sift puis rouvrez-le : macOS applique l'autorisation au démarrage de l'app."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wenn „Vollständiger Festplattenzugriff“ bereits aktiv ist, beende Sift und öffne es erneut – macOS wendet die Freigabe beim Start einer App an."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se l'accesso completo al disco è già attivo, chiudi Sift e riaprilo: macOS applica l'autorizzazione all'avvio dell'app."
+          }
+        },
+        "pt-br": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se o Acesso Total ao Disco já está ativado, encerre o Sift e abra-o de novo: o macOS aplica a permissão quando o app inicia."
+          }
+        },
+        "zh-hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "如果已經開啟完全磁碟存取權限，請結束 Sift 後重新開啟；macOS 只在應用程式啟動時套用該授權。"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tam Disk Erişimi zaten açıksa Sift'i kapatıp yeniden açın — macOS izni uygulama başlatılırken uygular."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jeśli Pełny dostęp do dysku jest już włączony, zamknij Sift i otwórz go ponownie — macOS stosuje zgodę przy starcie aplikacji."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Staat Volledige schijftoegang al aan, sluit Sift dan af en open het opnieuw — macOS past de toestemming toe wanneer een app start."
+          }
+        },
+        "lo": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ຖ້າເປີດການເຂົ້າເຖິງດິສທັງໝົດແລ້ວ ໃຫ້ອອກຈາກ Sift ແລ້ວເປີດໃໝ່ — macOS ຈະນຳໃຊ້ສິດນີ້ຕອນແອັບເລີ່ມຕົ້ນ."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إذا كان الوصول الكامل إلى القرص مفعَّلًا بالفعل، فاخرج من Sift ثم افتحه مرة أخرى — يطبّق macOS الإذن عند بدء التطبيق."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "אם „גישה מלאה לדיסק“ כבר דלוקה, צא מ-Sift ופתח אותו שוב — macOS מחיל את ההרשאה כשהאפליקציה עולה."
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اگر «دسترسی کامل به دیسک» از قبل روشن است، Sift را ببندید و دوباره باز کنید — macOS این مجوز را هنگام آغاز برنامه اعمال می‌کند."
+          }
+        },
+        "bg": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ако „Пълен достъп до диска“ вече е включен, затворете Sift и го отворете отново — macOS прилага разрешението при стартиране на приложението."
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pokud je Úplný přístup k disku už zapnutý, ukončete Sift a znovu ho otevřete — macOS uplatní oprávnění při spuštění aplikace."
+          }
+        },
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hvis Fuld diskadgang allerede er slået til, luk Sift og åbn det igen — macOS anvender tilladelsen, når en app starter."
+          }
+        },
+        "el": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Αν η Πλήρης πρόσβαση στον δίσκο είναι ήδη ενεργή, κλείστε το Sift και ανοίξτε το ξανά — το macOS εφαρμόζει την άδεια όταν ξεκινά μια εφαρμογή."
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Si el acceso al disco completo ya está activado, cierra Sift y vuelve a abrirlo: macOS aplica el permiso al iniciar la app."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jos Täysi levynkäyttöoikeus on jo päällä, sulje Sift ja avaa se uudelleen — macOS ottaa oikeuden käyttöön sovelluksen käynnistyessä."
+          }
+        },
+        "hu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ha a Teljes lemezhozzáférés már be van kapcsolva, lépjen ki a Siftből, és nyissa meg újra — a macOS az engedélyt az app indításakor alkalmazza."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jika Akses Disk Penuh sudah aktif, tutup Sift lalu buka lagi — macOS menerapkan izin saat app dimulai."
+          }
+        },
+        "ms": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jika Akses Penuh Cakera sudah dihidupkan, keluar dari Sift dan buka semula — macOS menggunakan kebenaran itu apabila app dimulakan."
+          }
+        },
+        "nb": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hvis Full diskadgang allerede er på, avslutt Sift og åpne det igjen — macOS bruker tillatelsen når en app starter."
+          }
+        },
+        "pt-pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se o Acesso Total ao Disco já estiver ativo, feche o Sift e volte a abri-lo — o macOS aplica a permissão quando a app inicia."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dacă Accesul complet la disc este deja activ, închideți Sift și redeschideți-l — macOS aplică permisiunea la pornirea aplicației."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Om Fullskivåtkomst redan är på, avsluta Sift och öppna det igen — macOS tillämpar behörigheten när en app startar."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ถ้าเปิดการเข้าถึงดิสก์เต็มรูปแบบไว้แล้ว ให้ออกจาก Sift แล้วเปิดใหม่ — macOS จะใช้สิทธิ์เมื่อแอปเริ่มทำงาน"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Якщо «Повний доступ до диска» вже ввімкнено, закрийте Sift і відкрийте його знову — macOS застосовує дозвіл під час запуску програми."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nếu Quyền truy cập toàn bộ ổ đĩa đã bật, hãy thoát Sift rồi mở lại — macOS áp dụng quyền này khi ứng dụng khởi động."
+          }
+        }
+      }
+    },
+    "permission.systemProtectedTitle": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Locations macOS keeps closed"
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "系统保护的位置"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS가 보호하는 위치"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Папки, закрытые в macOS"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ubicaciones cerradas por macOS"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS が保護している場所"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Emplacements fermés par macOS"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Von macOS geschützte Orte"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Posizioni chiuse da macOS"
+          }
+        },
+        "pt-br": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Locais fechados pelo macOS"
+          }
+        },
+        "zh-hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "系統保護的位置"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS'un kapalı tuttuğu konumlar"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lokalizacje zamknięte przez macOS"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Locaties die macOS gesloten houdt"
+          }
+        },
+        "lo": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ຕຳແໜ່ງທີ່ macOS ປິດໄວ້"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مواقع يحتفظ macOS بها مغلقة"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "מיקומים ש-macOS משאיר סגורים"
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مکان‌هایی که macOS بسته نگه می‌دارد"
+          }
+        },
+        "bg": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Папки, затворени от macOS"
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Umístění, která macOS uzavírá"
+          }
+        },
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Placeringer, som macOS holder lukket"
+          }
+        },
+        "el": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Θέσεις που το macOS κρατά κλειστές"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ubicaciones cerradas por macOS"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS:n sulkemina pitämät sijainnit"
+          }
+        },
+        "hu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A macOS által zárt helyek"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lokasi yang ditutup oleh macOS"
+          }
+        },
+        "ms": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lokasi yang ditutup oleh macOS"
+          }
+        },
+        "nb": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plasseringer macOS holder lukket"
+          }
+        },
+        "pt-pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Localizações fechadas pelo macOS"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Locații închise de macOS"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Platser som macOS håller stängda"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ตำแหน่งที่ macOS ปิดไว้"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Папки, закриті в macOS"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vị trí macOS giữ kín"
+          }
+        }
+      }
+    },
     "permission.whyBody": {
       "comment": null,
       "extractionState": "manual",
@@ -72867,6 +73287,216 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sift không bao giờ đụng đến vị trí này để bảo vệ tệp của bạn."
+          }
+        }
+      }
+    },
+    "scan.skippedReason.systemRestricted": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS or another user owns this location, so Sift cannot read it."
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这个位置属于 macOS 或其他用户，Sift 无法读取。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 위치는 macOS 또는 다른 사용자 소유여서 Sift가 읽을 수 없습니다."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Эта папка принадлежит macOS или другому пользователю, поэтому Sift не может её прочитать."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esta ubicación pertenece a macOS o a otro usuario, así que Sift no puede leerla."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この場所は macOS または別のユーザーが所有しているため、Sift は読み取れません。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cet emplacement appartient à macOS ou à un autre utilisateur, Sift ne peut donc pas le lire."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Ort gehört macOS oder einem anderen Benutzer, daher kann Sift ihn nicht lesen."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Questa posizione appartiene a macOS o a un altro utente, quindi Sift non può leggerla."
+          }
+        },
+        "pt-br": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este local pertence ao macOS ou a outro usuário, então o Sift não consegue lê-lo."
+          }
+        },
+        "zh-hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "這個位置屬於 macOS 或其他使用者，Sift 無法讀取。"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bu konum macOS'a veya başka bir kullanıcıya ait, bu yüzden Sift burayı okuyamıyor."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ta lokalizacja należy do macOS lub innego użytkownika, więc Sift nie może jej odczytać."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deze locatie is eigendom van macOS of een andere gebruiker, dus Sift kan hem niet lezen."
+          }
+        },
+        "lo": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ຕຳແໜ່ງນີ້ເປັນຂອງ macOS ຫຼື ຜູ້ໃຊ້ອື່ນ ດັ່ງນັ້ນ Sift ຈຶ່ງອ່ານບໍ່ໄດ້."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "هذا الموقع مملوك لـ macOS أو لمستخدم آخر، لذا لا يستطيع Sift قراءته."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "המיקום הזה שייך ל-macOS או למשתמש אחר, ולכן Sift אינו יכול לקרוא אותו."
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "این مکان متعلق به macOS یا کاربر دیگری است، بنابراین Sift نمی‌تواند آن را بخواند."
+          }
+        },
+        "bg": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Тази папка принадлежи на macOS или на друг потребител, затова Sift не може да я прочете."
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toto umístění patří macOS nebo jinému uživateli, takže je Sift nemůže přečíst."
+          }
+        },
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Denne placering tilhører macOS eller en anden bruger, så Sift kan ikke læse den."
+          }
+        },
+        "el": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Αυτή η θέση ανήκει στο macOS ή σε άλλον χρήστη, οπότε το Sift δεν μπορεί να τη διαβάσει."
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esta ubicación pertenece a macOS o a otro usuario, así que Sift no puede leerla."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tämä sijainti kuuluu macOS:lle tai toiselle käyttäjälle, joten Sift ei voi lukea sitä."
+          }
+        },
+        "hu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ez a hely a macOS vagy egy másik felhasználó tulajdona, ezért a Sift nem tudja beolvasni."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lokasi ini milik macOS atau pengguna lain, jadi Sift tidak dapat membacanya."
+          }
+        },
+        "ms": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lokasi ini dimiliki oleh macOS atau pengguna lain, jadi Sift tidak dapat membacanya."
+          }
+        },
+        "nb": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Denne plasseringen tilhører macOS eller en annen bruker, så Sift kan ikke lese den."
+          }
+        },
+        "pt-pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esta localização pertence ao macOS ou a outro utilizador, por isso o Sift não a consegue ler."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Această locație aparține macOS sau altui utilizator, așa că Sift nu o poate citi."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Den här platsen tillhör macOS eller en annan användare, så Sift kan inte läsa den."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ตำแหน่งนี้เป็นของ macOS หรือผู้ใช้อื่น Sift จึงอ่านไม่ได้"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ця папка належить macOS або іншому користувачу, тому Sift не може її прочитати."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vị trí này thuộc về macOS hoặc người dùng khác, nên Sift không thể đọc được."
           }
         }
       }

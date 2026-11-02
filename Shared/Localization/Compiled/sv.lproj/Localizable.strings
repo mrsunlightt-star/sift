@@ -231,6 +231,8 @@
 "permission.openedSettings" = "Systeminställningar är öppna. Kom tillbaka och skanna igen.";
 "permission.partialAccess" = "Vissa platser kunde inte läsas";
 "permission.protectedTitle" = "Skyddat av Sift";
+"permission.restartHint" = "Om Fullskivåtkomst redan är på, avsluta Sift och öppna det igen — macOS tillämpar behörigheten när en app startar.";
+"permission.systemProtectedTitle" = "Platser som macOS håller stängda";
 "permission.whyBody" = "Den omfattar systemloggar och appsupportmappar, som macOS skyddar. Allt annat fungerar utan den.";
 "permission.whyRevoke" = "Du kan stänga av den i Systeminställningar → Integritet och säkerhet när som helst.";
 "permission.whyTitle" = "Varför fullskivåtkomst";
@@ -348,6 +350,7 @@
 "scan.skippedReason.partialFailure" = "En del av den här platsen kunde inte läsas.";
 "scan.skippedReason.permissionDenied" = "Sift behöver extra behörighet för den här platsen.";
 "scan.skippedReason.protectedLocation" = "Sift rör aldrig den här platsen, för att skydda dina filer.";
+"scan.skippedReason.systemRestricted" = "Den här platsen tillhör macOS eller en annan användare, så Sift kan inte läsa den.";
 "scan.skippedReason.timedOut" = "Den här mappen svarade inte och hoppades över.";
 "scan.stopped.detail" = "%d objekt (%@) hittades innan du stoppade. Du kan fortfarande rensa dem.";
 "scan.stopped.title" = "Skanningen stoppades";

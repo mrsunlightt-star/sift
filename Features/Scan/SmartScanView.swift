@@ -44,6 +44,10 @@ public struct ScanView: View {
     /// rows behave the way every other list in macOS does.
     @FocusState private var focusedRow: String?
 
+    /// Reduce Motion is honoured by every page-level re-flow, not only by the
+    /// components that draw their own animation.
+    @Environment(\.siftReduceMotion) private var reduceMotion
+
     /// Moves the keyboard cursor by one row, clamped at both ends.
     private func moveCursor(_ direction: MoveCommandDirection, from rowID: String) {
         let rows = orderedRowIDs
@@ -660,7 +664,6 @@ public struct ScanView: View {
                     focus: $focusedRow,
                     onMove: moveCursor
                 )
-                    .transition(.opacity.combined(with: .offset(y: 6)))
                 Divider()
             }
         }
@@ -691,8 +694,7 @@ public struct ScanView: View {
                         focus: $focusedRow,
                         onMove: moveCursor
                     )
-                        .transition(.opacity.combined(with: .offset(y: 6)))
-                    Divider()
+                        Divider()
                 }
             }
         }
@@ -763,11 +765,27 @@ public struct ScanView: View {
         groupExpansion[risk] ?? risk.isExpandedByDefault
     }
 
+    /// Rows whose insertion is worth animating.
+    ///
+    /// A group opens at most four rows at a time (`collapsedRowsPerGroup`), so a
+    /// value this size only trips on "show all", where the page inserts every
+    /// row it holds. Animating a page of inserts is the one case where the curve
+    /// is not the cost: the layout is.
+    private let animatedInsertRowLimit = 24
+
     private func toggleExpansion(_ risk: CleanupRisk) {
         // A group opening is a layout re-flow, not a state change: 0.24 s of
-        // smooth motion so the eye can follow where the rows came from.
-        withAnimation(SiftMotion.expand) {
-            groupExpansion[risk] = !isExpanded(risk)
+        // smooth motion so the eye can follow where the rows came from. Past a
+        // screenful there is nothing to follow — the list is longer than the
+        // viewport — so the rows land and the scroll position is the feedback.
+        let opening = !isExpanded(risk)
+        let inserted = opening ? visible(groupItems(risk)).count : 0
+        let animation = reduceMotion || inserted > animatedInsertRowLimit
+            ? nil
+            : SiftMotion.expand
+
+        withAnimation(animation) {
+            groupExpansion[risk] = opening
         }
     }
 
@@ -1419,6 +1437,14 @@ struct ScanItemRow: View {
                     .help(bundleIdentifier)
                 }
             }
+            // The name is what the user aims at, so it does what the checkbox
+            // does. A row where only the 18 pt square answers is a row that
+            // appears not to respond.
+            .contentShape(Rectangle())
+            .onTapGesture {
+                guard item.risk.isCleanable else { return }
+                cleanup.setSelected(!cleanup.isSelected(domainItem), for: domainItem)
+            }
 
             Spacer(minLength: SiftMetrics.spacingS)
 
@@ -1749,22 +1775,36 @@ struct SkippedLocationsCard: View {
     @State private var expandedGroups: Set<String> = []
 
     private var groups: [SkippedLocationGroup] {
-        SkippedLocation.groupedByTopLevelDirectory(locations)
+        // What the user can still act on comes first: a directory only `root`
+        // may read is a fact about macOS, and leading with it buried the two
+        // groups that a grant would actually open.
+        let all = SkippedLocation.groupedByTopLevelDirectory(locations)
+        return all.filter(\.hasActionableLocations) + all.filter { !$0.hasActionableLocations }
+    }
+
+    /// Locations a grant could still change — a TCC refusal and nothing else.
+    private var actionableCount: Int {
+        locations.count(where: \.isActionable)
     }
 
     /// "Some locations could not be read" is only true for the reasons a person
-    /// can act on. A location the protection list refuses was never unreadable:
-    /// saying so sent the user to System Settings for a permission that changes
-    /// nothing.
+    /// can act on.
+    ///
+    /// A location the protection list refuses was never unreadable, and a
+    /// `0700` directory owned by `root` is not missing a permission the user
+    /// forgot to give: both used to send the user to System Settings for a
+    /// switch that changes nothing.
     private var cardTitle: String {
-        let needsPermission = locations.contains(where: \.needsFullDiskAccess)
-        let allProtected = locations.allSatisfy { $0.code == ErrorCode.protectedLocation.rawValue }
-        if allProtected {
+        if actionableCount > 0 {
+            return LocalizationKey.permissionPartialAccess.localized
+        }
+        // Two different answers, and mixing them is how "we chose not to open
+        // this" came to look like "macOS would not let us": the protection list
+        // is this product's own decision, an owner-only directory is the system's.
+        if locations.allSatisfy(\.isProtectedByPolicy) {
             return LocalizationKey.permissionProtectedTitle.localized
         }
-        return needsPermission || !allProtected
-            ? LocalizationKey.permissionPartialAccess.localized
-            : LocalizationKey.scanPhasePartial.localized
+        return LocalizationKey.permissionSystemProtectedTitle.localized
     }
 
     var body: some View {
@@ -1774,7 +1814,7 @@ struct SkippedLocationsCard: View {
                     Text(cardTitle)
                         .font(SiftFont.sectionTitle)
                     Spacer()
-                    if locations.contains(where: \.needsFullDiskAccess) {
+                    if actionableCount > 0 {
                         Button {
                             Task { await WorkspaceActions.openFullDiskAccessSettings() }
                         } label: {
@@ -1785,11 +1825,38 @@ struct SkippedLocationsCard: View {
                     }
                 }
                 Divider()
-                ForEach(groups) { group in
+                ForEach(Array(groups.enumerated()), id: \.element.id) { index, group in
+                    // Both kinds can be present at once, and then the card has
+                    // two answers in it: the top half is a grant away from being
+                    // read, the bottom half is closed to everyone. One line is
+                    // what keeps the second half from reading as the first.
+                    if actionableCount > 0,
+                       !group.hasActionableLocations,
+                       index > 0,
+                       groups[index - 1].hasActionableLocations {
+                        Text(LocalizationKey.permissionSystemProtectedTitle.localized)
+                            .font(SiftFont.caption)
+                            .foregroundStyle(SiftColor.subtleText)
+                            .padding(.top, SiftMetrics.spacingXS)
+                    }
                     groupSection(group)
                     if group.id != groups.last?.id {
                         Divider()
                     }
+                }
+                if actionableCount > 0 {
+                    // The switch is on and these rows still say "permission":
+                    // macOS applies a TCC grant when an app starts, and a
+                    // rebuilt or updated copy of Sift is a different code
+                    // identity, so the grant the user remembers does not reach
+                    // the running process. Saying so is the only way the card
+                    // stops reading as a bug.
+                    Divider()
+                    Text(LocalizationKey.permissionRestartHint.localized)
+                        .font(SiftFont.caption)
+                        .foregroundStyle(SiftColor.subtleText)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityLabel(Text(LocalizationKey.permissionRestartHint.localized))
                 }
             }
         }

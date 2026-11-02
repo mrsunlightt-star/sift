@@ -231,6 +231,8 @@
 "permission.openedSettings" = "Pengaturan Sistem sudah terbuka. Kembali dan pindai lagi.";
 "permission.partialAccess" = "Beberapa lokasi tidak dapat dibaca";
 "permission.protectedTitle" = "Dilindungi oleh Sift";
+"permission.restartHint" = "Jika Akses Disk Penuh sudah aktif, tutup Sift lalu buka lagi — macOS menerapkan izin saat app dimulai.";
+"permission.systemProtectedTitle" = "Lokasi yang ditutup oleh macOS";
 "permission.whyBody" = "Ini mencakup log sistem dan folder dukungan aplikasi yang dilindungi macOS. Semua fitur lain berfungsi tanpanya.";
 "permission.whyRevoke" = "Anda dapat mematikannya kapan saja di Pengaturan Sistem → Privasi & Keamanan.";
 "permission.whyTitle" = "Mengapa Akses Disk Penuh";
@@ -348,6 +350,7 @@
 "scan.skippedReason.partialFailure" = "Sebagian lokasi ini tidak dapat dibaca.";
 "scan.skippedReason.permissionDenied" = "Sift memerlukan izin tambahan untuk lokasi ini.";
 "scan.skippedReason.protectedLocation" = "Sift tidak pernah menyentuh lokasi ini, demi melindungi file Anda.";
+"scan.skippedReason.systemRestricted" = "Lokasi ini milik macOS atau pengguna lain, jadi Sift tidak dapat membacanya.";
 "scan.skippedReason.timedOut" = "Folder ini tidak merespons, jadi dilewati.";
 "scan.stopped.detail" = "%d item (%@) ditemukan sebelum Anda menghentikan. Anda tetap dapat membersihkannya.";
 "scan.stopped.title" = "Pemindaian dihentikan";

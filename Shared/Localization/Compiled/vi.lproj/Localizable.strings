@@ -231,6 +231,8 @@
 "permission.openedSettings" = "Cài đặt Hệ thống đã mở. Hãy quay lại và quét lại.";
 "permission.partialAccess" = "Không đọc được một số vị trí";
 "permission.protectedTitle" = "Được Sift bảo vệ";
+"permission.restartHint" = "Nếu Quyền truy cập toàn bộ ổ đĩa đã bật, hãy thoát Sift rồi mở lại — macOS áp dụng quyền này khi ứng dụng khởi động.";
+"permission.systemProtectedTitle" = "Vị trí macOS giữ kín";
 "permission.whyBody" = "Quyền này bao gồm nhật ký hệ thống và thư mục hỗ trợ ứng dụng do macOS bảo vệ. Mọi thứ khác vẫn hoạt động nếu không có quyền này.";
 "permission.whyRevoke" = "Bạn có thể tắt quyền này bất cứ lúc nào trong Cài đặt Hệ thống → Quyền riêng tư và Bảo mật.";
 "permission.whyTitle" = "Vì sao cần Quyền truy cập Toàn bộ Đĩa";
@@ -348,6 +350,7 @@
 "scan.skippedReason.partialFailure" = "Không đọc được một phần của vị trí này.";
 "scan.skippedReason.permissionDenied" = "Sift cần thêm quyền cho vị trí này.";
 "scan.skippedReason.protectedLocation" = "Sift không bao giờ đụng đến vị trí này để bảo vệ tệp của bạn.";
+"scan.skippedReason.systemRestricted" = "Vị trí này thuộc về macOS hoặc người dùng khác, nên Sift không thể đọc được.";
 "scan.skippedReason.timedOut" = "Thư mục này không phản hồi nên đã bị bỏ qua.";
 "scan.stopped.detail" = "Đã tìm thấy %d mục (%@) trước khi bạn dừng. Bạn vẫn có thể dọn chúng.";
 "scan.stopped.title" = "Đã dừng quét";

@@ -231,6 +231,8 @@
 "permission.openedSettings" = "システム設定を開きました。戻ってきて再度スキャンしてください。";
 "permission.partialAccess" = "一部の場所を読み取れません";
 "permission.protectedTitle" = "Sift が保護するパス";
+"permission.restartHint" = "フルディスクアクセスがすでにオンなら、Sift を終了してから開き直してください。macOS はアプリの起動時に権限を適用します。";
+"permission.systemProtectedTitle" = "macOS が保護している場所";
 "permission.whyBody" = "システムログとアプリのサポートフォルダーは macOS が保護しているため、この権限があれば読み取れます。ほかの機能は権限なしでも動作します。";
 "permission.whyRevoke" = "システム設定 → プライバシーとセキュリティでいつでもオフにできます。";
 "permission.whyTitle" = "フルディスクアクセスが必要な理由";
@@ -348,6 +350,7 @@
 "scan.skippedReason.partialFailure" = "この場所の一部を読み取れませんでした。";
 "scan.skippedReason.permissionDenied" = "この場所には追加の権限が必要です。";
 "scan.skippedReason.protectedLocation" = "ファイルを保護するため、この場所は処理しません。";
+"scan.skippedReason.systemRestricted" = "この場所は macOS または別のユーザーが所有しているため、Sift は読み取れません。";
 "scan.skippedReason.timedOut" = "このディレクトリが応答しないためスキップしました。";
 "scan.stopped.detail" = "停止する前に %d 件（%@）が見つかりました。引き続き整理できます。";
 "scan.stopped.title" = "スキャンを停止しました";

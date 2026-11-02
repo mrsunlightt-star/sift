@@ -231,6 +231,8 @@
 "permission.openedSettings" = "Systeeminstellingen staat open. Kom terug en scan opnieuw.";
 "permission.partialAccess" = "Sommige locaties konden niet worden gelezen";
 "permission.protectedTitle" = "Beschermd door Sift";
+"permission.restartHint" = "Staat Volledige schijftoegang al aan, sluit Sift dan af en open het opnieuw — macOS past de toestemming toe wanneer een app start.";
+"permission.systemProtectedTitle" = "Locaties die macOS gesloten houdt";
 "permission.whyBody" = "Het dekt systeemlogbestanden en app-ondersteuningsmappen, die macOS beschermt. Al het andere werkt zonder.";
 "permission.whyRevoke" = "Je kunt het altijd uitzetten in Systeeminstellingen → Privacy en beveiliging.";
 "permission.whyTitle" = "Waarom Volledige Schijftoegang";
@@ -348,6 +350,7 @@
 "scan.skippedReason.partialFailure" = "Een deel van deze locatie kon niet worden gelezen.";
 "scan.skippedReason.permissionDenied" = "Voor deze locatie is een extra machtiging nodig.";
 "scan.skippedReason.protectedLocation" = "Sift raakt deze locatie nooit aan, om je bestanden te beschermen.";
+"scan.skippedReason.systemRestricted" = "Deze locatie is eigendom van macOS of een andere gebruiker, dus Sift kan hem niet lezen.";
 "scan.skippedReason.timedOut" = "Deze map reageerde niet en is daarom overgeslagen.";
 "scan.stopped.detail" = "Er zijn %d items (%@) gevonden voordat je stopte. Je kunt ze nog steeds opschonen.";
 "scan.stopped.title" = "Scan gestopt";

@@ -231,6 +231,8 @@
 "permission.openedSettings" = "Ajustes del Sistema está abierto. Vuelve y analiza de nuevo.";
 "permission.partialAccess" = "Algunas ubicaciones no se pudieron leer";
 "permission.protectedTitle" = "Protegido por Sift";
+"permission.restartHint" = "Si el acceso al disco completo ya está activado, cierra Sift y vuelve a abrirlo: macOS aplica el permiso al iniciar la app.";
+"permission.systemProtectedTitle" = "Ubicaciones cerradas por macOS";
 "permission.whyBody" = "Cubre los registros del sistema y las carpetas de soporte de apps, que macOS protege. Todo lo demás funciona sin él.";
 "permission.whyRevoke" = "Puedes desactivarlo cuando quieras en Ajustes del Sistema → Privacidad y seguridad.";
 "permission.whyTitle" = "Por qué el acceso total al disco";
@@ -348,6 +350,7 @@
 "scan.skippedReason.partialFailure" = "Parte de esta ubicación no se pudo leer.";
 "scan.skippedReason.permissionDenied" = "Esta ubicación necesita permiso adicional.";
 "scan.skippedReason.protectedLocation" = "Sift no toca esta ubicación para proteger tus archivos.";
+"scan.skippedReason.systemRestricted" = "Esta ubicación pertenece a macOS o a otro usuario, así que Sift no puede leerla.";
 "scan.skippedReason.timedOut" = "Esta carpeta no respondió, así que se omitió.";
 "scan.stopped.detail" = "Se encontraron %d elementos (%@) antes de detener. Aún puedes limpiarlos.";
 "scan.stopped.title" = "Análisis detenido";

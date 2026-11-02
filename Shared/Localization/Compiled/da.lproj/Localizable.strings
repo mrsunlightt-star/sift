@@ -231,6 +231,8 @@
 "permission.openedSettings" = "Systemindstillinger er åbne. Kom tilbage, og scan igen.";
 "permission.partialAccess" = "Nogle placeringer kunne ikke læses";
 "permission.protectedTitle" = "Beskyttet af Sift";
+"permission.restartHint" = "Hvis Fuld diskadgang allerede er slået til, luk Sift og åbn det igen — macOS anvender tilladelsen, når en app starter.";
+"permission.systemProtectedTitle" = "Placeringer, som macOS holder lukket";
 "permission.whyBody" = "Det dækker systemlogfiler og app-supportmapper, som macOS beskytter. Alt andet virker uden.";
 "permission.whyRevoke" = "Du kan slå det fra i Systemindstillinger → Anonymitet og sikkerhed når som helst.";
 "permission.whyTitle" = "Hvorfor fuld diskadgang";
@@ -348,6 +350,7 @@
 "scan.skippedReason.partialFailure" = "En del af denne placering kunne ikke læses.";
 "scan.skippedReason.permissionDenied" = "Sift kræver ekstra tilladelse til denne placering.";
 "scan.skippedReason.protectedLocation" = "Sift rører aldrig denne placering for at beskytte dine filer.";
+"scan.skippedReason.systemRestricted" = "Denne placering tilhører macOS eller en anden bruger, så Sift kan ikke læse den.";
 "scan.skippedReason.timedOut" = "Denne mappe svarede ikke og blev sprunget over.";
 "scan.stopped.detail" = "%d elementer (%@) blev fundet, før du stoppede. Du kan stadig rydde dem.";
 "scan.stopped.title" = "Scanning stoppet";

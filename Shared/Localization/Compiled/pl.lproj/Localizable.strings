@@ -231,6 +231,8 @@
 "permission.openedSettings" = "Ustawienia systemowe są otwarte. Wróć i uruchom skanowanie ponownie.";
 "permission.partialAccess" = "Niektóre lokalizacje nieczytelne";
 "permission.protectedTitle" = "Chronione przez Sift";
+"permission.restartHint" = "Jeśli Pełny dostęp do dysku jest już włączony, zamknij Sift i otwórz go ponownie — macOS stosuje zgodę przy starcie aplikacji.";
+"permission.systemProtectedTitle" = "Lokalizacje zamknięte przez macOS";
 "permission.whyBody" = "Obejmuje dzienniki systemowe i foldery wsparcia aplikacji, które macOS chroni. Wszystko inne działa bez niego.";
 "permission.whyRevoke" = "Możesz to wyłączyć w dowolnej chwili w Ustawieniach systemowych → Prywatność i bezpieczeństwo.";
 "permission.whyTitle" = "Dlaczego pełny dostęp do dysku";
@@ -348,6 +350,7 @@
 "scan.skippedReason.partialFailure" = "Części tej lokalizacji nie udało się odczytać.";
 "scan.skippedReason.permissionDenied" = "Ta lokalizacja wymaga dodatkowych uprawnień.";
 "scan.skippedReason.protectedLocation" = "Sift nigdy nie dotyka tej lokalizacji, aby chronić Twoje pliki.";
+"scan.skippedReason.systemRestricted" = "Ta lokalizacja należy do macOS lub innego użytkownika, więc Sift nie może jej odczytać.";
 "scan.skippedReason.timedOut" = "Ten folder nie odpowiedział, więc został pominięty.";
 "scan.stopped.detail" = "Przed zatrzymaniem znaleziono %d elementów (%@). Nadal możesz je wyczyścić.";
 "scan.stopped.title" = "Skanowanie zatrzymane";

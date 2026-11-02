@@ -231,6 +231,8 @@
 "permission.openedSettings" = "System Settings is open. Come back and scan again.";
 "permission.partialAccess" = "Some locations could not be read";
 "permission.protectedTitle" = "Protected by Sift";
+"permission.restartHint" = "If Full Disk Access is already on, quit Sift and open it again — macOS applies the grant when an app starts.";
+"permission.systemProtectedTitle" = "Locations macOS keeps closed";
 "permission.whyBody" = "It covers system logs and app support folders, which macOS protects. Everything else works without it.";
 "permission.whyRevoke" = "You can switch it off in System Settings → Privacy & Security at any time.";
 "permission.whyTitle" = "Why Full Disk Access";
@@ -348,6 +350,7 @@
 "scan.skippedReason.partialFailure" = "Part of this location could not be read.";
 "scan.skippedReason.permissionDenied" = "Sift needs extra permission for this location.";
 "scan.skippedReason.protectedLocation" = "Sift never touches this location, to protect your files.";
+"scan.skippedReason.systemRestricted" = "macOS or another user owns this location, so Sift cannot read it.";
 "scan.skippedReason.timedOut" = "This directory stopped responding, so Sift skipped it.";
 "scan.stopped.detail" = "%d items (%@) were found before you stopped. You can still clean them.";
 "scan.stopped.title" = "Scan stopped";

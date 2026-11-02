@@ -231,6 +231,8 @@
 "permission.openedSettings" = "הגדרות המערכת פתוחות. חזרו וסרקו שוב.";
 "permission.partialAccess" = "חלק מהמיקומים לא ניתנים לקריאה";
 "permission.protectedTitle" = "מוגן על ידי Sift";
+"permission.restartHint" = "אם „גישה מלאה לדיסק“ כבר דלוקה, צא מ-Sift ופתח אותו שוב — macOS מחיל את ההרשאה כשהאפליקציה עולה.";
+"permission.systemProtectedTitle" = "מיקומים ש-macOS משאיר סגורים";
 "permission.whyBody" = "היא מכסה יומני מערכת ותיקיות תמיכה של אפליקציות ש-macOS מגן עליהן. כל השאר עובד בלעדיה.";
 "permission.whyRevoke" = "אפשר לכבות אותה בכל עת בהגדרות המערכת → פרטיות ואבטחה.";
 "permission.whyTitle" = "למה גישה מלאה לכונן";
@@ -348,6 +350,7 @@
 "scan.skippedReason.partialFailure" = "לא ניתן היה לקרוא חלק ממיקום זה.";
 "scan.skippedReason.permissionDenied" = "מיקום זה דורש הרשאה נוספת.";
 "scan.skippedReason.protectedLocation" = "כדי להגן על הקבצים שלכם, Sift לעולם לא נוגע במיקום זה.";
+"scan.skippedReason.systemRestricted" = "המיקום הזה שייך ל-macOS או למשתמש אחר, ולכן Sift אינו יכול לקרוא אותו.";
 "scan.skippedReason.timedOut" = "התיקייה לא הגיבה, ולכן דולגה.";
 "scan.stopped.detail" = "נמצאו %d פריטים (%@) לפני שעצרתם. עדיין אפשר לנקות אותם.";
 "scan.stopped.title" = "הסריקה הופסקה";

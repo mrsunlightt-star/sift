@@ -682,6 +682,36 @@ These are product promises, not implementation details. Each has tests behind it
     `a_stopped_scan_keeps_an_index_that_still_pages`,
     `test_aStoppedRunKeepsItsSessionAndItsRows`.
 
+43. **A refusal says whose decision it was.** A scan reports every directory it
+    could not read, and the report is only useful if the three reasons stay
+    apart: `protectedLocation` is this product's own protection list,
+    `systemRestricted` is a location whose own mode bits refuse this account
+    (`EACCES` — a `0700` directory owned by `root`, `/var/spool/postfix/*`), and
+    `permissionDenied` is macOS answering a TCC refusal (`EPERM`). Only the last
+    one is a grant away from being read, so only the last one carries
+    `needsFullDiskAccess` and only the last one is `isActionable`; the card that
+    shows them titles itself from that count, offers "Open System Settings" only
+    when it is non-zero, and otherwise says macOS keeps the location closed. A
+    card that offered the switch for an `EACCES` directory sent users to a setting
+    that could not change anything, which is what "I already granted Full Disk
+    Access" was reporting. Both engines classify from the errno — Rust in
+    `skip_for`, Swift in `FileWalker.skip(for:error:)` — and the Swift side reads
+    the POSIX code out of `NSUnderlyingErrorKey` because Foundation wraps it in
+    `NSCocoaErrorDomain`/`NSFileReadNoPermissionError` (257). A denial with no
+    errno falls back to ownership: a directory this account owns is a grant away
+    (`permissionDenied`), one it does not is the system's (`systemRestricted`).
+    The card also states, when anything remains actionable, that macOS applies
+    the grant at launch and a rebuilt copy of the app is a different code
+    identity — `permission.restartHint`. Tests:
+    `test_aSystemRestrictedLocationIsNotSomethingToGrant`,
+    `test_aPermissionDenialStaysActionable`,
+    `test_aProtectedLocationIsPolicyNotPermission`,
+    `test_theWalkerSplitsTheTwoDenials`,
+    `test_aWrappedPosixDenialIsClassifiedFromItsCause`,
+    `a_posix_denial_is_a_system_location_not_something_to_grant`,
+    `a_tcc_denial_stays_actionable`,
+    `a_denial_without_an_errno_is_not_called_system_restricted`.
+
 ## Layout notes
 
 - `Core/` is one library; `Features/` are separate libraries so a change to one

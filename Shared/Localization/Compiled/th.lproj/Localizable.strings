@@ -231,6 +231,8 @@
 "permission.openedSettings" = "เปิดการตั้งค่าระบบแล้ว กลับมาแล้วสแกนอีกครั้ง";
 "permission.partialAccess" = "อ่านบางตำแหน่งไม่ได้";
 "permission.protectedTitle" = "Sift ป้องกันไว้";
+"permission.restartHint" = "ถ้าเปิดการเข้าถึงดิสก์เต็มรูปแบบไว้แล้ว ให้ออกจาก Sift แล้วเปิดใหม่ — macOS จะใช้สิทธิ์เมื่อแอปเริ่มทำงาน";
+"permission.systemProtectedTitle" = "ตำแหน่งที่ macOS ปิดไว้";
 "permission.whyBody" = "สิทธิ์นี้ครอบคลุมบันทึกของระบบและโฟลเดอร์สนับสนุนแอปที่ macOS ป้องกันไว้ ส่วนอื่นทำงานได้โดยไม่ต้องใช้สิทธิ์นี้";
 "permission.whyRevoke" = "ปิดได้ทุกเมื่อในการตั้งค่าระบบ → ความเป็นส่วนตัวและความปลอดภัย";
 "permission.whyTitle" = "ทำไมต้องเข้าถึงดิสก์ทั้งหมด";
@@ -348,6 +350,7 @@
 "scan.skippedReason.partialFailure" = "อ่านข้อมูลบางส่วนของตำแหน่งนี้ไม่ได้";
 "scan.skippedReason.permissionDenied" = "Sift ต้องได้รับสิทธิ์เพิ่มเติมสำหรับตำแหน่งนี้";
 "scan.skippedReason.protectedLocation" = "Sift จะไม่แตะต้องตำแหน่งนี้เพื่อปกป้องไฟล์ของคุณ";
+"scan.skippedReason.systemRestricted" = "ตำแหน่งนี้เป็นของ macOS หรือผู้ใช้อื่น Sift จึงอ่านไม่ได้";
 "scan.skippedReason.timedOut" = "โฟลเดอร์นี้ไม่ตอบสนอง จึงถูกข้ามไป";
 "scan.stopped.detail" = "พบ %d รายการ (%@) ก่อนที่คุณจะหยุด คุณยังล้างได้อยู่";
 "scan.stopped.title" = "หยุดการสแกนแล้ว";

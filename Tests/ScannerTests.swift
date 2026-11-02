@@ -528,8 +528,12 @@ final class ScannerTests: XCTestCase, @unchecked Sendable {
         // user. The unconditional part of this test is that the scan completed.
         if geteuid() != 0 {
             XCTAssertTrue(
-                result.skipped.contains { $0.code == ErrorCode.permissionDenied.rawValue },
-                "the unreadable folder is reported by code"
+                result.skipped.contains { $0.code == SkippedLocation.Code.systemRestricted },
+                "an owner-only folder is reported as a system location"
+            )
+            XCTAssertFalse(
+                result.skipped.contains { $0.code == SkippedLocation.Code.permissionDenied },
+                "no Full Disk Access grant opens a directory whose own mode refuses this account"
             )
         }
     }

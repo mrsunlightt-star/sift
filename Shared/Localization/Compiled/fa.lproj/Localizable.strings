@@ -231,6 +231,8 @@
 "permission.openedSettings" = "تنظیمات سیستم باز است. برگردید و دوباره اسکن کنید.";
 "permission.partialAccess" = "خواندن برخی مکان‌ها ممکن نشد";
 "permission.protectedTitle" = "محافظت‌شده توسط Sift";
+"permission.restartHint" = "اگر «دسترسی کامل به دیسک» از قبل روشن است، Sift را ببندید و دوباره باز کنید — macOS این مجوز را هنگام آغاز برنامه اعمال می‌کند.";
+"permission.systemProtectedTitle" = "مکان‌هایی که macOS بسته نگه می‌دارد";
 "permission.whyBody" = "گزارش‌های سیستم و پوشه‌های پشتیبانی برنامه‌ها را در بر می‌گیرد که مک‌او‌اس محافظتشان می‌کند. بقیهٔ کارها بدون آن هم انجام می‌شود.";
 "permission.whyRevoke" = "هر زمان می‌توانید آن را در تنظیمات سیستم → حریم خصوصی و امنیت خاموش کنید.";
 "permission.whyTitle" = "چرا دسترسی کامل به دیسک";
@@ -348,6 +350,7 @@
 "scan.skippedReason.partialFailure" = "بخشی از این مکان خوانده نشد.";
 "scan.skippedReason.permissionDenied" = "این مکان به مجوز بیشتری نیاز دارد.";
 "scan.skippedReason.protectedLocation" = "برای محافظت از فایل‌هایتان، Sift هرگز به این مکان دست نمی‌زند.";
+"scan.skippedReason.systemRestricted" = "این مکان متعلق به macOS یا کاربر دیگری است، بنابراین Sift نمی‌تواند آن را بخواند.";
 "scan.skippedReason.timedOut" = "این پوشه پاسخ نداد، بنابراین نادیده گرفته شد.";
 "scan.stopped.detail" = "%d مورد (%@) پیش از توقف یافت شد. هنوز می‌توانید پاکشان کنید.";
 "scan.stopped.title" = "اسکن متوقف شد";

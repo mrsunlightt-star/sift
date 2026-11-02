@@ -231,6 +231,8 @@
 "permission.openedSettings" = "إعدادات النظام مفتوحة. عُد وافحص مجددًا.";
 "permission.partialAccess" = "تعذّرت قراءة بعض المواقع";
 "permission.protectedTitle" = "محمي بواسطة Sift";
+"permission.restartHint" = "إذا كان الوصول الكامل إلى القرص مفعَّلًا بالفعل، فاخرج من Sift ثم افتحه مرة أخرى — يطبّق macOS الإذن عند بدء التطبيق.";
+"permission.systemProtectedTitle" = "مواقع يحتفظ macOS بها مغلقة";
 "permission.whyBody" = "يغطي سجلات النظام ومجلدات دعم التطبيقات التي تحميها macOS. كل ما عدا ذلك يعمل بدونه.";
 "permission.whyRevoke" = "يمكنك إيقافه في أي وقت من إعدادات النظام → الخصوصية والأمان.";
 "permission.whyTitle" = "لماذا الوصول الكامل إلى القرص";
@@ -348,6 +350,7 @@
 "scan.skippedReason.partialFailure" = "تعذّرت قراءة جزء من هذا الموقع.";
 "scan.skippedReason.permissionDenied" = "يحتاج هذا الموقع إلى إذن إضافي.";
 "scan.skippedReason.protectedLocation" = "لحماية ملفاتك، لا يلمس Sift هذا الموقع أبدًا.";
+"scan.skippedReason.systemRestricted" = "هذا الموقع مملوك لـ macOS أو لمستخدم آخر، لذا لا يستطيع Sift قراءته.";
 "scan.skippedReason.timedOut" = "لم يستجب هذا المجلد، لذلك تم تخطيه.";
 "scan.stopped.detail" = "تم العثور على %d عنصرًا (%@) قبل أن توقف. لا يزال بإمكانك تنظيفها.";
 "scan.stopped.title" = "توقف الفحص";

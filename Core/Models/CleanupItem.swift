@@ -411,15 +411,48 @@ public struct SkippedLocation: Identifiable, Hashable, Sendable {
         self.needsFullDiskAccess = needsFullDiskAccess
     }
 
+    /// The codes a skipped location can carry.
+    ///
+    /// Strings rather than `ErrorCode` cases: the core writes them and the
+    /// scanner's own walker writes the same set, and a code this build does not
+    /// know must still arrive as a row instead of failing the whole report.
+    public enum Code {
+        /// A TCC refusal. Full Disk Access is the grant that lifts it.
+        public static let permissionDenied = "permissionDenied"
+        /// A location whose own mode bits refuse this account. No grant lifts
+        /// it, so the card must not offer one.
+        public static let systemRestricted = "systemRestricted"
+        /// The protection list refused the location: nothing is wrong.
+        public static let protectedLocation = "protectedLocation"
+        public static let fileNotFound = "fileNotFound"
+        public static let timedOut = "timedOut"
+        public static let partialFailure = "partialFailure"
+    }
+
     /// A localised explanation for the code, per the product error table (§14).
     public var reasonKey: LocalizationKey {
         switch code {
-        case "permissionDenied": .scanSkippedReasonPermissionDenied
-        case "protectedLocation": .scanSkippedReasonProtectedLocation
-        case "fileNotFound": .scanSkippedReasonFileNotFound
-        case "timedOut": .scanSkippedReasonTimedOut
+        case Code.permissionDenied: .scanSkippedReasonPermissionDenied
+        case Code.systemRestricted: .scanSkippedReasonSystemRestricted
+        case Code.protectedLocation: .scanSkippedReasonProtectedLocation
+        case Code.fileNotFound: .scanSkippedReasonFileNotFound
+        case Code.timedOut: .scanSkippedReasonTimedOut
         default: .scanSkippedReasonPartialFailure
         }
+    }
+
+    /// Whether granting Full Disk Access could change this outcome.
+    ///
+    /// The card's settings button and its title both key off this, so a
+    /// location only an administrator can open never appears as a missing
+    /// permission the user failed to give.
+    public var isActionable: Bool {
+        code == Code.permissionDenied || (needsFullDiskAccess && code != Code.systemRestricted)
+    }
+
+    /// Whether the location was skipped on purpose rather than refused.
+    public var isProtectedByPolicy: Bool {
+        code == Code.protectedLocation
     }
 
     /// Home-relative path for display; the report uses the same form.
@@ -477,6 +510,11 @@ public struct SkippedLocationGroup: Identifiable, Hashable, Sendable {
     public let locations: [SkippedLocation]
 
     public var id: String { label }
+
+    /// True when at least one member is something a grant could still change.
+    public var hasActionableLocations: Bool {
+        locations.contains(where: \.isActionable)
+    }
 
     /// The reason every member shares, when they share one.
     public var sharedReasonKey: LocalizationKey? {
