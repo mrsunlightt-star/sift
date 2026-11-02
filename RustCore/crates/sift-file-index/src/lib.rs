@@ -973,6 +973,14 @@ mod tests {
                 .unwrap();
         }
         let result = FileIndex::open(&path, "s");
+        // The fixture is a database of its own, not the suite's index, so it is
+        // removed here: a test that leaves one behind per run filled the
+        // temporary directory with dozens of copies of a schema it never reuses.
+        for suffix in ["", "-wal", "-shm"] {
+            let mut name = path.clone().into_os_string();
+            name.push(suffix);
+            let _ = std::fs::remove_file(std::path::PathBuf::from(name));
+        }
         assert!(matches!(
             result,
             Err(IndexError::SchemaMismatch { found: 99, .. })
