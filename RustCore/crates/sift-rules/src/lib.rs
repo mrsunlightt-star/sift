@@ -1096,9 +1096,16 @@ pub fn default_rules() -> Vec<Rule> {
             // CloudKit and container caches hold state that is expensive to
             // rebuild or that belongs to a sandboxed app's data directory.
             &[
+                // Apple's own caches. `~/Library/Caches` holds one per system
+                // service (`com.apple.WorkflowKit.BackgroundShortcutRunner`,
+                // `com.apple.helpd`, ...), they are rebuilt on demand, and there
+                // is nothing a person can decide about them — which is why a
+                // scan that offered them moved a live XPC service's cache into
+                // the Trash and could not put it back. The container rule below
+                // has always excluded `com.apple` for the same reason; this one
+                // did not.
+                "com.apple",
                 "CloudKit",
-                "com.apple.bird",
-                "com.apple.iCloud",
                 "FamilyCircle",
             ],
         ),

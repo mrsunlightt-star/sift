@@ -11,9 +11,8 @@
       "extensions": [],
       "names": [],
       "excludes": [
+        "com.apple",
         "CloudKit",
-        "com.apple.bird",
-        "com.apple.iCloud",
         "FamilyCircle"
       ],
       "minAgeDays": null,

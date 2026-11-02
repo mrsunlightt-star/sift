@@ -202,6 +202,31 @@ final class ScannerTests: XCTestCase, @unchecked Sendable {
         XCTAssertFalse(result.items.contains { $0.displayName == "CloudKit" })
     }
 
+
+    /// Apple's own caches are not the user's to weigh.
+    ///
+    /// `~/Library/Caches` holds one directory per system service, named after a
+    /// bundle identifier. Offering them put a live XPC service's cache in the
+    /// Trash, where macOS would not give it back to anyone without Full Disk
+    /// Access. The shipped rule excludes `com.apple` for that reason, and the
+    /// third-party cache beside it must still be offered.
+    func test_aSystemCacheIsNeverOffered() async throws {
+        fixture.write(
+            "Library/Caches/com.apple.WorkflowKit.BackgroundShortcutRunner/blob.bin",
+            bytes: 4096
+        )
+        fixture.write("Library/Caches/com.example.app/blob.bin", bytes: 4096)
+        let result = try await runScan(makeRequest())
+        XCTAssertFalse(
+            result.items.contains { $0.displayName.hasPrefix("com.apple.") },
+            "a system service's cache must never be a candidate"
+        )
+        XCTAssertTrue(
+            result.items.contains { $0.displayName == "com.example.app" },
+            "an ordinary application cache is still offered"
+        )
+    }
+
     func test_aLargeFileInsideExcludedApplicationDataIsNotOffered() async throws {
         // The exclusion belongs to the directory, not to the file. A threshold
         // scan looks at files, so it has to check the ancestors.

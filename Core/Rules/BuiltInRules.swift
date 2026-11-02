@@ -19,7 +19,7 @@ public enum BuiltInRules {
             root: .homeLibrary,
             relativePath: "Caches",
             matchSpec: .childDirectories,
-            excludes: ["CloudKit", "com.apple.bird", "com.apple.iCloud", "FamilyCircle"],
+            excludes: ["com.apple", "CloudKit", "FamilyCircle"],
             minAgeDays: nil,
             usesStaleThreshold: false,
             requiresFullDiskAccess: false,

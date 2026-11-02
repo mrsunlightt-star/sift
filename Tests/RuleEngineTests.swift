@@ -803,7 +803,9 @@ final class RuleEngineTests: XCTestCase, @unchecked Sendable {
         let engine = RuleEngine(rules: RuleEngine.builtInRules, homeDirectory: home)
 
         for path in [
-            "\(home.path)/Library/Caches/com.apple.Safari",
+            // A third-party cache: `user-cache` excludes `com.apple`, so a
+            // system cache is no longer an item this rule owns.
+            "\(home.path)/Library/Caches/com.example.app",
             "\(home.path)/Library/Containers/com.example.app/Data/Library/Caches",
             "\(home.path)/Library/Application Support/discord/GPUCache",
             "\(home.path)/Library/Saved Application State/com.apple.Safari.savedState",
