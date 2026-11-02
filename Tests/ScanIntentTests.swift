@@ -48,7 +48,7 @@ final class ScanIntentTests: XCTestCase, @unchecked Sendable {
             Set(CleanupCategory.junkCategories),
             [
                 .applicationCache, .logs, .installers, .temporaryFiles,
-                .applicationResidue, .groupContainerResidue,
+                .applicationResidue, .groupContainerResidue, .developerArtifacts,
             ]
         )
         XCTAssertFalse(CleanupCategory.junkCategories.contains(.largeFiles))

@@ -44,11 +44,16 @@ struct SiftApp: App {
             RootShellView()
                 .environmentObject(environment)
                 .environmentObject(router)
-                .frame(minWidth: 1100, minHeight: 720)
+                // 1100 was wider than a scaled 13-inch MacBook offers once the
+                // window sits beside anything else; 960 still holds the rail, a
+                // result column and the 330 pt summary column.
+                .frame(minWidth: 960, minHeight: 640)
                 .task { await environment.bootstrap() }
         }
         .windowStyle(.hiddenTitleBar)
-        .defaultSize(width: 1340, height: 860)
+        // 1340x860 filled a 1440x900 screen including the menu bar; 1280x820
+        // leaves room for a second window without the page folding up.
+        .defaultSize(width: 1280, height: 820)
         .commands { SiftCommands(router: router) }
     }
 }
@@ -66,6 +71,9 @@ struct SiftCommands: Commands {
             .keyboardShortcut(",", modifiers: .command)
         }
         CommandGroup(after: .newItem) {
+            // Every destination, reachable from the keyboard (§11.4). The step
+            // before the page's own controls: the menu is where a macOS user
+            // looks, and it works from any page.
             ForEach(AppDestination.primary) { destination in
                 Button(destination.titleKey.localized) {
                     router.go(to: destination)

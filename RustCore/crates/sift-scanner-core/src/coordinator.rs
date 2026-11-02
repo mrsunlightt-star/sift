@@ -469,9 +469,9 @@ impl Engine {
     /// happen right here and produced exactly that — the UI thread removing the
     /// write-ahead log while the worker committed into it.
     ///
-    /// The worker removes its own files as its last act, and only for a session
-    /// that was cancelled or superseded (see [`run_worker`]). A session that
-    /// completed keeps its index, because the page is served out of it.
+    /// The worker no longer removes them either: every session keeps its index
+    /// until the FFI session that owns the handle releases it, because a stopped
+    /// run's items are still offered for cleanup. See [`run_worker`].
     fn cancel_current(&self) -> Option<Arc<ScanHandle>> {
         let previous = self.session.lock().ok().and_then(|mut slot| slot.take());
         if let Some(handle) = &previous {
@@ -500,23 +500,32 @@ impl Engine {
 impl Drop for Engine {
     /// Stops the session and forgets the index path.
     ///
-    /// The files are the worker's to remove, for the reason [`Engine::cancel_current`]
-    /// gives: only the thread that owns the connection may unlink `-wal` and
-    /// `-shm`, and cancellation is cooperative, so the worker may still be at its
-    /// last checkpoint when the engine goes away. What the engine can do without
-    /// blocking is stop it and drop the path it wrote, so nothing that outlives it
-    /// mistakes that file for its own.
+    /// The files are the session's to remove, for the reason
+    /// [`Engine::cancel_current`] gives: only a holder that knows the index will
+    /// not be read again may unlink `-wal` and `-shm`, and cancellation is
+    /// cooperative, so the worker may still be at its last checkpoint when the
+    /// engine goes away. What the engine can do without blocking is stop it and
+    /// drop the path it wrote, so nothing that outlives it mistakes that file for
+    /// its own.
     fn drop(&mut self) {
         drop(self.cancel_current());
     }
 }
 
-/// Runs one session to completion, then removes the index files it owned.
+/// Runs one session to completion and leaves its index in place.
 ///
-/// The removal is the last act and belongs to this thread alone. `finished` is set
-/// first, so a caller waiting for the session is never waiting on a file removal,
-/// and it happens only when the session was cancelled or superseded: a session that
-/// completed keeps its index, because the result page is paged out of it.
+/// The index is never removed here any more. It used to be, for a session that
+/// was cancelled or superseded, on the theory that such a session's index could
+/// never be read — and that theory was what made "stop the scan" mean "throw away
+/// everything it had already found". A stopped run's items are still offered for
+/// cleanup now, so its index has to survive the worker.
+///
+/// Nothing is orphaned by this: the index belongs to the FFI session, and the
+/// Swift session removes the files when it releases the handle (`shutDown`, its
+/// `deinit`, or a new run replacing the old model), which is the only place that
+/// knows the file will not be read again. Removing them here also had to take the
+/// index lock, which put a file unlink between the worker's last write and the
+/// `finished` flag the UI waits on.
 fn run_worker(handle: &Arc<ScanHandle>, request: &ScanRequest, owned_index: Option<PathBuf>) {
     // A panic in the worker must not take the host process down.
     let outcome =
@@ -526,23 +535,9 @@ fn run_worker(handle: &Arc<ScanHandle>, request: &ScanRequest, owned_index: Opti
         handle.push_failed("internal", "The scan stopped unexpectedly.");
     }
     handle.state.finished.store(true, Ordering::Release);
-
-    if !handle.cancel.is_cancelled() {
-        return;
-    }
-    let Some(path) = owned_index else {
-        return;
-    };
-    // The index lock is taken for the removal so no pager reads through the
-    // connection while its files go. It is this thread's last act, so waiting here
-    // costs the session nothing; taking it from the caller would have stalled the
-    // UI, which is why the removal is not in `cancel_current` in the first place.
-    // A poisoned lock means another thread panicked holding the index, and the
-    // files are left in place rather than removed blind.
-    let Ok(_guard) = handle.index.lock() else {
-        return;
-    };
-    remove_index_files(&path);
+    // `owned_index` names the file this worker created; releasing it is the
+    // session's job now, not the worker's. See the note on this function.
+    let _ = owned_index;
 }
 
 /// True when a normalised path still names a `.` or `..` component.
@@ -576,18 +571,6 @@ fn is_user_session_temp_root(path: &str) -> bool {
         .filter(|component| !component.is_empty())
         .collect();
     matches!(components.as_slice(), [session, hash] if session.len() == 2 && !hash.is_empty())
-}
-
-/// Removes the index database and the WAL/SHM files SQLite writes beside it.
-///
-/// The WAL carries the same rows as the database, including full paths, so
-/// deleting only the `.sqlite` file leaves a copy behind. Called by the worker
-/// that owns the connection and by nothing else: see [`run_worker`].
-fn remove_index_files(path: &Path) {
-    let base = path.to_string_lossy();
-    for suffix in ["", "-wal", "-shm"] {
-        let _ = std::fs::remove_file(format!("{base}{suffix}"));
-    }
 }
 
 fn run_scan(handle: &Arc<ScanHandle>, request: &ScanRequest) {
@@ -1105,17 +1088,54 @@ fn build_summary(
     })
 }
 
+/// Ends a stopped run, reporting what it had already found.
+///
+/// The index outlives the stop (see [`run_worker`]), so the summary can carry the
+/// same totals a completed run would: the item count, the bytes and the category
+/// breakdown all come from the same rows the result page is about to page out. A
+/// summary that reported only `items_found` from an atomic counter left the page
+/// with a total and no categories, and a category list with no sizes.
+///
+/// An index that cannot be read is not an error here: the stop itself succeeded,
+/// and a summary of zeros is still an honest account of "nothing to show".
 fn finish_cancelled(handle: &Arc<ScanHandle>) {
     handle.state.set_phase(PhaseName::Cancelled);
     handle.push(Event::PhaseChanged {
         phase: PhaseName::Cancelled.as_str().to_string(),
     });
+
+    let totals = handle.index_checked().ok().and_then(|index| {
+        let summary = index.summary().ok()?;
+        let categories = index.category_totals().ok()?;
+        Some((summary, categories))
+    });
+    let (item_count, item_bytes, category_totals) = match totals {
+        Some((summary, categories)) => (
+            summary.item_count,
+            summary.total_bytes,
+            categories
+                .into_iter()
+                .map(|(category, item_count, total_bytes)| CategoryTotal {
+                    category,
+                    item_count,
+                    total_bytes,
+                })
+                .collect(),
+        ),
+        None => (0, 0, Vec::new()),
+    };
+
     let summary = ScanSummary {
         session_id: handle.session_id.clone(),
         phase: PhaseName::Cancelled.as_str().to_string(),
         scanned_file_count: handle.state.files_seen.load(Ordering::Relaxed),
         scanned_byte_count: handle.state.bytes_seen.load(Ordering::Relaxed),
-        item_count: handle.state.items_found.load(Ordering::Relaxed),
+        item_count,
+        item_bytes,
+        category_totals,
+        skipped: Vec::new(),
+        elapsed_millis: 0,
+        is_partial: true,
         ..Default::default()
     };
     handle.push(Event::Completed(Box::new(summary)));
@@ -1788,16 +1808,6 @@ mod tests {
             .collect()
     }
 
-    fn wait_for_index_files_to_go(path: &Path) {
-        let deadline = Instant::now() + Duration::from_secs(20);
-        while Instant::now() < deadline {
-            if index_files(path).is_empty() {
-                return;
-            }
-            std::thread::sleep(Duration::from_millis(5));
-        }
-    }
-
     /// A cancelled session removes its own index files, and no file is unlinked
     /// under a live connection.
     ///
@@ -1808,7 +1818,7 @@ mod tests {
     /// act, after `finished`, when it is the only thread that can touch the
     /// connection.
     #[test]
-    fn a_cancelled_scan_leaves_no_index_files_behind() {
+    fn a_stopped_scan_keeps_an_index_that_still_pages() {
         let fixture = Fixture::new("index-cancel");
         for i in 0..50 {
             fixture
@@ -1823,16 +1833,39 @@ mod tests {
 
         let engine = StdArc::new(Engine::new());
         let handle = engine.start_scan(request).expect("scan starts");
+        // Long enough for the walk to judge something, short enough that the run
+        // is still going: the point is a stop in the middle, not an empty index.
+        std::thread::sleep(Duration::from_millis(40));
         handle.cancel();
         wait_for_completion(&handle);
 
-        // The removal is the worker's last act, after it published `finished`.
-        wait_for_index_files_to_go(&index_path);
-        assert_eq!(
-            index_files(&index_path),
-            Vec::<PathBuf>::new(),
-            "a cancelled session leaves neither the database nor a -wal/-shm copy"
+        // A stopped run keeps its index: the page offers what the walk had
+        // already judged, so the files must outlive the worker. Removing them
+        // here is what made "stop" mean "discard everything found so far".
+        assert!(
+            !index_files(&index_path).is_empty(),
+            "a stopped session keeps the index its result page is served from"
         );
+
+        let summary = summary_of(&drain(&handle));
+        assert_eq!(summary.phase, "cancelled");
+
+        // The summary describes the index instead of carrying the default it
+        // used to: a total with no categories left the page unable to say what
+        // the stop had found.
+        if summary.item_count > 0 {
+            assert!(
+                !summary.category_totals.is_empty(),
+                "a stopped summary carries the categories it found"
+            );
+            let page = handle
+                .page_results(0, 10, "size", None)
+                .expect("a stopped session pages its rows");
+            assert!(
+                !page.is_empty(),
+                "the stopped run's rows are still readable"
+            );
+        }
     }
 
     /// A session that completed keeps its index: the page is served out of it.
@@ -1893,11 +1926,13 @@ mod tests {
         drop(engine);
 
         wait_for_completion(&handle);
-        wait_for_index_files_to_go(&index_path);
-        assert_eq!(
-            index_files(&index_path),
-            Vec::<PathBuf>::new(),
-            "the session it cancelled removed its own files"
+        // The engine's job is to stop the worker, not to unlink its index: the
+        // files belong to the session that owns the handle, and that holder is
+        // the only one that knows when the index will not be read again.
+        assert!(handle.is_finished(), "the session it held was stopped");
+        assert!(
+            !index_files(&index_path).is_empty(),
+            "the index outlives the engine, because a stop no longer discards it"
         );
     }
 

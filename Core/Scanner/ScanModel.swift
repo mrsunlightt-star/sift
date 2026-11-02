@@ -13,6 +13,16 @@ public final class ScanModel: ObservableObject {
     /// The current phase, driving the whole scan page.
     @Published public private(set) var phase: ScanPhase = .idle
     @Published public private(set) var progress = ScanProgress()
+    /// True while a stop is in flight, so the button can say so and refuse a
+    /// second press instead of silently doing nothing.
+    @Published public private(set) var isCancellingRunning = false
+    /// True while a stopped run's session is held open so its rows can be paged.
+    ///
+    /// A stop is no longer a discard: the index outlives the worker, and this
+    /// model keeps the session until the page that shows those rows is done with
+    /// it. Whoever asks to cancel again — a new run, or the page being replaced —
+    /// releases it.
+    @Published public private(set) var isHoldingStoppedSession = false
     /// The first screenful of results, as the scanner reported them.
     @Published public private(set) var recentItems: [CleanupItemSummary] = []
     /// Per-category totals, refreshed when the scan completes.
@@ -178,29 +188,92 @@ public final class ScanModel: ObservableObject {
         }
     }
 
-    /// Requests cancellation. The engine stops within its next checkpoint.
+    /// Stops the run, keeping what it had already found.
     ///
-    /// The run is retired before anything is awaited, so whatever the pump is
-    /// holding comes back to a model that no longer wants it, and the phase is
-    /// settled here: the engine's own final event is dropped with the retired
-    /// run, and a scan left in `scanning` would offer a cancel button forever.
+    /// The engine publishes a `completed` summary when it is cancelled — item
+    /// count and files walked — and that summary is the only honest account of a
+    /// stopped run. This method therefore *asks* the engine to stop and lets the
+    /// pump receive that summary, instead of retiring the run first and dropping
+    /// the event on the floor (which is what made a stop look like a failed scan
+    /// and sent the page back to its empty start card).
+    ///
+    /// The index itself does not survive: the core's worker removes its own
+    /// index when it ends, so a stopped run can report what it found but cannot
+    /// offer a cleanable list. That limitation is stated on the page rather than
+    /// papered over — the alternative would be keeping a database of paths on
+    /// disk after the user asked to stop.
     public func cancel() async {
+        guard !isCancellingRunning else { return }
+        if !phase.isRunning {
+            // Nothing to stop. A session held for a stopped run is released here
+            // instead: this call is either a new run about to replace it or the
+            // page being discarded, and both mean the rows will not be read.
+            await releaseStoppedSession()
+            if phase.isRunning { phase = .cancelled }
+            return
+        }
+        isCancellingRunning = true
+        defer { isCancellingRunning = false }
+
+        guard let session else {
+            generation &+= 1
+            terminalReceived = true
+            phase = .cancelled
+            return
+        }
+
+        // Request the stop; the pump keeps its run identity until the core's own
+        // summary arrives, which is why nothing is bumped yet.
+        await session.cancel()
+
+        // Bounded. A worker stuck in a single syscall must not hold the page for
+        // ever, and the summary is worth at most this much waiting.
+        let deadline = Date().addingTimeInterval(Self.cancelSettleTimeout)
+        while Date() < deadline, !terminalReceived {
+            try? await Task.sleep(nanoseconds: 50_000_000)
+        }
+
+        // Retire the pump: whatever else it is holding describes work that has
+        // stopped. The session itself is kept when the stop has something to
+        // show — the index survives the worker now, and the result page is
+        // served out of it exactly as it is for a completed run.
         generation &+= 1
         terminalReceived = true
         pollTask?.cancel()
         pollTask = nil
-        guard let session else {
-            if phase.isRunning { phase = .cancelled }
-            return
+        // The core's summary carries the cancelled phase; a session that never
+        // answered still has to stop offering a cancel button.
+        if report == nil || phase != .cancelled {
+            phase = .cancelled
         }
-        // Shut down rather than merely cancel: `cancel` is a request the engine
-        // honours at its next checkpoint, and this model is about to forget the
-        // session. A worker that is never waited for keeps scanning a tree whose
-        // index files are already being removed.
+
+        if let report, report.itemCount > 0 {
+            isHoldingStoppedSession = true
+        } else {
+            await session.shutDown()
+            self.session = nil
+        }
+    }
+
+    /// Releases a session kept for a stopped run's rows.
+    ///
+    /// The only caller of `shutDown()` after a stop, which is what makes the
+    /// index's lifetime bounded: it lives exactly as long as the page that reads
+    /// it.
+    private func releaseStoppedSession() async {
+        guard isHoldingStoppedSession, let session else { return }
+        isHoldingStoppedSession = false
         await session.shutDown()
         self.session = nil
-        phase = .cancelled
     }
+
+    /// True when a stopped run left a result page to look at.
+    public var hasStoppedResults: Bool {
+        phase == .cancelled && (report?.itemCount ?? 0) > 0
+    }
+
+    /// How long a stop waits for the core's own summary before giving up.
+    static let cancelSettleTimeout: TimeInterval = 2.5
 
     /// Clears the previous run so a new scan starts from a clean slate.
     public func reset() {
@@ -565,7 +638,16 @@ public final class ScanModel: ObservableObject {
                 self.phase = phase
 
             case let .progress(progress):
-                self.progress = progress
+                // Skip a publish that would change nothing visible: the phase
+                // is the same, the name is the same, and the file count moved by
+                // less than a percent. On a long walk this is most of the events.
+                let phaseChanged = progress.phase != self.progress.phase
+                let nameChanged = progress.currentItemName != self.progress.currentItemName
+                let countMoved = abs(progress.filesSeen - self.progress.filesSeen) * 100
+                    > max(self.progress.filesSeen, 100)
+                if phaseChanged || nameChanged || countMoved || progress.filesSeen == 0 {
+                    self.progress = progress
+                }
                 self.phase = progress.phase
 
             case let .itemsFound(items):

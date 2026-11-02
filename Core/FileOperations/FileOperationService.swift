@@ -520,13 +520,46 @@ public actor FileOperationService {
     /// nothing but the items that happened to arrive would hide the refusals.
     /// The moved and failed items come first, so the page still leads with what
     /// it did.
-    public func execute(_ plan: ApprovedPlan) async -> CleanupOutcome {
+    /// Moves the approved batch, reporting progress and honouring a soft stop.
+    ///
+    /// The stop is soft on purpose: it is checked between items, so the move in
+    /// hand finishes and the filesystem is never left with a half-moved
+    /// directory. Everything already moved stays moved — the outcome says
+    /// "stopped after N", and the items that were never reached are neither
+    /// failed nor skipped, because nothing judged them.
+    public func execute(
+        _ plan: ApprovedPlan,
+        onProgress: (@Sendable (ExecutionProgress) -> Void)? = nil,
+        shouldStop: (@Sendable () -> Bool)? = nil
+    ) async -> CleanupOutcome {
         let startedAt = Date()
         var results: [FileOperationResult] = []
         let operation = plan.operation
         let categoryTotals = plan.categoryTotals
+        let total = plan.items.count
+        var movedBytes: Int64 = 0
+        var stoppedAfter: Int?
+        /// Progress is published at most twenty times a second: one call per
+        /// item would be one main-actor hop per file on a 5,000-item batch.
+        var lastEmitted = Date.distantPast
 
-        for item in plan.items {
+        for (index, item) in plan.items.enumerated() {
+            if shouldStop?() == true {
+                stoppedAfter = index
+                break
+            }
+            let now = Date()
+            if now.timeIntervalSince(lastEmitted) > 0.05 || index == total - 1 {
+                lastEmitted = now
+                onProgress?(
+                    ExecutionProgress(
+                        done: index,
+                        total: total,
+                        movedBytes: movedBytes,
+                        currentName: item.displayName
+                    )
+                )
+            }
             // A protected item is not executable even if a plan was assembled by
             // hand. The pre-flight pass refuses it too; this is the last word.
             guard item.risk.isCleanable else {
@@ -761,6 +794,7 @@ public actor FileOperationService {
                         category: item.category
                     )
                 )
+                movedBytes += item.sizeInBytes
                 logger.debug(
                     "Moved one item to the Trash (category=\(item.category.rawValue, privacy: .public) band=\(SizeBand(bytes: item.sizeInBytes).rawValue, privacy: .public))"
                 )
@@ -789,12 +823,94 @@ public actor FileOperationService {
             categoryTotals: categoryTotals,
             startedAt: startedAt,
             finishedAt: finishedAt,
-            operationName: operation
+            operationName: operation,
+            stoppedAfter: stoppedAfter
         )
         logger.info(
             "Batch finished (moved=\(outcome.movedCount) skipped=\(outcome.skippedCount) failed=\(outcome.failedCount) band=\(SizeBand(bytes: outcome.releasedBytes).rawValue, privacy: .public))"
         )
         return outcome
+    }
+
+    /// Puts a batch back where it came from.
+    ///
+    /// The one file operation that runs backwards, and it is bounded by the same
+    /// two facts everything else here is bounded by: the object has to be the one
+    /// that moved (the destination the system handed back), and it has to still
+    /// be inside a Trash. A path that does not rebuild to a bin entry is refused
+    /// rather than followed — that is what keeps a stale outcome from moving a
+    /// file out of somewhere it was never put.
+    public func restore(_ results: [FileOperationResult]) async -> RestoreReport {
+        let home = fileManager.homeDirectoryForCurrentUser.standardizedFileURL.path
+        let ownTrash = home + "/.Trash"
+        var restored: [URL] = []
+        var failures: [FileOperationResult] = []
+
+        for result in results where result.status == .movedToTrash {
+            guard let destination = result.destinationURL else {
+                failures.append(
+                    FileOperationResult(
+                        sourceURL: result.sourceURL,
+                        status: .failed,
+                        errorCode: ErrorCode.itemChanged.rawValue,
+                        message: LocalizationKey.cleanupResultUndoUnavailable.localized,
+                        sizeInBytes: result.sizeInBytes,
+                        category: result.category
+                    )
+                )
+                continue
+            }
+            let trashedPath = destination.standardizedFileURL.path
+            // The two shapes a Trash can have: this user's own bin, and another
+            // volume's `.Trashes/<uid>`.
+            let inTrash = trashedPath.hasPrefix(ownTrash + "/") || trashedPath.contains("/.Trashes/")
+            guard inTrash, fileManager.fileExists(atPath: trashedPath) else {
+                failures.append(
+                    FileOperationResult(
+                        sourceURL: result.sourceURL,
+                        status: .failed,
+                        errorCode: ErrorCode.itemChanged.rawValue,
+                        message: LocalizationKey.cleanupResultUndoUnavailable.localized,
+                        sizeInBytes: result.sizeInBytes,
+                        category: result.category
+                    )
+                )
+                continue
+            }
+            // Never overwrite something that appeared at the original path while
+            // the batch sat in the bin: the undo must not destroy a newer file.
+            guard !fileManager.fileExists(atPath: result.sourceURL.path) else {
+                failures.append(
+                    FileOperationResult(
+                        sourceURL: result.sourceURL,
+                        status: .failed,
+                        errorCode: ErrorCode.itemChanged.rawValue,
+                        message: LocalizationKey.cleanupFailureItemChanged.localized,
+                        sizeInBytes: result.sizeInBytes,
+                        category: result.category
+                    )
+                )
+                continue
+            }
+            do {
+                try fileManager.moveItem(at: destination, to: result.sourceURL)
+                restored.append(result.sourceURL)
+            } catch {
+                let code = Self.classify(error)
+                failures.append(
+                    FileOperationResult(
+                        sourceURL: result.sourceURL,
+                        status: .failed,
+                        errorCode: code.rawValue,
+                        message: Self.message(for: error, code: code),
+                        sizeInBytes: result.sizeInBytes,
+                        category: result.category
+                    )
+                )
+            }
+        }
+        logger.info("Restored a batch (restored=\(restored.count, privacy: .public) failed=\(failures.count, privacy: .public))")
+        return RestoreReport(restored: restored, failures: failures)
     }
 
     /// Reveals the Trash in Finder, for the "show me where it went" button.

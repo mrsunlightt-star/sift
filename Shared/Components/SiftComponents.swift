@@ -16,6 +16,8 @@ public struct SiftGlassCard<Content: View>: View {
     private let padding: CGFloat
     private let content: Content
 
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
     public init(
         surface: SiftSurface = .card,
         cornerRadius: CGFloat = SiftMetrics.cornerRadiusXL,
@@ -35,8 +37,12 @@ public struct SiftGlassCard<Content: View>: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background {
                 ZStack {
-                    shape.fill(surface.material)
-                    shape.fill(surface.tint)
+                    if reduceTransparency {
+                        shape.fill(surface.opaqueFill)
+                    } else {
+                        shape.fill(surface.material)
+                        shape.fill(surface.tint)
+                    }
                     shape.fill(
                         LinearGradient(
                             colors: [
@@ -178,40 +184,6 @@ extension SiftPageHeader where Trailing == EmptyView {
         self.init(title: title, status: status) { EmptyView() }
     }
 }
-
-/// A section header inside a card or a page.
-///
-/// The jade tick before the word is the design language's structural mark: it
-/// says "a section starts here" without resorting to a second text colour.
-public struct SiftSectionHeader<Trailing: View>: View {
-    private let title: String
-    private let trailing: Trailing
-
-    public init(_ title: String, @ViewBuilder trailing: () -> Trailing) {
-        self.title = title
-        self.trailing = trailing()
-    }
-
-    public var body: some View {
-        HStack(spacing: SiftMetrics.spacingS) {
-            RoundedRectangle(cornerRadius: 1.5, style: .continuous)
-                .fill(SiftColor.accent)
-                .frame(width: 3, height: 12)
-                .accessibilityHidden(true)
-            Text(title)
-                .siftFont(.sectionTitle)
-            Spacer(minLength: SiftMetrics.spacingS)
-            trailing
-        }
-    }
-}
-
-extension SiftSectionHeader where Trailing == EmptyView {
-    public init(_ title: String) {
-        self.init(title) { EmptyView() }
-    }
-}
-
 /// The scrolling page column.
 ///
 /// Every page uses the same outer margins and vertical rhythm; only the column
@@ -261,7 +233,10 @@ struct SiftAppear: ViewModifier {
                 if reduceMotion {
                     shown = true
                 } else {
-                    withAnimation(SiftMotion.appear.delay(Double(index) * 0.05)) {
+                    // At most two steps of stagger: the page already fades in
+                    // for 0.2 s, and a full wave pushed the first meaningful
+                    // content half a second behind the click.
+                    withAnimation(SiftMotion.quick.delay(Double(min(index, 2)) * 0.03)) {
                         shown = true
                     }
                 }
@@ -334,24 +309,30 @@ public struct SiftPrimaryButton: View {
                 }
                 Text(title)
                     .font(SiftFont.bodyEmphasis)
+                    // A label built from a count and a size reaches 60+
+                    // characters in German and Russian. Truncating the action is
+                    // not an option, so the label shrinks a little first and
+                    // only then truncates.
                     .lineLimit(1)
+                    .minimumScaleFactor(0.85)
             }
-            .foregroundStyle(.white)
+            .foregroundStyle(SiftColor.onAccent)
             .padding(.horizontal, SiftMetrics.spacingXL)
             .frame(minHeight: SiftMetrics.buttonHeight)
             .background {
                 RoundedRectangle(cornerRadius: SiftMetrics.controlCornerRadius, style: .continuous)
-                    .fill(SiftColor.accentDeep)
+                    .fill(SiftColor.accentFill)
                     .overlay {
                         RoundedRectangle(cornerRadius: SiftMetrics.controlCornerRadius, style: .continuous)
                             .fill(
                                 LinearGradient(
-                                    colors: [.white.opacity(isHovering ? 0.22 : 0.14), .clear],
+                                    colors: [.white.opacity(isHovering ? 0.18 : 0.10), .clear],
                                     startPoint: .top,
                                     endPoint: .center
                                 )
                             )
                     }
+                    .opacity(isEnabled ? 1 : 0.42)
             }
             .overlay {
                 RoundedRectangle(cornerRadius: SiftMetrics.controlCornerRadius, style: .continuous)
@@ -362,7 +343,10 @@ public struct SiftPrimaryButton: View {
                 radius: isHovering ? 16 : 10,
                 y: 6
             )
-            .opacity(isEnabled ? 1 : 0.45)
+            // The label stays at full opacity when the control is disabled: a
+            // whole-view 0.45 wash left the button's own text at 1.27:1, which
+            // is a button that says nothing.
+            .opacity(isEnabled ? 1 : 0.72)
         }
         .buttonStyle(SiftPressButtonStyle())
         .disabled(!isEnabled)
@@ -472,8 +456,9 @@ private struct SiftLinkBody: View {
 
     var body: some View {
         configuration.label
-            .foregroundStyle(SiftColor.accent)
-            .opacity(configuration.isPressed ? 0.55 : (isHovering ? 0.80 : 1))
+            .foregroundStyle(SiftColor.accentText)
+            .opacity(configuration.isPressed ? 0.55 : 1)
+            .underline(isHovering && !configuration.isPressed, color: SiftColor.accentText.opacity(0.6))
             .contentShape(Rectangle())
             .onHover { isHovering = $0 }
     }
@@ -499,88 +484,7 @@ private struct SiftPressBody: View {
             .animation(reduceMotion ? nil : SiftMotion.press, value: configuration.isPressed)
     }
 }
-
-/// The older key-based primary button, kept so a page that has not been rebuilt
-/// yet still renders the new style rather than the system blue.
-public struct PrimaryActionButton: View {
-    private let titleKey: LocalizationKey
-    private let symbolName: String?
-    private let action: () -> Void
-
-    public init(titleKey: LocalizationKey, symbolName: String? = nil, action: @escaping () -> Void) {
-        self.titleKey = titleKey
-        self.symbolName = symbolName
-        self.action = action
-    }
-
-    public var body: some View {
-        SiftPrimaryButton(
-            title: titleKey.localized,
-            symbolName: symbolName,
-            action: action
-        )
-    }
-}
-
 // MARK: - Metrics and badges
-
-/// A stat tile: a label, a large value and an optional caption.
-public struct StatTile: View {
-    private let titleKey: LocalizationKey
-    private let value: String
-    private let caption: String?
-    private let symbolName: String
-    private let tint: Color
-
-    public init(
-        title: LocalizationKey,
-        value: String,
-        caption: String? = nil,
-        symbolName: String,
-        tint: Color = SiftColor.accent
-    ) {
-        self.titleKey = title
-        self.value = value
-        self.caption = caption
-        self.symbolName = symbolName
-        self.tint = tint
-    }
-
-    public var body: some View {
-        SiftGlassCard(padding: SiftMetrics.spacingL, content: {
-            VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
-                HStack(spacing: SiftMetrics.spacingS) {
-                    Image(systemName: symbolName)
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(tint)
-                        .frame(width: 20, height: 20)
-                        .background(
-                            RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
-                                .fill(tint.opacity(0.12))
-                        )
-                    Text(titleKey.localized)
-                        .font(SiftFont.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Text(value)
-                    .siftFont(.metric)
-                    .monospacedDigit()
-                    .contentTransition(.numericText())
-                    .accessibilityLabel(Text(titleKey.localized))
-                    .accessibilityValue(Text(value))
-
-                if let caption {
-                    Text(caption)
-                        .font(SiftFont.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-            }
-        })
-    }
-}
-
 /// The large number on a hero card: the value at display size, the unit beside it.
 public struct SiftHugeMetric: View {
     private let value: String
@@ -661,7 +565,7 @@ public struct RiskBadge: View {
             Text(risk.labelKey.localized)
                 .font(SiftFont.badge)
         }
-        .foregroundStyle(SiftColor.color(for: risk))
+        .foregroundStyle(SiftColor.textColor(for: risk))
         .padding(.horizontal, SiftMetrics.spacingS)
         .padding(.vertical, 3)
         .background(
@@ -705,12 +609,16 @@ public struct SiftFilterChip: View {
                         .opacity(0.7)
                 }
             }
-            .foregroundStyle(isSelected ? SiftColor.accent : Color.primary)
+            .foregroundStyle(isSelected ? SiftColor.accentText : Color.primary)
             .padding(.horizontal, SiftMetrics.spacingL)
             .frame(minHeight: SiftMetrics.chipHeight)
             .background {
                 RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
-                    .fill(isSelected ? SiftColor.selectedFill : SiftColor.subtleFill)
+                    .fill(
+                        isSelected
+                            ? SiftColor.selectedFill
+                            : (isHovering ? SiftColor.hoverFill : SiftColor.subtleFill)
+                    )
                     .background(
                         RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
                             .fill(.ultraThinMaterial)
@@ -719,14 +627,14 @@ public struct SiftFilterChip: View {
             .overlay {
                 RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
                     .strokeBorder(
-                        isSelected ? SiftColor.accent.opacity(0.45) : SiftColor.glassBorder,
+                        isSelected ? SiftColor.accentText.opacity(0.55) : SiftColor.glassBorder,
                         lineWidth: 1
                     )
             }
+            .animation(SiftMotion.hover, value: isHovering)
         }
         .buttonStyle(SiftPressButtonStyle())
         .onHover { isHovering = $0 }
-        .opacity(isHovering && !isSelected ? 0.85 : 1)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
@@ -776,12 +684,25 @@ public struct SiftCheckbox: View {
                 }
                 .frame(width: 18, height: 18)
                 .opacity(isEnabled ? 1 : 0.35)
+                // The drawn control is 18 pt; the target is not. 13 pt of
+                // padding on every side makes a 44 pt square — the value
+                // `SiftMetrics.minimumHitTarget` states — and the negative
+                // padding takes it back out of the layout, so a row keeps its
+                // height while the pointer gets a target it can hit.
+                .padding(SiftMetrics.minimumHitTarget / 2 - 9)
                 .contentShape(Rectangle())
-                .animation(reduceMotion ? nil : SiftMotion.springy, value: isOn)
+                .padding(-(SiftMetrics.minimumHitTarget / 2 - 9))
+                .animation(reduceMotion ? nil : SiftMotion.toggle, value: isOn)
         }
         .buttonStyle(.plain)
+        // Reachable by Tab (§11.4). SwiftUI's focus ring is the system's own, so
+        // the control looks focused the way every other macOS control does; Space
+        // then activates it, because it is a button.
+        .focusable()
+        // `.isSelected` is what VoiceOver speaks as "selected" in the user's own
+        // language. A numeric `accessibilityValue` of "1" was read as "1, 已选中,
+        // 按钮" and never localised; the trait says it correctly and needs no key.
         .accessibilityAddTraits(isOn ? .isSelected : [])
-        .accessibilityValue(Text(isOn ? "1" : "0"))
     }
 }
 
@@ -877,16 +798,30 @@ public struct SiftProgressRing: View {
     private let lineWidth: CGFloat
     private let label: String?
     private let caption: String?
+    /// What VoiceOver says. The ring is the only place the run's progress is
+    /// shown, and it used to be announced as a bare number with no label at all.
+    private let spokenLabel: String?
+    private let spokenValue: String?
 
     @State private var spin = false
     @Environment(\.siftReduceMotion) private var reduceMotion
 
-    public init(progress: Double?, tint: Color = SiftColor.accent, lineWidth: CGFloat = 10, label: String? = nil, caption: String? = nil) {
+    public init(
+        progress: Double?,
+        tint: Color = SiftColor.accent,
+        lineWidth: CGFloat = 10,
+        label: String? = nil,
+        caption: String? = nil,
+        spokenLabel: String? = nil,
+        spokenValue: String? = nil
+    ) {
         self.progress = progress.map { min(max($0, 0), 1) }
         self.tint = tint
         self.lineWidth = lineWidth
         self.label = label
         self.caption = caption
+        self.spokenLabel = spokenLabel
+        self.spokenValue = spokenValue
     }
 
     public var body: some View {
@@ -905,7 +840,7 @@ public struct SiftProgressRing: View {
                         style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
                     )
                     .rotationEffect(.degrees(-90))
-                    .animation(SiftMotion.progress, value: progress)
+                    .animation(reduceMotion ? nil : SiftMotion.progress, value: progress)
             } else {
                 Circle()
                     .trim(from: 0, to: 0.34)
@@ -939,67 +874,13 @@ public struct SiftProgressRing: View {
                 }
             }
         }
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(spokenLabel ?? label ?? ""))
+        .accessibilityValue(Text(spokenValue ?? caption ?? ""))
     }
 }
 
 // MARK: - Rows and states
-
-/// A row that resembles the sidebar and list rows in the mockups: icon tile,
-/// title, optional subtitle, trailing content.
-public struct SiftRow<Trailing: View>: View {
-    private let symbolName: String
-    private let tint: Color
-    private let title: String
-    private let subtitle: String?
-    private let trailing: Trailing
-
-    public init(
-        symbolName: String,
-        tint: Color = SiftColor.accent,
-        title: String,
-        subtitle: String? = nil,
-        @ViewBuilder trailing: () -> Trailing
-    ) {
-        self.symbolName = symbolName
-        self.tint = tint
-        self.title = title
-        self.subtitle = subtitle
-        self.trailing = trailing()
-    }
-
-    public var body: some View {
-        HStack(spacing: SiftMetrics.spacingM) {
-            IconTile(symbolName: symbolName, tint: tint)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(SiftFont.bodyEmphasis)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                if let subtitle {
-                    Text(subtitle)
-                        .font(SiftFont.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
-            }
-            Spacer(minLength: SiftMetrics.spacingS)
-            trailing
-        }
-        .padding(.vertical, SiftMetrics.spacingS)
-        .frame(minHeight: SiftMetrics.rowHeight)
-    }
-}
-
-extension SiftRow where Trailing == EmptyView {
-    public init(symbolName: String, tint: Color = SiftColor.accent, title: String, subtitle: String? = nil) {
-        self.init(symbolName: symbolName, tint: tint, title: title, subtitle: subtitle) {
-            EmptyView()
-        }
-    }
-}
-
 /// A selectable row surface with a hover highlight and a selected fill.
 public struct SiftSelectableRow<Content: View>: View {
     private let isSelected: Bool
@@ -1088,6 +969,54 @@ public struct SiftEmptyState: View {
     }
 }
 
+/// A placeholder for a row that is still being read.
+///
+/// The scan page used to show a small spinner under a card that already had a
+/// header and a column of dividers, which reads as "a list with nothing in it".
+/// A skeleton says the same thing in the shape of the thing that is coming: two
+/// lines of text and a number, pulsing slowly enough not to look like a progress
+/// bar moving.
+public struct SiftSkeletonRow: View {
+    private let isFirst: Bool
+    @Environment(\.siftReduceMotion) private var reduceMotion
+    @State private var dim = false
+
+    public init(isFirst: Bool = false) {
+        self.isFirst = isFirst
+    }
+
+    public var body: some View {
+        HStack(spacing: SiftMetrics.spacingM) {
+            RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
+                .fill(SiftColor.subtleFill)
+                .frame(width: 18, height: 18)
+            VStack(alignment: .leading, spacing: 6) {
+                bar(width: isFirst ? 180 : 220, height: 11)
+                bar(width: isFirst ? 260 : 300, height: 9)
+            }
+            Spacer(minLength: SiftMetrics.spacingS)
+            bar(width: 56, height: 11)
+        }
+        .padding(.vertical, SiftMetrics.spacingM)
+        .opacity(dim ? 0.55 : 1)
+        .animation(
+            reduceMotion ? nil : .easeInOut(duration: 0.9).repeatForever(autoreverses: true),
+            value: dim
+        )
+        .onAppear { dim = true }
+        // One element for the whole placeholder: VoiceOver should say "loading",
+        // not read six grey rectangles.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(LocalizationKey.commonLoading.localized))
+    }
+
+    private func bar(width: CGFloat, height: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: height / 2, style: .continuous)
+            .fill(SiftColor.subtleFill)
+            .frame(width: width, height: height)
+    }
+}
+
 /// A message surface for skips, partial failures and warnings.
 public struct NoticeBanner: View {
     public enum Level: Sendable {
@@ -1166,96 +1095,6 @@ public struct NoticeBanner: View {
         .accessibilityElement(children: .contain)
     }
 }
-
-/// The older page header. Kept for pages still using it; the current pages use
-/// `SiftPageHeader` with a status line.
-public struct PageHeader<Trailing: View>: View {
-    private let eyebrowKey: LocalizationKey?
-    private let titleKey: LocalizationKey
-    private let subtitle: String?
-    private let trailing: Trailing
-
-    public init(
-        titleKey: LocalizationKey,
-        eyebrowKey: LocalizationKey? = nil,
-        subtitle: String? = nil,
-        @ViewBuilder trailing: () -> Trailing
-    ) {
-        self.titleKey = titleKey
-        self.eyebrowKey = eyebrowKey
-        self.subtitle = subtitle
-        self.trailing = trailing()
-    }
-
-    public var body: some View {
-        HStack(alignment: .bottom, spacing: SiftMetrics.spacingXL) {
-            VStack(alignment: .leading, spacing: SiftMetrics.spacingXS) {
-                if let eyebrowKey {
-                    Text(eyebrowKey.localized)
-                        .font(SiftFont.eyebrow)
-                        .tracking(0.8)
-                        .textCase(.uppercase)
-                        .foregroundStyle(SiftColor.accent)
-                }
-                Text(titleKey.localized)
-                    .siftFont(.display)
-                    .fixedSize(horizontal: false, vertical: true)
-                if let subtitle, !subtitle.isEmpty {
-                    Text(subtitle)
-                        .font(SiftFont.body)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-            Spacer(minLength: SiftMetrics.spacingL)
-            trailing
-                .padding(.bottom, 2)
-        }
-    }
-}
-
-extension PageHeader where Trailing == EmptyView {
-    public init(titleKey: LocalizationKey, eyebrowKey: LocalizationKey? = nil, subtitle: String? = nil) {
-        self.init(titleKey: titleKey, eyebrowKey: eyebrowKey, subtitle: subtitle) { EmptyView() }
-    }
-}
-
-/// A labelled horizontal bar chart row.
-public struct BreakdownBar: View {
-    private let label: String
-    private let value: String
-    private let fraction: Double
-    private let tint: Color
-
-    public init(label: String, value: String, fraction: Double, tint: Color) {
-        self.label = label
-        self.value = value
-        self.fraction = fraction
-        self.tint = tint
-    }
-
-    public var body: some View {
-        VStack(alignment: .leading, spacing: SiftMetrics.spacingXS) {
-            HStack {
-                Circle()
-                    .fill(tint)
-                    .frame(width: 7, height: 7)
-                    .accessibilityHidden(true)
-                Text(label)
-                    .font(SiftFont.body)
-                Spacer(minLength: SiftMetrics.spacingS)
-                Text(value)
-                    .font(SiftFont.bodyEmphasis)
-                    .monospacedDigit()
-            }
-            UsageBar(fraction: fraction, tint: tint, height: 6)
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(Text(label))
-        .accessibilityValue(Text(value))
-    }
-}
-
 /// A primary block: an icon, a short headline, an explanation and the action
 /// that belongs to them, on one tinted glass surface.
 public struct SiftHeroCard<Actions: View>: View {
@@ -1419,20 +1258,40 @@ public struct SiftRailItemLabel: View {
 public struct SiftRailItemChrome: ViewModifier {
     public let isSelected: Bool
     public let showsSelectionMark: Bool
+    /// Whether this entry paints the selection fill itself.
+    ///
+    /// The rail draws one fill per group and slides it to the entry the window is
+    /// showing, so an entry inside a group hands that job to the slider
+    /// (`fillsSelection: false`) and keeps only its hover fill; an entry that is
+    /// not part of such a group — the appearance and language controls, whose
+    /// "selected" state is their open popover — still paints its own.
+    public let fillsSelection: Bool
     @State private var isHovering = false
     @Environment(\.siftReduceMotion) private var reduceMotion
 
-    public init(isSelected: Bool, showsSelectionMark: Bool = false) {
+    public init(isSelected: Bool, showsSelectionMark: Bool = false, fillsSelection: Bool = true) {
         self.isSelected = isSelected
         self.showsSelectionMark = showsSelectionMark
+        self.fillsSelection = fillsSelection
+    }
+
+    /// The fill under the item.
+    ///
+    /// A selected entry whose fill the slider owns paints nothing even while the
+    /// pointer is over it: a hover fill on top of the slider would tint the row
+    /// the window is on, which reads as a second state rather than as hover.
+    private var fillColor: Color {
+        if fillsSelection && isSelected { return SiftColor.selectedFill }
+        if isHovering && !isSelected { return SiftColor.hoverFill }
+        return .clear
     }
 
     public func body(content: Content) -> some View {
         content
             .background {
                 RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
-                    .fill(isSelected ? SiftColor.selectedFill : (isHovering ? SiftColor.hoverFill : .clear))
-                    .animation(reduceMotion ? nil : SiftMotion.quick, value: isHovering)
+                    .fill(fillColor)
+                    .animation(reduceMotion ? nil : SiftMotion.hover, value: isHovering)
                     .animation(reduceMotion ? nil : SiftMotion.quick, value: isSelected)
             }
             .overlay(alignment: .leading) {
@@ -1451,8 +1310,18 @@ public struct SiftRailItemChrome: ViewModifier {
 }
 
 public extension View {
-    func siftRailItemChrome(isSelected: Bool, showsSelectionMark: Bool = false) -> some View {
-        modifier(SiftRailItemChrome(isSelected: isSelected, showsSelectionMark: showsSelectionMark))
+    func siftRailItemChrome(
+        isSelected: Bool,
+        showsSelectionMark: Bool = false,
+        fillsSelection: Bool = true
+    ) -> some View {
+        modifier(
+            SiftRailItemChrome(
+                isSelected: isSelected,
+                showsSelectionMark: showsSelectionMark,
+                fillsSelection: fillsSelection
+            )
+        )
     }
 }
 
@@ -1475,17 +1344,24 @@ public struct LanguageMenu: View {
     private let style: Style
     private let identifier: String
     private let onSelect: (SiftLanguage) -> Void
+    /// Reports the picker opening and closing, so a rail that draws one sliding
+    /// fill for its group can move that fill here. The rail entry no longer
+    /// paints the fill itself; without this the entry would light up in place
+    /// while the group's slider stayed where the last page left it.
+    private let onPickerPresentedChange: ((Bool) -> Void)?
     @State private var isPickerPresented = false
 
     public init(
         selection: SiftLanguage,
         style: Style,
         identifier: String = "language.menu",
+        onPickerPresentedChange: ((Bool) -> Void)? = nil,
         onSelect: @escaping (SiftLanguage) -> Void
     ) {
         self.selection = selection
         self.style = style
         self.identifier = identifier
+        self.onPickerPresentedChange = onPickerPresentedChange
         self.onSelect = onSelect
     }
 
@@ -1494,8 +1370,9 @@ public struct LanguageMenu: View {
             if case .rail = style {
                 // While the picker is open the entry wears the selected fill and
                 // takes the accent, so the popover visibly belongs to it. It is
-                // not a destination, so it carries no selection mark.
-                sized.siftRailItemChrome(isSelected: isPickerPresented)
+                // not a destination: no selection mark, and no `.isSelected`
+                // trait either — that trait is reserved for the current page.
+                sized.siftRailItemChrome(isSelected: isPickerPresented, fillsSelection: false)
             } else {
                 sized
             }
@@ -1504,6 +1381,24 @@ public struct LanguageMenu: View {
         .accessibilityLabel(Text(LocalizationKey.settingsGroupLanguage.localized))
         .accessibilityValue(Text(selection.displayName))
         .accessibilityAddTraits(isPickerPresented ? .isSelected : [])
+    }
+
+    /// The picker's presentation state, reporting every change.
+    ///
+    /// The rail draws one fill for its whole footer group, so it has to hear
+    /// about this popover opening and closing; writing it through a binding is
+    /// how the rail gets told without the type knowing about that slider.
+    /// `onChange` would say the same thing, but the two-argument form it needs
+    /// is macOS 14 and this package targets 13.
+    private var pickerPresented: Binding<Bool> {
+        Binding(
+            get: { isPickerPresented },
+            set: { presented in
+                guard presented != isPickerPresented else { return }
+                isPickerPresented = presented
+                onPickerPresentedChange?(presented)
+            }
+        )
     }
 
     /// A plain button rather than a `Menu`: 34 languages do not fit in a menu
@@ -1527,15 +1422,15 @@ public struct LanguageMenu: View {
     /// installed on its button — worked.
     private var trigger: some View {
         Button {
-            isPickerPresented.toggle()
+            pickerPresented.wrappedValue.toggle()
         } label: {
             label
         }
         .buttonStyle(SiftPressButtonStyle())
-        .popover(isPresented: $isPickerPresented, arrowEdge: popoverEdge) {
+        .popover(isPresented: pickerPresented, arrowEdge: popoverEdge) {
             LanguagePickerView(selection: selection) { language in
                 onSelect(language)
-                isPickerPresented = false
+                pickerPresented.wrappedValue = false
             }
         }
     }

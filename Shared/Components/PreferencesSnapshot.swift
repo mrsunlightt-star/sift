@@ -8,9 +8,20 @@ import Foundation
 public final class PreferencesSnapshot: ObservableObject {
     @Published public var skipConfirmation: Bool
     @Published public var requireConfirmation: Bool
+    /// Whether this Mac has ever finished a cleanup.
+    ///
+    /// The confirmation panel says so on the first one and never again: a hint
+    /// that repeats is nagging, and a hint that never appears leaves the first
+    /// batch — the one a user has no basis to judge — unexplained.
+    @Published public var hasCompletedCleanup: Bool
 
-    public init(skipConfirmation: Bool = false, requireConfirmation: Bool = true) {
+    public init(
+        skipConfirmation: Bool = false,
+        requireConfirmation: Bool = true,
+        hasCompletedCleanup: Bool = false
+    ) {
         self.skipConfirmation = skipConfirmation
         self.requireConfirmation = requireConfirmation
+        self.hasCompletedCleanup = hasCompletedCleanup
     }
 }

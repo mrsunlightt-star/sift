@@ -65,6 +65,16 @@ pub enum Category {
     /// uninstaller already treats the two differently (a group container is
     /// always "review"); this is the same distinction on the scan page.
     GroupContainerResidue,
+    /// Output a build wrote.
+    ///
+    /// A compilation tree (`target/`, `DerivedData`) is the one kind of large
+    /// directory whose whole content is reproducible from sources the user still
+    /// has: deleting it costs a rebuild and nothing else. It is not
+    /// `temporaryFiles`, which says the file was left behind by someone and
+    /// nobody will miss it, and not `applicationCache`, which says an
+    /// application will re-download it. The claim is narrower and stronger, so
+    /// the row says so.
+    DeveloperArtifacts,
 }
 
 impl Category {
@@ -79,6 +89,7 @@ impl Category {
             Category::DuplicateFiles => "duplicateFiles",
             Category::ApplicationResidue => "applicationResidue",
             Category::GroupContainerResidue => "groupContainerResidue",
+            Category::DeveloperArtifacts => "developerArtifacts",
         }
     }
 
@@ -94,6 +105,7 @@ impl Category {
             Category::OldFiles => 6,
             Category::DuplicateFiles => 7,
             Category::GroupContainerResidue => 8,
+            Category::DeveloperArtifacts => 9,
         }
     }
 }
@@ -1183,11 +1195,11 @@ pub fn default_rules() -> Vec<Rule> {
     rules.push(with_spec(
         rule(
             "xcode-derived-data",
-            TemporaryFiles,
+            DeveloperArtifacts,
             Safe,
             HomeLibrary,
             "Developer/Xcode/DerivedData",
-            "cleanup.explanation.temporary",
+            "cleanup.explanation.buildArtifacts",
         ),
         MatchSpec::Directory,
     ));

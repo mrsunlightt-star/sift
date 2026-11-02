@@ -18,6 +18,10 @@ public struct UninstallerView: View {
     @State private var plan: UninstallPlan?
     @State private var isLoadingPlan = false
     @State private var isConfirming = false
+    /// What pre-flight approved, for the panel to state.
+    @State private var preparedSummary: AppEnvironment.UninstallPreparation?
+    /// Why nothing can be uninstalled right now, when pre-flight refused it all.
+    @State private var refusalMessage: String?
     @State private var outcome: CleanupOutcome?
     @State private var outcomeReport: CleanupReport?
     @State private var includeReviewFiles = false
@@ -67,7 +71,7 @@ public struct UninstallerView: View {
             SiftPageHeader(title: LocalizationKey.navApps.localized, status: statusLine) {
                 SiftMetricPill(
                     symbolName: "shippingbox",
-                    value: LocalizationKey.commonItemCount.localized(environment.installedApplications.count),
+                    value: LocalizationKey.commonItemCount.counted(environment.installedApplications.count),
                     tint: SiftColor.accent
                 )
             }
@@ -298,10 +302,10 @@ public struct UninstallerView: View {
     private var footerCaption: String {
         let total = environment.installedApplications.count
         if !search.isEmpty {
-            return LocalizationKey.commonItemCount.localized(filteredApplications.count)
+            return LocalizationKey.commonItemCount.counted(filteredApplications.count)
         }
         if showsAllApps {
-            return LocalizationKey.commonItemCount.localized(total)
+            return LocalizationKey.commonItemCount.counted(total)
         }
         return LocalizationKey.appsFooter.localized(total)
     }
@@ -326,6 +330,9 @@ public struct UninstallerView: View {
                         ) {
                             Task { await quit(application) }
                         }
+                    }
+                    if let refusalMessage {
+                        NoticeBanner(level: .warning, message: refusalMessage)
                     }
                     if let quitFailure {
                         NoticeBanner(level: .error, message: quitFailure)
@@ -553,13 +560,24 @@ public struct UninstallerView: View {
             if let plan {
                 Text(
                     LocalizationKey.appsUninstallAndClean.localized(
-                        plan.formattedTotal(includeReviewFiles: includeReviewFiles)
+                        plan.application.name
                     )
-                    + ", " + plan.application.name
                 )
                 .font(SiftFont.bodyEmphasis)
-                NoticeBanner(level: .information, titleKey: .cleanupConfirmUndoNotice)
             }
+            if let preparedSummary {
+                Text(
+                    "\(LocalizationKey.commonItemCount.counted(preparedSummary.count)) · \(preparedSummary.formattedBytes)"
+                )
+                .font(SiftFont.body)
+                .monospacedDigit()
+            }
+            if let refused = preparedSummary?.refused, !refused.isEmpty {
+                Text(LocalizationKey.cleanupConfirmProtectedCount.localized(refused.count))
+                    .font(SiftFont.caption)
+                    .foregroundStyle(SiftColor.textColor(for: .review))
+            }
+            NoticeBanner(level: .information, titleKey: .cleanupConfirmUndoNotice)
             HStack {
                 Spacer()
                 SiftSecondaryButton(titleKey: .cleanupConfirmCancel) {
@@ -568,12 +586,15 @@ public struct UninstallerView: View {
                 .keyboardShortcut(.cancelAction)
 
                 SiftPrimaryButton(
-                    title: LocalizationKey.cleanupConfirmTitle.localized
+                    title: LocalizationKey.appsUninstallAndClean.localized(
+                        plan?.application.name ?? ""
+                    )
                 ) {
                     isConfirming = false
                     Task { await performUninstall() }
                 }
                 .keyboardShortcut(.defaultAction)
+                .accessibilityIdentifier("uninstaller.confirm")
             }
         }
         .padding(SiftMetrics.spacingXL)
@@ -659,13 +680,28 @@ public struct UninstallerView: View {
             onRequestPurchase()
             return
         }
-        isConfirming = true
+        let items = plan.selectedItems(includeReviewFiles: includeReviewFiles)
+        // Pre-flight first, panel second: the list the user is asked to approve
+        // is the list pre-flight approved. The panel used to be shown before
+        // anything was judged, so an application launched since the plan was
+        // built — or a related file that had gone — made the batch differ from
+        // the one on screen.
+        switch await environment.prepareUninstall(items: items) {
+        case let .ready(preparation):
+            preparedSummary = preparation
+            isConfirming = true
+        case let .nothingToDo(preparation):
+            preparedSummary = preparation
+            refusalMessage = preparation.refused.first?.failureTitle
+        case .purchaseRequired:
+            onRequestPurchase()
+        case .busy:
+            refusalMessage = nil
+        }
     }
 
     private func performUninstall() async {
-        guard let plan else { return }
-        let items = plan.selectedItems(includeReviewFiles: includeReviewFiles)
-        let result = await environment.performUninstall(items: items)
+        let result = await environment.confirmUninstall()
         switch result {
         case let .executed(execution):
             outcome = execution.outcome
@@ -679,6 +715,7 @@ public struct UninstallerView: View {
         case .nothingToDo, .busy, .awaitingConfirmation:
             break
         }
+        preparedSummary = nil
     }
 }
 

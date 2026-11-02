@@ -90,12 +90,14 @@ public struct DuplicateGroupsCard: View {
     }
 
     private func toggle(_ group: DuplicateGroup) async {
-        if expanded.contains(group.id) {
-            expanded.remove(group.id)
-            return
+        withAnimation(SiftMotion.expand) {
+            if expanded.contains(group.id) {
+                expanded.remove(group.id)
+            } else {
+                expanded.insert(group.id)
+            }
         }
-        expanded.insert(group.id)
-        if loadedMembers[group.id] == nil {
+        if expanded.contains(group.id), loadedMembers[group.id] == nil {
             loadedMembers[group.id] = await scan.duplicateMembers(for: group)
         }
     }
@@ -135,9 +137,11 @@ struct DuplicateGroupRow: View {
         VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
             Button(action: onToggle) {
                 HStack(spacing: SiftMetrics.spacingM) {
-                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                    Image(systemName: "chevron.down")
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(.secondary)
+                        .rotationEffect(.degrees(isExpanded ? 0 : -90))
+                        .animation(SiftMotion.expand, value: isExpanded)
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(representativeName)

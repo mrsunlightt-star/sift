@@ -96,7 +96,7 @@
     },
     {
       "id": "xcode-derived-data",
-      "category": "temporaryFiles",
+      "category": "developerArtifacts",
       "risk": "safe",
       "root": "homeLibrary",
       "relativePath": "Developer/Xcode/DerivedData",
@@ -109,7 +109,7 @@
       "packageExtensions": [],
       "requiresFullDiskAccess": false,
       "needsAppClosed": false,
-      "explanationKey": "cleanup.explanation.temporary",
+      "explanationKey": "cleanup.explanation.buildArtifacts",
       "enabled": true
     },
     {

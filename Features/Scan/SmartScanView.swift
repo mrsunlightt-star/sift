@@ -36,9 +36,43 @@ public struct ScanView: View {
     /// other two open. Recorded rather than derived so that reopening a group
     /// survives the list being rebuilt by a later page.
     @State private var groupExpansion: [CleanupRisk: Bool] = [:]
+    /// The row the keyboard is on.
+    ///
+    /// `onMoveCommand` is delivered to the focused responder, so an arrow key
+    /// pressed while a row's checkbox has focus moves the cursor to the next row
+    /// instead of doing nothing. No global shortcut and no custom focus ring: the
+    /// rows behave the way every other list in macOS does.
+    @FocusState private var focusedRow: String?
+
+    /// Moves the keyboard cursor by one row, clamped at both ends.
+    private func moveCursor(_ direction: MoveCommandDirection, from rowID: String) {
+        let rows = orderedRowIDs
+        guard let index = rows.firstIndex(of: rowID) else { return }
+        let next: Int
+        switch direction {
+        case .up: next = max(index - 1, 0)
+        case .down: next = min(index + 1, rows.count - 1)
+        default: return
+        }
+        focusedRow = rows[next]
+    }
+
+    /// Every row currently on screen, in the order they are drawn.
+    private var orderedRowIDs: [String] {
+        [CleanupRisk.safe, .review, .protected]
+            .flatMap { risk in isExpanded(risk) ? visible(groupItems(risk)).map(\.stableRowID) : [] }
+    }
+
+    /// What the last click on "clean" produced, when it produced no panel.
+    @State private var actionNotice: (level: NoticeBanner.Level, text: String)?
+
     /// Set while the dialog that turns a whole review group into a selection
     /// is up.
-    @State private var isConfirmingReviewSelection = false
+    /// Rows a "select all" is about to add. One pending selection, one dialog:
+    /// the footer's select-all used to act on the whole model with no
+    /// confirmation while the review group's asked first, so the same page had
+    /// two safety levels for the same action.
+    @State private var pendingSelectAll: [CleanupItemSummary] = []
 
     private let pageSize = 100
     private let collapsedRowsPerGroup = 4
@@ -67,9 +101,11 @@ public struct ScanView: View {
                 headerAction
             }
 
-            if scan.hasResults {
+            if hasActionableResults {
                 filterBar
                 resultsWorkspace
+            } else if showsStoppedCard {
+                stoppedCard
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: SiftMetrics.pageSpacing) {
@@ -96,12 +132,120 @@ public struct ScanView: View {
         .task(id: reloadKey) {
             await reload()
         }
-        .task(id: scan.hasResults) {
-            if scan.hasResults {
+        .task(id: hasActionableResults) {
+            if hasActionableResults {
                 await scan.loadDuplicateGroups()
             }
         }
     }
+
+    /// True when the page has rows to show, including a stopped run's.
+    ///
+    /// The stopped run keeps its index now, so its rows are ordinary candidates:
+    /// the same list, the same selection, the same cleanup. The banner at the top
+    /// of the list is what tells the user the run did not finish.
+    private var hasActionableResults: Bool {
+        scan.hasResults || scan.hasStoppedResults
+    }
+
+    /// True when the run ended without a result but did find something.
+    ///
+    /// A cancelled or failed run used to fall straight back to the empty start
+    /// card: forty seconds of walking left nothing on screen but the phase name.
+    /// The page now states what the run found before it stopped. It does not
+    /// offer a cleanable list, because the core's worker removes its own index
+    /// when it ends — a claim it could not honour would be worse than the number.
+    private var showsStoppedCard: Bool {
+        guard scan.phase == .cancelled || scan.phase == .failed else { return false }
+        return (scan.report?.itemCount ?? scan.progress.itemsFound) > 0
+            || scan.progress.filesSeen > 0
+            || !scan.skippedLocations.isEmpty
+    }
+
+    private var stoppedCard: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: SiftMetrics.pageSpacing) {
+                SiftGlassCard(padding: SiftMetrics.spacingXL) {
+                    VStack(alignment: .leading, spacing: SiftMetrics.spacingM) {
+                        HStack(alignment: .top, spacing: SiftMetrics.spacingM) {
+                            Image(systemName: scan.phase.symbolName)
+                                .font(.system(size: 22, weight: .medium))
+                                .foregroundStyle(SiftColor.textColor(for: .review))
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(LocalizationKey.scanStoppedTitle.localized)
+                                    .font(SiftFont.title)
+                                Text(
+                                    LocalizationKey.scanStoppedDetail.localized(
+                                        scan.report?.itemCount ?? scan.progress.itemsFound,
+                                        SiftFormat.bytes(scan.liveFoundBytes)
+                                    )
+                                )
+                                .font(SiftFont.body)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                            }
+                            Spacer(minLength: SiftMetrics.spacingS)
+                        }
+
+                        HStack(spacing: SiftMetrics.spacingM) {
+                            stoppedFact(
+                                LocalizationKey.scanRunningWalked.localized(
+                                    SiftFormat.count(scan.progress.filesSeen)
+                                )
+                            )
+                            stoppedFact(
+                                "\(LocalizationKey.scanRunningElapsed.localized) "
+                                    + ScanRunningCard.duration(scan.elapsed)
+                            )
+                            if !scan.skippedLocations.isEmpty {
+                                stoppedFact(
+                                    LocalizationKey.scanPartialNotice.localized(scan.skippedLocations.count)
+                                )
+                            }
+                            Spacer(minLength: 0)
+                        }
+
+                        SiftPrimaryButton(titleKey: .scanRescan, symbolName: "arrow.clockwise") {
+                            Task { await environment.runScan(.everything) }
+                        }
+                        .accessibilityIdentifier("scan.rescanAfterStop")
+                        .padding(.top, SiftMetrics.spacingXS)
+                    }
+                }
+                .siftAppear(index: 0)
+
+                statusMessages
+            }
+            .padding(.horizontal, SiftMetrics.pagePadding)
+            .padding(.vertical, SiftMetrics.pageSpacing)
+            .frame(maxWidth: SiftMetrics.contentWidthWide, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .top)
+        }
+    }
+
+    private func stoppedFact(_ text: String) -> some View {
+        Text(text)
+            .font(SiftFont.caption)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, SiftMetrics.spacingS)
+            .padding(.vertical, 3)
+            .background(
+                RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
+                    .fill(SiftColor.subtleFill)
+            )
+    }
+
+    /// The first few folders a default scan reads, home-relative.
+    ///
+    /// Named after the shipped rules' anchors rather than assembled from the
+    /// request: the page states what the product is about to do, and the request
+    /// is rebuilt on every run.
+    private static let scanScopePreview = [
+        "~/Library/Caches",
+        "~/Library/Logs",
+        "~/Downloads",
+        "~/Library/Application Support",
+    ]
 
     /// The results page keeps the summary rail in place while the list scrolls.
     /// The clean action is the reason the page exists, so it must not move out of
@@ -118,12 +262,23 @@ public struct ScanView: View {
         HStack(alignment: .top, spacing: SiftMetrics.spacingL) {
             ScrollViewReader { proxy in
                 ScrollView {
-                    VStack(alignment: .leading, spacing: SiftMetrics.pageSpacing) {
+                    LazyVStack(alignment: .leading, spacing: SiftMetrics.pageSpacing) {
                         Color.clear
                             .frame(height: 1)
                             .accessibilityHidden(true)
                             .id(Self.listTopID)
                         failureBanners
+                        if scan.hasStoppedResults {
+                            NoticeBanner(
+                                level: .information,
+                                message: LocalizationKey.scanStoppedDetail.localized(
+                                    scan.report?.itemCount ?? cleanup.items.count,
+                                    SiftFormat.bytes(scan.liveFoundBytes)
+                                ),
+                                actionTitle: .scanRescan,
+                                action: { Task { await environment.runScan(.everything) } }
+                            )
+                        }
                         if filter == .duplicates {
                             if scan.duplicateGroups.isEmpty {
                                 SiftGlassCard(padding: SiftMetrics.spacingXL) {
@@ -142,7 +297,10 @@ public struct ScanView: View {
                             }
                         } else {
                             resultsCard
-                            if !scan.duplicateGroups.isEmpty {
+                            // The card is a second, self-contained result set.
+                            // Showing it under "Junk" or "Large" claimed the
+                            // duplicate files were part of that filter.
+                            if !scan.duplicateGroups.isEmpty, filter == .all {
                                 DuplicateGroupsCard(
                                     groups: scan.duplicateGroups,
                                     scan: scan,
@@ -227,16 +385,31 @@ public struct ScanView: View {
             let step = isPreparing ? 1 : (scan.phase.step ?? 1)
             return LocalizationKey.scanRunningStatus.localized(step, ScanPhase.stepCount)
         }
+        if scan.hasStoppedResults, let report = scan.report {
+            return LocalizationKey.scanHeaderStatus.localized(
+                SiftFormat.relativeDate(report.finishedAt ?? report.startedAt),
+                report.itemCount
+            ) + " · " + LocalizationKey.scanPhaseCancelled.localized
+        }
         if scan.phase == .cancelled || scan.phase == .failed {
             return scan.phase.labelKey.localized
         }
         if let report = scan.report {
-            return LocalizationKey.scanHeaderStatus.localized(
+            let status = LocalizationKey.scanHeaderStatus.localized(
                 SiftFormat.relativeDate(report.finishedAt ?? report.startedAt),
                 report.itemCount
             )
+            guard scan.phase == .partial else { return status }
+            // "Some locations could not be read" is about permissions and says
+            // nothing about a run that was cut short to keep the app responsive.
+            let suffix = scan.skippedLocations.isEmpty
+                ? LocalizationKey.scanPartialBudget.localized
+                : LocalizationKey.scanPhasePartial.localized
+            return status + " · " + suffix
         }
-        return LocalizationKey.scanHeaderStatusEmpty.localized
+        // The page name is already the title, so the status states only the
+        // rest: "Scan, nothing scanned yet" said the same thing twice.
+        return LocalizationKey.scanPhaseIdle.localized
     }
 
     @ViewBuilder
@@ -264,10 +437,11 @@ public struct ScanView: View {
                     .foregroundStyle(.secondary)
             }
             .padding(.horizontal, SiftMetrics.spacingM)
-        } else if scan.hasResults {
+        } else if hasActionableResults {
             SiftPrimaryButton(titleKey: .scanRescan, symbolName: "arrow.clockwise") {
                 Task { await environment.runScan(.everything) }
             }
+            .keyboardShortcut("r", modifiers: .command)
         }
     }
 
@@ -298,7 +472,7 @@ public struct ScanView: View {
             return SiftFormat.bytes(scan.duplicateReclaimableBytes)
         }
         if candidate == .all {
-            return LocalizationKey.commonItemCount.localized(scan.report?.itemCount ?? 0)
+            return LocalizationKey.commonItemCount.counted(scan.report?.itemCount ?? 0)
         }
         let total = scan.categoryTotals
             .limited(to: candidate.categories)
@@ -328,6 +502,32 @@ public struct ScanView: View {
                             .font(SiftFont.body)
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
+
+                        // What the scan will read, before it reads it. The page
+                        // used to start walking on the same frame as the click
+                        // with no statement of which folders were involved.
+                        VStack(alignment: .leading, spacing: SiftMetrics.spacingXS) {
+                            Text(LocalizationKey.scanFirstRunScope.localized)
+                                .font(SiftFont.caption)
+                                .foregroundStyle(.secondary)
+                            HStack(spacing: SiftMetrics.spacingS) {
+                                ForEach(Self.scanScopePreview, id: \.self) { path in
+                                    Text(path)
+                                        .font(SiftFont.caption)
+                                        .lineLimit(1)
+                                        .truncationMode(.middle)
+                                        .padding(.horizontal, SiftMetrics.spacingS)
+                                        .padding(.vertical, 3)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
+                                                .fill(SiftColor.subtleFill)
+                                        )
+                                }
+                                Spacer(minLength: 0)
+                            }
+                        }
+                        .padding(.top, SiftMetrics.spacingXS)
+
                         HStack(spacing: SiftMetrics.spacingM) {
                             SiftPrimaryButton(
                                 titleKey: .dashboardStartScan,
@@ -337,9 +537,11 @@ public struct ScanView: View {
                                 Task { await environment.runScan(.everything) }
                             }
                             .accessibilityIdentifier("scan.start")
-                            Text(LocalizationKey.overviewLocalOnly.localized)
+                            .keyboardShortcut("r", modifiers: .command)
+                            Text(LocalizationKey.scanScopeNote.localized)
                                 .font(SiftFont.caption)
-                                .foregroundStyle(.tertiary)
+                                .foregroundStyle(SiftColor.subtleText)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                         .padding(.top, SiftMetrics.spacingXS)
                     }
@@ -395,10 +597,11 @@ public struct ScanView: View {
                 Divider()
 
                 if items.isEmpty, !isLoading, scan.resultLoadFailure == nil {
+                    let empty = emptyState
                     SiftEmptyState(
-                        symbolName: "checkmark.circle",
-                        titleKey: .scanNothingFound,
-                        detailKey: .scanNothingFoundDetail
+                        symbolName: empty.symbolName,
+                        titleKey: empty.titleKey,
+                        detailKey: empty.detailKey
                     )
                 } else {
                     resultGroups
@@ -450,7 +653,14 @@ public struct ScanView: View {
                 tint: SiftColor.safe
             )
             ForEach(safe, id: \.stableRowID) { item in
-                ScanItemRow(item: item, cleanup: cleanup, onLookUpOwner: lookUpOwner)
+                ScanItemRow(
+                    item: item,
+                    cleanup: cleanup,
+                    onLookUpOwner: lookUpOwner,
+                    focus: $focusedRow,
+                    onMove: moveCursor
+                )
+                    .transition(.opacity.combined(with: .offset(y: 6)))
                 Divider()
             }
         }
@@ -461,7 +671,7 @@ public struct ScanView: View {
                 HStack(spacing: SiftMetrics.spacingS) {
                     Spacer()
                     Button {
-                        isConfirmingReviewSelection = true
+                        pendingSelectAll = visible(reviewGroup)
                     } label: {
                         Text(
                             LocalizationKey.scanSelectAllShown
@@ -474,7 +684,14 @@ public struct ScanView: View {
                 .padding(.bottom, SiftMetrics.spacingS)
 
                 ForEach(review, id: \.stableRowID) { item in
-                    ScanItemRow(item: item, cleanup: cleanup, onLookUpOwner: lookUpOwner)
+                    ScanItemRow(
+                        item: item,
+                        cleanup: cleanup,
+                        onLookUpOwner: lookUpOwner,
+                        focus: $focusedRow,
+                        onMove: moveCursor
+                    )
+                        .transition(.opacity.combined(with: .offset(y: 6)))
                     Divider()
                 }
             }
@@ -488,26 +705,29 @@ public struct ScanView: View {
                 tint: SiftColor.danger
             )
             ForEach(protected, id: \.stableRowID) { item in
-                ScanItemRow(item: item, cleanup: cleanup, onLookUpOwner: lookUpOwner)
+                ScanItemRow(
+                    item: item,
+                    cleanup: cleanup,
+                    onLookUpOwner: lookUpOwner,
+                    focus: $focusedRow,
+                    onMove: moveCursor
+                )
                 Divider()
             }
         }
 
         if isLoading {
-            ProgressView()
-                .controlSize(.small)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, SiftMetrics.spacingM)
+            // A page that is being read, drawn in the shape of the page: four
+            // placeholder rows in the same rhythm as real ones.
+            ForEach(0..<4, id: \.self) { index in
+                SiftSkeletonRow(isFirst: index == 0)
+                Divider()
+            }
         } else if hiddenItemCount > 0 {
             HStack(spacing: SiftMetrics.spacingM) {
-                Text(
-                    LocalizationKey.overviewMoreItems.localized(
-                        hiddenItemCount,
-                        SiftFormat.bytes(hiddenBytes)
-                    )
-                )
-                .font(SiftFont.caption)
-                .foregroundStyle(.secondary)
+                Text(hiddenSummary)
+                    .font(SiftFont.caption)
+                    .foregroundStyle(.secondary)
                 Spacer()
                 Button {
                     Task { await showAllRows() }
@@ -544,7 +764,11 @@ public struct ScanView: View {
     }
 
     private func toggleExpansion(_ risk: CleanupRisk) {
-        groupExpansion[risk] = !isExpanded(risk)
+        // A group opening is a layout re-flow, not a state change: 0.24 s of
+        // smooth motion so the eye can follow where the rows came from.
+        withAnimation(SiftMotion.expand) {
+            groupExpansion[risk] = !isExpanded(risk)
+        }
     }
 
     /// The review group's header: a disclosure, not a decoration.
@@ -568,7 +792,7 @@ public struct ScanView: View {
                     HStack(spacing: SiftMetrics.spacingS) {
                         Text(LocalizationKey.scanResultsReviewGroup.localized)
                             .font(SiftFont.bodyEmphasis)
-                        Text(LocalizationKey.commonItemCount.localized(group.count))
+                        Text(LocalizationKey.commonItemCount.counted(group.count))
                             .font(SiftFont.caption)
                             .foregroundStyle(.secondary)
                         Text(SiftFormat.bytes(group.reduce(0) { $0 + $1.sizeInBytes }))
@@ -577,7 +801,7 @@ public struct ScanView: View {
                     }
                     Text(LocalizationKey.scanResultsReviewHint.localized)
                         .font(SiftFont.caption)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(SiftColor.subtleText)
                 }
                 Spacer(minLength: SiftMetrics.spacingS)
                 Image(systemName: expanded ? "chevron.up" : "chevron.down")
@@ -592,20 +816,26 @@ public struct ScanView: View {
             Text(LocalizationKey.scanResultsReviewGroup.localized)
         )
         .accessibilityValue(
-            Text(LocalizationKey.commonItemCount.localized(group.count))
+            Text(LocalizationKey.commonItemCount.counted(group.count))
         )
         .accessibilityHint(Text(LocalizationKey.scanResultsReviewHint.localized))
         .confirmationDialog(
-            LocalizationKey.scanSelectAllShown.localized(visible(group).count),
-            isPresented: $isConfirmingReviewSelection,
+            LocalizationKey.scanSelectAllShown.localized(pendingSelectAll.count),
+            isPresented: Binding(
+                get: { !pendingSelectAll.isEmpty },
+                set: { presented in if !presented { pendingSelectAll = [] } }
+            ),
             titleVisibility: .visible
         ) {
             Button(LocalizationKey.scanSelectAll.localized) {
                 // Only what the page is showing: a row the list has not revealed
-                // yet is not something the user agreed to by opening the group.
-                cleanup.selectAll(in: visible(group).map { $0.asCleanupItem() })
+                // yet is not something the user agreed to by opening a group.
+                cleanup.selectAll(in: pendingSelectAll.filter { $0.risk.isCleanable }.map { $0.asCleanupItem() })
+                pendingSelectAll = []
             }
-            Button(LocalizationKey.cleanupConfirmCancel.localized, role: .cancel) {}
+            Button(LocalizationKey.cleanupConfirmCancel.localized, role: .cancel) {
+                pendingSelectAll = []
+            }
         } message: {
             Text(LocalizationKey.cleanupConfirmRiskWarning.localized)
         }
@@ -618,13 +848,13 @@ public struct ScanView: View {
                 .frame(width: 6, height: 6)
             Text(title)
                 .font(SiftFont.bodyEmphasis)
-            Text(LocalizationKey.commonItemCount.localized(count))
+            Text(LocalizationKey.commonItemCount.counted(count))
                 .font(SiftFont.caption)
                 .foregroundStyle(.secondary)
             Spacer(minLength: SiftMetrics.spacingS)
             Text(detail)
                 .font(SiftFont.caption)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(SiftColor.subtleText)
         }
         .padding(.vertical, SiftMetrics.spacingM)
     }
@@ -646,12 +876,15 @@ public struct ScanView: View {
             Spacer(minLength: SiftMetrics.spacingS)
 
             Button {
-                cleanup.selectAll(in: cleanup.items.filter { $0.risk.isCleanable })
+                // The same confirmation the review group asks for, over the same
+                // scope: what this filter is showing.
+                pendingSelectAll = displayedCleanableRows
             } label: {
                 Text(LocalizationKey.scanSelectAll.localized)
                     .font(SiftFont.caption)
             }
             .buttonStyle(SiftLinkButtonStyle())
+            .keyboardShortcut("a", modifiers: .command)
 
             Button {
                 cleanup.deselectAll()
@@ -660,6 +893,7 @@ public struct ScanView: View {
                     .font(SiftFont.caption)
             }
             .buttonStyle(SiftLinkButtonStyle())
+            .keyboardShortcut("a", modifiers: [.command, .shift])
         }
         .padding(.top, SiftMetrics.spacingM)
     }
@@ -697,16 +931,35 @@ public struct ScanView: View {
         .fixedSize()
     }
 
+    /// What the collapsed groups are hiding.
+    ///
+    /// "N smaller items" is a claim about the sort: under name or modification
+    /// date the rows behind the fold are not smaller, they are simply not shown.
+    private var hiddenSummary: String {
+        let count = LocalizationKey.commonItemCount.counted(hiddenItemCount)
+        let bytes = SiftFormat.bytes(hiddenBytes)
+        guard sort == .size else {
+            return "\(count) · \(bytes)"
+        }
+        return LocalizationKey.overviewMoreItems.localized(hiddenItemCount, bytes)
+    }
+
     private var resultSummary: String {
         if filter == .duplicates {
-            return "\(SiftFormat.bytes(scan.duplicateReclaimableBytes)), \(LocalizationKey.commonItemCount.localized(scan.duplicateGroupsTotal))"
+            return "\(SiftFormat.bytes(scan.duplicateReclaimableBytes)), \(LocalizationKey.commonItemCount.counted(scan.duplicateGroupsTotal))"
         }
         let totals = scan.categoryTotals.limited(to: filter.categories)
         let bytes = totals.reduce(Int64(0)) { $0 + $1.totalBytes }
         let count = filter == .all
             ? (scan.report?.itemCount ?? 0)
             : totals.reduce(0) { $0 + $1.itemCount }
-        return "\(SiftFormat.bytes(bytes)), \(LocalizationKey.commonItemCount.localized(count))"
+        let shown = items.count
+        let summary = "\(SiftFormat.bytes(bytes)), \(LocalizationKey.commonItemCount.counted(count))"
+        guard shown > 0, shown < count else { return summary }
+        return summary + " · " + LocalizationKey.commonOf.localized(
+            SiftFormat.count(shown),
+            SiftFormat.count(count)
+        )
     }
 
     // MARK: - Summary rail
@@ -726,11 +979,22 @@ public struct ScanView: View {
                     .contentTransition(.numericText())
 
                 Text(
-                    "\(LocalizationKey.commonItemCount.localized(cleanup.selectedCount)), \(LocalizationKey.cleanupConfirmMethodValue.localized)"
+                    "\(LocalizationKey.commonItemCount.counted(cleanup.selectedCount)), \(LocalizationKey.cleanupConfirmMethodValue.localized)"
                 )
                 .font(SiftFont.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+
+                if hiddenSelectedCount > 0 {
+                    Text(LocalizationKey.scanHiddenSelected.localized(hiddenSelectedCount))
+                        .font(SiftFont.caption)
+                        .foregroundStyle(SiftColor.textColor(for: .review))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                if let actionNotice {
+                    NoticeBanner(level: actionNotice.level, message: actionNotice.text)
+                }
 
                 if !cleanup.selectedByCategory.isEmpty {
                     Text(
@@ -741,7 +1005,7 @@ public struct ScanView: View {
                         )
                     )
                     .font(SiftFont.caption)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(SiftColor.subtleText)
                     .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
                 }
@@ -769,7 +1033,7 @@ public struct ScanView: View {
 
                 Text(LocalizationKey.scanResultsReportHint.localized)
                     .font(SiftFont.caption)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(SiftColor.subtleText)
                     .frame(maxWidth: .infinity)
                     .multilineTextAlignment(.center)
             }
@@ -781,7 +1045,7 @@ public struct ScanView: View {
         HStack(alignment: .top, spacing: SiftMetrics.spacingS) {
             Image(systemName: symbolName)
                 .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(SiftColor.subtleText)
                 .padding(.top, 2)
             Text(text)
                 .font(SiftFont.caption)
@@ -790,15 +1054,37 @@ public struct ScanView: View {
         }
     }
 
+    /// The empty state for the filter on screen.
+    ///
+    /// "Nothing to clean up — your Mac looks tidy" was shown for every empty
+    /// list, including a filter that had nothing of its own while other
+    /// categories held gigabytes. A statement about the whole Mac is reserved for
+    /// a run that found nothing at all.
+    private var emptyState: (symbolName: String, titleKey: LocalizationKey, detailKey: LocalizationKey) {
+        switch filter {
+        case .duplicates:
+            ("doc.on.doc", .filesNoDuplicates, .filesNoDuplicatesDetail)
+        case .large, .old, .junk:
+            ("line.3.horizontal.decrease.circle", .scanNothingFoundScope, .scanNothingFoundDetail)
+        case .all:
+            ("checkmark.circle", .scanNothingFound, .scanNothingFoundDetail)
+        }
+    }
+
     // MARK: - Loading
 
+    /// Everything that makes the loaded rows describe a different set.
+    ///
+    /// `listGeneration` is what a cleanup bumps: without it the rows that just
+    /// moved to the Trash stayed in the list, stayed selectable, and a second
+    /// click produced a screenful of "already gone".
     private var reloadKey: String {
         let session = scan.report?.sessionID ?? "none"
-        return "\(session)-\(filter.rawValue)-\(sort.rawValue)"
+        return "\(session)-\(filter.rawValue)-\(sort.rawValue)-\(cleanup.listGeneration)"
     }
 
     private func reload() async {
-        guard scan.hasResults else {
+        guard hasActionableResults else {
             items = []
             cursors = [:]
             hasMore = false
@@ -809,22 +1095,26 @@ public struct ScanView: View {
         showsAllRows = false
         defer { isLoading = false }
 
-        items = []
-        cursors = [:]
         // A previous filter may have had more pages. Leaving the old value set
         // showed "Load more" on a filter that had already loaded everything.
         hasMore = false
         let expectedKey = reloadKey
 
+        // Rows are collected beside the old ones and swapped in at the end: the
+        // old list used to be emptied first, so every chip click flashed an
+        // empty card before the new page arrived.
+        var fresh: [CleanupItemSummary] = []
+        var freshCursors: [CleanupCategory: Int] = [:]
         for category in filter.rowCategories {
             let page = await scan.page(offset: 0, limit: pageSize, sort: sort, category: category)
             guard reloadKey == expectedKey else { return }
-            items.append(contentsOf: page.items)
-            cursors[category] = page.items.count
+            fresh.append(contentsOf: page.items)
+            freshCursors[category] = page.items.count
             if page.remaining > 0 { hasMore = true }
         }
 
-        items = deduplicated(items).sorted(by: sortComparator)
+        items = deduplicated(fresh).sorted(by: sortComparator)
+        cursors = freshCursors
         cleanup.appendItems(items.map { $0.asCleanupItem() })
     }
 
@@ -943,14 +1233,48 @@ public struct ScanView: View {
             .reduce(0) { $0 + $1.sizeInBytes }
     }
 
+    /// Rows this filter is showing that may be selected.
+    private var displayedCleanableRows: [CleanupItemSummary] {
+        items.filter { $0.risk.isCleanable }
+    }
+
+    /// Selected rows the current list is not showing.
+    ///
+    /// The safe group renders four rows and pre-selects every one of them, so a
+    /// button that says "clean 347 items" over a list of eight visible rows is
+    /// asking the user to approve rows they have never seen. The rail states the
+    /// number instead of hiding it.
+    private var hiddenSelectedCount: Int {
+        let shown = Set(items.map(\.stableRowID))
+        let shownPairs = Set(items.map { "\($0.category.rawValue)|\($0.url.path)" })
+        return cleanup.selectedItems.filter {
+            !shown.contains(CleanupItem.stableID(category: $0.category, url: $0.url))
+                && !shownPairs.contains("\($0.category.rawValue)|\($0.url.path)")
+        }.count
+    }
+
     private func beginCleanup() async {
+        actionNotice = nil
         let result = await environment.beginCleanup(
-            operation: .smartScan,
+            // The operation the user is looking at, not a fixed one: a report
+            // that says "smart scan" for a cleanup started from the "Large"
+            // filter describes a different run than the one that happened.
+            operation: filter.operationName,
             requiresConfirmation: environment.preferences.showsConfirmationPanel,
             scanReport: environment.scan.report
         )
-        if case .purchaseRequired = result {
+        switch result {
+        case .purchaseRequired:
             onRequestPurchase()
+        case .busy:
+            actionNotice = (.warning, LocalizationKey.cleanupBusyNotice.localized)
+        case .nothingToDo:
+            actionNotice = (
+                .warning,
+                cleanup.failure?.message ?? LocalizationKey.cleanupNothingToDo.localized
+            )
+        case .awaitingConfirmation, .executed:
+            break
         }
     }
 }
@@ -990,6 +1314,16 @@ enum ScanFilter: String, CaseIterable, Identifiable {
     }
 
     /// The categories whose totals the chip describes.
+    /// Which operation a cleanup started from this filter is.
+    var operationName: CleanupOperationName {
+        switch self {
+        case .large: .largeFiles
+        case .old: .oldFiles
+        case .duplicates: .duplicateFiles
+        case .all, .junk: .junkCleanup
+        }
+    }
+
     var categories: [CleanupCategory]? {
         switch self {
         case .all: nil
@@ -1018,12 +1352,16 @@ private extension ScanSort {
 struct ScanItemRow: View {
     let item: CleanupItemSummary
     @ObservedObject var cleanup: CleanupModel
+
     /// Asks which application the row belongs to.
     ///
     /// Only residue rows carry a bundle identifier, and the answer is usually
     /// "nothing is installed" — which is why the page says that instead of
     /// offering a button that appears to do nothing.
     var onLookUpOwner: ((String) -> Void)? = nil
+    /// The page's keyboard cursor, and how a row asks it to move.
+    var focus: FocusState<String?>.Binding
+    var onMove: (MoveCommandDirection, String) -> Void
 
     var body: some View {
         let domainItem = item.asCleanupItem()
@@ -1035,6 +1373,8 @@ struct ScanItemRow: View {
                 ),
                 isEnabled: item.risk.isCleanable
             )
+            .focused(focus, equals: item.stableRowID)
+            .onMoveCommand { direction in onMove(direction, item.stableRowID) }
             .accessibilityLabel(Text(item.displayName))
             .accessibilityHint(Text(item.risk.detailKey.localized))
 
@@ -1043,15 +1383,23 @@ struct ScanItemRow: View {
                     .font(SiftFont.bodyEmphasis)
                     .lineLimit(1)
                     .truncationMode(.middle)
+                    // One spoken element for the row's identity: name and path
+                    // belong together, and the two lines below repeat what this
+                    // label already says.
+                    .accessibilityLabel(
+                        Text("\(item.displayName), \(item.displayPath), \(domainItem.explanation())")
+                    )
                 Text(itemDetail)
                     .font(SiftFont.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
+                    .accessibilityHidden(true)
                 Text(domainItem.explanation())
                     .font(SiftFont.caption)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(SiftColor.subtleText)
                     .lineLimit(1)
+                    .accessibilityHidden(true)
                 if let bundleIdentifier = item.relatedBundleID,
                    let onLookUpOwner,
                    item.category == .applicationResidue
@@ -1074,11 +1422,28 @@ struct ScanItemRow: View {
                     .font(SiftFont.bodyEmphasis)
                     .monospacedDigit()
                 if item.fileCount > 1 {
-                    Text(LocalizationKey.commonFileCount.localized(item.fileCount))
+                    Text(LocalizationKey.commonFileCount.counted(item.fileCount))
                         .font(SiftFont.caption)
                         .foregroundStyle(.secondary)
                 }
             }
+            .accessibilityElement(children: .combine)
+
+            // Part of the row, not revealed by hover. A control that only exists
+            // while the pointer is inside the row is a moving target to click,
+            // and one hover state per row is one state change per row: on a page
+            // holding hundreds of rows that is where the scroll cost was. Every
+            // row now lays out the same width, whether or not the pointer is over
+            // it.
+            Button {
+                NSWorkspace.shared.activateFileViewerSelecting([item.url])
+            } label: {
+                Image(systemName: "folder")
+                    .font(.system(size: 11, weight: .semibold))
+            }
+            .buttonStyle(SiftLinkButtonStyle())
+            .help(LocalizationKey.filesRevealInFinder.localized)
+            .accessibilityLabel(Text(LocalizationKey.filesRevealInFinder.localized))
 
             RiskBadge(risk: item.risk.level)
         }
@@ -1129,6 +1494,8 @@ struct ScanRunningCard: View {
     let displayPhase: ScanPhase?
     let onOpenPermissions: () -> Void
 
+    @Environment(\.siftReduceMotion) private var reduceMotion
+
     init(scan: ScanModel, displayPhase: ScanPhase? = nil, onOpenPermissions: @escaping () -> Void) {
         self.scan = scan
         self.displayPhase = displayPhase
@@ -1140,15 +1507,45 @@ struct ScanRunningCard: View {
     /// claiming the run has already started.
     private var phase: ScanPhase { displayPhase ?? scan.phase }
 
+    /// The item name as displayed.
+    ///
+    /// The engine reports a leaf name on every progress event, several times a
+    /// second. Rendered directly, the chip was unreadable — it changed faster
+    /// than anyone could read it. This is a leading-edge throttle: the first
+    /// name appears immediately and later ones at most every 0.6 s.
+    @State private var shownItemName = ""
+    @State private var lastNameCommit = Date.distantPast
+
+    private func commitItemName(_ name: String) {
+        let now = Date()
+        guard shownItemName.isEmpty
+            || now.timeIntervalSince(lastNameCommit) > 0.6
+            || name.isEmpty
+        else { return }
+        lastNameCommit = now
+        withAnimation(reduceMotion ? nil : Animation.easeOut(duration: 0.15)) {
+            shownItemName = name
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: SiftMetrics.spacingL) {
             SiftGlassCard(padding: SiftMetrics.spacingXL) {
                 HStack(spacing: SiftMetrics.spacingXL) {
+                    // The centre used to read "2/4", which sits in the slot a
+                    // percentage sits in and was read as progress by everyone who
+                    // saw it. The bytes found so far are the fact the run
+                    // actually measures, and they only ever grow.
                     SiftProgressRing(
                         progress: nil,
                         lineWidth: 9,
-                        label: "\(phase.step ?? 0)/\(ScanPhase.stepCount)",
-                        caption: LocalizationKey.navScan.localized
+                        label: SiftFormat.bytes(scan.liveFoundBytes),
+                        caption: LocalizationKey.scanRunningStep.localized(
+                            phase.step ?? 0,
+                            ScanPhase.stepCount
+                        ),
+                        spokenLabel: phase.labelKey.localized,
+                        spokenValue: "\(SiftFormat.bytes(scan.liveFoundBytes)), \(LocalizationKey.scanRunningStep.localized(phase.step ?? 0, ScanPhase.stepCount))"
                     )
                     .frame(width: 112, height: 112)
 
@@ -1160,9 +1557,12 @@ struct ScanRunningCard: View {
                             .foregroundStyle(SiftColor.accent)
                         Text(phase.labelKey.localized)
                             .font(SiftFont.title)
-                        if !scan.progress.currentItemName.isEmpty {
-                            Text(scan.progress.currentItemName)
+                            .contentTransition(.opacity)
+                            .animation(SiftMotion.phase, value: phase)
+                        if !shownItemName.isEmpty {
+                            Text(LocalizationKey.scanCurrentItem.localized(shownItemName))
                                 .font(SiftFont.caption)
+                                .contentTransition(.opacity)
                                 .lineLimit(1)
                                 .truncationMode(.middle)
                                 .padding(.horizontal, SiftMetrics.spacingM)
@@ -1214,13 +1614,8 @@ struct ScanRunningCard: View {
                             Text(LocalizationKey.scanRunningPhase.localized)
                                 .font(SiftFont.caption)
                                 .foregroundStyle(.secondary)
-                            Text(
-                                LocalizationKey.scanRunningStep.localized(
-                                    phase.step ?? 0,
-                                    ScanPhase.stepCount
-                                )
-                            )
-                            .font(SiftFont.caption)
+                            Text(phase.labelKey.localized)
+                                .font(SiftFont.caption)
                         }
                     }
                 }
@@ -1252,10 +1647,10 @@ struct ScanRunningCard: View {
                     HStack(spacing: SiftMetrics.spacingS) {
                         Image(systemName: "lock.shield")
                             .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(SiftColor.subtleText)
                         Text(LocalizationKey.scanRunningReadOnly.localized)
                             .font(SiftFont.caption)
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(SiftColor.subtleText)
                         Spacer(minLength: SiftMetrics.spacingS)
                         Button(action: onOpenPermissions) {
                             Text(LocalizationKey.permissionOpenSettings.localized)
@@ -1266,6 +1661,13 @@ struct ScanRunningCard: View {
                     .padding(.top, SiftMetrics.spacingM)
                 }
             }
+        }
+        .onAppear { commitItemName(scan.progress.currentItemName) }
+        // `task(id:)` rather than `onChange`: the package targets macOS 13, and
+        // the two-parameter `onChange` is 14+. Restarting on a new value with a
+        // timestamp inside `commitItemName` is the same leading-edge throttle.
+        .task(id: scan.progress.currentItemName) {
+            commitItemName(scan.progress.currentItemName)
         }
     }
 
@@ -1299,9 +1701,12 @@ struct ScanRunningCard: View {
                 .frame(width: 112, alignment: .leading)
                 .lineLimit(1)
 
-            UsageBar(fraction: fraction, tint: tint, height: 6)
+            // A share of the largest category, not progress: the bar is drawn
+            // at a third of the control weight so a nearly full bar cannot be
+            // mistaken for "nearly done".
+            UsageBar(fraction: fraction, tint: tint.opacity(0.7), height: 4)
 
-            Text(SiftFormat.bytes(bytes))
+            Text(bytes > 0 || phase.hasResults ? SiftFormat.bytes(bytes) : "—")
                 .font(SiftFont.caption)
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
@@ -1342,11 +1747,26 @@ struct SkippedLocationsCard: View {
         SkippedLocation.groupedByTopLevelDirectory(locations)
     }
 
+    /// "Some locations could not be read" is only true for the reasons a person
+    /// can act on. A location the protection list refuses was never unreadable:
+    /// saying so sent the user to System Settings for a permission that changes
+    /// nothing.
+    private var cardTitle: String {
+        let needsPermission = locations.contains(where: \.needsFullDiskAccess)
+        let allProtected = locations.allSatisfy { $0.code == ErrorCode.protectedLocation.rawValue }
+        if allProtected {
+            return LocalizationKey.permissionProtectedTitle.localized
+        }
+        return needsPermission || !allProtected
+            ? LocalizationKey.permissionPartialAccess.localized
+            : LocalizationKey.scanPhasePartial.localized
+    }
+
     var body: some View {
         SiftGlassCard(padding: SiftMetrics.spacingL) {
             VStack(alignment: .leading, spacing: SiftMetrics.spacingM) {
                 HStack {
-                    Text(LocalizationKey.permissionPartialAccess.localized)
+                    Text(cardTitle)
                         .font(SiftFont.sectionTitle)
                     Spacer()
                     if locations.contains(where: \.needsFullDiskAccess) {
@@ -1392,7 +1812,7 @@ struct SkippedLocationsCard: View {
                         .lineLimit(1)
                         .truncationMode(.middle)
                     if isExpandable {
-                        Text(LocalizationKey.commonItemCount.localized(group.locations.count))
+                        Text(LocalizationKey.commonItemCount.counted(group.locations.count))
                             .font(SiftFont.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -1400,7 +1820,7 @@ struct SkippedLocationsCard: View {
                     if isExpandable {
                         Image(systemName: "chevron.down")
                             .font(.system(size: 9, weight: .semibold))
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(SiftColor.subtleText)
                             .rotationEffect(.degrees(isExpanded ? 180 : 0))
                     }
                 }
@@ -1427,7 +1847,7 @@ struct SkippedLocationsCard: View {
                         if group.sharedReasonKey == nil {
                             Text(location.reasonKey.localized)
                                 .font(SiftFont.caption)
-                                .foregroundStyle(.tertiary)
+                                .foregroundStyle(SiftColor.subtleText)
                         }
                     }
                     .padding(.leading, SiftMetrics.spacingXL)

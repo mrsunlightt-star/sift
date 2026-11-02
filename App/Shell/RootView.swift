@@ -37,7 +37,11 @@ public struct RootShellView: View {
                     // SwiftUI's dependency tracking: without a new identity, a
                     // leaf view whose inputs did not change (the category grid,
                     // for one) kept rendering the old language.
-                    .id(environment.preferences.language)
+                    // Language and type scale both change text that SwiftUI
+                    // cannot see as a dependency (`LocalizationKey.localized` and
+                    // a process-wide font scale), so the subtree is rebuilt on
+                    // either.
+                    .id("\(environment.preferences.language.rawValue)-\(environment.preferences.textScale.rawValue)")
             }
 
             presentationLayer
@@ -50,8 +54,6 @@ public struct RootShellView: View {
         )
         .preferredColorScheme(preferredColorScheme)
         .tint(SiftColor.accent)
-        .animation(reduceMotion ? nil : SiftMotion.panel, value: environment.cleanup.outcome != nil)
-        .animation(reduceMotion ? nil : SiftMotion.panel, value: environment.cleanup.isConfirming)
     }
 
     private var reduceMotion: Bool {
@@ -66,65 +68,126 @@ public struct RootShellView: View {
         }
     }
 
-    /// The result and the confirmation panel are presented by the shell, so they
-    /// appear above whichever page started the operation. A dimmed backdrop makes
-    /// them the only thing that can be clicked while they are open.
-    @ViewBuilder
+    /// One modal slot for the whole cleanup flow.
+    ///
+    /// Confirmation, execution and the result are three states of one decision,
+    /// and each one hides the last. Presenting them as three separate sheets
+    /// drops the second while the first is still dismissing; one sheet whose
+    /// content is chosen from the model cannot get out of step. They are real
+    /// sheets rather than a dimmed `ZStack` because a panel that covers the
+    /// window has to behave like a modal: ⌘., Esc and focus belong to it.
+    ///
+    /// The host observes `CleanupModel` itself. Reading it through
+    /// `AppEnvironment` alone looked right and presented nothing: the shell
+    /// re-renders when the environment's own published values change, and
+    /// `isConfirming` is one level down — so the panel appeared only when
+    /// something unrelated happened to redraw the window.
     private var presentationLayer: some View {
-        if let outcome = environment.cleanup.outcome {
-            ZStack {
-                Color.black.opacity(0.28)
-                    .ignoresSafeArea()
-                    .contentShape(Rectangle())
+        ShellPresentationHost(cleanup: environment.cleanup)
+    }
+}
 
-                ScrollView {
-                    SiftGlassCard(surface: .floating, padding: 0) {
-                        CleanupResultView(
-                            outcome: outcome,
-                            report: environment.cleanup.report,
-                            onAcknowledge: {
-                                environment.cleanup.acknowledgeOutcome()
-                                environment.clearReportExportMessage()
-                            },
-                            onExport: {
-                                Task {
-                                    guard await environment.canExportReports() else {
-                                        environment.cleanup.acknowledgeOutcome()
-                                        router.requestPurchase(reason: .exportReport)
-                                        return
-                                    }
-                                    if let report = environment.cleanup.report {
-                                        await environment.exportReport(report)
-                                    }
-                                }
-                            },
-                            onOpenTrash: { Task { await environment.openTrash() } },
-                            loadTrash: { await environment.trashSnapshot() },
-                            onEmptyTrash: { snapshot in await environment.emptyTrashGated(snapshot) },
-                            onRevealFailed: { url in Task { await environment.reveal(url) } },
-                            onRequestPurchase: { router.requestPurchase(reason: .exportReport) },
-                            statusMessage: environment.reportExportMessage
-                        )
-                        .padding(SiftMetrics.spacingXL)
+/// Everything modal, in one place.
+private struct ShellPresentationHost: View {
+    @EnvironmentObject private var environment: AppEnvironment
+    @EnvironmentObject private var router: AppRouter
+    @ObservedObject var cleanup: CleanupModel
+
+    private enum ShellSheet: String, Identifiable {
+        case confirmation
+        case executing
+        case result
+        var id: String { rawValue }
+    }
+
+    var body: some View {
+        // A full-size, inert layer: a sheet needs somewhere to hang, and it must
+        // not intercept a click on the page underneath.
+        Color.clear
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .allowsHitTesting(false)
+            .sheet(item: sheetBinding) { sheet in
+                switch sheet {
+                case .confirmation:
+                    ConfirmationHost()
+                case .executing:
+                    CleanupExecutionView(cleanup: cleanup) {
+                        cleanup.stopExecution()
                     }
-                    .frame(maxWidth: 820)
-                    .padding(SiftMetrics.spacingXXL)
+                case .result:
+                    outcomeSheet
                 }
-                .frame(maxWidth: 900)
             }
-            .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.98)))
-        }
+    }
 
-        if environment.cleanup.isConfirming {
-            ZStack {
-                Color.black.opacity(0.28)
-                    .ignoresSafeArea()
-                    .contentShape(Rectangle())
+    /// Which modal is up. The result wins over both others: a batch that
+    /// finishes while its own overlay is still up must land on the outcome, not
+    /// on the panel it started from.
+    private var currentSheet: ShellSheet? {
+        if cleanup.outcome != nil { return .result }
+        if cleanup.isWorking || cleanup.isPreparingCleanup { return .executing }
+        if cleanup.isConfirming { return .confirmation }
+        return nil
+    }
 
-                ConfirmationHost()
-                    .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.98)))
+    private var sheetBinding: Binding<ShellSheet?> {
+        Binding(
+            get: { currentSheet },
+            set: { newValue in
+                guard newValue == nil else { return }
+                // A dismissal the system performs (Esc) is the same decision as
+                // the panel's own cancel, so it goes back through the model
+                // instead of being dropped.
+                if cleanup.isConfirming {
+                    cleanup.cancelConfirmation()
+                } else if cleanup.outcome != nil {
+                    cleanup.acknowledgeOutcome()
+                    environment.clearReportExportMessage()
+                }
             }
+        )
+    }
+
+    private var outcomeSheet: some View {
+        ScrollView {
+            CleanupResultView(
+                outcome: cleanup.outcome ?? .none,
+                report: cleanup.report,
+                onAcknowledge: {
+                    cleanup.acknowledgeOutcome()
+                    environment.clearReportExportMessage()
+                },
+                onExport: {
+                    Task {
+                        guard await environment.canExportReports() else {
+                            router.requestPurchase(reason: .exportReport)
+                            return
+                        }
+                        if let report = cleanup.report {
+                            await environment.exportReport(report)
+                        }
+                    }
+                },
+                onOpenTrash: { Task { await environment.openTrash() } },
+                loadTrash: { await environment.trashSnapshot() },
+                onEmptyTrash: { snapshot in await environment.emptyTrashGated(snapshot) },
+                onRevealFailed: { url in Task { await environment.reveal(url) } },
+                onRetryFailed: { results in
+                    Task {
+                        if case .purchaseRequired = await environment.retryCleanup(results) {
+                            router.requestPurchase(reason: .cleanJunk)
+                        }
+                    }
+                },
+                onUndo: {
+                    Task { _ = await environment.undoLastCleanup() }
+                },
+                onRequestPurchase: { router.requestPurchase(reason: .exportReport) },
+                statusMessage: environment.reportExportMessage
+            )
+            .padding(SiftMetrics.spacingXL)
         }
+        .frame(width: 780, height: 660)
     }
 }
 
@@ -154,12 +217,11 @@ private struct ConfirmationHost: View {
                     Task { await environment.updateSettings { $0.skipConfirmation = value } }
                 }
             )
-            .padding(SiftMetrics.spacingXL)
         }
-        .frame(width: 560)
         .task(id: environment.preferences) {
             preferences.skipConfirmation = environment.preferences.skipConfirmation
             preferences.requireConfirmation = environment.preferences.requireConfirmation
+            preferences.hasCompletedCleanup = environment.preferences.hasCompletedCleanup
         }
     }
 }
@@ -171,47 +233,75 @@ private struct ConfirmationHost: View {
 struct IconRailView: View {
     @EnvironmentObject private var environment: AppEnvironment
     @EnvironmentObject private var router: AppRouter
+    /// Whether a footer popover is up. The two popover controls are rail entries
+    /// like any other, so their group's fill has to travel to them; the state
+    /// lives here because one slider draws the fill for all four footer slots.
+    @State private var isAppearancePresented = false
+    @State private var isLanguagePresented = false
 
     var body: some View {
         VStack(spacing: SiftMetrics.spacingXS) {
             SiftMark()
                 .frame(width: 40, height: 40)
-                .padding(.top, 8)
+                // The window keeps its traffic lights (hidden title bar, not a
+                // hidden title bar zone), and they occupy the first ~28 pt.
+                .padding(.top, 28)
                 .padding(.bottom, SiftMetrics.spacingXL)
 
-            ForEach(AppDestination.primary) { destination in
-                railItem(destination)
+            // One fill for the whole group, drawn behind the entries and moved
+            // to the entry the window is showing: switching pages slides it
+            // instead of lighting a second entry and fading the first.
+            ZStack(alignment: .top) {
+                RailSelectionSlider(index: primarySelection, count: AppDestination.primary.count)
+                VStack(spacing: SiftMetrics.spacingXS) {
+                    ForEach(AppDestination.primary) { destination in
+                        railItem(destination)
+                    }
+                }
             }
 
             Spacer(minLength: SiftMetrics.spacingL)
 
-            // The appearance switcher lives in the rail, above the account
-            // entry: it is a window-level control, and the footer is where the
-            // window-level controls sit.
-            AppearanceRailMenu(
-                selection: environment.preferences.appearance
-            ) { appearance in
-                Task { await environment.updateSettings { $0.appearance = appearance } }
-            }
+            // The footer is its own group, and its entries pass the fill to the
+            // same slider for the same reason: account and settings are pages, so
+            // moving between them slides one fill rather than swapping two.
+            ZStack(alignment: .top) {
+                RailSelectionSlider(index: footerSelection, count: IconRailView.footerSlotCount)
+                VStack(spacing: SiftMetrics.spacingXS) {
+                    // The appearance switcher lives in the rail, above the account
+                    // entry: it is a window-level control, and the footer is where
+                    // the window-level controls sit. It keeps its own highlight
+                    // while its popover is open — it is not a page.
+                    AppearanceRailMenu(
+                        selection: environment.preferences.appearance,
+                        onSelect: { appearance in
+                            Task { await environment.updateSettings { $0.appearance = appearance } }
+                        },
+                        onPresentedChange: { isAppearancePresented = $0 }
+                    )
 
-            // The footer item is the purchase state: an accent call to unlock
-            // while locked, the account entry once unlocked.
-            if !environment.entitlement.isUnlocked {
-                unlockButton
-            } else {
-                accountButton
-            }
+                    // The footer item is the purchase state: an accent call to unlock
+                    // while locked, the account entry once unlocked.
+                    if !environment.entitlement.isUnlocked {
+                        unlockButton
+                    } else {
+                        accountButton
+                    }
 
-            LanguageMenu(
-                selection: environment.preferences.language,
-                style: .rail,
-                identifier: "sidebar.language"
-            ) { language in
-                environment.selectLanguage(language)
-            }
-            .help(LocalizationKey.settingsGroupLanguage.localized)
+                    LanguageMenu(
+                        selection: environment.preferences.language,
+                        style: .rail,
+                        identifier: "sidebar.language",
+                        onPickerPresentedChange: { isLanguagePresented = $0 },
+                        onSelect: { language in
+                            environment.selectLanguage(language)
+                        }
+                    )
+                    .help(LocalizationKey.settingsGroupLanguage.localized)
 
-            railItem(.settings)
+                    railItem(.settings)
+                }
+            }
         }
         .padding(.bottom, SiftMetrics.spacingM)
         .frame(width: SiftMetrics.railWidth)
@@ -236,6 +326,38 @@ struct IconRailView: View {
         }
     }
 
+    /// The footer's slots, in the order they are laid out: appearance, the
+    /// purchase state (unlock while locked, account once unlocked), language and
+    /// settings.
+    static let footerSlotCount = 4
+
+    /// Which destination the rail's top group is showing, or `nil` while the
+    /// window is on a page that group does not hold.
+    private var primarySelection: Int? {
+        AppDestination.primary.firstIndex(of: router.destination)
+    }
+
+    /// Which footer slot the fill sits on.
+    ///
+    /// All four slots are entries the user can press, so all four move the fill:
+    /// an open popover wins over the page underneath it, because it is the thing
+    /// the user just did. The one slot that never takes the fill is the unlock
+    /// call to action — a fill parked on it read as "the page you are on", which
+    /// the rail already got wrong once. Its state is `nil` there, so the fill
+    /// fades out rather than sliding onto the CTA.
+    private var footerSelection: Int? {
+        if isAppearancePresented { return 0 }
+        if isLanguagePresented { return 2 }
+        switch router.destination {
+        case .purchase:
+            return environment.entitlement.isUnlocked ? 1 : nil
+        case .settings:
+            return 3
+        default:
+            return nil
+        }
+    }
+
     /// One rail entry.
     ///
     /// The box, the label, the hover and press feedback and the selection fill
@@ -255,7 +377,9 @@ struct IconRailView: View {
             .foregroundStyle(isSelected ? SiftColor.accent : Color.secondary)
         }
         .buttonStyle(SiftPressButtonStyle())
-        .siftRailItemChrome(isSelected: isSelected, showsSelectionMark: true)
+        // The group's slider paints the selection fill, so this entry only
+        // contributes its box, its hover fill and its leading mark.
+        .siftRailItemChrome(isSelected: isSelected, fillsSelection: false)
         .accessibilityLabel(Text(destination.titleKey.localized))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
         .accessibilityIdentifier("sidebar.\(destination.rawValue)")
@@ -275,7 +399,11 @@ struct IconRailView: View {
             .foregroundStyle(SiftColor.accent)
         }
         .buttonStyle(SiftPressButtonStyle())
-        .siftRailItemChrome(isSelected: true)
+        // Not `isSelected: true`: the call to action used to wear the same
+        // selection fill as the current page, so the rail showed two selected
+        // items and VoiceOver heard the CTA as "the page you are on". The accent
+        // label is what distinguishes it.
+        .siftRailItemChrome(isSelected: false)
         .accessibilityIdentifier("sidebar.purchase")
         .help(LocalizationKey.purchaseTitle.localized)
     }
@@ -296,10 +424,45 @@ struct IconRailView: View {
             .foregroundStyle(isSelected ? SiftColor.accent : Color.secondary)
         }
         .buttonStyle(SiftPressButtonStyle())
-        .siftRailItemChrome(isSelected: isSelected, showsSelectionMark: true)
+        .siftRailItemChrome(isSelected: isSelected, fillsSelection: false)
         .accessibilityIdentifier("sidebar.account")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
         .help(LocalizationKey.navAccount.localized)
+    }
+}
+
+/// The rail's selection fill, drawn once per group.
+///
+/// It is placed by slot rather than by `matchedGeometryEffect`: the rail's
+/// entries are a fixed size in a fixed column, so the slot's offset is known
+/// arithmetic, and a geometry hand-off would add a second source of truth about
+/// where the fill belongs. `nil` means "this group holds no page", and the fill
+/// fades out rather than sliding back to the first slot.
+private struct RailSelectionSlider: View {
+    let index: Int?
+    let count: Int
+    @Environment(\.siftReduceMotion) private var reduceMotion
+
+    var body: some View {
+        let stride = SiftMetrics.railItemHeight + SiftMetrics.spacingXS
+        let slot = min(max(index ?? 0, 0), max(count - 1, 0))
+        ZStack(alignment: .leading) {
+            RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
+                .fill(SiftColor.selectedFill)
+            // The leading selection mark rides with the fill. Drawn on the entry
+            // instead, it jumped to the next slot a frame before the fill
+            // arrived, which read as two indicators disagreeing about where the
+            // window was.
+            Capsule()
+                .fill(SiftColor.accent)
+                .frame(width: 3, height: 18)
+                .padding(.leading, 3)
+        }
+        .frame(width: SiftMetrics.railItemWidth, height: SiftMetrics.railItemHeight)
+        .offset(y: CGFloat(slot) * stride)
+        .opacity(index == nil ? 0 : 1)
+        .animation(reduceMotion ? nil : SiftMotion.settle, value: index)
+        .allowsHitTesting(false)
     }
 }
 
@@ -418,26 +581,48 @@ extension PaywallReason {
 struct AppearanceRailMenu: View {
     let selection: AppSettings.Appearance
     let onSelect: (AppSettings.Appearance) -> Void
+    /// Reports the popover opening and closing so the footer's slider can move
+    /// to this entry. The entry itself no longer paints the selection fill —
+    /// `fillsSelection: false` — because a fill drawn here would appear under the
+    /// pointer while the slider was still travelling.
+    var onPresentedChange: ((Bool) -> Void)? = nil
 
     @State private var isPresented = false
 
     var body: some View {
         Button {
-            isPresented.toggle()
+            presented.wrappedValue.toggle()
         } label: {
             SiftRailItemLabel(symbolName: icon, title: selection.titleKey.localized)
                 .foregroundStyle(isPresented ? SiftColor.accent : Color.secondary)
         }
         .buttonStyle(SiftPressButtonStyle())
-        .siftRailItemChrome(isSelected: isPresented)
-        .popover(isPresented: $isPresented, arrowEdge: .trailing) {
+        .siftRailItemChrome(isSelected: isPresented, fillsSelection: false)
+        .popover(isPresented: presented, arrowEdge: .trailing) {
             picker
         }
         .accessibilityIdentifier("sidebar.appearance")
         .accessibilityLabel(Text(LocalizationKey.settingsGroupAppearance.localized))
         .accessibilityValue(Text(selection.titleKey.localized))
-        .accessibilityAddTraits(isPresented ? .isSelected : [])
+        // A popover control is not "the page you are on". The fill already says
+        // the picker is open; the trait claimed a state the rail does not have.
         .help(LocalizationKey.settingsGroupAppearance.localized)
+    }
+
+    /// The popover's state, reporting every change to the rail.
+    ///
+    /// The footer's slider needs to hear about this one: the entry hands the
+    /// selection fill to it (`fillsSelection: false`), so a popover that opened
+    /// silently would leave the fill on whatever page was last shown.
+    private var presented: Binding<Bool> {
+        Binding(
+            get: { isPresented },
+            set: { presented in
+                guard presented != isPresented else { return }
+                isPresented = presented
+                onPresentedChange?(presented)
+            }
+        )
     }
 
     private var icon: String {
@@ -463,7 +648,7 @@ struct AppearanceRailMenu: View {
         let isSelected = appearance == selection
         return Button {
             onSelect(appearance)
-            isPresented = false
+            presented.wrappedValue = false
         } label: {
             HStack(spacing: SiftMetrics.spacingS) {
                 Image(systemName: "checkmark")

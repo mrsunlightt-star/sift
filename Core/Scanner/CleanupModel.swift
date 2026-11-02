@@ -40,6 +40,20 @@ public final class CleanupModel: ObservableObject {
     @Published public private(set) var report: CleanupReport?
     /// A failure that stopped the flow before any file operation.
     @Published public private(set) var failure: (code: ErrorCode, message: String)?
+    /// How far a running batch has got.
+    ///
+    /// The page needs this because the confirmation panel closes before the
+    /// move starts: without it, a 5,000-item cleanup looks like a click that
+    /// did nothing until the result appears.
+    @Published public private(set) var executionProgress: ExecutionProgress?
+    /// The token that asks the running batch to stop after the item in hand.
+    @Published public private(set) var isStopping = false
+    private var stopToken: StopToken?
+    /// Bumped whenever the row list no longer describes the disk.
+    ///
+    /// The page keys its paging on this, so rows that were just moved to the
+    /// Trash cannot stay in the list and be selected a second time.
+    @Published public private(set) var listGeneration = 0
 
     private let rules: RuleEngine
     private let operations: FileOperationService
@@ -328,10 +342,34 @@ public final class CleanupModel: ObservableObject {
         }
         isConfirming = false
         isWorking = true
-        defer { isWorking = false }
+        isStopping = false
+        executionProgress = ExecutionProgress(
+            done: 0,
+            total: plan.items.count,
+            movedBytes: 0,
+            currentName: ""
+        )
+        let token = StopToken()
+        stopToken = token
+        defer {
+            isWorking = false
+            isStopping = false
+            executionProgress = nil
+            stopToken = nil
+        }
 
-        let outcome = await operations.execute(plan)
+        let model = self
+        let outcome = await operations.execute(
+            plan,
+            onProgress: { progress in
+                // The move runs on the file-operation actor; the published value
+                // must be written on the main actor.
+                Task { @MainActor in model.executionProgress = progress }
+            },
+            shouldStop: { token.isStopped }
+        )
         self.outcome = outcome
+        listGeneration &+= 1
 
         do {
             let report = await reports.makeReport(from: outcome, scanReport: scanReport)
@@ -346,6 +384,110 @@ public final class CleanupModel: ObservableObject {
         // click act on paths that no longer exist.
         removeItems(at: Set(outcome.results.filter { $0.status == .movedToTrash }.map(\.sourceURL)))
         return outcome
+    }
+
+    /// Re-runs the items a finished batch could not move.
+    ///
+    /// A retry is a fresh pre-flight over the same subjects, not a replay: the
+    /// reason an item failed (its application was running, a permission was
+    /// missing) can have changed in the seconds since, and re-judging is the only
+    /// way to know. Only results the model still holds an item for are retried —
+    /// a result whose item is gone would have to be re-classified by hand, and a
+    /// retry must never raise an item's risk.
+    @discardableResult
+    public func retryFailed(_ results: [FileOperationResult]) async -> CleanupOutcome? {
+        guard !isWorking, !isPreparingCleanup, !isConfirming else { return nil }
+        let urls = Set(results.map(\.sourceURL))
+        let subjects = items.filter { urls.contains($0.url) }
+        guard !subjects.isEmpty else { return nil }
+
+        let operation = preparedOperation
+        let candidates = subjects.map(FileOperationService.Candidate.init(item:))
+        let verdict = await operations.preflight(candidates, intent: operation)
+        guard let plan = verdict.makeApprovedPlan(operation: operation) else {
+            // Everything in the subset is still refused. Say so with the verdict
+            // rather than pretending the retry ran.
+            failure = (
+                .partialFailure,
+                verdict.protected.isEmpty
+                    ? LocalizationKey.cleanupFailureFileNotFound.localized
+                    : LocalizationKey.cleanupFailureProtectedLocation.localized
+            )
+            return nil
+        }
+
+        isWorking = true
+        isStopping = false
+        let token = StopToken()
+        stopToken = token
+        executionProgress = ExecutionProgress(done: 0, total: plan.items.count, movedBytes: 0, currentName: "")
+        let model = self
+        let retried = await operations.execute(
+            plan,
+            onProgress: { progress in
+                Task { @MainActor in model.executionProgress = progress }
+            },
+            shouldStop: { token.isStopped }
+        )
+        isWorking = false
+        isStopping = false
+        executionProgress = nil
+        stopToken = nil
+
+        let retriedByPath = Dictionary(
+            retried.results.map { ($0.sourceURL, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        if let previous = outcome {
+            // The retried items replace their own rows in the outcome: a second
+            // row for the same path would double the count on the page.
+            let merged = previous.results.map { retriedByPath[$0.sourceURL] ?? $0 }
+            let outcome = CleanupOutcome(
+                results: merged,
+                categoryTotals: previous.categoryTotals,
+                startedAt: previous.startedAt,
+                finishedAt: retried.finishedAt,
+                operationName: previous.operationName,
+                stoppedAfter: previous.stoppedAfter
+            )
+            self.outcome = outcome
+            do {
+                let report = await reports.makeReport(from: outcome, scanReport: nil)
+                try await reports.storeLocally(report)
+                self.report = report
+            } catch {
+                logger.error("The retry report could not be stored locally")
+            }
+        } else {
+            self.outcome = retried
+        }
+        removeItems(at: Set(retried.results.filter { $0.status == .movedToTrash }.map(\.sourceURL)))
+        listGeneration &+= 1
+        return retried
+    }
+
+    /// Drops the rows that were put back, so the page stops counting them.
+    public func applyRestore(_ restored: Set<URL>) {
+        guard let outcome, !restored.isEmpty else { return }
+        let kept = outcome.results.filter { !restored.contains($0.sourceURL) }
+        self.outcome = CleanupOutcome(
+            results: kept,
+            categoryTotals: outcome.categoryTotals,
+            startedAt: outcome.startedAt,
+            finishedAt: Date(),
+            operationName: outcome.operationName
+        )
+        listGeneration &+= 1
+    }
+
+    /// Asks the running batch to stop after the item in hand.
+    ///
+    /// Soft, and stated as such in the overlay: the move in progress finishes,
+    /// nothing is rolled back, and the result reports how far it got.
+    public func stopExecution() {
+        guard isWorking else { return }
+        isStopping = true
+        stopToken?.stop()
     }
 
     /// Clears everything before a new scan, so a stale selection can never
@@ -365,6 +507,7 @@ public final class CleanupModel: ObservableObject {
     public func acknowledgeOutcome() {
         outcome = nil
         report = nil
+        listGeneration &+= 1
         // The plan described the batch just finished. Keeping it would let the
         // confirmation panel describe that batch under a new selection.
         preflight = nil

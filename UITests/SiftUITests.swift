@@ -127,13 +127,15 @@ final class SiftUITests: XCTestCase {
             throw XCTSkip("the scan finished before the cancel control appeared")
         }
         cancel.click()
-        XCTAssertTrue(
-            app.descendants(matching: .any)
-                .matching(identifier: "scan.start")
-                .firstMatch
-                .waitForExistence(timeout: 10),
-            "after cancelling, the page offers a new scan"
-        )
+        // A stopped run now keeps what it found: the page lands on the stopped
+        // card, whose action is `scan.rescanAfterStop`, and only an empty run
+        // falls back to the start card. Either answer means "you can scan
+        // again"; asserting only the old one asserted the old behaviour.
+        let rescan = app.buttons["scan.rescanAfterStop"].firstMatch
+        let startAgain = app.buttons["scan.start"].firstMatch
+        let offered = rescan.waitForExistence(timeout: 10) || startAgain.waitForExistence(timeout: 2)
+        XCTAssertTrue(offered, "after cancelling, the page offers a new scan")
+        XCTAssertFalse(cancel.exists, "the cancel control is gone once the run has stopped")
     }
 
     /// A free user reaching for a cleanup sees the paywall at that moment, not

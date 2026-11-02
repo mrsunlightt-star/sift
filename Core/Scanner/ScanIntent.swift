@@ -90,6 +90,6 @@ public extension CleanupCategory {
     /// application, which is a different question.
     static let junkCategories: [CleanupCategory] = [
         .applicationCache, .logs, .installers, .temporaryFiles,
-        .applicationResidue, .groupContainerResidue,
+        .applicationResidue, .groupContainerResidue, .developerArtifacts,
     ]
 }

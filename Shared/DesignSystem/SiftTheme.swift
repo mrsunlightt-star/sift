@@ -56,6 +56,60 @@ public enum SiftColor {
     /// Secondary information, unavailable space, disabled states.
     public static let neutral = Color(nsColor: .secondaryLabelColor)
 
+    // MARK: - Text roles
+    //
+    // The bright jade family is a *fill* palette: #00AEEC on white is 2.54:1,
+    // which fails AA for the 13 pt text that carries every link, eyebrow and
+    // selected chip in the product. Colour is therefore split by role — a fill
+    // token and a text token per meaning — and the text tokens below are the
+    // darkened variants that reach 4.5:1 on the canvas.
+    //
+    // Measured with the WCAG 2.1 relative-luminance formula over sRGB values
+    // (the numbers are in the commit message that introduced them):
+    //   accentText light #007FAC 4.54:1 · accentFill light #007EB2 + white 4.52:1
+    //   safeText 4.53 · reviewText 4.51 · dangerText 4.54
+    // Dark mode keeps the luminous variants, which already measure 6.99–10.10:1.
+
+    /// Text, icons and links. Never the fill of a control.
+    public static let accentText = Color(
+        light: NSColor(srgbRed: 0.0, green: 0.498, blue: 0.675, alpha: 1),   // #007FAC
+        dark: NSColor(srgbRed: 0.357, green: 0.776, blue: 0.961, alpha: 1)
+    )
+    /// The fill of a pressed control: a primary button, a selected toggle.
+    /// Darker than `accentDeep` so that white text on it reaches 4.52:1.
+    public static let accentFill = Color(
+        light: NSColor(srgbRed: 0.0, green: 0.494, blue: 0.698, alpha: 1),   // #007EB2
+        dark: NSColor(srgbRed: 0.0, green: 0.682, blue: 0.925, alpha: 1)
+    )
+    /// The text laid on `accentFill`. White on the bright dark-mode jade is only
+    /// 2.54:1, so dark mode flips to near-black (8.26:1) instead of whitening.
+    public static let onAccent = Color(
+        light: NSColor(srgbRed: 1.0, green: 1.0, blue: 1.0, alpha: 1),
+        dark: NSColor(srgbRed: 0.02, green: 0.10, blue: 0.13, alpha: 1)
+    )
+    /// `safe` as text on the canvas.
+    public static let safeText = Color(
+        light: NSColor(srgbRed: 0.173, green: 0.525, blue: 0.286, alpha: 1),  // #2C8649
+        dark: NSColor(srgbRed: 0.306, green: 0.796, blue: 0.431, alpha: 1)
+    )
+    /// `review` as text on the canvas.
+    public static let reviewText = Color(
+        light: NSColor(srgbRed: 0.667, green: 0.404, blue: 0.035, alpha: 1),  // #AA6709
+        dark: NSColor(srgbRed: 0.937, green: 0.698, blue: 0.290, alpha: 1)
+    )
+    /// `danger` as text on the canvas.
+    public static let dangerText = Color(
+        light: NSColor(srgbRed: 0.804, green: 0.282, blue: 0.282, alpha: 1),  // #CD4848
+        dark: NSColor(srgbRed: 1.00, green: 0.431, blue: 0.439, alpha: 1)
+    )
+    /// Quiet text that still has to be read: the "read only, never uploaded"
+    /// sentence and other trust copy. `.tertiary` measures 1.73:1 on white,
+    /// which is why this role exists instead of reusing it.
+    public static let subtleText = Color(
+        light: NSColor(srgbRed: 0.365, green: 0.384, blue: 0.420, alpha: 1),  // 4.6:1
+        dark: NSColor(srgbRed: 0.702, green: 0.722, blue: 0.753, alpha: 1)
+    )
+
     /// The window canvas the glass sits on.
     ///
     /// Light mode is warm porcelain rather than the cool lavender it replaced;
@@ -108,6 +162,17 @@ public enum SiftColor {
         dark: NSColor(srgbRed: 1.0, green: 1.0, blue: 1.0, alpha: 0.05)
     )
 
+    /// The opaque stand-ins for the three glass levels, used when
+    /// "Reduce transparency" is on.
+    public static let cardOpaque = Color(
+        light: NSColor(srgbRed: 0.973, green: 0.976, blue: 0.980, alpha: 1),
+        dark: NSColor(srgbRed: 0.118, green: 0.133, blue: 0.149, alpha: 1)
+    )
+    public static let floatOpaque = Color(
+        light: NSColor(srgbRed: 0.996, green: 0.996, blue: 0.996, alpha: 1),
+        dark: NSColor(srgbRed: 0.145, green: 0.161, blue: 0.180, alpha: 1)
+    )
+
     /// Window background, kept for pages that predate the canvas.
     public static let windowBackground = canvas
     /// Panel surface sitting on the window background.
@@ -144,12 +209,15 @@ public enum SiftColor {
         // list, and moving one would recolour every row on the page.
         Color(light: NSColor(srgbRed: 0.404, green: 0.478, blue: 0.310, alpha: 1),
               dark: NSColor(srgbRed: 0.596, green: 0.729, blue: 0.435, alpha: 1)),
+        Color(light: NSColor(srgbRed: 0.376, green: 0.420, blue: 0.612, alpha: 1),
+              dark: NSColor(srgbRed: 0.545, green: 0.588, blue: 0.812, alpha: 1)),
     ]
 
-    /// Colour for a risk level.
+    /// Colour for a risk level, for a *fill*: a dot, a badge wash, a bar.
     ///
     /// Colour alone never carries meaning: every use of this is paired with an
-    /// icon and a word, as §11.4 requires.
+    /// icon and a word, as §11.4 requires. Text laid on the canvas uses
+    /// `textColor(for:)` instead — these values are 3.56–4.38:1 on white.
     public static func color(for risk: RiskLevel) -> Color {
         switch risk {
         case .safe: safe
@@ -158,13 +226,33 @@ public enum SiftColor {
         }
     }
 
-    /// Colour for a scan or cleanup phase.
+    /// Colour for a risk level, for *text*: every one of these reaches 4.5:1
+    /// on the canvas, which the fill values do not.
+    public static func textColor(for risk: RiskLevel) -> Color {
+        switch risk {
+        case .safe: safeText
+        case .review: reviewText
+        case .protected: dangerText
+        }
+    }
+
+    /// Colour for a scan or cleanup phase, for a *fill*.
     public static func color(for phase: ScanPhase) -> Color {
         switch phase {
         case .ready: safe
         case .partial, .cancelled: review
         case .failed: danger
         default: accent
+        }
+    }
+
+    /// Colour for a scan or cleanup phase, for *text*.
+    public static func textColor(for phase: ScanPhase) -> Color {
+        switch phase {
+        case .ready: safeText
+        case .partial, .cancelled: reviewText
+        case .failed: dangerText
+        default: accentText
         }
     }
 }
@@ -299,8 +387,6 @@ public enum ScanPhase: String, Sendable, CaseIterable, Codable {
 /// The radius scale is two steps tighter than the one it replaced: the same
 /// hierarchy (control, group, card, hero) with a crisper, more drawn edge.
 public enum SiftMetrics {
-    /// 4 pt base unit.
-    public static let unit: CGFloat = 4
     public static let spacingXS: CGFloat = 4
     public static let spacingS: CGFloat = 8
     public static let spacingM: CGFloat = 12
@@ -336,7 +422,6 @@ public enum SiftMetrics {
     /// The page's outer margins and columns.
     public static let pagePadding: CGFloat = 28
     public static let pageSpacing: CGFloat = 20
-    public static let sidebarWidth: CGFloat = railWidth
     public static let rowHeight: CGFloat = 44
     public static let iconTileSize: CGFloat = 32
     public static let panelBorderWidth: CGFloat = 1
@@ -349,7 +434,6 @@ public enum SiftMetrics {
     public static let summaryColumnWidth: CGFloat = 330
 
     /// Height a result list may grow to before it scrolls.
-    public static let resultListMaxHeight: CGFloat = 320
 }
 
 /// Typography built on the system font, with no external typefaces (§11.1).
@@ -364,20 +448,78 @@ public enum SiftFont {
     /// The type ladder is four sizes — 13 reading, 15 section, 20 title, 32
     /// display — and every distinction below them is weight, grey and spacing,
     /// never a fifth size.
-    public static let display = Font.system(size: 32, weight: .semibold)
-    public static let title = Font.system(size: 20, weight: .semibold)
-    public static let sectionTitle = Font.system(size: 15, weight: .semibold)
-    public static let body = Font.system(size: 13, weight: .regular)
-    public static let bodyEmphasis = Font.system(size: 13, weight: .medium)
-    public static let caption = Font.system(size: 13, weight: .regular)
-    public static let eyebrow = Font.system(size: 13, weight: .semibold)
-    public static let metric = Font.system(size: 32, weight: .semibold)
-    public static let metricLarge = Font.system(size: 32, weight: .bold)
-    public static let heroMetric = Font.system(size: 32, weight: .bold)
-    public static let heroUnit = Font.system(size: 20, weight: .semibold)
-    public static let badge = Font.system(size: 13, weight: .semibold)
-    public static let railLabel = Font.system(size: 13, weight: .medium)
-    public static let monospacedNumber = Font.system(size: 13, design: .monospaced)
+    ///
+    /// Every size is multiplied by `SiftTypeScale.current`. macOS has no system
+    /// text-size setting an app can read, so this is the product's own answer to
+    /// "I cannot read this": three steps, applied at the root and persisted. The
+    /// enum stays a computed property rather than a `let` for exactly that
+    /// reason — a stored font would freeze the scale at launch.
+    public static var display: Font { scaled(32, .semibold) }
+    public static var title: Font { scaled(20, .semibold) }
+    public static var sectionTitle: Font { scaled(15, .semibold) }
+    public static var body: Font { scaled(13, .regular) }
+    public static var bodyEmphasis: Font { scaled(13, .medium) }
+    public static var caption: Font { scaled(13, .regular) }
+    public static var eyebrow: Font { scaled(13, .semibold) }
+    public static var metric: Font { scaled(32, .semibold) }
+    public static var metricLarge: Font { scaled(32, .bold) }
+    public static var heroMetric: Font { scaled(32, .bold) }
+    public static var heroUnit: Font { scaled(20, .semibold) }
+    public static var badge: Font { scaled(13, .semibold) }
+    public static var railLabel: Font { scaled(13, .medium) }
+    public static var monospacedNumber: Font {
+        .system(size: 13 * SiftTypeScale.current.multiplier, design: .monospaced)
+    }
+
+    private static func scaled(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
+        .system(size: (size * SiftTypeScale.current.multiplier).rounded(), weight: weight)
+    }
+}
+
+/// The interface's own type scale.
+///
+/// A process-wide value rather than an environment value: `SiftFont` is read from
+/// three hundred call sites, and threading a scale through every one of them
+/// would have been a refactor of the whole UI for a setting with three states.
+/// The root re-renders on change (`RootShellView` keys its subtree on the stored
+/// value), which is what makes the new scale take effect everywhere at once.
+public enum SiftTypeScale {
+    public enum Step: String, Sendable, CaseIterable {
+        case small
+        case standard
+        case large
+
+        public var multiplier: CGFloat {
+            switch self {
+            case .small: 0.9
+            case .standard: 1.0
+            case .large: 1.15
+            }
+        }
+    }
+
+    /// Standard by default; the settings page sets it at launch and on change.
+    ///
+    /// Lock-backed rather than `@MainActor`: `SiftFont` is read while building a
+    /// view, from PDF report drawing and from self-test code, and pinning the
+    /// whole type ladder to the main actor to satisfy Swift 6 would have been a
+    /// larger change than the setting. The value changes on a user action, never
+    /// in a loop, so the lock is uncontended in practice.
+    nonisolated(unsafe) private static var stored: Step = .standard
+    private static let lock = NSLock()
+
+    public static var current: Step {
+        get {
+            lock.lock()
+            defer { lock.unlock() }
+            return stored
+        }
+        set {
+            lock.lock()
+            defer { lock.unlock() }
+            stored = newValue
+        }
+    }
 }
 
 /// The named text styles, each pairing a font with the tracking that belongs to
@@ -448,15 +590,32 @@ public enum SiftMotion {
     public static let progress = Animation.spring(response: 0.50, dampingFraction: 0.90)
     /// A page change: a short crossfade with a slight rise.
     public static let page = Animation.easeInOut(duration: 0.20)
-    /// A hover highlight.
-    public static let hover = Animation.easeOut(duration: 0.15)
-    /// The scan progress indicator, which loops while scanning.
+    /// A hover highlight. 0.12 is the pointer-feedback value macOS uses; 0.16
+    /// read as lag on a row the user is sweeping across.
+    public static let hover = Animation.easeOut(duration: 0.12)
+    /// The scan progress indicator, which loops while scanning. Kept for the
+    /// indeterminate spinner the ring draws itself; nothing else may loop.
     public static let scanning = Animation.easeInOut(duration: 1.1).repeatForever(autoreverses: true)
+
+    /// A scan phase changing — preparing → scanning → indexing → ready.
+    ///
+    /// This is the state change the product most needs to read as one event, and
+    /// it used to be a hard text swap while the ring kept spinning. 0.28 sits in
+    /// macOS's state-change band and is long enough to be noticed.
+    public static let phase = Animation.smooth(duration: 0.28)
+    /// A group of rows opening or closing. A layout re-flow: no bounce.
+    public static let expand = Animation.smooth(duration: 0.24)
+    /// A checkbox, chip or row toggling. Snappy with a trace of bounce.
+    public static let toggle = Animation.snappy(duration: 0.18, extraBounce: 0.06)
+    /// The result replacing the running scan: the product's one arrival.
+    public static let reveal = Animation.smooth(duration: 0.30)
 
     /// Short transitions used by rows and checkboxes.
     public static let quick = Animation.easeOut(duration: 0.16)
     /// Panel or sheet presentation.
     public static let panel = Animation.spring(response: 0.36, dampingFraction: 0.88)
+    /// A sheet the system presents, which has its own timeline.
+    public static let sheet = Animation.spring(response: 0.32, dampingFraction: 0.86)
     /// Layout that re-flows: bars resizing, groups expanding, the treemap.
     public static let settle = Animation.spring(response: 0.45, dampingFraction: 0.95)
     /// A small element celebrating a state change: a checkmark dropping in.
@@ -506,6 +665,18 @@ public enum SiftSurface: Sendable {
         case .base: SiftColor.baseGlass
         case .card: SiftColor.cardGlass
         case .floating: SiftColor.floatingGlass
+        }
+    }
+
+    /// What the surface is filled with when the user has asked the system to
+    /// reduce transparency. Glass has no fallback of its own: three layers of
+    /// `.ultraThinMaterial` stay translucent whatever the setting says, which is
+    /// exactly the case the accessibility option exists for.
+    var opaqueFill: Color {
+        switch self {
+        case .base: SiftColor.canvas
+        case .card: SiftColor.cardOpaque
+        case .floating: SiftColor.floatOpaque
         }
     }
 

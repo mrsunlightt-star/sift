@@ -74,7 +74,7 @@ public enum BuiltInRules {
         ),
         RuleEngine.Rule(
             id: "xcode-derived-data",
-            category: .temporaryFiles,
+            category: .developerArtifacts,
             risk: .safe,
             root: .homeLibrary,
             relativePath: "Developer/Xcode/DerivedData",
@@ -84,7 +84,7 @@ public enum BuiltInRules {
             usesStaleThreshold: false,
             requiresFullDiskAccess: false,
             needsAppClosed: false,
-            explanationKey: "cleanup.explanation.temporary",
+            explanationKey: "cleanup.explanation.buildArtifacts",
             isEnabled: true
         ),
         RuleEngine.Rule(

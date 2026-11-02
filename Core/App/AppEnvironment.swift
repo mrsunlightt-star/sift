@@ -264,6 +264,10 @@ public final class AppEnvironment: ObservableObject {
     /// Loads preferences and the initial data the shell needs.
     public func bootstrap() async {
         preferences = await settings.current()
+        // Before the first view is built: the type ladder is read while a page
+        // renders, and setting it afterwards would draw the first frame at the
+        // standard size and then reflow.
+        applyTextScale(preferences)
         // The engine was built with the shipped table. If the injected store
         // says the user's rule file is enabled, rebuild before anything can
         // scan and honour it.
@@ -284,10 +288,24 @@ public final class AppEnvironment: ObservableObject {
     }
 
     /// Republishes settings after the user changes something.
+    /// Applies the interface's type scale to the theme.
+    ///
+    /// The scale lives in `Shared` — the design system cannot import `Core` — so
+    /// the value is pushed across at the one place that knows both: bootstrap,
+    /// and every settings write.
+    private func applyTextScale(_ settings: AppSettings) {
+        switch settings.textScale {
+        case .small: SiftTypeScale.current = .small
+        case .standard: SiftTypeScale.current = .standard
+        case .large: SiftTypeScale.current = .large
+        }
+    }
+
     public func updateSettings(_ mutate: @Sendable (inout AppSettings) -> Void) async {
         let previous = await settings.current()
         await settings.update(mutate)
         preferences = await settings.current()
+        applyTextScale(preferences)
 
         // The engines read the rule table when they are created, so a change to
         // the user-rule switch has to rebuild them. Deferred while a scan or a
@@ -745,16 +763,22 @@ public final class AppEnvironment: ObservableObject {
         // scan that had not finished.
         await scan.waitUntilSettled()
         guard isCurrentScanRun(run) else { return }
-        // A failed or cancelled run has no result page. Reading the index anyway
-        // used to hand a failed scan's partial rows to the cleanup model, where
-        // they read as a cleanable result.
-        guard scan.failure == nil, scan.report != nil,
-              scan.phase == .ready || scan.phase == .partial else { return }
+        // A failed run has no result page: reading its index would hand partial
+        // rows to the cleanup model, where they read as a cleanable result.
+        //
+        // A *cancelled* run does have one now. The core keeps its index (the
+        // worker no longer unlinks it), so the rows a stop had already judged are
+        // real candidates, and dropping them was the difference between "I
+        // stopped it" and "I threw away forty seconds". The page says the run was
+        // stopped; the cleanup model gets the same treatment as a finished one.
+        guard scan.failure == nil, scan.report != nil else { return }
+        let finishedClean = scan.phase == .ready || scan.phase == .partial
+        let stoppedWithRows = scan.phase == .cancelled && scan.hasStoppedResults
+        guard finishedClean || stoppedWithRows else { return }
 
-        if intent.includesDuplicates {
-            await scan.loadDuplicateGroups()
-            guard isCurrentScanRun(run) else { return }
-        }
+        // The duplicate list is read by the page, when the result area is
+        // actually shown: loading it here as well read the whole index twice on
+        // every duplicates-enabled run.
         let page = await scan.page(
             offset: 0,
             limit: 200,
@@ -770,10 +794,11 @@ public final class AppEnvironment: ObservableObject {
         // arrives.
         await scan.loadRiskTotals()
         guard isCurrentScanRun(run) else { return }
-        // A cancelled or failed run is not a scan history entry: the page never
-        // showed it as a result, and recording it would claim a completed scan
-        // that the user stopped.
-        RecentHistory.recordScan()
+        // A stopped run is not a scan history entry: recording it would claim a
+        // completed scan that the user stopped. A run that finished is.
+        if finishedClean {
+            RecentHistory.recordScan()
+        }
     }
 
     /// True while `run` is still the scan this environment is running.
@@ -869,20 +894,52 @@ public final class AppEnvironment: ObservableObject {
         guard let outcome = await cleanup.executePrepared(operation: operation, scanReport: scanReport)
         else { return .nothingToDo }
         RecentHistory.recordCleanup(outcome)
+        if !preferences.hasCompletedCleanup {
+            await updateSettings { $0.hasCompletedCleanup = true }
+        }
         return .executed(OperationExecution(outcome: outcome, report: cleanup.report))
     }
 
-    /// Runs the uninstaller through the same pre-flight and execution boundary
-    /// as a scan cleanup.
+    /// What the uninstaller is about to move, judged before anyone is asked.
     ///
-    /// The uninstaller used to call `preflight` and `moveToTrash` itself, which
-    /// gave it its own working flag, its own entitlement timing and no report.
-    public func performUninstall(items: [CleanupItem]) async -> OperationGateResult {
+    /// The panel used to be shown first and the pre-flight run afterwards, so the
+    /// list the user approved and the list that moved were two different
+    /// documents: an application that had started since the plan was built, or a
+    /// related file that had vanished, changed the batch after the confirmation —
+    /// and if nothing survived pre-flight the click did nothing at all.
+    public struct UninstallPreparation: Sendable {
+        /// What will actually move, summed the way the panel states it.
+        public let count: Int
+        public let bytes: Int64
+        /// Items pre-flight refused, with the reason the row shows.
+        public let refused: [FileOperationResult]
+
+        public var formattedBytes: String { SiftFormat.bytes(bytes) }
+        public var isActionable: Bool { count > 0 }
+    }
+
+    public enum UninstallGate: Sendable {
+        case ready(UninstallPreparation)
+        case purchaseRequired
+        case nothingToDo(UninstallPreparation)
+        case busy
+    }
+
+    /// Approves the batch without touching it.
+    ///
+    /// Pre-flight reads, judges and records identities; execution is the step
+    /// that moves. Splitting them is what lets the confirmation describe the
+    /// approved set instead of the intent.
+    public func prepareUninstall(items: [CleanupItem]) async -> UninstallGate {
         guard beginDestructiveOperation() else { return .busy }
         defer { endDestructiveOperation() }
 
+        guard !items.isEmpty else {
+            // Asked before the licence: an empty selection is nothing to do
+            // whether or not the user has paid.
+            return .nothingToDo(UninstallPreparation(count: 0, bytes: 0, refused: []))
+        }
         guard await entitlements.allows(.uninstallApplications) else { return .purchaseRequired }
-        guard !items.isEmpty else { return .nothingToDo }
 
         // One service instance for pre-flight and execution. A rule rebuild
         // replaces `operations`; the plan was judged by the old table, so the
@@ -892,28 +949,40 @@ public final class AppEnvironment: ObservableObject {
             items.map(FileOperationService.Candidate.init(item:)),
             intent: .uninstall
         )
-        let outcome: CleanupOutcome
-        if let plan = verdict.makeApprovedPlan(operation: .uninstall) {
-            // The pre-flight walk can take a while, and the licence can expire
-            // while the confirmation panel is open. Re-check at the execution
-            // boundary, exactly as `confirmCleanup` does.
-            guard await entitlements.allows(.uninstallApplications) else {
-                return .purchaseRequired
-            }
-            outcome = await operations.execute(plan)
-        } else {
-            // Nothing survived pre-flight. The refusals are still the result:
-            // the user selected an application and is owed the reason it was
-            // left alone, not an empty page.
-            outcome = CleanupOutcome(
-                results: verdict.refusedResults,
-                categoryTotals: [],
-                startedAt: Date(),
-                finishedAt: Date(),
-                operationName: .uninstall
-            )
+        let preparation = UninstallPreparation(
+            count: verdict.ready.count,
+            bytes: verdict.readyBytes,
+            refused: verdict.refusedResults
+        )
+        guard let plan = verdict.makeApprovedPlan(operation: .uninstall) else {
+            preparedUninstall = nil
+            return .nothingToDo(preparation)
         }
+        preparedUninstall = (operations: operations, plan: plan)
+        return .ready(preparation)
+    }
 
+    /// Moves the batch pre-flight approved.
+    ///
+    /// The plan is the one `prepareUninstall` produced, not a fresh one: the
+    /// confirmation panel described that set, and a second pre-flight here would
+    /// make the panel a lie whenever the disk changed in between.
+    public func confirmUninstall() async -> OperationGateResult {
+        guard let prepared = preparedUninstall else { return .nothingToDo }
+        preparedUninstall = nil
+
+        guard beginDestructiveOperation() else { return .busy }
+        defer { endDestructiveOperation() }
+
+        // The licence can expire while the panel is open; this is the last check
+        // before the move, exactly as `confirmCleanup` does it.
+        guard await entitlements.allows(.uninstallApplications) else { return .purchaseRequired }
+        let outcome = await prepared.operations.execute(prepared.plan)
+        return await finishUninstall(outcome)
+    }
+
+    /// Stores and reports an uninstall outcome.
+    private func finishUninstall(_ outcome: CleanupOutcome) async -> OperationGateResult {
         var report: CleanupReport?
         do {
             // An uninstall has no scan report of its own. Passing the last
@@ -928,6 +997,35 @@ public final class AppEnvironment: ObservableObject {
         }
         RecentHistory.recordCleanup(outcome)
         return .executed(OperationExecution(outcome: outcome, report: report))
+    }
+
+    /// Runs the uninstaller through the same pre-flight and execution boundary
+    /// as a scan cleanup, without asking first.
+    ///
+    /// Kept for callers that have already confirmed (the self-test), and used by
+    /// the page only through the prepare/confirm pair.
+    public func performUninstall(items: [CleanupItem]) async -> OperationGateResult {
+        switch await prepareUninstall(items: items) {
+        case let .ready(preparation):
+            guard preparation.isActionable else { return .nothingToDo }
+            return await confirmUninstall()
+        case .purchaseRequired:
+            return .purchaseRequired
+        case .busy:
+            return .busy
+        case let .nothingToDo(preparation):
+            // Nothing survived pre-flight. The refusals are still the result: the
+            // user selected an application and is owed the reason it was left
+            // alone, not an empty page.
+            let outcome = CleanupOutcome(
+                results: preparation.refused,
+                categoryTotals: [],
+                startedAt: Date(),
+                finishedAt: Date(),
+                operationName: .uninstall
+            )
+            return await finishUninstall(outcome)
+        }
     }
 
     /// Adds a folder or volume the user picked in a file panel.
@@ -1347,6 +1445,41 @@ public final class AppEnvironment: ObservableObject {
         }
         return .executed(outcome)
     }
+
+    /// Re-runs the items a finished batch could not move.
+    ///
+    /// Behind the same two gates as any other write: the destructive slot, then
+    /// the entitlement, then the pre-flight inside the model. A retry moves real
+    /// files, so it is not a page-local convenience.
+    public func retryCleanup(_ results: [FileOperationResult]) async -> OperationGateResult {
+        guard beginDestructiveOperation() else { return .busy }
+        defer { endDestructiveOperation() }
+
+        guard await entitlements.allows(.cleanFiles) else { return .purchaseRequired }
+        guard let outcome = await cleanup.retryFailed(results) else { return .nothingToDo }
+        return .executed(OperationExecution(outcome: outcome, report: cleanup.report))
+    }
+
+    /// Puts the last batch back where it came from.
+    ///
+    /// Undoing is a write too, and it is the one the product promises in the
+    /// confirmation panel. It needs no entitlement: a user whose licence lapsed
+    /// after a cleanup must still be able to take their files back out of the
+    /// Trash — refusing that would hold their data hostage.
+    public func undoLastCleanup() async -> RestoreReport? {
+        guard beginDestructiveOperation() else { return nil }
+        defer { endDestructiveOperation() }
+        guard let outcome = cleanup.outcome else { return nil }
+        let report = await operations.restore(outcome.results)
+        cleanup.applyRestore(Set(report.restored))
+        if !report.isComplete {
+            logger.notice("A restore left items behind (\(report.failures.count))")
+        }
+        return report
+    }
+
+    /// The batch `prepareUninstall` approved, waiting for a confirmation.
+    private var preparedUninstall: (operations: FileOperationService, plan: ApprovedPlan)?
 
     /// What happened when the user asked which application a residue row is.
     public enum OwnerLookup: Sendable, Equatable {

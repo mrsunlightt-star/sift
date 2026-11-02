@@ -23,6 +23,14 @@ public enum CleanupCategory: String, Codable, Sendable, CaseIterable, Identifiab
     /// already makes that distinction (a group container is always "review"); the
     /// scan page now reads the same way.
     case groupContainerResidue
+    /// Output a build wrote.
+    ///
+    /// A compilation tree (`target/`, `DerivedData`) is the one kind of large
+    /// directory whose whole content is reproducible from sources the user still
+    /// has: deleting it costs a rebuild and nothing else. It is not
+    /// `temporaryFiles` — nobody left it behind by accident — and not
+    /// `applicationCache`, which says an application will re-download it.
+    case developerArtifacts
 
     public var id: String { rawValue }
 
@@ -38,6 +46,7 @@ public enum CleanupCategory: String, Codable, Sendable, CaseIterable, Identifiab
         case .duplicateFiles: .cleanupCategoryDuplicateFiles
         case .applicationResidue: .cleanupCategoryApplicationResidue
         case .groupContainerResidue: .cleanupCategoryGroupContainerResidue
+        case .developerArtifacts: .cleanupCategoryDeveloperArtifacts
         }
     }
 
@@ -53,6 +62,7 @@ public enum CleanupCategory: String, Codable, Sendable, CaseIterable, Identifiab
         case .duplicateFiles: "doc.on.doc"
         case .applicationResidue: "questionmark.folder"
         case .groupContainerResidue: "folder.badge.person.crop"
+        case .developerArtifacts: "hammer"
         }
     }
 
@@ -68,6 +78,7 @@ public enum CleanupCategory: String, Codable, Sendable, CaseIterable, Identifiab
         case .oldFiles: 6
         case .duplicateFiles: 7
         case .groupContainerResidue: 8
+        case .developerArtifacts: 9
         }
     }
 
@@ -83,6 +94,7 @@ public enum CleanupCategory: String, Codable, Sendable, CaseIterable, Identifiab
         case .oldFiles: 6
         case .duplicateFiles: 7
         case .groupContainerResidue: 8
+        case .developerArtifacts: 9
         }
     }
 }
@@ -232,6 +244,7 @@ public struct CleanupItem: Identifiable, Hashable, Sendable {
         // every row it finds, so this generic sentence is only the fallback for an
         // item assembled without one.
         case .groupContainerResidue: key = .cleanupExplanationResidue
+        case .developerArtifacts: key = .cleanupExplanationBuildArtifacts
         }
         return key.localized
     }

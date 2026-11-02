@@ -668,6 +668,20 @@ These are product promises, not implementation details. Each has tests behind it
     `test_aDirectoryABuiltInScannerReadsIsNotReportedAsUncovered`, and the
     self-test's rule-coverage group.
 
+42. **A stopped scan keeps what it found.** The core's worker no longer unlinks a
+    cancelled session's index (`run_worker` in
+    `RustCore/crates/sift-scanner-core/src/coordinator.rs`): a stop used to mean
+    "discard everything judged so far", and the page could only say so. A stopped
+    run now reports the totals its index holds (`finish_cancelled`) and the page
+    offers its rows for cleanup behind a banner that says the run was stopped. The
+    index's lifetime is bounded by the holder, not the worker: `ScanModel` keeps
+    the session (`isHoldingStoppedSession`) until the page that reads it is done —
+    a new run, a replacement, or an explicit stop-with-nothing-running — and that
+    is the only path that calls `shutDown()` on a kept session. A run that ends
+    with nothing to show still tears its session down immediately. Tests:
+    `a_stopped_scan_keeps_an_index_that_still_pages`,
+    `test_aStoppedRunKeepsItsSessionAndItsRows`.
+
 ## Layout notes
 
 - `Core/` is one library; `Features/` are separate libraries so a change to one

@@ -150,9 +150,9 @@ public struct DashboardView: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 } else {
-                    Text("—")
-                        .font(SiftFont.metricLarge)
-                        .foregroundStyle(.tertiary)
+                    // An em dash in the slot a size goes in read as "zero bytes"
+                    // rather than "not measured yet". A sentence says which one it
+                    // is, and the hero stops looking like a value that failed.
                     Text(LocalizationKey.overviewNoResults.localized)
                         .font(SiftFont.body)
                         .foregroundStyle(.secondary)
@@ -284,7 +284,15 @@ public struct DashboardView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
-                if let volume = environment.availableVolumes.first(where: { $0.mountPoint.path == "/" }) {
+                if environment.availableVolumes.isEmpty {
+                    // Nothing measured yet. A bar at zero said "no disk used".
+                    VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
+                        HStack {
+                            SiftSkeletonRow()
+                        }
+                        .frame(height: 18)
+                    }
+                } else if let volume = environment.availableVolumes.first(where: { $0.mountPoint.path == "/" }) {
                     UsageBar(
                         fraction: volume.usedFraction,
                         tint: volume.usedFraction > 0.9 ? SiftColor.review : SiftColor.accent,
@@ -332,12 +340,13 @@ public struct DashboardView: View {
                         .font(SiftFont.caption)
                         .foregroundStyle(.secondary)
                         Button {
-                            cleanup.selectAll(in: cleanup.items.filter { $0.risk.isCleanable })
+                            onOpenScan()
                         } label: {
-                            Text(LocalizationKey.overviewSelectSafe.localized)
+                            Text(LocalizationKey.overviewViewResults.localized)
                                 .font(SiftFont.caption)
                         }
                         .buttonStyle(SiftLinkButtonStyle())
+                        .accessibilityIdentifier("dashboard.viewResults")
                     }
                 }
                 .padding(.bottom, SiftMetrics.spacingM)
@@ -386,17 +395,15 @@ public struct DashboardView: View {
         }
     }
 
+    /// One suggestion. A preview, not a checkbox.
+    ///
+    /// Two pages used to own one selection: the checkbox here wrote the scan
+    /// page's model, and this page had no button that could act on it — the user
+    /// ticked items and nothing could happen. The list states what was found and
+    /// the row's trailing link takes the user to the page that can clean it.
     private func suggestedRow(_ item: CleanupItem) -> some View {
         HStack(spacing: SiftMetrics.spacingM) {
-            SiftCheckbox(
-                isOn: Binding(
-                    get: { cleanup.isSelected(item) },
-                    set: { cleanup.setSelected($0, for: item) }
-                ),
-                isEnabled: item.risk.isCleanable
-            )
-            .accessibilityLabel(Text(item.displayName))
-            .accessibilityHint(Text(item.risk.detailKey.localized))
+            IconTile(symbolName: item.category.symbolName, tint: SiftColor.color(for: item.risk.level))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.displayName)
@@ -424,7 +431,7 @@ public struct DashboardView: View {
 
     private func suggestedDetail(_ item: CleanupItem) -> String {
         if item.fileCount > 1 {
-            return "\(item.displayPath), \(LocalizationKey.commonFileCount.localized(item.fileCount))"
+            return "\(item.displayPath), \(LocalizationKey.commonFileCount.counted(item.fileCount))"
         }
         return item.displayPath
     }
@@ -470,7 +477,7 @@ public struct DashboardView: View {
                         activityRow(
                             tint: SiftColor.safe,
                             title: "\(LocalizationKey.dashboardCleanupCompleted.localized), \(outcome.formattedReleased)",
-                            detail: "\(SiftFormat.relativeDate(outcome.finishedAt)), \(LocalizationKey.cleanupResultMoved.localized(outcome.movedCount))"
+                            detail: "\(SiftFormat.relativeDate(outcome.finishedAt)), \(LocalizationKey.cleanupResultMoved.counted(outcome.movedCount))"
                         )
                     }
 
@@ -508,7 +515,9 @@ public struct DashboardView: View {
                     }
 
                     if lastOutcome == nil, scan.report == nil, RecentHistory.lastScanDate() == nil {
-                        Text(LocalizationKey.overviewNoResults.localized)
+                        // The hero above already says what a scan would show. This
+                        // card's empty state states what the card is for.
+                        Text(LocalizationKey.overviewCleanupHistoryHint.localized)
                             .font(SiftFont.body)
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)

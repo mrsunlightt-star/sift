@@ -29,8 +29,43 @@ public struct AppSettings: Sendable, Equatable {
     public var language: SiftLanguage
     public var appearance: Appearance
     public var reduceMotion: Bool
+    /// How large the interface's own type is drawn.
+    ///
+    /// macOS has no Dynamic Type: there is no system-wide text-size setting an
+    /// app can read (the iOS controls do not exist here, and `dynamicTypeSize`
+    /// only moves text styles that the system itself scales). A fixed 13 pt
+    /// ladder is therefore the whole product's answer to a low-vision user, which
+    /// is why the app offers its own three steps.
+    public var textScale: TextScale
+    /// Whether a cleanup has ever finished on this Mac.
+    ///
+    /// Only the confirmation panel reads it, to add one sentence to the first
+    /// batch and stay quiet afterwards.
+    public var hasCompletedCleanup: Bool
     public var keepScanHistory: Int
-    public var launchAtLogin: Bool
+
+    public enum TextScale: String, Sendable, CaseIterable, Codable {
+        case small
+        case standard
+        case large
+
+        /// The multiplier applied to every size in `SiftFont`.
+        public var multiplier: CGFloat {
+            switch self {
+            case .small: 0.9
+            case .standard: 1.0
+            case .large: 1.15
+            }
+        }
+
+        public var titleKey: LocalizationKey {
+            switch self {
+            case .small: .settingsTextSizeSmall
+            case .standard: .settingsTextSizeDefault
+            case .large: .settingsTextSizeLarge
+            }
+        }
+    }
 
     public enum Appearance: String, Sendable, CaseIterable, Codable {
         case system
@@ -62,8 +97,9 @@ public struct AppSettings: Sendable, Equatable {
         language: SiftLanguage.preferred,
         appearance: .system,
         reduceMotion: false,
+        textScale: .standard,
+        hasCompletedCleanup: false,
         keepScanHistory: 10,
-        launchAtLogin: false
     )
 
     /// Whether the confirmation panel is shown for a destructive action.
@@ -133,8 +169,9 @@ public actor SettingsStore {
         static let appearance = "settings.appearance"
         static let language = SiftLanguage.preferenceKey
         static let reduceMotion = "settings.reduceMotion"
+        static let textScale = "settings.textScale"
+        static let hasCompletedCleanup = "settings.hasCompletedCleanup"
         static let keepScanHistory = "settings.keepScanHistory"
-        static let launchAtLogin = "settings.launchAtLogin"
     }
 
     /// Creates a store over a preferences suite.
@@ -221,8 +258,9 @@ public actor SettingsStore {
         defaults.set(settings.appearance.rawValue, forKey: Key.appearance)
         defaults.set(settings.language.rawValue, forKey: Key.language)
         defaults.set(settings.reduceMotion, forKey: Key.reduceMotion)
+        defaults.set(settings.textScale.rawValue, forKey: Key.textScale)
+        defaults.set(settings.hasCompletedCleanup, forKey: Key.hasCompletedCleanup)
         defaults.set(settings.keepScanHistory, forKey: Key.keepScanHistory)
-        defaults.set(settings.launchAtLogin, forKey: Key.launchAtLogin)
         defaults.set(settings.userRulesEnabled, forKey: Key.userRulesEnabled)
         defaults.set(settings.ignoredPaths, forKey: Key.ignoredPaths)
         if let encoded = try? JSONEncoder().encode(settings.authorizedLocations) {
@@ -270,7 +308,6 @@ public actor SettingsStore {
         settings.skipConfirmation = defaults.bool(forKey: Key.skipConfirmation)
         settings.reduceMotion = defaults.bool(forKey: Key.reduceMotion)
         settings.userRulesEnabled = defaults.bool(forKey: Key.userRulesEnabled)
-        settings.launchAtLogin = defaults.bool(forKey: Key.launchAtLogin)
         if let raw = defaults.string(forKey: Key.language),
            let language = SiftLanguage(rawValue: raw) {
             settings.language = language
@@ -278,6 +315,11 @@ public actor SettingsStore {
         if let raw = defaults.string(forKey: Key.appearance),
            let appearance = AppSettings.Appearance(rawValue: raw) {
             settings.appearance = appearance
+        }
+        settings.hasCompletedCleanup = defaults.bool(forKey: Key.hasCompletedCleanup)
+        if let raw = defaults.string(forKey: Key.textScale),
+           let scale = AppSettings.TextScale(rawValue: raw) {
+            settings.textScale = scale
         }
         if defaults.hasValue(forKey: Key.keepScanHistory),
            defaults.integer(forKey: Key.keepScanHistory) > 0 {

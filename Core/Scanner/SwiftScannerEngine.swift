@@ -92,6 +92,12 @@ actor SwiftScanSession: ScanSession {
     private var groups: [DuplicateGroup] = []
     private var skipped: [SkippedLocation] = []
     private var progress = ScanProgress()
+    /// The entry the walker is reading, written from the walker's thread.
+    ///
+    /// The walker calls back on its own queue, so the name cannot live in the
+    /// actor's state: it is copied into `progress` when a progress event is
+    /// published, which is the actor's own turn.
+    private let liveName = LiveNameBox()
     private var phase: ScanPhase = .idle
     private var cancelled = false
     private var finished = false
@@ -256,6 +262,7 @@ actor SwiftScanSession: ScanSession {
     private func setPhase(_ next: ScanPhase) {
         phase = next
         progress.phase = next
+        if let name = liveName.value { progress.currentItemName = name }
         events.append(.phaseChanged(next))
         events.append(.progress(progress))
     }
@@ -297,6 +304,17 @@ actor SwiftScanSession: ScanSession {
         // One implementation, shared with the uninstaller's matcher: the two had
         // copies and only one of them was ever used to *associate* a container.
         BundleNameReadings.identifiers(name)
+    }
+
+
+    /// Records the leaf name of the entry being read.
+    ///
+    /// Only the leaf: a full path in the model would end up in a log line or a
+    /// screenshot, and the page shows what it is looking at, not where the user
+    /// lives. Sampled every 200 entries — the callback runs per file and the name
+    /// is a label, not a measurement.
+    private nonisolated func noteCurrentEntry(_ entry: FileWalker.Entry) {
+        liveName.note(entry.url.lastPathComponent)
     }
 
     private func options(for mode: FileWalker.Mode, maxDepth: Int? = nil, home: URL) -> FileWalker.Options {
@@ -347,7 +365,7 @@ actor SwiftScanSession: ScanSession {
                 options: options(for: .files, home: home),
                 rules: rules,
                 isCancelled: { self.cancelledSync },
-                onFile: nil
+                onFile: { [weak self] entry in self?.noteCurrentEntry(entry) }
             )
             recordSkips(report.skips)
             let found = report.entries.compactMap { entry -> CleanupItemSummary? in
@@ -371,7 +389,7 @@ actor SwiftScanSession: ScanSession {
                 options: options(for: .files, home: home),
                 rules: rules,
                 isCancelled: { self.cancelledSync },
-                onFile: nil
+                onFile: { [weak self] entry in self?.noteCurrentEntry(entry) }
             )
             recordSkips(report.skips)
             let found = report.entries.compactMap { entry -> CleanupItemSummary? in
@@ -389,7 +407,33 @@ actor SwiftScanSession: ScanSession {
         }
     }
 
-    /// Synchronous cancellation read, valid because the actor is single-threaded
+    /// The leaf name of the entry the walker is reading.
+///
+/// A lock rather than actor state because the walker calls back on its own queue;
+/// sampled every 200 entries so the cost is a comparison per file rather than a
+/// lock per file, and so a name is not replaced before anyone could read it.
+final class LiveNameBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var name: String?
+    private var seen = 0
+
+    var value: String? {
+        lock.lock()
+        defer { lock.unlock() }
+        return name
+    }
+
+    func note(_ leaf: String) {
+        lock.lock()
+        defer { lock.unlock() }
+        seen += 1
+        guard name == nil || seen >= 200 else { return }
+        seen = 0
+        name = leaf
+    }
+}
+
+/// Synchronous cancellation read, valid because the actor is single-threaded
     /// for its own state and the walker only needs a boolean.
     private nonisolated var cancelledSync: Bool {
         cancellationFlag.isCancelled
@@ -674,7 +718,7 @@ actor SwiftScanSession: ScanSession {
                 options: options(for: .immediateChildren, maxDepth: 1, home: home),
                 rules: rules,
                 isCancelled: { self.cancelledSync },
-                onFile: nil
+                onFile: { [weak self] entry in self?.noteCurrentEntry(entry) }
             )
             for entry in report.entries where entry.isDirectory {
                 let name = entry.displayName
@@ -732,7 +776,7 @@ actor SwiftScanSession: ScanSession {
                 options: options(for: .immediateChildren, maxDepth: 1, home: home),
                 rules: rules,
                 isCancelled: { self.cancelledSync },
-                onFile: nil
+                onFile: { [weak self] entry in self?.noteCurrentEntry(entry) }
             )
             for entry in report.entries where entry.isDirectory {
                 let name = entry.displayName
@@ -794,7 +838,7 @@ actor SwiftScanSession: ScanSession {
                 options: options(for: .files, maxDepth: 1, home: home),
                 rules: rules,
                 isCancelled: { self.cancelledSync },
-                onFile: nil
+                onFile: { [weak self] entry in self?.noteCurrentEntry(entry) }
             )
             for entry in report.entries where !entry.isDirectory {
                 let name = entry.displayName
@@ -851,7 +895,7 @@ actor SwiftScanSession: ScanSession {
                 options: walkOptions,
                 rules: rules,
                 isCancelled: { self.cancelledSync },
-                onFile: nil
+                onFile: { [weak self] entry in self?.noteCurrentEntry(entry) }
             )
             recordSkips(report.skips)
             var found: [CleanupItemSummary] = []
@@ -943,7 +987,7 @@ actor SwiftScanSession: ScanSession {
                 options: options(for: .files, home: home),
                 rules: rules,
                 isCancelled: { self.cancelledSync },
-                onFile: nil
+                onFile: { [weak self] entry in self?.noteCurrentEntry(entry) }
             )
             progress.filesSeen += report.totalFiles
             progress.bytesSeen += report.totalBytes

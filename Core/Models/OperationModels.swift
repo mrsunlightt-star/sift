@@ -63,6 +63,13 @@ public struct CleanupOutcome: Identifiable, Sendable {
     public let finishedAt: Date
     /// Which operation produced this outcome.
     public let operationName: CleanupOperationName
+    /// How many items the user stopped after, when they stopped a batch.
+    ///
+    /// A batch that a person interrupted is not a batch that failed: the items
+    /// still in the plan were never judged, so they must not be counted as
+    /// skipped or as failed. The page reports "stopped after N items" from this
+    /// and nothing else.
+    public let stoppedAfter: Int?
     /// Counts restored from local history, used when a stored outcome is shown
     /// without its per-item results.
     private let summaryOverride: (count: Int, bytes: Int64)?
@@ -74,6 +81,7 @@ public struct CleanupOutcome: Identifiable, Sendable {
         startedAt: Date,
         finishedAt: Date,
         operationName: CleanupOperationName,
+        stoppedAfter: Int? = nil,
         summaryOverride: (count: Int, bytes: Int64)? = nil
     ) {
         self.id = id
@@ -82,8 +90,22 @@ public struct CleanupOutcome: Identifiable, Sendable {
         self.startedAt = startedAt
         self.finishedAt = finishedAt
         self.operationName = operationName
+        self.stoppedAfter = stoppedAfter
         self.summaryOverride = summaryOverride
     }
+
+    /// True when the user interrupted the batch.
+    public var wasStopped: Bool { stoppedAfter != nil }
+
+    /// Nothing moved and nothing refused — the value a closing sheet renders
+    /// for the frame between dismissal and teardown.
+    public static let none = CleanupOutcome(
+        results: [],
+        categoryTotals: [],
+        startedAt: Date(),
+        finishedAt: Date(),
+        operationName: .junkCleanup
+    )
 
     public var movedCount: Int {
         summaryOverride?.count ?? results.filter { $0.status == .movedToTrash }.count
@@ -112,6 +134,72 @@ public struct CleanupOutcome: Identifiable, Sendable {
     /// True when at least one item failed, which is what drives the "partial
     /// failure" presentation (§14).
     public var hasFailures: Bool { failedCount > 0 }
+}
+
+/// What putting a batch back produced.
+///
+/// The undo the product promises is the Trash, and this is that promise made
+/// actionable: every item that moved can be put back until the bin is emptied.
+/// A restore is a file operation like any other, so it reports per item.
+public struct RestoreReport: Sendable {
+    public let restored: [URL]
+    public let failures: [FileOperationResult]
+
+    public init(restored: [URL], failures: [FileOperationResult]) {
+        self.restored = restored
+        self.failures = failures
+    }
+
+    public var isComplete: Bool { failures.isEmpty }
+    public var isEmpty: Bool { restored.isEmpty && failures.isEmpty }
+}
+
+/// What a running batch has done so far.
+///
+/// The move reports items, not bytes: a batch of 5,000 entries takes as long as
+/// it takes, and a byte percentage would be a number the product invented. The
+/// overlay shows "137 of 500" because that is the count it can stand behind.
+public struct ExecutionProgress: Sendable, Equatable {
+    public let done: Int
+    public let total: Int
+    public let movedBytes: Int64
+    /// Leaf name of the item being handled, never a full path.
+    public let currentName: String
+
+    public init(done: Int, total: Int, movedBytes: Int64, currentName: String) {
+        self.done = done
+        self.total = total
+        self.movedBytes = movedBytes
+        self.currentName = currentName
+    }
+
+    public var fraction: Double {
+        total > 0 ? min(max(Double(done) / Double(total), 0), 1) : 0
+    }
+}
+
+/// A one-way "stop after the item in hand" flag.
+///
+/// The page sets it and the file-operation actor reads it, so it has to be safe
+/// to touch from two executors; a lock is cheaper than hopping to the main actor
+/// once per item and cannot deadlock the move it is trying to interrupt.
+public final class StopToken: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stopped = false
+
+    public init() {}
+
+    public func stop() {
+        lock.lock()
+        stopped = true
+        lock.unlock()
+    }
+
+    public var isStopped: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return stopped
+    }
 }
 
 /// Which operation produced an outcome, used by the report's title and by the

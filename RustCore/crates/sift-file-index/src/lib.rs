@@ -57,7 +57,8 @@ impl ItemRow {
             "oldFiles" => 6,
             "duplicateFiles" => 7,
             "groupContainerResidue" => 8,
-            _ => 9,
+            "developerArtifacts" => 9,
+            _ => 10,
         }
     }
 }

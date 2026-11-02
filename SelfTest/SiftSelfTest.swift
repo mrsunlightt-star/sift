@@ -892,7 +892,7 @@ final class Harness: @unchecked Sendable {
             check(!germanBytes.isEmpty && !englishBytes.isEmpty, "sizes format in both locales")
 
             // A key with a placeholder substitutes its argument.
-            let substituted = LocalizationKey.commonItemCount.localized(7)
+            let substituted = LocalizationKey.commonItemCount.counted(7)
             check(substituted.contains("7"), "a placeholder key substitutes its argument")
             check(!substituted.contains("%d"), "no placeholder survives substitution")
         }

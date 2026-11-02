@@ -100,6 +100,49 @@ final class ScanModelTests: XCTestCase, @unchecked Sendable {
         )
     }
 
+    /// A stop keeps what the run had found, and the rows stay pageable.
+    ///
+    /// The core's worker no longer unlinks its index when it is cancelled, so a
+    /// stopped run has the rows a finished one does. This is the invariant the
+    /// page's "still cleanable" claim rests on: if the session were torn down, the
+    /// list would be empty and the banner would describe nothing.
+    ///
+    /// Scripted rather than timed: a fixture small enough to be quick is also
+    /// small enough to finish before a stop can land, and a test that silently
+    /// exercises the finished path proves nothing about the stopped one.
+    func test_aStoppedRunKeepsItsSessionAndItsRows() async {
+        let fixture = TemporaryDirectory(tag: "scan-model-stopped-rows")
+        let rules = RuleEngine(rules: RuleEngine.builtInRules, homeDirectory: fixture.url)
+        let session = HeldRowsScanSession()
+        let model = await ScanModel(engine: HeldRowsScannerEngine(session: session), rules: rules)
+        await model.start(makeRequest(home: fixture.url))
+
+        // One item lands, so the run has something to keep.
+        let deadline = Date().addingTimeInterval(2)
+        while Date() < deadline, await model.progress.itemsFound == 0 {
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+
+        await model.cancel()
+
+        let phase = await model.phase
+        XCTAssertEqual(phase, .cancelled)
+        let stopped = await model.hasStoppedResults
+        XCTAssertTrue(stopped, "a stopped run with rows says so")
+        let held = await model.isHoldingStoppedSession
+        XCTAssertTrue(held, "the session is held, so the rows can still be paged")
+        let shutDowns = await session.shutDownCount
+        XCTAssertEqual(shutDowns, 0, "the index is not released while the page can read it")
+
+        // Releasing is what bounds the index's life. A second cancel with nothing
+        // running is that release path.
+        await model.cancel()
+        let releasedShutDowns = await session.shutDownCount
+        let stillHeld = await model.isHoldingStoppedSession
+        XCTAssertEqual(releasedShutDowns, 1, "the kept session is released exactly once")
+        XCTAssertFalse(stillHeld)
+    }
+
     /// `start` returns before the scan has results; the completion gate is what
     /// makes a page read one settled run.
     ///
@@ -423,6 +466,93 @@ private actor PageFailingScanSession: ScanSession {
 }
 
 /// An engine that publishes `.ready` and then keeps running.
+/// An engine whose session never finishes on its own: it waits to be cancelled,
+/// then reports a stopped run with rows in it.
+private struct HeldRowsScannerEngine: ScannerEngine {
+    let session: HeldRowsScanSession
+    var kind: ScannerEngineKind { .swift }
+
+    func startScan(_ request: ScanRequest) async throws -> any ScanSession {
+        session
+    }
+}
+
+private let heldItem = CleanupItemSummary(
+    id: 1,
+    url: URL(fileURLWithPath: "/tmp/held-rows-session/cache.bin"),
+    displayName: "cache.bin",
+    parentPath: "/tmp/held-rows-session",
+    category: .applicationCache,
+    risk: .safe,
+    sizeInBytes: 4096,
+    fileCount: 1,
+    explanationKey: "cleanup.explanation.cache",
+    sourceRuleID: "user-cache"
+)
+
+private actor HeldRowsScanSession: ScanSession {
+    nonisolated let id = "held-rows-session"
+    private var cancelled = false
+    private var finished = false
+    private(set) var shutDownCount = 0
+
+    private var sentItem = false
+
+    func pollEvents(maxEvents: Int) async -> [ScanEvent] {
+        if let pending {
+            self.pending = nil
+            return [.completed(pending)]
+        }
+        guard !sentItem, !cancelled else { return [] }
+        sentItem = true
+        return [.itemsFound([heldItem])]
+    }
+
+    func isFinished() async -> Bool { finished }
+
+    func page(
+        offset: Int,
+        limit: Int,
+        sort: ScanSort,
+        category: CleanupCategory?
+    ) async throws -> ScanPage {
+        ScanPage(items: [heldItem], remaining: 0)
+    }
+
+    func duplicateGroups(offset: Int, limit: Int) async throws -> [DuplicateGroup] { [] }
+
+    func duplicateMembers(groupID: Int64) async throws -> [DuplicateMember] { [] }
+
+    func skippedLocations() async -> [SkippedLocation] { [] }
+
+    /// The stop answers with the summary a cancelled run produces; the session
+    /// itself stays alive until `shutDown`.
+    func cancel() async {
+        cancelled = true
+        finished = true
+        pending = ScanReport(
+            sessionID: id,
+            startedAt: Date(),
+            finishedAt: Date(),
+            phase: .cancelled,
+            scannedFileCount: 42,
+            scannedByteCount: 4096,
+            itemCount: 1,
+            itemBytes: 4096,
+            categoryTotals: [],
+            duplicateGroupCount: 0,
+            duplicateReclaimableBytes: 0,
+            skippedLocations: []
+        )
+    }
+
+    private var pending: ScanReport?
+
+    func shutDown() async {
+        shutDownCount += 1
+    }
+}
+
 private struct PhaseOnlyScannerEngine: ScannerEngine {
     var kind: ScannerEngineKind { .swift }
 

@@ -109,6 +109,69 @@ final class AppEnvironmentTests: XCTestCase, @unchecked Sendable {
         }
     }
 
+    /// The uninstaller is judged before it is confirmed.
+    ///
+    /// The panel used to be shown first and the pre-flight run afterwards, so the
+    /// batch the user approved and the batch that moved were two different
+    /// documents — and a batch that nothing survived moved nothing after a click
+    /// that had already said it would. This pins the contract the panel reads:
+    /// the numbers come from pre-flight, and a refusal arrives with its reason.
+    ///
+    /// Execution itself is not exercised here: an uninstall really moves files,
+    /// and the destructive slot and entitlement gates around it are covered by
+    /// `test_theDestructiveSlotCannotBeClaimedTwice` and the entitlement suite.
+    func test_prepareUninstallJudgesTheBatchBeforeAnyoneConfirms() async throws {
+        let environment = await MainActor.run { makeEnvironment() }
+        let folder = FileManager.default.temporaryDirectory
+            .appendingPathComponent("sift-prepare-uninstall-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+
+        let app = folder.appendingPathComponent("Example App.app", isDirectory: true)
+        try FileManager.default.createDirectory(at: app, withIntermediateDirectories: true)
+        let payload = app.appendingPathComponent("payload.bin")
+        try Data(repeating: 0x41, count: 4096).write(to: payload)
+
+        // A fresh environment is on the free tier; the preparation path is what
+        // this test is about, so it unlocks the way the debug channel does.
+        _ = try? await environment.entitlements.activate(licenseKey: LicenseVerifier.developmentKey)
+        await environment.refreshEntitlement()
+
+        let bundleItem = CleanupItem(
+            url: app,
+            displayName: "Example App.app",
+            category: .applicationResidue,
+            risk: .review,
+            sizeInBytes: 4096,
+            fileCount: 1,
+            explanationKey: "cleanup.explanation.residue",
+            sourceRuleID: "applicationResidue"
+        )
+
+        // An empty batch is not a confirmation waiting to happen.
+        if case let .nothingToDo(preparation) = await environment.prepareUninstall(items: []) {
+            XCTAssertEqual(preparation.count, 0)
+            XCTAssertFalse(preparation.isActionable)
+        } else {
+            XCTFail("an empty batch must not open a panel")
+        }
+
+        // A batch that pre-flight can judge comes back with the numbers the panel
+        // states, not the ones the caller intended.
+        switch await environment.prepareUninstall(items: [bundleItem]) {
+        case let .ready(preparation):
+            XCTAssertEqual(preparation.count, 1)
+            XCTAssertEqual(preparation.bytes, 4096)
+            XCTAssertTrue(preparation.isActionable)
+        case let .nothingToDo(preparation):
+            // An uninstaller item that is refused must be refused *with a reason*
+            // the panel can print, rather than as a silent zero.
+            XCTAssertFalse(preparation.refused.isEmpty, "a refusal carries its reason")
+        case .purchaseRequired, .busy:
+            XCTFail("a fresh environment on the paid tier must not gate the preparation")
+        }
+    }
+
     /// Resetting settings must release the grants as well as forget them in the
     /// settings store; otherwise the scan scope keeps reading an old volume.
     func test_resetSettingsReleasesAuthorizedLocations() async throws {

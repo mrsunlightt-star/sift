@@ -168,10 +168,8 @@ public struct StorageAnalysisView: View {
                 VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
                     Text(LocalizationKey.storageStartTitle.localized)
                         .font(SiftFont.title)
-                    Text(LocalizationKey.storageScopeNote.localized)
-                        .font(SiftFont.body)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                    // The scope sentence is stated once, beside the toggle it
+                    // describes, at the top of this page.
                     SiftPrimaryButton(titleKey: .storageStart, symbolName: "arrow.clockwise") {
                         Task { await environment.analyzeStorage() }
                     }
@@ -191,9 +189,6 @@ public struct StorageAnalysisView: View {
                 VStack(alignment: .leading, spacing: SiftMetrics.spacingXS) {
                     Text(LocalizationKey.storageAnalysing.localized)
                         .font(SiftFont.sectionTitle)
-                    Text(LocalizationKey.storageScopeNote.localized)
-                        .font(SiftFont.caption)
-                        .foregroundStyle(.secondary)
                 }
                 Spacer()
                 SiftSecondaryButton(titleKey: .storageCancelAnalysis) {
@@ -454,7 +449,7 @@ public struct StorageAnalysisView: View {
                         name: directory.displayName,
                         path: directory.displayPath,
                         detail: SiftFormat.bytes(directory.sizeInBytes),
-                        secondary: LocalizationKey.commonFileCount.localized(directory.fileCount),
+                        secondary: LocalizationKey.commonFileCount.counted(directory.fileCount),
                         onReveal: { Task { await environment.reveal(directory.url) } }
                     )
                 }

@@ -48,10 +48,14 @@ public struct PurchaseView: View {
                             EmptyView()
                         }
 
-                        if let reason {
+                        if reason != nil {
+                            // The reason is its own sentence. Concatenating it
+                            // with the free-tier sentence produced "Scan, scanning
+                            // and previews stay free" — the page name used as a
+                            // clause.
                             NoticeBanner(
                                 level: .information,
-                                message: "\(reason.titleKey.localized), \(LocalizationKey.purchaseLicenseRequiredDetail.localized)"
+                                message: LocalizationKey.purchaseLicenseRequiredDetail.localized
                             )
                         }
 
@@ -229,11 +233,12 @@ public struct PurchaseView: View {
                     .siftFieldSurface()
                 HStack(spacing: SiftMetrics.spacingM) {
                     SiftPrimaryButton(
-                        title: LocalizationKey.purchaseBuyButton.localized(environment.entitlement.formattedPrice),
+                        title: LocalizationKey.purchaseActivate.localized,
                         isEnabled: !isWorking && !licenseKey.trimmingCharacters(in: .whitespaces).isEmpty
                     ) {
                         Task { await activate() }
                     }
+                    .accessibilityIdentifier("purchase.activate")
 
                     SiftSecondaryButton(titleKey: .purchaseRestore) {
                         Task { await restore() }
@@ -243,6 +248,25 @@ public struct PurchaseView: View {
                     if isWorking {
                         ProgressView().controlSize(.small)
                     }
+                }
+                // The purchase happens on the website, so this is a link with an
+                // address — not a button that pretends to charge a card it never
+                // sees. With no store URL configured the row says why instead of
+                // opening something that cannot work.
+                if let storeURL = Self.storeURL {
+                    Button {
+                        NSWorkspace.shared.open(storeURL)
+                    } label: {
+                        Text(LocalizationKey.purchaseOpenStore.localized)
+                            .font(SiftFont.caption)
+                    }
+                    .buttonStyle(SiftLinkButtonStyle())
+                    .accessibilityIdentifier("purchase.openStore")
+                } else {
+                    Text(LocalizationKey.purchaseUnavailable.localized)
+                        .font(SiftFont.caption)
+                        .foregroundStyle(SiftColor.subtleText)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 Text(LocalizationKey.purchaseLicenseRequiredDetail.localized)
                     .font(SiftFont.caption)
@@ -259,6 +283,18 @@ public struct PurchaseView: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    /// The hosted checkout page, from `Info.plist`.
+    ///
+    /// The spec keeps the store address out of the binary's control flow: the
+    /// page is a licence-service decision, and a build without one must be able
+    /// to say "not available" rather than open a dead link.
+    static var storeURL: URL? {
+        guard let raw = Bundle.main.object(forInfoDictionaryKey: "SiftStoreURL") as? String,
+              let url = URL(string: raw), url.scheme == "https"
+        else { return nil }
+        return url
     }
 
     private func activate() async {

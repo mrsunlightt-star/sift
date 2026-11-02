@@ -246,6 +246,27 @@ extension Bundle {
     }
 }
 
+public extension LocalizationKey {
+    /// The string for a count, in the form that count takes in this language.
+    ///
+    /// `localized(_:)` renders one fixed noun, which is how the product came to
+    /// say "1 items moved to Trash" in every language that distinguishes a
+    /// singular. The singular lives beside its base string as `<key>.one`, and
+    /// `SiftPlural` — generated from the same table — says whether this language
+    /// and this count take it.
+    ///
+    /// A count with no singular form in this language (or no `<key>.one` string)
+    /// falls through to the base string, which is what makes this safe to adopt
+    /// one call site at a time.
+    func counted(_ count: Int) -> String {
+        if SiftPlural.takesSingular(language: SiftLanguage.current.rawValue, count: count),
+           let singular = LocalizationKey(rawValue: rawValue + ".one") {
+            return singular.localized(count)
+        }
+        return localized(count)
+    }
+}
+
 /// Text formatting helpers.
 ///
 /// The specification (§11.5) requires sizes, dates, counts and currency to use

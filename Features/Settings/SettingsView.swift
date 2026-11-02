@@ -13,6 +13,15 @@ public struct SettingsView: View {
     @State private var permissionReport: [PermissionsService.LocationAccess] = []
     @State private var exportMessage: String?
     @State private var permissionHint = false
+    /// The explanation, before the system dialog: macOS's own prompt cannot say
+    /// why an app wants the permission, so the app has to.
+    @State private var isExplainingPermission = false
+    /// Reset clears settings and every granted folder, so it asks once.
+    @State private var isConfirmingReset = false
+    /// Read from the system, never from `UserDefaults`: the login item is the
+    /// system's registration, and a cached boolean drifts the moment the user
+    /// removes it in System Settings.
+    @State private var loginItemEnabled = LoginItem.isEnabled
     @State private var hasStoredLicense = false
     @State private var isConfirmingReportDeletion = false
     /// The coverage audit's page, opened from the diagnostics group.
@@ -94,7 +103,7 @@ public struct SettingsView: View {
                     get: { environment.preferences.showHiddenFiles },
                     set: { value in Task { await environment.updateSettings { $0.showHiddenFiles = value } } }
                 )) {
-                    Text(LocalizationKey.settingsShowHiddenFiles.localized)
+                    Text(LocalizationKey.settingsIncludeHidden.localized)
                         .font(SiftFont.body)
                 }
                 .toggleStyle(.checkbox)
@@ -114,9 +123,68 @@ public struct SettingsView: View {
                 }
                 .toggleStyle(.checkbox)
 
-                if !environment.preferences.ignoredPaths.isEmpty {
-                    Text(LocalizationKey.settingsGroupIgnores.localized)
-                        .font(SiftFont.bodyEmphasis)
+                // The interface's own type scale. macOS has no system setting for
+                // it, so a fixed 13 pt ladder was the whole answer to a user who
+                // cannot read it.
+                Picker(
+                    LocalizationKey.settingsTextSize.localized,
+                    selection: Binding(
+                        get: { environment.preferences.textScale },
+                        set: { value in
+                            SiftTypeScale.current = Self.step(for: value)
+                            Task { await environment.updateSettings { $0.textScale = value } }
+                        }
+                    )
+                ) {
+                    ForEach(AppSettings.TextScale.allCases, id: \.self) { scale in
+                        Text(scale.titleKey.localized).tag(scale)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 220)
+                .accessibilityIdentifier("settings.textSize")
+
+                if LoginItem.isSupported {
+                    Toggle(isOn: Binding(
+                        get: { loginItemEnabled },
+                        set: { value in loginItemEnabled = LoginItem.set(enabled: value) }
+                    )) {
+                        Text(LocalizationKey.settingsLaunchAtLogin.localized)
+                            .font(SiftFont.body)
+                    }
+                    .toggleStyle(.checkbox)
+                    .accessibilityIdentifier("settings.launchAtLogin")
+                }
+
+                Stepper(
+                    value: Binding(
+                        get: { environment.preferences.keepScanHistory },
+                        set: { value in
+                            Task { await environment.updateSettings { $0.keepScanHistory = value } }
+                        }
+                    ),
+                    in: 5...50,
+                    step: 5
+                ) {
+                    HStack(spacing: SiftMetrics.spacingS) {
+                        Text(LocalizationKey.settingsKeepHistory.localized)
+                            .font(SiftFont.body)
+                        Text("\(environment.preferences.keepScanHistory)")
+                            .font(SiftFont.monospacedNumber)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Divider()
+
+                Text(LocalizationKey.settingsGroupIgnores.localized)
+                    .font(SiftFont.bodyEmphasis)
+                if environment.preferences.ignoredPaths.isEmpty {
+                    Text(LocalizationKey.settingsIgnoreEmpty.localized)
+                        .font(SiftFont.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
                     VStack(alignment: .leading, spacing: SiftMetrics.spacingXS) {
                         ForEach(environment.preferences.ignoredPaths, id: \.self) { path in
                             HStack {
@@ -139,10 +207,50 @@ public struct SettingsView: View {
                         }
                     }
                 }
+                Button {
+                    addIgnoredFolder()
+                } label: {
+                    Text(LocalizationKey.settingsAddFolder.localized)
+                        .font(SiftFont.caption)
+                }
+                .buttonStyle(SiftLinkButtonStyle())
+                .accessibilityIdentifier("settings.addIgnoredFolder")
 
                 Divider()
 
                 permissionRows
+            }
+        }
+    }
+
+    static func step(for scale: AppSettings.TextScale) -> SiftTypeScale.Step {
+        switch scale {
+        case .small: .small
+        case .standard: .standard
+        case .large: .large
+        }
+    }
+
+    /// Adds one folder to the ignore list.
+    ///
+    /// The list existed only as a place entries could be removed from: nothing
+    /// ever put one in, so the rule it feeds never had anything to apply to.
+    private func addIgnoredFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = false
+        panel.prompt = LocalizationKey.settingsAddFolder.localized
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        let path = url.standardizedFileURL.path
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        // Home-relative, the way every other path in the product is stored.
+        let stored = path.hasPrefix(home) ? "~" + path.dropFirst(home.count) : path
+        Task {
+            await environment.updateSettings { settings in
+                guard !settings.ignoredPaths.contains(stored) else { return }
+                settings.ignoredPaths.append(stored)
             }
         }
     }
@@ -175,22 +283,33 @@ public struct SettingsView: View {
                 .accessibilityElement(children: .combine)
             }
             Button {
-                Task {
-                    await environment.openPermissionSettings()
-                    permissionHint = true
-                }
+                isExplainingPermission = true
             } label: {
                 Text(LocalizationKey.permissionOpenSettings.localized)
                     .font(SiftFont.caption)
             }
             .buttonStyle(SiftLinkButtonStyle())
+            .accessibilityIdentifier("settings.permissionExplain")
             if permissionHint {
-                Text(LocalizationKey.permissionFullDiskAccessDetail.localized)
+                Text(LocalizationKey.permissionOpenedSettings.localized)
                     .font(SiftFont.caption)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(SiftColor.subtleText)
             }
         }
+        .sheet(isPresented: $isExplainingPermission) {
+            FullDiskAccessSheet(
+                onOpenSettings: {
+                    isExplainingPermission = false
+                    Task {
+                        await environment.openPermissionSettings()
+                        permissionHint = true
+                    }
+                },
+                onDismiss: { isExplainingPermission = false }
+            )
+        }
     }
+
 
     // MARK: - Authorised folders
 
@@ -321,27 +440,35 @@ public struct SettingsView: View {
     private var confirmationSection: some View {
         SettingsGroup(titleKey: .settingsGroupConfirmation) {
             VStack(alignment: .leading, spacing: SiftMetrics.spacingM) {
+                // One switch for one decision. There used to be two —
+                // `requireConfirmation` and `skipConfirmation` — and clearing
+                // either removed the last checkpoint, but only the second showed
+                // the warning. Two names for one switch is how a page warns about
+                // one way to do the unsafe thing and stays silent about the other.
                 Toggle(isOn: Binding(
-                    get: { environment.preferences.requireConfirmation },
-                    set: { value in Task { await environment.updateSettings { $0.requireConfirmation = value } } }
+                    get: { environment.preferences.showsConfirmationPanel },
+                    set: { value in
+                        Task {
+                            await environment.updateSettings {
+                                $0.requireConfirmation = value
+                                $0.skipConfirmation = false
+                            }
+                        }
+                    }
                 )) {
-                    Text(LocalizationKey.settingsRequireConfirmation.localized)
-                        .font(SiftFont.body)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(LocalizationKey.settingsShowConfirmList.localized)
+                            .font(SiftFont.body)
+                        Text(LocalizationKey.settingsRequireConfirmation.localized)
+                            .font(SiftFont.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 .toggleStyle(.checkbox)
+                .accessibilityIdentifier("settings.confirmList")
 
-                Toggle(isOn: Binding(
-                    get: { environment.preferences.skipConfirmation },
-                    set: { value in Task { await environment.updateSettings { $0.skipConfirmation = value } } }
-                )) {
-                    Text(LocalizationKey.settingsSkipConfirmation.localized)
-                        .font(SiftFont.body)
-                }
-                .toggleStyle(.checkbox)
-                .disabled(!environment.preferences.requireConfirmation)
-
-                if environment.preferences.skipConfirmation {
-                    NoticeBanner(level: .warning, titleKey: .settingsSkipConfirmationWarning)
+                if !environment.preferences.showsConfirmationPanel {
+                    NoticeBanner(level: .warning, titleKey: .settingsShowConfirmListWarning)
                 }
                 Text(LocalizationKey.cleanupConfirmUndoNotice.localized)
                     .font(SiftFont.caption)
@@ -548,13 +675,30 @@ public struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
 
+                // One click used to clear every setting *and* every authorised
+                // folder, and cancel a scan in flight. That is a destructive
+                // action on data the user granted deliberately, so it asks first
+                // and says what it will take away.
                 Button {
-                    Task { await environment.resetSettings() }
+                    isConfirmingReset = true
                 } label: {
                     Text(LocalizationKey.settingsResetDefaults.localized)
                         .font(SiftFont.caption)
                 }
                 .buttonStyle(SiftLinkButtonStyle())
+                .accessibilityIdentifier("settings.resetDefaults")
+                .confirmationDialog(
+                    LocalizationKey.settingsResetDefaults.localized,
+                    isPresented: $isConfirmingReset,
+                    titleVisibility: .visible
+                ) {
+                    Button(LocalizationKey.settingsResetDefaults.localized, role: .destructive) {
+                        Task { await environment.resetSettings() }
+                    }
+                    Button(LocalizationKey.cleanupConfirmCancel.localized, role: .cancel) {}
+                } message: {
+                    Text(LocalizationKey.settingsAuthorizedEmpty.localized)
+                }
                 .disabled(
                     environment.cleanup.isWorking
                         || environment.cleanup.isPreparingCleanup

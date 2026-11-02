@@ -19,6 +19,50 @@ final class LocalizationTests: XCTestCase, @unchecked Sendable {
         XCTAssertTrue(unresolved.isEmpty, "unresolved keys: \(unresolved.map(\.rawValue))")
     }
 
+    /// A count of one takes the singular form where the language has one.
+    ///
+    /// This is the check behind "1 items moved to Trash": the base string is the
+    /// plural, the singular lives beside it as `<key>.one`, and `SiftPlural` says
+    /// which counts take it per language. The pairs below are the whole contract,
+    /// so a language that gains or loses a singular form has to change here.
+    func test_aCountOfOneTakesTheSingularForm() {
+        let key = LocalizationKey.commonItemCount
+        let cases: [(SiftLanguage, String, String)] = [
+            (.english, "1 item", "2 items"),
+            (.german, "1 Eintrag", "2 Einträge"),
+            (.french, "1 élément", "2 éléments"),
+            (.brazilianPortuguese, "1 item", "2 itens"),
+            // A label form: the count sits after the noun, so no inflection.
+            (.russian, "Элементов: 1", "Элементов: 2"),
+            // A language with no singular form at all.
+            (.japanese, "1 項目", "2 項目"),
+            (.simplifiedChinese, "1 个项目", "2 个项目"),
+        ]
+        let original = UserDefaults.standard.string(forKey: SiftLanguage.preferenceKey)
+        defer {
+            if let original {
+                UserDefaults.standard.set(original, forKey: SiftLanguage.preferenceKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: SiftLanguage.preferenceKey)
+            }
+        }
+        for (language, one, many) in cases {
+            UserDefaults.standard.set(language.rawValue, forKey: SiftLanguage.preferenceKey)
+            XCTAssertEqual(key.counted(1), one, "\(language.rawValue) singular")
+            XCTAssertEqual(key.counted(2), many, "\(language.rawValue) plural")
+        }
+
+        // Zero is the case that separates the two rules: French counts it as a
+        // singular, Brazilian Portuguese does not.
+        UserDefaults.standard.set(SiftLanguage.french.rawValue, forKey: SiftLanguage.preferenceKey)
+        XCTAssertEqual(key.counted(0), "0 élément")
+        UserDefaults.standard.set(
+            SiftLanguage.brazilianPortuguese.rawValue,
+            forKey: SiftLanguage.preferenceKey
+        )
+        XCTAssertEqual(key.counted(0), "0 itens")
+    }
+
     func test_selectedLanguageLoadsTheMatchingResourceBundle() {
         for language in SiftLanguage.allCases {
             let bundle = Bundle.localizedBundle(for: language)
@@ -63,11 +107,11 @@ final class LocalizationTests: XCTestCase, @unchecked Sendable {
         // that the argument arrived — never which language it arrived in. A
         // literal English expectation made these fail on a Chinese machine as
         // soon as the suite ran under real XCTest rather than the shim.
-        let items = LocalizationKey.commonItemCount.localized(7)
+        let items = LocalizationKey.commonItemCount.counted(7)
         XCTAssertTrue(items.contains("7"), "the count is substituted")
         XCTAssertFalse(items.contains("%d"), "no placeholder survives")
 
-        let moved = LocalizationKey.cleanupResultMoved.localized(3)
+        let moved = LocalizationKey.cleanupResultMoved.counted(3)
         XCTAssertTrue(moved.contains("3"))
         XCTAssertFalse(moved.contains("%d"))
 

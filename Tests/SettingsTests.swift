@@ -43,6 +43,7 @@ final class SettingsTests: XCTestCase, @unchecked Sendable {
             settings.language = .japanese
             settings.ignoredPaths = ["/Users/example/keep"]
             settings.skipConfirmation = true
+            settings.textScale = .large
         }
 
         let second = SettingsStore(preferences: StringPreferences(defaults: defaults))
@@ -53,6 +54,45 @@ final class SettingsTests: XCTestCase, @unchecked Sendable {
         XCTAssertEqual(reloaded.language, .japanese)
         XCTAssertEqual(reloaded.ignoredPaths, ["/Users/example/keep"])
         XCTAssertTrue(reloaded.skipConfirmation)
+        XCTAssertEqual(reloaded.textScale, .large)
+    }
+
+    /// The type scale is a stored preference, and its three steps are the only
+    /// values the theme accepts.
+    ///
+    /// A scale that did not round-trip would draw the standard ladder after every
+    /// relaunch, which is the same bug as having no setting at all.
+    func test_theTypeScaleSurvivesAndHasThreeSteps() async {
+        // The model's default, not a scratch store's first read: a scratch
+        // domain outlives one run, and this test itself leaves `large` in it, so
+        // asserting "a fresh store starts at standard" asserted the order the
+        // suite happened to run in rather than the product.
+        XCTAssertEqual(AppSettings.default.textScale, .standard)
+
+        let defaults = ScratchPreferences.open("settings")
+        let store = makeStore()
+
+        for step in AppSettings.TextScale.allCases {
+            await store.update { $0.textScale = step }
+            let reloaded = await makeStore().current()
+            XCTAssertEqual(reloaded.textScale, step)
+        }
+        XCTAssertEqual(Set(AppSettings.TextScale.allCases.map(\.multiplier)).count, 3)
+    }
+
+    /// The first-cleanup hint is shown once per installation.
+    ///
+    /// It is a stored fact rather than a per-run one: the panel reads it to add a
+    /// sentence to the first batch and stay quiet afterwards, so a value that did
+    /// not survive a relaunch would greet the user as a beginner on every launch.
+    func test_theFirstCleanupFlagStartsFalseAndSurvives() async {
+        let store = makeStore()
+        let initial = await store.current()
+        XCTAssertEqual(initial.hasCompletedCleanup, false)
+
+        await store.update { $0.hasCompletedCleanup = true }
+        let reloaded = await makeStore().current()
+        XCTAssertTrue(reloaded.hasCompletedCleanup)
     }
 
     func test_confirmationDefaultsToOnWhenTheKeyIsAbsent() async {
