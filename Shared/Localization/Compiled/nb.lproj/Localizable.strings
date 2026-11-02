@@ -64,6 +64,7 @@
 "cleanup.explanation.systemLogsItem" = "Utdaterte systemloggfiler. Lesing av noen krever full disktilgang.";
 "cleanup.explanation.temporary" = "Midlertidige filer etterlatt av apper.";
 "cleanup.explanation.xcodeArchives" = "Arkiverte bygg. Prosjektet kan arkiveres på nytt, men dette arkivet kan ikke gjenopprettes.";
+"cleanup.failure.appManagement" = "Trenger tillatelse for appadministrasjon";
 "cleanup.failure.fileInUse" = "I bruk, hoppet over";
 "cleanup.failure.fileNotFound" = "Allerede fjernet";
 "cleanup.failure.itemChanged" = "Endret, hoppet over";
@@ -75,6 +76,7 @@
 "cleanup.preparing.title" = "Sjekker elementer";
 "cleanup.result.details" = "Elementdetaljer";
 "cleanup.result.exportReport" = "Eksporter rapport som PDF";
+"cleanup.result.keptInPlace" = "%d elementer ble liggende — ingenting gikk tapt.";
 "cleanup.result.moved" = "%d elementer flyttet til Papirkurven";
 "cleanup.result.moved.one" = "%d element flyttet til Papirkurven";
 "cleanup.result.reclaimAfterEmpty" = "Ledig plass øker med %@ når du tømmer Papirkurven";
@@ -83,6 +85,8 @@
 "cleanup.result.showTrash" = "Vis Papirkurven i Finder";
 "cleanup.result.stopped" = "Stoppet etter %d elementer";
 "cleanup.result.title" = "Opprydding fullført";
+"cleanup.result.titleFailed" = "Ingenting ble flyttet";
+"cleanup.result.titlePartial" = "Delvis fullført";
 "cleanup.result.undoAction" = "Angre denne oppryddingen";
 "cleanup.result.undoHint" = "Legg elementer tilbake fra Papirkurven til du tømmer den.";
 "cleanup.result.undoUnavailable" = "Kan ikke angre: Papirkurven er tømt, eller elementet ligger på en annen disk";

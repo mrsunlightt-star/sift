@@ -64,6 +64,7 @@
 "cleanup.explanation.systemLogsItem" = "ملفات سجلات نظام قديمة. قراءة بعضها يتطلب الوصول الكامل إلى القرص.";
 "cleanup.explanation.temporary" = "ملفات مؤقتة تركتها التطبيقات.";
 "cleanup.explanation.xcodeArchives" = "عمليات بناء مؤرشفة. يمكن أرشفة المشروع من جديد، لكن هذا الأرشيف لا يمكن استعادته.";
+"cleanup.failure.appManagement" = "يلزم إذن إدارة التطبيقات";
 "cleanup.failure.fileInUse" = "قيد الاستخدام، تم تخطيه";
 "cleanup.failure.fileNotFound" = "أُزيل بالفعل";
 "cleanup.failure.itemChanged" = "تغيّر، تم تخطيه";
@@ -75,6 +76,7 @@
 "cleanup.preparing.title" = "جارٍ التحقق من العناصر";
 "cleanup.result.details" = "تفاصيل العناصر";
 "cleanup.result.exportReport" = "تصدير التقرير بصيغة PDF";
+"cleanup.result.keptInPlace" = "بقي %d عنصرًا في مكانه — لم يُفقد شيء.";
 "cleanup.result.moved" = "نُقل %d عنصرًا إلى المهملات";
 "cleanup.result.moved.one" = "نُقل %d عنصر إلى المهملات";
 "cleanup.result.reclaimAfterEmpty" = "تزيد المساحة المتاحة بمقدار %@ بعد إفراغ سلة المهملات";
@@ -83,6 +85,8 @@
 "cleanup.result.showTrash" = "عرض المهملات في Finder";
 "cleanup.result.stopped" = "توقف بعد %d عنصرًا";
 "cleanup.result.title" = "اكتمل التنظيف";
+"cleanup.result.titleFailed" = "لم يُنقل أي عنصر";
+"cleanup.result.titlePartial" = "اكتمل جزئيًا";
 "cleanup.result.undoAction" = "تراجع عن هذا التنظيف";
 "cleanup.result.undoHint" = "استعد العناصر من المهملات حتى تفرغها.";
 "cleanup.result.undoUnavailable" = "لا يمكن التراجع: أُفرغت سلة المهملات أو أن العنصر على قرص آخر";

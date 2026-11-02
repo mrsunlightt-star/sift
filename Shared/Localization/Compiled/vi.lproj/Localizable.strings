@@ -64,6 +64,7 @@
 "cleanup.explanation.systemLogsItem" = "Tệp nhật ký hệ thống cũ. Một số tệp cần Quyền truy cập Toàn bộ Đĩa để đọc.";
 "cleanup.explanation.temporary" = "Tệp tạm do ứng dụng để lại.";
 "cleanup.explanation.xcodeArchives" = "Bản dựng đã lưu trữ. Có thể lưu trữ lại dự án, nhưng bản lưu trữ này không khôi phục được.";
+"cleanup.failure.appManagement" = "Cần quyền Quản lý ứng dụng";
 "cleanup.failure.fileInUse" = "Đang được dùng, bỏ qua";
 "cleanup.failure.fileNotFound" = "Đã bị xóa";
 "cleanup.failure.itemChanged" = "Đã thay đổi, bỏ qua";
@@ -75,6 +76,7 @@
 "cleanup.preparing.title" = "Đang kiểm tra mục";
 "cleanup.result.details" = "Chi tiết mục";
 "cleanup.result.exportReport" = "Xuất báo cáo dạng PDF";
+"cleanup.result.keptInPlace" = "%d mục vẫn ở nguyên vị trí — không mất gì.";
 "cleanup.result.moved" = "Đã chuyển %d mục vào Thùng rác";
 "cleanup.result.moved.one" = "Đã chuyển %d mục vào Thùng rác";
 "cleanup.result.reclaimAfterEmpty" = "Dung lượng trống tăng thêm %@ sau khi bạn làm trống Thùng rác";
@@ -83,6 +85,8 @@
 "cleanup.result.showTrash" = "Hiện Thùng rác trong Finder";
 "cleanup.result.stopped" = "Đã dừng sau %d mục";
 "cleanup.result.title" = "Dọn dẹp xong";
+"cleanup.result.titleFailed" = "Không có mục nào được di chuyển";
+"cleanup.result.titlePartial" = "Hoàn tất một phần";
 "cleanup.result.undoAction" = "Hoàn tác lần dọn dẹp này";
 "cleanup.result.undoHint" = "Khôi phục các mục từ Thùng rác cho đến khi làm trống Thùng rác.";
 "cleanup.result.undoUnavailable" = "Không thể hoàn tác: Thùng rác đã được làm trống hoặc mục nằm trên đĩa khác";

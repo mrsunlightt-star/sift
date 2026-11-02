@@ -799,9 +799,13 @@ public actor FileOperationService {
                     "Moved one item to the Trash (category=\(item.category.rawValue, privacy: .public) band=\(SizeBand(bytes: item.sizeInBytes).rawValue, privacy: .public))"
                 )
             } catch {
-                let code = Self.classify(error)
+                let code = Self.classify(error, at: item.url)
+                // The code alone cannot be diagnosed afterwards: `permissionDenied`
+                // covered a TCC refusal, a POSIX refusal and the App Management
+                // gate at once, and the log said only "Move failed". The domain,
+                // the code and the errno inside it are what tell them apart.
                 logger.error(
-                    "Move failed (code=\(code.rawValue, privacy: .public) category=\(item.category.rawValue, privacy: .public))"
+                    "Move failed (code=\(code.rawValue, privacy: .public) category=\(item.category.rawValue, privacy: .public) error=\(Self.describe(error), privacy: .public))"
                 )
                 results.append(
                     FileOperationResult(
@@ -896,7 +900,7 @@ public actor FileOperationService {
                 try fileManager.moveItem(at: destination, to: result.sourceURL)
                 restored.append(result.sourceURL)
             } catch {
-                let code = Self.classify(error)
+                let code = Self.classify(error, at: result.sourceURL)
                 failures.append(
                     FileOperationResult(
                         sourceURL: result.sourceURL,
@@ -925,7 +929,49 @@ public actor FileOperationService {
     // MARK: - Error classification
 
     /// Maps a `FileManager` error onto the product error table (§14).
-    static func classify(_ error: Error) -> ErrorCode {
+    ///
+    /// The path decides one case that the error cannot: a refused move of an
+    /// application bundle is the App Management gate rather than a folder
+    /// permission, and the two are lifted by different switches.
+    static func classify(_ error: Error, at url: URL? = nil) -> ErrorCode {
+        let code = classifyWithoutPath(error)
+        guard code == .permissionDenied || code == .systemRestricted else { return code }
+        if let url, isApplicationBundle(url) { return .appManagementRequired }
+        return code
+    }
+
+    /// True when the path names an application bundle (`…/Name.app`).
+    ///
+    /// The trailing component is what matters: a bundle can sit in
+    /// `/Applications`, in `~/Applications`, on a mounted volume, or inside a
+    /// DMG staged for installation, and the gate follows the bundle rather than
+    /// one directory.
+    static func isApplicationBundle(_ url: URL) -> Bool {
+        url.standardizedFileURL.pathExtension.caseInsensitiveCompare("app") == .orderedSame
+    }
+
+    /// A system error stated in the terms a bug report needs.
+    private static func describe(_ error: Error) -> String {
+        let nsError = error as NSError
+        var text = "\(nsError.domain)/\(nsError.code)"
+        if let posix = posixCode(of: nsError) { text += " errno=\(posix)" }
+        return text
+    }
+
+    /// The POSIX errno inside a Foundation error, when it carries one.
+    ///
+    /// `FileManager` reports a POSIX refusal as `NSCocoaErrorDomain` and keeps
+    /// the real errno in `NSUnderlyingErrorKey`, so reading only the top-level
+    /// code would conflate `EACCES` with `EPERM`.
+    private static func posixCode(of error: NSError) -> Int32? {
+        if error.domain == NSPOSIXErrorDomain { return Int32(error.code) }
+        if let underlying = error.userInfo[NSUnderlyingErrorKey] as? NSError {
+            return posixCode(of: underlying)
+        }
+        return nil
+    }
+
+    private static func classifyWithoutPath(_ error: Error) -> ErrorCode {
         let nsError = error as NSError
         switch nsError.domain {
         case NSCocoaErrorDomain:

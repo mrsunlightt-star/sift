@@ -134,6 +134,51 @@ public struct CleanupOutcome: Identifiable, Sendable {
     /// True when at least one item failed, which is what drives the "partial
     /// failure" presentation (§14).
     public var hasFailures: Bool { failedCount > 0 }
+
+    /// What the result page's own title says happened.
+    ///
+    /// A page that opens with "cleanup finished" above a batch where 2 GB
+    /// refused to move makes the user decide which half of the screen is true.
+    /// The headline is derived here, from the outcome alone, so the title, the
+    /// icon and the counts cannot disagree, and it is asserted in a test rather
+    /// than left to a view body.
+    public var headline: CleanupResultHeadline {
+        guard hasFailures else { return .finished }
+        return movedCount > 0 ? .partiallyCompleted : .nothingMoved
+    }
+}
+
+extension FileOperationResult {
+    /// The item a failed row stands for, rebuilt from the row.
+    ///
+    /// A retry moves the same object the user selected, so the item is derived
+    /// from the row rather than from whatever is selected when the button is
+    /// pressed: the path, the size and the category are the row's, and the
+    /// identity comes from the same path. An application bundle is marked as a
+    /// directory because it is moved whole.
+    public var retryItem: CleanupItem {
+        CleanupItem(
+            url: sourceURL,
+            displayName: sourceURL.lastPathComponent,
+            category: category ?? .applicationResidue,
+            risk: .review,
+            sizeInBytes: sizeInBytes,
+            fileCount: 1,
+            explanationKey: "cleanup.explanation.residue",
+            sourceRuleID: "retry",
+            isDirectory: FileOperationService.isApplicationBundle(sourceURL)
+        )
+    }
+}
+
+/// The three states a cleanup result page can be in.
+public enum CleanupResultHeadline: Sendable, Equatable {
+    /// Everything that was attempted moved.
+    case finished
+    /// Some items moved, some refused.
+    case partiallyCompleted
+    /// Nothing moved: every item that was attempted refused.
+    case nothingMoved
 }
 
 /// What putting a batch back produced.
@@ -236,6 +281,19 @@ public enum ErrorCode: String, Codable, Sendable, CaseIterable {
     /// made to this account can open it. Offering the settings button for the
     /// second kind sent the user to a switch that changes nothing.
     case systemRestricted
+    /// A move the system refused because this app may not change another
+    /// developer's application bundle.
+    ///
+    /// macOS 13 keeps two different switches apart. Reading a protected folder
+    /// is Full Disk Access; *moving an application* is App Management
+    /// (Privacy & Security → App Management), and it is enforced for a bundle
+    /// the app did not install even when that bundle sits in `/Applications`,
+    /// which no TCC-protected folder has anything to do with. The refusal
+    /// arrives as `EACCES` from the rename inside the Trash move — measured on
+    /// this machine against `/Applications/CapCut.app`, `rename` → errno 13 —
+    /// while a plain file in the same directory renames fine. Offering Full Disk
+    /// Access for it sent the user to a switch that changes nothing.
+    case appManagementRequired
     case fileNotFound
     case fileInUse
     /// The path no longer resolves to the item the user selected.
@@ -258,6 +316,7 @@ public enum ErrorCode: String, Codable, Sendable, CaseIterable {
         switch self {
         case .permissionDenied: .cleanupFailurePermissionDenied
         case .systemRestricted: .scanSkippedReasonSystemRestricted
+        case .appManagementRequired: .cleanupFailureAppManagement
         case .fileNotFound: .cleanupFailureFileNotFound
         case .fileInUse: .cleanupFailureFileInUse
         case .itemChanged: .cleanupFailureItemChanged
@@ -278,6 +337,7 @@ public enum ErrorCode: String, Codable, Sendable, CaseIterable {
     public var suggestedAction: ErrorAction? {
         switch self {
         case .permissionDenied: .openSystemSettings
+        case .appManagementRequired: .openAppManagement
         case .volumeUnavailable: .retry
         case .itemChanged: .retry
         case .partialFailure: .retry
@@ -291,12 +351,15 @@ public enum ErrorCode: String, Codable, Sendable, CaseIterable {
 /// The action a failed operation offers.
 public enum ErrorAction: Sendable, Equatable {
     case openSystemSettings
+    /// Opens Privacy & Security → App Management, the switch that governs
+    /// moving another developer's application bundle.
+    case openAppManagement
     case retry
     case quitApp
 
     public var titleKey: LocalizationKey {
         switch self {
-        case .openSystemSettings: .permissionOpenSettings
+        case .openSystemSettings, .openAppManagement: .permissionOpenSettings
         case .retry: .commonRetry
         case .quitApp: .commonQuitApp
         }

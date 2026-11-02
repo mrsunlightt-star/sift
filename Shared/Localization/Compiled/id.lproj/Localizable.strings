@@ -64,6 +64,7 @@
 "cleanup.explanation.systemLogsItem" = "File log sistem yang usang. Membaca sebagiannya memerlukan Akses Disk Penuh.";
 "cleanup.explanation.temporary" = "File sementara yang ditinggalkan aplikasi.";
 "cleanup.explanation.xcodeArchives" = "Build yang diarsipkan. Proyek dapat diarsipkan ulang, tetapi arsip ini tidak dapat dipulihkan.";
+"cleanup.failure.appManagement" = "Perlu izin Pengelolaan App";
 "cleanup.failure.fileInUse" = "Sedang digunakan, dilewati";
 "cleanup.failure.fileNotFound" = "Sudah dihapus";
 "cleanup.failure.itemChanged" = "Berubah, dilewati";
@@ -75,6 +76,7 @@
 "cleanup.preparing.title" = "Memeriksa item";
 "cleanup.result.details" = "Detail item";
 "cleanup.result.exportReport" = "Ekspor laporan sebagai PDF";
+"cleanup.result.keptInPlace" = "%d item tetap di tempatnya — tidak ada yang hilang.";
 "cleanup.result.moved" = "%d item dipindahkan ke Tempat Sampah";
 "cleanup.result.moved.one" = "%d item dipindahkan ke Tempat Sampah";
 "cleanup.result.reclaimAfterEmpty" = "Ruang tersedia bertambah %@ setelah Anda mengosongkan Tempat Sampah";
@@ -83,6 +85,8 @@
 "cleanup.result.showTrash" = "Tampilkan Tempat Sampah di Finder";
 "cleanup.result.stopped" = "Dihentikan setelah %d item";
 "cleanup.result.title" = "Pembersihan selesai";
+"cleanup.result.titleFailed" = "Tidak ada yang dipindahkan";
+"cleanup.result.titlePartial" = "Selesai sebagian";
 "cleanup.result.undoAction" = "Urungkan pembersihan ini";
 "cleanup.result.undoHint" = "Kembalikan item dari Tempat Sampah sampai Anda mengosongkannya.";
 "cleanup.result.undoUnavailable" = "Tidak dapat diurungkan: Tempat Sampah telah dikosongkan atau item berada di disk lain";

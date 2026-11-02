@@ -64,6 +64,7 @@
 "cleanup.explanation.systemLogsItem" = "Ficheiros de registo do sistema obsoletos. A leitura de alguns requer Acesso Total ao Disco.";
 "cleanup.explanation.temporary" = "Ficheiros temporários deixados pelas aplicações.";
 "cleanup.explanation.xcodeArchives" = "Compilações arquivadas. O projeto pode ser arquivado de novo, mas este arquivo não pode ser recuperado.";
+"cleanup.failure.appManagement" = "Precisa de permissão de gestão de apps";
 "cleanup.failure.fileInUse" = "Em utilização, ignorado";
 "cleanup.failure.fileNotFound" = "Já eliminado";
 "cleanup.failure.itemChanged" = "Alterado, ignorado";
@@ -75,6 +76,7 @@
 "cleanup.preparing.title" = "A verificar itens";
 "cleanup.result.details" = "Detalhes dos itens";
 "cleanup.result.exportReport" = "Exportar relatório em PDF";
+"cleanup.result.keptInPlace" = "%d itens ficaram onde estavam — nada foi perdido.";
 "cleanup.result.moved" = "%d itens movidos para o Lixo";
 "cleanup.result.moved.one" = "%d item movido para o Lixo";
 "cleanup.result.reclaimAfterEmpty" = "O espaço disponível aumenta %@ depois de esvaziar o Lixo";
@@ -83,6 +85,8 @@
 "cleanup.result.showTrash" = "Mostrar o Lixo no Finder";
 "cleanup.result.stopped" = "Parou após %d itens";
 "cleanup.result.title" = "Limpeza concluída";
+"cleanup.result.titleFailed" = "Nada foi movido";
+"cleanup.result.titlePartial" = "Concluído em parte";
 "cleanup.result.undoAction" = "Anular esta limpeza";
 "cleanup.result.undoHint" = "Recupere os itens do Lixo até o esvaziar.";
 "cleanup.result.undoUnavailable" = "Não é possível anular: o Lixo foi esvaziado ou o item está noutro disco";

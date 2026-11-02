@@ -64,6 +64,7 @@
 "cleanup.explanation.systemLogsItem" = "Устаревшие системные журналы. Для чтения некоторых нужен полный доступ к диску.";
 "cleanup.explanation.temporary" = "Временные файлы, оставленные приложениями.";
 "cleanup.explanation.xcodeArchives" = "Архивные сборки. Проект можно заархивировать заново, но этот архив восстановить нельзя.";
+"cleanup.failure.appManagement" = "Нужно право на управление приложениями";
 "cleanup.failure.fileInUse" = "Используется, пропущено";
 "cleanup.failure.fileNotFound" = "Уже удалено";
 "cleanup.failure.itemChanged" = "Изменено, пропущено";
@@ -75,6 +76,7 @@
 "cleanup.preparing.title" = "Проверка объектов";
 "cleanup.result.details" = "Подробности";
 "cleanup.result.exportReport" = "Экспорт отчёта в PDF";
+"cleanup.result.keptInPlace" = "Элементов осталось на месте: %d. Ничего не потеряно.";
 "cleanup.result.moved" = "Элементов перемещено: %d";
 "cleanup.result.moved.one" = "Элементов перемещено: %d";
 "cleanup.result.reclaimAfterEmpty" = "После очистки Корзины свободного места станет больше на %@";
@@ -83,6 +85,8 @@
 "cleanup.result.showTrash" = "Показать Корзину в Finder";
 "cleanup.result.stopped" = "Остановлено после %d объектов";
 "cleanup.result.title" = "Очистка завершена";
+"cleanup.result.titleFailed" = "Ничего не перемещено";
+"cleanup.result.titlePartial" = "Выполнено частично";
 "cleanup.result.undoAction" = "Отменить очистку";
 "cleanup.result.undoHint" = "Верните элементы из Корзины, пока не очистили её.";
 "cleanup.result.undoUnavailable" = "Отмена невозможна: Корзина очищена или объект на другом диске";

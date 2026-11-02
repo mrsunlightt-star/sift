@@ -64,6 +64,7 @@
 "cleanup.explanation.systemLogsItem" = "Przestarzałe dzienniki systemowe. Odczyt niektórych wymaga pełnego dostępu do dysku.";
 "cleanup.explanation.temporary" = "Pliki robocze pozostawione przez aplikacje.";
 "cleanup.explanation.xcodeArchives" = "Zarchiwizowane kompilacje. Projekt można zarchiwizować ponownie, ale tego archiwum nie da się odzyskać.";
+"cleanup.failure.appManagement" = "Wymaga uprawnienia Zarządzanie aplikacjami";
 "cleanup.failure.fileInUse" = "W użyciu, pominięto";
 "cleanup.failure.fileNotFound" = "Już usunięto";
 "cleanup.failure.itemChanged" = "Zmieniono, pominięto";
@@ -75,6 +76,7 @@
 "cleanup.preparing.title" = "Sprawdzanie elementów";
 "cleanup.result.details" = "Szczegóły elementów";
 "cleanup.result.exportReport" = "Wyeksportuj raport jako PDF";
+"cleanup.result.keptInPlace" = "%d elementów pozostało na miejscu — nic nie zginęło.";
 "cleanup.result.moved" = "%d elementów przeniesiono do Kosza";
 "cleanup.result.moved.one" = "%d elementów przeniesiono do Kosza";
 "cleanup.result.reclaimAfterEmpty" = "Po opróżnieniu Kosza wolne miejsce wzrośnie o %@";
@@ -83,6 +85,8 @@
 "cleanup.result.showTrash" = "Pokaż Kosz w Finderze";
 "cleanup.result.stopped" = "Zatrzymano po %d elementach";
 "cleanup.result.title" = "Czyszczenie zakończone";
+"cleanup.result.titleFailed" = "Nie przeniesiono żadnego elementu";
+"cleanup.result.titlePartial" = "Ukończono częściowo";
 "cleanup.result.undoAction" = "Cofnij to czyszczenie";
 "cleanup.result.undoHint" = "Przywróć elementy z Kosza, dopóki go nie opróżnisz.";
 "cleanup.result.undoUnavailable" = "Nie można cofnąć: Kosz został opróżniony lub element jest na innym dysku";

@@ -64,6 +64,7 @@
 "cleanup.explanation.systemLogsItem" = "Παλιά αρχεία καταγραφής συστήματος. Για την ανάγνωση ορισμένων απαιτείται Πλήρης πρόσβαση στον δίσκο.";
 "cleanup.explanation.temporary" = "Προσωρινά αρχεία εργασίας που αφήνουν οι εφαρμογές.";
 "cleanup.explanation.xcodeArchives" = "Αρχειοθετημένα builds. Το έργο μπορεί να αρχειοθετηθεί ξανά, αλλά αυτό το αρχείο δεν ανακτάται.";
+"cleanup.failure.appManagement" = "Απαιτείται άδεια διαχείρισης εφαρμογών";
 "cleanup.failure.fileInUse" = "Σε χρήση, παραλείφθηκε";
 "cleanup.failure.fileNotFound" = "Έχει ήδη αφαιρεθεί";
 "cleanup.failure.itemChanged" = "Άλλαξε, παραλείφθηκε";
@@ -75,6 +76,7 @@
 "cleanup.preparing.title" = "Έλεγχος στοιχείων";
 "cleanup.result.details" = "Λεπτομέρειες στοιχείων";
 "cleanup.result.exportReport" = "Εξαγωγή αναφοράς ως PDF";
+"cleanup.result.keptInPlace" = "%d στοιχεία έμειναν στη θέση τους — τίποτα δεν χάθηκε.";
 "cleanup.result.moved" = "%d στοιχεία μετακινήθηκαν στον Κάδο";
 "cleanup.result.moved.one" = "%d στοιχείο μετακινήθηκε στον Κάδο";
 "cleanup.result.reclaimAfterEmpty" = "Ο διαθέσιμος χώρος αυξάνεται κατά %@ μόλις αδειάσετε τον Κάδο";
@@ -83,6 +85,8 @@
 "cleanup.result.showTrash" = "Εμφάνιση Κάδου στο Finder";
 "cleanup.result.stopped" = "Σταμάτησε μετά από %d στοιχεία";
 "cleanup.result.title" = "Ο καθαρισμός ολοκληρώθηκε";
+"cleanup.result.titleFailed" = "Δεν μετακινήθηκε τίποτα";
+"cleanup.result.titlePartial" = "Ολοκληρώθηκε μερικώς";
 "cleanup.result.undoAction" = "Αναίρεση αυτού του καθαρισμού";
 "cleanup.result.undoHint" = "Επαναφέρετε τα στοιχεία από τον Κάδο μέχρι να τον αδειάσετε.";
 "cleanup.result.undoUnavailable" = "Δεν είναι δυνατή η αναίρεση: ο Κάδος άδειασε ή το στοιχείο βρίσκεται σε άλλο δίσκο";

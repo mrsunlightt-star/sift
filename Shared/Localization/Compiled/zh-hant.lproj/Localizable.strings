@@ -64,6 +64,7 @@
 "cleanup.explanation.systemLogsItem" = "過期的系統記錄檔案。讀取其中一部分需要「完全磁碟存取權限」。";
 "cleanup.explanation.temporary" = "應用程式留下的暫存檔案。";
 "cleanup.explanation.xcodeArchives" = "封存的建置產物。專案可以重新封存，但這份封存無法復原。";
+"cleanup.failure.appManagement" = "需要在「應用程式管理」中允許 Sift 修改應用程式";
 "cleanup.failure.fileInUse" = "使用中，略過";
 "cleanup.failure.fileNotFound" = "已被移除";
 "cleanup.failure.itemChanged" = "已變更，略過";
@@ -75,6 +76,7 @@
 "cleanup.preparing.title" = "正在核對項目";
 "cleanup.result.details" = "項目明細";
 "cleanup.result.exportReport" = "將報告輸出為 PDF";
+"cleanup.result.keptInPlace" = "%d 個項目仍留在原處，沒有遺失任何內容。";
 "cleanup.result.moved" = "%d 個項目已移入垃圾桶";
 "cleanup.result.moved.one" = "%d 個項目已移入垃圾桶";
 "cleanup.result.reclaimAfterEmpty" = "清空垃圾桶後，可用空間會增加 %@";
@@ -83,6 +85,8 @@
 "cleanup.result.showTrash" = "在 Finder 中查看垃圾桶";
 "cleanup.result.stopped" = "已停止，共處理 %d 項";
 "cleanup.result.title" = "清理完成";
+"cleanup.result.titleFailed" = "沒有項目被移動";
+"cleanup.result.titlePartial" = "部分完成";
 "cleanup.result.undoAction" = "還原這次清理";
 "cleanup.result.undoHint" = "在清空垃圾桶之前，你可以隨時還原這些項目。";
 "cleanup.result.undoUnavailable" = "無法復原：垃圾桶已清空，或項目位於其他磁碟";

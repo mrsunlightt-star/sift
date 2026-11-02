@@ -64,6 +64,7 @@
 "cleanup.explanation.systemLogsItem" = "过期的系统日志文件。读取其中一部分需要“完全磁盘访问权限”。";
 "cleanup.explanation.temporary" = "应用留下的临时文件。";
 "cleanup.explanation.xcodeArchives" = "归档的构建产物。项目可以重新归档，但这份归档无法恢复。";
+"cleanup.failure.appManagement" = "需要在“应用管理”中允许 Sift 修改应用";
 "cleanup.failure.fileInUse" = "应用占用中，未处理";
 "cleanup.failure.fileNotFound" = "已被移除";
 "cleanup.failure.itemChanged" = "文件已变动，未处理";
@@ -75,6 +76,7 @@
 "cleanup.preparing.title" = "正在检查项目";
 "cleanup.result.details" = "项目明细";
 "cleanup.result.exportReport" = "导出报告为 PDF";
+"cleanup.result.keptInPlace" = "%d 个项目仍留在原处，没有丢失任何内容。";
 "cleanup.result.moved" = "%d 个项目已移入废纸篓";
 "cleanup.result.moved.one" = "%d 个项目已移入废纸篓";
 "cleanup.result.reclaimAfterEmpty" = "清空废纸篓后，可用空间增加 %@";
@@ -83,6 +85,8 @@
 "cleanup.result.showTrash" = "在访达中查看废纸篓";
 "cleanup.result.stopped" = "已停止，共移入 %d 项";
 "cleanup.result.title" = "清理完成";
+"cleanup.result.titleFailed" = "没有项目被移动";
+"cleanup.result.titlePartial" = "部分完成";
 "cleanup.result.undoAction" = "撤销这次清理";
 "cleanup.result.undoHint" = "在清空废纸篓之前，你可以随时恢复这些项目。";
 "cleanup.result.undoUnavailable" = "无法撤销：废纸篓已清空，或项目位于另一个磁盘";

@@ -64,6 +64,7 @@
 "cleanup.explanation.systemLogsItem" = "Föråldrade systemloggar. Att läsa vissa av dem kräver fullskivåtkomst.";
 "cleanup.explanation.temporary" = "Tillfälliga filer som lämnats kvar av appar.";
 "cleanup.explanation.xcodeArchives" = "Arkiverade byggen. Projektet kan arkiveras igen, men detta arkiv kan inte återställas.";
+"cleanup.failure.appManagement" = "Kräver behörigheten Apphantering";
 "cleanup.failure.fileInUse" = "Används, överhoppad";
 "cleanup.failure.fileNotFound" = "Redan borttagna";
 "cleanup.failure.itemChanged" = "Ändrad, överhoppad";
@@ -75,6 +76,7 @@
 "cleanup.preparing.title" = "Kontrollerar objekt";
 "cleanup.result.details" = "Objektdetaljer";
 "cleanup.result.exportReport" = "Exportera rapport som PDF";
+"cleanup.result.keptInPlace" = "%d objekt ligger kvar — inget gick förlorat.";
 "cleanup.result.moved" = "%d objekt flyttade till Papperskorgen";
 "cleanup.result.moved.one" = "%d objekt flyttade till Papperskorgen";
 "cleanup.result.reclaimAfterEmpty" = "Ledigt utrymme ökar med %@ när du tömmer Papperskorgen";
@@ -83,6 +85,8 @@
 "cleanup.result.showTrash" = "Visa Papperskorgen i Finder";
 "cleanup.result.stopped" = "Stoppades efter %d objekt";
 "cleanup.result.title" = "Rensning klar";
+"cleanup.result.titleFailed" = "Inget flyttades";
+"cleanup.result.titlePartial" = "Delvis slutfört";
 "cleanup.result.undoAction" = "Ångra den här rensningen";
 "cleanup.result.undoHint" = "Lägg tillbaka objekt från Papperskorgen tills du tömmer den.";
 "cleanup.result.undoUnavailable" = "Går inte att ångra: Papperskorgen har tömts eller så ligger objektet på en annan disk";

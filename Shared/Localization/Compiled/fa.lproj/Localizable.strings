@@ -64,6 +64,7 @@
 "cleanup.explanation.systemLogsItem" = "گزارش‌های قدیمی سیستم. خواندن برخی نیاز به دسترسی کامل به دیسک دارد.";
 "cleanup.explanation.temporary" = "فایل‌های موقتی که برنامه‌ها جا گذاشته‌اند.";
 "cleanup.explanation.xcodeArchives" = "بیلدهای بایگانی‌شده. پروژه را می‌توان دوباره بایگانی کرد، اما این بایگانی قابل بازیابی نیست.";
+"cleanup.failure.appManagement" = "به مجوز مدیریت برنامه‌ها نیاز است";
 "cleanup.failure.fileInUse" = "در حال استفاده، رد شد";
 "cleanup.failure.fileNotFound" = "قبلاً حذف شده";
 "cleanup.failure.itemChanged" = "تغییر کرد، رد شد";
@@ -75,6 +76,7 @@
 "cleanup.preparing.title" = "در حال بررسی موارد";
 "cleanup.result.details" = "جزئیات موارد";
 "cleanup.result.exportReport" = "خروجی گرفتن گزارش به‌صورت PDF";
+"cleanup.result.keptInPlace" = "%d مورد در جای خود ماند — چیزی از دست نرفت.";
 "cleanup.result.moved" = "%d مورد به سطل بازیافت منتقل شد";
 "cleanup.result.moved.one" = "%d مورد به سطل بازیافت منتقل شد";
 "cleanup.result.reclaimAfterEmpty" = "پس از خالی کردن سطل بازیافت، فضای آزاد %@ بیشتر می‌شود";
@@ -83,6 +85,8 @@
 "cleanup.result.showTrash" = "نمایش سطل بازیافت در فایندر";
 "cleanup.result.stopped" = "پس از %d مورد متوقف شد";
 "cleanup.result.title" = "پاک‌سازی تمام شد";
+"cleanup.result.titleFailed" = "هیچ موردی جابه‌جا نشد";
+"cleanup.result.titlePartial" = "تا حدی انجام شد";
 "cleanup.result.undoAction" = "بازگرداندن این پاک‌سازی";
 "cleanup.result.undoHint" = "تا زمان خالی کردن سطل بازیافت می‌توانید موارد را بازگردانید.";
 "cleanup.result.undoUnavailable" = "بازگشت ممکن نیست: سطل بازیافت خالی شده یا مورد روی دیسک دیگری است";

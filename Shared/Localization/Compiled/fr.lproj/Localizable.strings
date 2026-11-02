@@ -64,6 +64,7 @@
 "cleanup.explanation.systemLogsItem" = "Journaux système obsolètes. En lire certains nécessite un accès complet au disque.";
 "cleanup.explanation.temporary" = "Fichiers temporaires laissés par les apps.";
 "cleanup.explanation.xcodeArchives" = "Compilations archivées. Le projet peut être réarchivé, mais cette archive ne peut pas être récupérée.";
+"cleanup.failure.appManagement" = "Autorisation Gestion des apps requise";
 "cleanup.failure.fileInUse" = "Utilisé, ignoré";
 "cleanup.failure.fileNotFound" = "Déjà supprimé";
 "cleanup.failure.itemChanged" = "Modifié, ignoré";
@@ -75,6 +76,7 @@
 "cleanup.preparing.title" = "Vérification des éléments";
 "cleanup.result.details" = "Détail des éléments";
 "cleanup.result.exportReport" = "Exporter le rapport en PDF";
+"cleanup.result.keptInPlace" = "%d éléments sont restés à leur place ; rien n’a été perdu.";
 "cleanup.result.moved" = "%d éléments déplacés vers la corbeille";
 "cleanup.result.moved.one" = "%d élément déplacé vers la corbeille";
 "cleanup.result.reclaimAfterEmpty" = "L’espace disponible augmentera de %@ quand vous viderez la corbeille";
@@ -83,6 +85,8 @@
 "cleanup.result.showTrash" = "Afficher la corbeille dans le Finder";
 "cleanup.result.stopped" = "Arrêté après %d éléments";
 "cleanup.result.title" = "Nettoyage terminé";
+"cleanup.result.titleFailed" = "Rien n’a été déplacé";
+"cleanup.result.titlePartial" = "Partiellement terminé";
 "cleanup.result.undoAction" = "Annuler ce nettoyage";
 "cleanup.result.undoHint" = "Restaurez les éléments depuis la corbeille tant qu’elle n’est pas vidée.";
 "cleanup.result.undoUnavailable" = "Annulation impossible : la corbeille a été vidée ou l’élément est sur un autre disque";

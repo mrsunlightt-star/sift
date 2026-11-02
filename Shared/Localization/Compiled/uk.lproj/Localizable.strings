@@ -64,6 +64,7 @@
 "cleanup.explanation.systemLogsItem" = "Застарілі системні журнали. Для читання деяких із них потрібен Повний доступ до диска.";
 "cleanup.explanation.temporary" = "Тимчасові файли, залишені програмами.";
 "cleanup.explanation.xcodeArchives" = "Архівовані збірки. Проєкт можна заархівувати знову, але цей архів відновити неможливо.";
+"cleanup.failure.appManagement" = "Потрібен дозвіл «Керування програмами»";
 "cleanup.failure.fileInUse" = "Використовується, пропущено";
 "cleanup.failure.fileNotFound" = "Уже видалено";
 "cleanup.failure.itemChanged" = "Змінено, пропущено";
@@ -75,6 +76,7 @@
 "cleanup.preparing.title" = "Перевірка елементів";
 "cleanup.result.details" = "Деталі елементів";
 "cleanup.result.exportReport" = "Експортувати звіт у PDF";
+"cleanup.result.keptInPlace" = "%d елементів залишилися на місці — нічого не втрачено.";
 "cleanup.result.moved" = "Переміщено в Кошик: %d елементів";
 "cleanup.result.moved.one" = "Переміщено в Кошик: %d елементів";
 "cleanup.result.reclaimAfterEmpty" = "Вільне місце збільшиться на %@, щойно ви спорожните Кошик";
@@ -83,6 +85,8 @@
 "cleanup.result.showTrash" = "Показати Кошик у Finder";
 "cleanup.result.stopped" = "Зупинено після %d елементів";
 "cleanup.result.title" = "Очищення завершено";
+"cleanup.result.titleFailed" = "Нічого не переміщено";
+"cleanup.result.titlePartial" = "Виконано частково";
 "cleanup.result.undoAction" = "Скасувати це очищення";
 "cleanup.result.undoHint" = "Поверніть елементи з Кошика, доки не спорожнили його.";
 "cleanup.result.undoUnavailable" = "Скасувати неможливо: Кошик спорожнено або елемент на іншому диску";

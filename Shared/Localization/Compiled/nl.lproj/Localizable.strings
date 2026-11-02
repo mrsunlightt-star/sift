@@ -64,6 +64,7 @@
 "cleanup.explanation.systemLogsItem" = "Verouderde systeemlogbestanden. Sommige lezen vereist Volledige Schijftoegang.";
 "cleanup.explanation.temporary" = "Tijdelijke werkbestanden die de apps achterlieten.";
 "cleanup.explanation.xcodeArchives" = "Gearchiveerde builds. Het project kan opnieuw worden gearchiveerd, maar dit archief is niet te herstellen.";
+"cleanup.failure.appManagement" = "Vereist toestemming App-beheer";
 "cleanup.failure.fileInUse" = "In gebruik, overgeslagen";
 "cleanup.failure.fileNotFound" = "Al verwijderd";
 "cleanup.failure.itemChanged" = "Gewijzigd, overgeslagen";
@@ -75,6 +76,7 @@
 "cleanup.preparing.title" = "Items controleren";
 "cleanup.result.details" = "Itemdetails";
 "cleanup.result.exportReport" = "Rapport als PDF exporteren";
+"cleanup.result.keptInPlace" = "%d items staan nog waar ze stonden; er is niets verloren.";
 "cleanup.result.moved" = "%d items naar de Prullenbak verplaatst";
 "cleanup.result.moved.one" = "%d item naar de Prullenbak verplaatst";
 "cleanup.result.reclaimAfterEmpty" = "De vrije ruimte groeit met %@ zodra je de Prullenbak leegt";
@@ -83,6 +85,8 @@
 "cleanup.result.showTrash" = "Toon de Prullenbak in de Finder";
 "cleanup.result.stopped" = "Gestopt na %d items";
 "cleanup.result.title" = "Opruimen voltooid";
+"cleanup.result.titleFailed" = "Niets verplaatst";
+"cleanup.result.titlePartial" = "Gedeeltelijk voltooid";
 "cleanup.result.undoAction" = "Deze opruiming ongedaan maken";
 "cleanup.result.undoHint" = "Zet items terug uit de Prullenbak totdat je die leegt.";
 "cleanup.result.undoUnavailable" = "Ongedaan maken kan niet: de Prullenbak is geleegd of het item staat op een andere schijf";

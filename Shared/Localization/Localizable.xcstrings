@@ -13231,6 +13231,216 @@
         }
       }
     },
+    "cleanup.failure.appManagement": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Needs App Management permission"
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要在“应用管理”中允许 Sift 修改应用"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "앱 관리 권한 필요"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нужно право на управление приложениями"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Necesita permiso de gestión de apps"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アプリ管理の許可が必要"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autorisation Gestion des apps requise"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App-Verwaltung nötig"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Serve l’autorizzazione Gestione app"
+          }
+        },
+        "pt-br": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Precisa de permissão de gestão de apps"
+          }
+        },
+        "zh-hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要在「應用程式管理」中允許 Sift 修改應用程式"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uygulama Yönetimi izni gerekiyor"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wymaga uprawnienia Zarządzanie aplikacjami"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vereist toestemming App-beheer"
+          }
+        },
+        "lo": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ຕ້ອງການສິດຈັດການແອັບ"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يلزم إذن إدارة التطبيقات"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "נדרשת הרשאת ניהול יישומים"
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "به مجوز مدیریت برنامه‌ها نیاز است"
+          }
+        },
+        "bg": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нужно право за управление на приложения"
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vyžaduje oprávnění Správa aplikací"
+          }
+        },
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kræver tilladelse til App-administration"
+          }
+        },
+        "el": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Απαιτείται άδεια διαχείρισης εφαρμογών"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Necesita permiso de gestión de apps"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vaatii sovellusten hallinnan luvan"
+          }
+        },
+        "hu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alkalmazáskezelési engedély szükséges"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Perlu izin Pengelolaan App"
+          }
+        },
+        "ms": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Perlukan kebenaran Pengurusan App"
+          }
+        },
+        "nb": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trenger tillatelse for appadministrasjon"
+          }
+        },
+        "pt-pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Precisa de permissão de gestão de apps"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Necesită permisiunea Gestionare aplicații"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kräver behörigheten Apphantering"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ต้องได้รับอนุญาตการจัดการแอป"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Потрібен дозвіл «Керування програмами»"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cần quyền Quản lý ứng dụng"
+          }
+        }
+      }
+    },
     "cleanup.failure.fileInUse": {
       "comment": null,
       "extractionState": "manual",
@@ -15541,6 +15751,216 @@
         }
       }
     },
+    "cleanup.result.keptInPlace": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d items stayed where they were — nothing was lost."
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d 个项目仍留在原处，没有丢失任何内容。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d개 항목이 원래 위치에 남아 있습니다. 잃은 항목은 없습니다."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Элементов осталось на месте: %d. Ничего не потеряно."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d elementos siguen en su sitio; no se perdió nada."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d 個は元の場所に残っています。失われたものはありません。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d éléments sont restés à leur place ; rien n’a été perdu."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d Einträge blieben, wo sie waren – nichts ist verloren."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d elementi sono rimasti dove erano: non è andato perso nulla."
+          }
+        },
+        "pt-br": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d itens ficaram onde estavam; nada foi perdido."
+          }
+        },
+        "zh-hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d 個項目仍留在原處，沒有遺失任何內容。"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d öğe yerinde kaldı; hiçbir şey kaybolmadı."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d elementów pozostało na miejscu — nic nie zginęło."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d items staan nog waar ze stonden; er is niets verloren."
+          }
+        },
+        "lo": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d ລາຍການຍັງຢູ່ບ່ອນເດີມ — ບໍ່ມີຫຍັງສູນຫາຍ."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "بقي %d عنصرًا في مكانه — لم يُفقد شيء."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "‏%d פריטים נשארו במקומם — דבר לא אבד."
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d مورد در جای خود ماند — چیزی از دست نرفت."
+          }
+        },
+        "bg": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d елемента останаха на мястото си — нищо не е загубено."
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d položek zůstalo na místě — nic se neztratilo."
+          }
+        },
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d elementer blev liggende — intet gik tabt."
+          }
+        },
+        "el": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d στοιχεία έμειναν στη θέση τους — τίποτα δεν χάθηκε."
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d elementos siguen en su sitio; no se perdió nada."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d kohdetta jäi paikoilleen — mitään ei menetetty."
+          }
+        },
+        "hu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d elem a helyén maradt — semmi nem veszett el."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d item tetap di tempatnya — tidak ada yang hilang."
+          }
+        },
+        "ms": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d item kekal di tempatnya — tiada yang hilang."
+          }
+        },
+        "nb": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d elementer ble liggende — ingenting gikk tapt."
+          }
+        },
+        "pt-pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d itens ficaram onde estavam — nada foi perdido."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d elemente au rămas la locul lor — nimic nu s-a pierdut."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d objekt ligger kvar — inget gick förlorat."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d รายการยังอยู่ที่เดิม ไม่มีอะไรสูญหาย"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d елементів залишилися на місці — нічого не втрачено."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d mục vẫn ở nguyên vị trí — không mất gì."
+          }
+        }
+      }
+    },
     "cleanup.result.moved": {
       "comment": null,
       "extractionState": "manual",
@@ -17217,6 +17637,426 @@
           "stringUnit": {
             "state": "translated",
             "value": "Dọn dẹp xong"
+          }
+        }
+      }
+    },
+    "cleanup.result.titleFailed": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing was moved"
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有项目被移动"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이동된 항목 없음"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ничего не перемещено"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se movió nada"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移動できた項目はありません"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rien n’a été déplacé"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nichts wurde verschoben"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nessun elemento spostato"
+          }
+        },
+        "pt-br": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nada foi movido"
+          }
+        },
+        "zh-hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "沒有項目被移動"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hiçbir öğe taşınmadı"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nie przeniesiono żadnego elementu"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Niets verplaatst"
+          }
+        },
+        "lo": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ບໍ່ມີລາຍການໃດຖືກຍ້າຍ"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لم يُنقل أي عنصر"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "לא הועבר דבר"
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "هیچ موردی جابه‌جا نشد"
+          }
+        },
+        "bg": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нищо не е преместено"
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nic nebylo přesunuto"
+          }
+        },
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Intet blev flyttet"
+          }
+        },
+        "el": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Δεν μετακινήθηκε τίποτα"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se movió nada"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mitään ei siirretty"
+          }
+        },
+        "hu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Semmi nem került át"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tidak ada yang dipindahkan"
+          }
+        },
+        "ms": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tiada apa dipindahkan"
+          }
+        },
+        "nb": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ingenting ble flyttet"
+          }
+        },
+        "pt-pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nada foi movido"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nimic nu a fost mutat"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inget flyttades"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ไม่มีรายการที่ถูกย้าย"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нічого не переміщено"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Không có mục nào được di chuyển"
+          }
+        }
+      }
+    },
+    "cleanup.result.titlePartial": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Partially completed"
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "部分完成"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "일부 완료"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выполнено частично"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Completado en parte"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一部完了"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Partiellement terminé"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Teilweise abgeschlossen"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Completato parzialmente"
+          }
+        },
+        "pt-br": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Concluído em parte"
+          }
+        },
+        "zh-hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "部分完成"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kısmen tamamlandı"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ukończono częściowo"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gedeeltelijk voltooid"
+          }
+        },
+        "lo": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ສຳເລັດບາງສ່ວນ"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اكتمل جزئيًا"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "הושלם חלקית"
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تا حدی انجام شد"
+          }
+        },
+        "bg": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Частично завършено"
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Částečně dokončeno"
+          }
+        },
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delvist fuldført"
+          }
+        },
+        "el": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ολοκληρώθηκε μερικώς"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Completado en parte"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Osittain valmis"
+          }
+        },
+        "hu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Részben kész"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Selesai sebagian"
+          }
+        },
+        "ms": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Selesai sebahagian"
+          }
+        },
+        "nb": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delvis fullført"
+          }
+        },
+        "pt-pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Concluído em parte"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finalizat parțial"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delvis slutfört"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เสร็จบางส่วน"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Виконано частково"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hoàn tất một phần"
           }
         }
       }

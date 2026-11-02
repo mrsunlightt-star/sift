@@ -454,6 +454,39 @@ final class FileOperationTests: XCTestCase, @unchecked Sendable {
         XCTAssertEqual(verdict.ready.count, 1)
     }
 
+    /// A refused move of an application bundle is the App Management gate.
+    ///
+    /// Measured on this machine: `rename` of `/Applications/CapCut.app` returns
+    /// `EACCES`, while a plain file in the same directory renames fine — the
+    /// refusal follows the bundle, not the folder. Full Disk Access is not the
+    /// switch that lifts it, so the row must not offer that list.
+    func test_aRefusedMoveOfAnApplicationBundleAsksForAppManagement() {
+        let posix = NSError(domain: NSPOSIXErrorDomain, code: Int(EACCES))
+        let bundle = URL(fileURLWithPath: "/Applications/CapCut.app")
+        XCTAssertEqual(FileOperationService.classify(posix, at: bundle), .appManagementRequired)
+
+        let cocoa = NSError(domain: NSCocoaErrorDomain, code: NSFileWriteNoPermissionError)
+        XCTAssertEqual(FileOperationService.classify(cocoa, at: bundle), .appManagementRequired)
+
+        // The same refusal for something that is not a bundle keeps its meaning:
+        // a folder permission and an application-management denial are lifted by
+        // different switches.
+        let folder = URL(fileURLWithPath: "/Library/Application Support/Apple/AssetCache/Data")
+        XCTAssertEqual(FileOperationService.classify(posix, at: folder), .permissionDenied)
+        XCTAssertEqual(
+            FileOperationService.classify(posix, at: URL(fileURLWithPath: "/Applications/CapCut.app/Contents")),
+            .permissionDenied
+        )
+    }
+
+    /// The bundle test is the suffix, whatever case it is written in.
+    func test_anApplicationBundleIsRecognisedByItsSuffix() {
+        XCTAssertTrue(FileOperationService.isApplicationBundle(URL(fileURLWithPath: "/Applications/CapCut.app")))
+        XCTAssertTrue(FileOperationService.isApplicationBundle(URL(fileURLWithPath: "/Volumes/Data/Apps/Notes.APP")))
+        XCTAssertFalse(FileOperationService.isApplicationBundle(URL(fileURLWithPath: "/Applications/CapCut")))
+        XCTAssertFalse(FileOperationService.isApplicationBundle(URL(fileURLWithPath: "/Applications/app.plist")))
+    }
+
     func test_errorClassificationMapsToTheProductTable() {
         let cocoa = NSError(domain: NSCocoaErrorDomain, code: NSFileReadNoPermissionError)
         XCTAssertEqual(FileOperationService.classify(cocoa), .permissionDenied)

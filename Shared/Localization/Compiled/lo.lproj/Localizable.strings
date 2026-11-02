@@ -64,6 +64,7 @@
 "cleanup.explanation.systemLogsItem" = "ໄຟລ໌ບັນທຶກລະບົບເກົ່າ. ບາງອັນຕ້ອງມີສິດເຂົ້າເຖິງດິສກ໌ຢ່າງເຕັມສ່ວນຈຶ່ງອ່ານໄດ້.";
 "cleanup.explanation.temporary" = "ໄຟລ໌ຊົ່ວຄາວທີ່ແອັບທິ້ງໄວ້.";
 "cleanup.explanation.xcodeArchives" = "ບິວທີ່ເກັບໄວ້. ໂປເຈັກສາມາດເກັບຄືນໃໝ່ໄດ້ ແຕ່ບິວທີ່ເກັບໄວ້ນີ້ກູ້ຄືນບໍ່ໄດ້.";
+"cleanup.failure.appManagement" = "ຕ້ອງການສິດຈັດການແອັບ";
 "cleanup.failure.fileInUse" = "ກຳລັງໃຊ້ຢູ່, ຂ້າມໄປ";
 "cleanup.failure.fileNotFound" = "ຖືກລຶບໄປແລ້ວ";
 "cleanup.failure.itemChanged" = "ມີການປ່ຽນແປງ, ຂ້າມໄປ";
@@ -75,6 +76,7 @@
 "cleanup.preparing.title" = "ກຳລັງກວດລາຍການ";
 "cleanup.result.details" = "ລາຍລະອຽດຂອງລາຍການ";
 "cleanup.result.exportReport" = "ສົ່ງອອກລາຍງານເປັນ PDF";
+"cleanup.result.keptInPlace" = "%d ລາຍການຍັງຢູ່ບ່ອນເດີມ — ບໍ່ມີຫຍັງສູນຫາຍ.";
 "cleanup.result.moved" = "ຍ້າຍ %d ລາຍການໄປຖັງຂີ້ເຫຍື້ອແລ້ວ";
 "cleanup.result.moved.one" = "ຍ້າຍ %d ລາຍການໄປຖັງຂີ້ເຫຍື້ອແລ້ວ";
 "cleanup.result.reclaimAfterEmpty" = "ພື້ນທີ່ຫວ່າງຈະເພີ່ມຂຶ້ນ %@ ເມື່ອລ້າງຖັງຂີ້ເຫຍື້ອ";
@@ -83,6 +85,8 @@
 "cleanup.result.showTrash" = "ເບິ່ງຖັງຂີ້ເຫຍື້ອໃນ Finder";
 "cleanup.result.stopped" = "ຢຸດຫຼັງຈາກ %d ລາຍການ";
 "cleanup.result.title" = "ການລ້າງສຳເລັດແລ້ວ";
+"cleanup.result.titleFailed" = "ບໍ່ມີລາຍການໃດຖືກຍ້າຍ";
+"cleanup.result.titlePartial" = "ສຳເລັດບາງສ່ວນ";
 "cleanup.result.undoAction" = "ຍ້ອນກັບການລ້າງນີ້";
 "cleanup.result.undoHint" = "ກູ້ລາຍການຄືນຈາກຖັງຂີ້ເຫຍື້ອໄດ້ ຈົນກວ່າຈະລ້າງຖັງ.";
 "cleanup.result.undoUnavailable" = "ຍ້ອນກັບບໍ່ໄດ້: ຖັງຂີ້ເຫຍື້ອຖືກລ້າງແລ້ວ ຫຼື ລາຍການຢູ່ດິສກ໌ອື່ນ";

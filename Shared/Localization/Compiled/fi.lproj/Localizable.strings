@@ -64,6 +64,7 @@
 "cleanup.explanation.systemLogsItem" = "Vanhentuneet järjestelmän lokitiedostot. Joidenkin lukeminen vaatii täyden levynkäyttöoikeuden.";
 "cleanup.explanation.temporary" = "Sovellusten jälkeensä jättämät väliaikaistiedostot.";
 "cleanup.explanation.xcodeArchives" = "Arkistoidut buildit. Projektin voi arkistoida uudelleen, mutta tätä arkistoa ei voi palauttaa.";
+"cleanup.failure.appManagement" = "Vaatii sovellusten hallinnan luvan";
 "cleanup.failure.fileInUse" = "Käytössä, ohitettu";
 "cleanup.failure.fileNotFound" = "Jo poistettu";
 "cleanup.failure.itemChanged" = "Muuttunut, ohitettu";
@@ -75,6 +76,7 @@
 "cleanup.preparing.title" = "Tarkistetaan kohteita";
 "cleanup.result.details" = "Kohteen tiedot";
 "cleanup.result.exportReport" = "Vie raportti PDF:nä";
+"cleanup.result.keptInPlace" = "%d kohdetta jäi paikoilleen — mitään ei menetetty.";
 "cleanup.result.moved" = "%d kohdetta siirretty Roskakoriin";
 "cleanup.result.moved.one" = "%d kohde siirretty Roskakoriin";
 "cleanup.result.reclaimAfterEmpty" = "Vapaa tila kasvaa %@, kun tyhjennät Roskakorin";
@@ -83,6 +85,8 @@
 "cleanup.result.showTrash" = "Näytä Roskakori Finderissä";
 "cleanup.result.stopped" = "Pysäytetty %d kohteen jälkeen";
 "cleanup.result.title" = "Siivous valmis";
+"cleanup.result.titleFailed" = "Mitään ei siirretty";
+"cleanup.result.titlePartial" = "Osittain valmis";
 "cleanup.result.undoAction" = "Kumoa tämä siivous";
 "cleanup.result.undoHint" = "Palauta kohteita Roskakorista, kunnes tyhjennät sen.";
 "cleanup.result.undoUnavailable" = "Ei voi kumota: Roskakori on tyhjennetty tai kohde on toisella levyllä";

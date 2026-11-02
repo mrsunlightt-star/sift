@@ -64,6 +64,7 @@
 "cleanup.explanation.systemLogsItem" = "Stale system log files. Reading some of them needs Full Disk Access.";
 "cleanup.explanation.temporary" = "Scratch files left behind by apps.";
 "cleanup.explanation.xcodeArchives" = "Archived builds. A project can be archived again, but this archive cannot be recovered.";
+"cleanup.failure.appManagement" = "Needs App Management permission";
 "cleanup.failure.fileInUse" = "In use, skipped";
 "cleanup.failure.fileNotFound" = "Already removed";
 "cleanup.failure.itemChanged" = "Changed, skipped";
@@ -75,6 +76,7 @@
 "cleanup.preparing.title" = "Checking items";
 "cleanup.result.details" = "Item details";
 "cleanup.result.exportReport" = "Export report as PDF";
+"cleanup.result.keptInPlace" = "%d items stayed where they were — nothing was lost.";
 "cleanup.result.moved" = "%d items moved to Trash";
 "cleanup.result.moved.one" = "%d item moved to Trash";
 "cleanup.result.reclaimAfterEmpty" = "Available space grows by %@ once you empty the Trash";
@@ -83,6 +85,8 @@
 "cleanup.result.showTrash" = "Show Trash in Finder";
 "cleanup.result.stopped" = "Stopped after %d items";
 "cleanup.result.title" = "Cleanup finished";
+"cleanup.result.titleFailed" = "Nothing was moved";
+"cleanup.result.titlePartial" = "Partially completed";
 "cleanup.result.undoAction" = "Undo this cleanup";
 "cleanup.result.undoHint" = "Put items back from the Trash until you empty it.";
 "cleanup.result.undoUnavailable" = "Can't undo: the Trash was emptied or the item is on another disk";

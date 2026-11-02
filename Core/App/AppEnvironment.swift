@@ -985,6 +985,36 @@ public final class AppEnvironment: ObservableObject {
         return await finishUninstall(outcome)
     }
 
+    /// Re-runs the rows an uninstall could not move.
+    ///
+    /// The common failure is a refusal the user can lift — an application
+    /// bundle needs App Management, a running application needs to quit — and
+    /// without this the only way to act on the page's own advice was to find the
+    /// application again, select it and start over. The retried set is the
+    /// approved one minus what already moved: nothing is re-described and
+    /// nothing new is added.
+    public func retryUninstall(_ results: [FileOperationResult]) async -> OperationGateResult {
+        guard beginDestructiveOperation() else { return .busy }
+        defer { endDestructiveOperation() }
+
+        guard await entitlements.allows(.uninstallApplications) else { return .purchaseRequired }
+        let items = results.map(\.retryItem)
+        guard !items.isEmpty else { return .nothingToDo }
+
+        let operations = self.operations
+        let verdict = await operations.preflight(
+            items.map(FileOperationService.Candidate.init(item:)),
+            intent: .uninstall
+        )
+        guard let plan = verdict.makeApprovedPlan(operation: .uninstall) else {
+            // Everything is still refused. The caller keeps the previous outcome
+            // on screen rather than showing an empty batch that moved nothing.
+            return .nothingToDo
+        }
+        let outcome = await operations.execute(plan)
+        return await finishUninstall(outcome)
+    }
+
     /// Stores and reports an uninstall outcome.
     private func finishUninstall(_ outcome: CleanupOutcome) async -> OperationGateResult {
         var report: CleanupReport?

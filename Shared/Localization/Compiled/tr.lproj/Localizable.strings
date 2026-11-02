@@ -64,6 +64,7 @@
 "cleanup.explanation.systemLogsItem" = "Eski sistem günlük dosyaları. Bazılarını okumak Tam Disk Erişimi gerektirir.";
 "cleanup.explanation.temporary" = "Uygulamaların geride bıraktığı geçici dosyalar.";
 "cleanup.explanation.xcodeArchives" = "Arşivlenmiş derlemeler. Proje yeniden arşivlenebilir, ancak bu arşiv geri getirilemez.";
+"cleanup.failure.appManagement" = "Uygulama Yönetimi izni gerekiyor";
 "cleanup.failure.fileInUse" = "Kullanımda, atlandı";
 "cleanup.failure.fileNotFound" = "Zaten kaldırılmış";
 "cleanup.failure.itemChanged" = "Değişti, atlandı";
@@ -75,6 +76,7 @@
 "cleanup.preparing.title" = "Öğeler kontrol ediliyor";
 "cleanup.result.details" = "Öğe ayrıntıları";
 "cleanup.result.exportReport" = "Raporu PDF olarak dışa aktar";
+"cleanup.result.keptInPlace" = "%d öğe yerinde kaldı; hiçbir şey kaybolmadı.";
 "cleanup.result.moved" = "%d öğe Çöp Sepeti’ne taşındı";
 "cleanup.result.moved.one" = "%d öğe Çöp Sepeti’ne taşındı";
 "cleanup.result.reclaimAfterEmpty" = "Çöp Sepeti’ni boşalttığınızda kullanılabilir alan %@ artar";
@@ -83,6 +85,8 @@
 "cleanup.result.showTrash" = "Çöp Sepeti’ni Finder’da göster";
 "cleanup.result.stopped" = "%d öğeden sonra durduruldu";
 "cleanup.result.title" = "Temizlik tamamlandı";
+"cleanup.result.titleFailed" = "Hiçbir öğe taşınmadı";
+"cleanup.result.titlePartial" = "Kısmen tamamlandı";
 "cleanup.result.undoAction" = "Bu temizliği geri al";
 "cleanup.result.undoHint" = "Çöp Sepeti’ni boşaltana kadar öğeleri geri alabilirsiniz.";
 "cleanup.result.undoUnavailable" = "Geri alınamaz: Çöp Sepeti boşaltıldı veya öğe başka bir diskte";

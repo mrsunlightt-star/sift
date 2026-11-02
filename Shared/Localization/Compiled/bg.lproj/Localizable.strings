@@ -64,6 +64,7 @@
 "cleanup.explanation.systemLogsItem" = "Остарели системни журнали. За четенето на някои от тях е нужен Пълен достъп до диска.";
 "cleanup.explanation.temporary" = "Временни файлове, оставени от приложенията.";
 "cleanup.explanation.xcodeArchives" = "Архивирани билдове. Проектът може да бъде архивиран отново, но този архив не може да бъде възстановен.";
+"cleanup.failure.appManagement" = "Нужно право за управление на приложения";
 "cleanup.failure.fileInUse" = "Използва се, пропуснат";
 "cleanup.failure.fileNotFound" = "Вече е премахнат";
 "cleanup.failure.itemChanged" = "Променен, пропуснат";
@@ -75,6 +76,7 @@
 "cleanup.preparing.title" = "Проверка на елементите";
 "cleanup.result.details" = "Подробности за елементите";
 "cleanup.result.exportReport" = "Експортирайте отчета като PDF";
+"cleanup.result.keptInPlace" = "%d елемента останаха на мястото си — нищо не е загубено.";
 "cleanup.result.moved" = "Преместени в Кошчето: %d елемента";
 "cleanup.result.moved.one" = "%d елемент преместен в Кошчето";
 "cleanup.result.reclaimAfterEmpty" = "Свободното място се увеличава с %@, след като изпразните Кошчето";
@@ -83,6 +85,8 @@
 "cleanup.result.showTrash" = "Покажете Кошчето в Finder";
 "cleanup.result.stopped" = "Спряно след %d елемента";
 "cleanup.result.title" = "Почистването е завършено";
+"cleanup.result.titleFailed" = "Нищо не е преместено";
+"cleanup.result.titlePartial" = "Частично завършено";
 "cleanup.result.undoAction" = "Отменете това почистване";
 "cleanup.result.undoHint" = "Върнете елементите от Кошчето, докато не го изпразните.";
 "cleanup.result.undoUnavailable" = "Не може да се отмени: Кошчето е изпразнено или елементът е на друг диск";

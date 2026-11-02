@@ -135,6 +135,26 @@ final class NSWorkspaceWorker {
             NSWorkspace.shared.open(fallback)
         }
     }
+    /// Opens the App Management list, which is where moving another
+    /// developer's application bundle is allowed.
+    ///
+    /// Not the same pane as Full Disk Access and not reachable from it: App
+    /// Management governs the bundles themselves, and a user sent to the Full
+    /// Disk Access list finds no row for it and no way to grant it.
+    func openAppManagementSettings() {
+        let candidates = [
+            "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_AppBundles",
+            "x-apple.systempreferences:com.apple.preference.security?Privacy_AppBundles",
+        ]
+        for candidate in candidates {
+            if let url = URL(string: candidate), NSWorkspace.shared.open(url) {
+                return
+            }
+        }
+        if let fallback = URL(string: "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension") {
+            NSWorkspace.shared.open(fallback)
+        }
+    }
 }
 
 /// Workspace actions used by the UI, hop to the main actor internally.
@@ -158,6 +178,11 @@ public enum WorkspaceActions {
     /// Opens the Full Disk Access pane.
     @MainActor public static func openFullDiskAccessSettings() async {
         await MainActor.run { NSWorkspaceWorker.shared.openFullDiskAccessSettings() }
+    }
+
+    /// Opens the App Management pane, where moving an application is allowed.
+    @MainActor public static func openAppManagementSettings() async {
+        await MainActor.run { NSWorkspaceWorker.shared.openAppManagementSettings() }
     }
 
     /// True when an app bundle is currently running.

@@ -64,6 +64,7 @@
 "cleanup.explanation.systemLogsItem" = "Veraltete Systemprotokolle. Zum Lesen einiger ist Vollzugriff auf die Festplatte nötig.";
 "cleanup.explanation.temporary" = "Von Apps hinterlassene Temporärdateien.";
 "cleanup.explanation.xcodeArchives" = "Archivierte Builds. Das Projekt lässt sich erneut archivieren, dieses Archiv jedoch nicht wiederherstellen.";
+"cleanup.failure.appManagement" = "App-Verwaltung nötig";
 "cleanup.failure.fileInUse" = "In Verwendung, übersprungen";
 "cleanup.failure.fileNotFound" = "Bereits entfernt";
 "cleanup.failure.itemChanged" = "Geändert, übersprungen";
@@ -75,6 +76,7 @@
 "cleanup.preparing.title" = "Objekte werden geprüft";
 "cleanup.result.details" = "Eintragsdetails";
 "cleanup.result.exportReport" = "Bericht als PDF exportieren";
+"cleanup.result.keptInPlace" = "%d Einträge blieben, wo sie waren – nichts ist verloren.";
 "cleanup.result.moved" = "%d Einträge in den Papierkorb verschoben";
 "cleanup.result.moved.one" = "%d Eintrag in den Papierkorb verschoben";
 "cleanup.result.reclaimAfterEmpty" = "Der freie Speicher wächst um %@, sobald Sie den Papierkorb leeren";
@@ -83,6 +85,8 @@
 "cleanup.result.showTrash" = "Papierkorb im Finder zeigen";
 "cleanup.result.stopped" = "Nach %d Objekten gestoppt";
 "cleanup.result.title" = "Bereinigung abgeschlossen";
+"cleanup.result.titleFailed" = "Nichts wurde verschoben";
+"cleanup.result.titlePartial" = "Teilweise abgeschlossen";
 "cleanup.result.undoAction" = "Bereinigung rückgängig machen";
 "cleanup.result.undoHint" = "Holen Sie Einträge aus dem Papierkorb zurück, solange er nicht geleert ist.";
 "cleanup.result.undoUnavailable" = "Nicht rückgängig zu machen: Der Papierkorb wurde geleert oder das Objekt liegt auf einer anderen Festplatte";

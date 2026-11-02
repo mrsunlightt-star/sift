@@ -175,15 +175,40 @@ public struct CleanupResultView: View {
                     .foregroundStyle(SiftColor.textColor(for: outcome.hasFailures ? .review : .safe))
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(LocalizationKey.cleanupResultTitle.localized)
+                    // The title states the outcome, not the fact that the page
+                    // opened. "Cleanup finished" above a 2 GB application that
+                    // refused to move is a sentence the user has to argue with;
+                    // the warning icon alone did not say which half was true.
+                    Text(resultTitle.localized)
                         .siftFont(.display)
-                    Text(LocalizationKey.cleanupResultUndoHint.localized)
+                    Text(resultSubtitle)
                         .font(SiftFont.body)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
         }
+    }
+
+    /// "Cleanup finished", "Partially completed" or "Nothing was moved".
+    ///
+    /// The decision lives in `CleanupOutcome.headline` so it is asserted by a
+    /// test instead of being a property of a view body.
+    private var resultTitle: LocalizationKey {
+        switch outcome.headline {
+        case .finished: .cleanupResultTitle
+        case .partiallyCompleted: .cleanupResultTitlePartial
+        case .nothingMoved: .cleanupResultTitleFailed
+        }
+    }
+
+    /// What the bin holds and what stayed behind, in that order.
+    ///
+    /// A failed row is not an error message: it is an item still on the disk,
+    /// and the page has to say so before it talks about undo.
+    private var resultSubtitle: String {
+        guard outcome.hasFailures else { return LocalizationKey.cleanupResultUndoHint.localized }
+        return LocalizationKey.cleanupResultKeptInPlace.localized(outcome.failedCount)
     }
 
     // MARK: - Metrics
@@ -206,7 +231,11 @@ public struct CleanupResultView: View {
                 )
                 metric(
                     SiftFormat.count(outcome.movedCount),
-                    caption: LocalizationKey.commonItemCount.counted(outcome.movedCount),
+                    // The count of what moved, said as such. It used to read
+                    // "1 items", which next to a green tick and a second tile
+                    // saying "1 not completed" could be read either way: as the
+                    // total, or as the successes.
+                    caption: LocalizationKey.reportMoved.localized,
                     symbolName: "checkmark.circle",
                     tint: SiftColor.safeText
                 )
@@ -322,15 +351,12 @@ public struct CleanupResultView: View {
             Text(SiftFormat.bytes(result.sizeInBytes))
                 .font(SiftFont.monospacedNumber)
 
-            if result.errorCode == ErrorCode.permissionDenied.rawValue {
-                Button {
-                    Task { await WorkspaceActions.openFullDiskAccessSettings() }
-                } label: {
-                    Text(LocalizationKey.scanOpenSystemSettings.localized)
-                        .font(SiftFont.caption)
-                }
-                .buttonStyle(SiftLinkButtonStyle())
-            }
+            // The remedy comes from the error table, so a refusal the table
+            // knows how to lift is offered the switch that lifts it — and a
+            // refusal it does not know is offered none. Full Disk Access was
+            // hard-coded here once, and it was the wrong switch for every
+            // application bundle the system refused to move.
+            remedyButton(for: result)
 
             // Reachable without a context menu: a failed row is exactly the row
             // a user wants to look at, and the page used to render a stored
@@ -361,6 +387,33 @@ public struct CleanupResultView: View {
             .accessibilityLabel(Text(LocalizationKey.commonCopyReason.localized))
         }
         .accessibilityElement(children: .combine)
+    }
+
+    /// The switch that lifts this refusal, when the error table names one.
+    ///
+    /// Full Disk Access was hard-coded here once, and it is the wrong switch for
+    /// every application bundle the system refuses to move: that gate is App
+    /// Management, and no grant in the Full Disk Access list reaches it.
+    @ViewBuilder
+    private func remedyButton(for result: FileOperationResult) -> some View {
+        switch result.errorCode.flatMap(ErrorCode.init(rawValue:)).flatMap(\.suggestedAction) {
+        case .openSystemSettings:
+            settingsButton { await WorkspaceActions.openFullDiskAccessSettings() }
+        case .openAppManagement:
+            settingsButton { await WorkspaceActions.openAppManagementSettings() }
+        case .retry, .quitApp, nil:
+            EmptyView()
+        }
+    }
+
+    private func settingsButton(_ open: @escaping () async -> Void) -> some View {
+        Button {
+            Task { await open() }
+        } label: {
+            Text(LocalizationKey.scanOpenSystemSettings.localized)
+                .font(SiftFont.caption)
+        }
+        .buttonStyle(SiftLinkButtonStyle())
     }
 
     /// What was left alone, listed rather than only counted.

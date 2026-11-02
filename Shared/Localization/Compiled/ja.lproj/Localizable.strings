@@ -64,6 +64,7 @@
 "cleanup.explanation.systemLogsItem" = "古いシステムログファイルです。一部の読み取りにはフルディスクアクセスが必要です。";
 "cleanup.explanation.temporary" = "アプリが残した一時ファイルです。";
 "cleanup.explanation.xcodeArchives" = "アーカイブされたビルドです。プロジェクトは再アーカイブできますが、このアーカイブは復元できません。";
+"cleanup.failure.appManagement" = "アプリ管理の許可が必要";
 "cleanup.failure.fileInUse" = "使用中のためスキップ";
 "cleanup.failure.fileNotFound" = "すでに削除済み";
 "cleanup.failure.itemChanged" = "変更のためスキップ";
@@ -75,6 +76,7 @@
 "cleanup.preparing.title" = "項目を確認しています";
 "cleanup.result.details" = "項目の詳細";
 "cleanup.result.exportReport" = "レポートを PDF で書き出す";
+"cleanup.result.keptInPlace" = "%d 個は元の場所に残っています。失われたものはありません。";
 "cleanup.result.moved" = "%d 個をゴミ箱へ移動しました";
 "cleanup.result.moved.one" = "%d 個をゴミ箱へ移動しました";
 "cleanup.result.reclaimAfterEmpty" = "ゴミ箱を空にすると空き容量が %@ 増えます";
@@ -83,6 +85,8 @@
 "cleanup.result.showTrash" = "Finder でゴミ箱を表示";
 "cleanup.result.stopped" = "%d 件で停止しました";
 "cleanup.result.title" = "クリーンアップ完了";
+"cleanup.result.titleFailed" = "移動できた項目はありません";
+"cleanup.result.titlePartial" = "一部完了";
 "cleanup.result.undoAction" = "この整理を元に戻す";
 "cleanup.result.undoHint" = "ゴミ箱を空にするまで、項目を元に戻せます。";
 "cleanup.result.undoUnavailable" = "元に戻せません：ゴミ箱が空にされたか、項目が別のディスクにあります";

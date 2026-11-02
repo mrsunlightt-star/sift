@@ -743,6 +743,42 @@ These are product promises, not implementation details. Each has tests behind it
     carry the reveal-in-Finder control every result row has, because the path is
     the only thing that tells two copies of one file apart.
 
+46. **A result page states what happened to each item, and offers the switch
+    that lifts the refusal.** The page's title, icon and counts all come from
+    `CleanupOutcome.headline` (`finished` / `partiallyCompleted` /
+    `nothingMoved`), so "Cleanup finished" can no longer sit above a 2 GB
+    application that refused to move — the case that produced this invariant: a
+    CapCut uninstall moved 180 KB of residue, left `/Applications/CapCut.app` in
+    place, and titled the page "Cleanup finished" with a warning triangle beside
+    it. The metric that counts moved items says "moved to Trash" instead of
+    "1 items", which read either as a total or as the successes.
+
+    The remedy comes from `ErrorCode.suggestedAction`, never from a hard-coded
+    code, because two different switches are easy to confuse. Reading a
+    protected folder is Full Disk Access; **moving another developer's
+    application bundle is App Management** (`kTCCServiceSystemPolicyAppBundles`,
+    Privacy & Security → App Management), and `FileOperationService.classify`
+    returns `.appManagementRequired` for a permission refusal whose path names a
+    `.app` bundle, so the row offers `ErrorAction.openAppManagement` instead. The
+    measurement on this machine: `rename` of `/Applications/CapCut.app` returns
+    `EACCES` while a plain file in the same directory renames fine, and tccd
+    answered the Full Disk Access request for the same process with
+    `authValue=2` — the grant was in place and was not the gate. A move failure
+    therefore logs its `domain/code` and the errno inside it; the log line used
+    to say only `code=permissionDenied`, which is why this took a filesystem
+    experiment to diagnose.
+
+    The failed rows can be retried from the page, for an uninstall as well as a
+    cleanup: `AppEnvironment.retryUninstall` re-runs the approved set minus what
+    already moved, and `FileOperationResult.retryItem` rebuilds each row's item
+    from the row, so a granted permission turns into a second attempt rather
+    than a second hunt for the application. Tests:
+    `test_theHeadlineStatesWhatHappened`,
+    `test_aStoppedBatchWithAFailureIsPartial`,
+    `test_aFailedRowRebuildsTheItemItStandsFor`,
+    `test_aRefusedMoveOfAnApplicationBundleAsksForAppManagement`,
+    `test_anApplicationBundleIsRecognisedByItsSuffix`.
+
 ## Layout notes
 
 - `Core/` is one library; `Features/` are separate libraries so a change to one

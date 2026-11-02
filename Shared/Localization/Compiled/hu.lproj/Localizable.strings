@@ -64,6 +64,7 @@
 "cleanup.explanation.systemLogsItem" = "Elavult rendszernapló-fájlok. Némelyik olvasásához Teljes lemezhozzáférés kell.";
 "cleanup.explanation.temporary" = "Alkalmazások által hátrahagyott ideiglenes fájlok.";
 "cleanup.explanation.xcodeArchives" = "Archivált buildek. A projekt újra archiválható, de ez az archívum nem állítható vissza.";
+"cleanup.failure.appManagement" = "Alkalmazáskezelési engedély szükséges";
 "cleanup.failure.fileInUse" = "Használatban, kihagyva";
 "cleanup.failure.fileNotFound" = "Már eltávolítva";
 "cleanup.failure.itemChanged" = "Módosult, kihagyva";
@@ -75,6 +76,7 @@
 "cleanup.preparing.title" = "Elemek ellenőrzése";
 "cleanup.result.details" = "Elem részletei";
 "cleanup.result.exportReport" = "Jelentés exportálása PDF-ként";
+"cleanup.result.keptInPlace" = "%d elem a helyén maradt — semmi nem veszett el.";
 "cleanup.result.moved" = "%d elem áthelyezve a Kukába";
 "cleanup.result.moved.one" = "%d elem áthelyezve a Kukába";
 "cleanup.result.reclaimAfterEmpty" = "A szabad hely %@-kal nő, ha kiüríti a Kukát";
@@ -83,6 +85,8 @@
 "cleanup.result.showTrash" = "Kuka megjelenítése a Finderben";
 "cleanup.result.stopped" = "%d elem után leállítva";
 "cleanup.result.title" = "Tisztítás befejezve";
+"cleanup.result.titleFailed" = "Semmi nem került át";
+"cleanup.result.titlePartial" = "Részben kész";
 "cleanup.result.undoAction" = "A tisztítás visszavonása";
 "cleanup.result.undoHint" = "Tegye vissza az elemeket a Kukából, amíg ki nem üríti.";
 "cleanup.result.undoUnavailable" = "Nem vonható vissza: a Kuka kiürült, vagy az elem másik lemezen van";

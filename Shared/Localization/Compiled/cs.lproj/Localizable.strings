@@ -64,6 +64,7 @@
 "cleanup.explanation.systemLogsItem" = "Zastaralé systémové protokoly. Ke čtení některých z nich je potřeba Úplný přístup k disku.";
 "cleanup.explanation.temporary" = "Dočasné soubory zanechané aplikacemi.";
 "cleanup.explanation.xcodeArchives" = "Archivované buildy. Projekt lze archivovat znovu, ale toto archivum obnovit nelze.";
+"cleanup.failure.appManagement" = "Vyžaduje oprávnění Správa aplikací";
 "cleanup.failure.fileInUse" = "Používá se, přeskočeno";
 "cleanup.failure.fileNotFound" = "Již odstraněno";
 "cleanup.failure.itemChanged" = "Změněno, přeskočeno";
@@ -75,6 +76,7 @@
 "cleanup.preparing.title" = "Kontrola položek";
 "cleanup.result.details" = "Podrobnosti položek";
 "cleanup.result.exportReport" = "Exportovat zprávu jako PDF";
+"cleanup.result.keptInPlace" = "%d položek zůstalo na místě — nic se neztratilo.";
 "cleanup.result.moved" = "Položky přesunuty do Koše: %d";
 "cleanup.result.moved.one" = "Položky přesunuty do Koše: %d";
 "cleanup.result.reclaimAfterEmpty" = "Volné místo se zvětší o %@, až koš vysypete";
@@ -83,6 +85,8 @@
 "cleanup.result.showTrash" = "Zobrazit Koš ve Finderu";
 "cleanup.result.stopped" = "Zastaveno po %d položkách";
 "cleanup.result.title" = "Čištění dokončeno";
+"cleanup.result.titleFailed" = "Nic nebylo přesunuto";
+"cleanup.result.titlePartial" = "Částečně dokončeno";
 "cleanup.result.undoAction" = "Vrátit toto čištění";
 "cleanup.result.undoHint" = "Položky můžete z Koše vrátit, dokud jej nevysypete.";
 "cleanup.result.undoUnavailable" = "Nelze vrátit: koš byl vysypán nebo je položka na jiném disku";

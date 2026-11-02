@@ -629,6 +629,22 @@ public struct UninstallerView: View {
                     loadTrash: { await environment.trashSnapshot() },
                     onEmptyTrash: { snapshot in await environment.emptyTrashGated(snapshot) },
                     onRevealFailed: { url in Task { await environment.reveal(url) } },
+                    // The page's own advice — grant App Management, quit the
+                    // application — used to end there: acting on it meant
+                    // finding the application again and starting over.
+                    onRetryFailed: { results in
+                        Task {
+                            switch await environment.retryUninstall(results) {
+                            case let .executed(execution):
+                                self.outcome = execution.outcome
+                                self.outcomeReport = execution.report
+                            case .purchaseRequired:
+                                onRequestPurchase()
+                            case .busy, .nothingToDo, .awaitingConfirmation:
+                                break
+                            }
+                        }
+                    },
                     onRequestPurchase: onRequestPurchase,
                     statusMessage: environment.reportExportMessage
                 )

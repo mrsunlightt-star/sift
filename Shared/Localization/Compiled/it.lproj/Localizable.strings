@@ -64,6 +64,7 @@
 "cleanup.explanation.systemLogsItem" = "File di log di sistema datati. Alcuni richiedono l’Accesso completo al disco per essere letti.";
 "cleanup.explanation.temporary" = "File di lavoro lasciati dalle app.";
 "cleanup.explanation.xcodeArchives" = "Build archiviate. Il progetto può essere archiviato di nuovo, ma questa archiviazione non è recuperabile.";
+"cleanup.failure.appManagement" = "Serve l’autorizzazione Gestione app";
 "cleanup.failure.fileInUse" = "In uso, saltato";
 "cleanup.failure.fileNotFound" = "Già rimosso";
 "cleanup.failure.itemChanged" = "Modificato, saltato";
@@ -75,6 +76,7 @@
 "cleanup.preparing.title" = "Verifica degli elementi";
 "cleanup.result.details" = "Dettagli degli elementi";
 "cleanup.result.exportReport" = "Esporta il rapporto in PDF";
+"cleanup.result.keptInPlace" = "%d elementi sono rimasti dove erano: non è andato perso nulla.";
 "cleanup.result.moved" = "%d elementi spostati nel Cestino";
 "cleanup.result.moved.one" = "%d elemento spostato nel Cestino";
 "cleanup.result.reclaimAfterEmpty" = "Lo spazio disponibile aumenta di %@ quando svuoti il Cestino";
@@ -83,6 +85,8 @@
 "cleanup.result.showTrash" = "Mostra il Cestino nel Finder";
 "cleanup.result.stopped" = "Interrotto dopo %d elementi";
 "cleanup.result.title" = "Pulizia completata";
+"cleanup.result.titleFailed" = "Nessun elemento spostato";
+"cleanup.result.titlePartial" = "Completato parzialmente";
 "cleanup.result.undoAction" = "Annulla questa pulizia";
 "cleanup.result.undoHint" = "Ripristina gli elementi dal Cestino finché non lo svuoti.";
 "cleanup.result.undoUnavailable" = "Impossibile annullare: il Cestino è stato svuotato o l’elemento è su un altro disco";

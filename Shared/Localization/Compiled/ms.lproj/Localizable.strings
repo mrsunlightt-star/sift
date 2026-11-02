@@ -64,6 +64,7 @@
 "cleanup.explanation.systemLogsItem" = "Fail log sistem usang. Membaca sebahagian daripadanya memerlukan Akses Cakera Penuh.";
 "cleanup.explanation.temporary" = "Fail sementara yang ditinggalkan oleh apl.";
 "cleanup.explanation.xcodeArchives" = "Binaan yang diarkibkan. Projek boleh diarkibkan semula, tetapi arkib ini tidak boleh dipulihkan.";
+"cleanup.failure.appManagement" = "Perlukan kebenaran Pengurusan App";
 "cleanup.failure.fileInUse" = "Sedang digunakan, dilangkau";
 "cleanup.failure.fileNotFound" = "Sudah dibuang";
 "cleanup.failure.itemChanged" = "Berubah, dilangkau";
@@ -75,6 +76,7 @@
 "cleanup.preparing.title" = "Menyemak item";
 "cleanup.result.details" = "Butiran item";
 "cleanup.result.exportReport" = "Eksport laporan sebagai PDF";
+"cleanup.result.keptInPlace" = "%d item kekal di tempatnya — tiada yang hilang.";
 "cleanup.result.moved" = "%d item dialihkan ke Tong Sampah";
 "cleanup.result.moved.one" = "%d item dialihkan ke Tong Sampah";
 "cleanup.result.reclaimAfterEmpty" = "Ruang tersedia bertambah %@ selepas anda mengosongkan Tong Sampah";
@@ -83,6 +85,8 @@
 "cleanup.result.showTrash" = "Tunjukkan Tong Sampah dalam Finder";
 "cleanup.result.stopped" = "Dihentikan selepas %d item";
 "cleanup.result.title" = "Pembersihan selesai";
+"cleanup.result.titleFailed" = "Tiada apa dipindahkan";
+"cleanup.result.titlePartial" = "Selesai sebahagian";
 "cleanup.result.undoAction" = "Buat asal pembersihan ini";
 "cleanup.result.undoHint" = "Pulangkan item daripada Tong Sampah sehingga anda mengosongkannya.";
 "cleanup.result.undoUnavailable" = "Tidak boleh dibuat asal: Tong Sampah telah dikosongkan atau item berada pada cakera lain";

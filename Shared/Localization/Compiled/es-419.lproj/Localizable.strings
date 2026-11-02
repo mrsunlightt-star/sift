@@ -64,6 +64,7 @@
 "cleanup.explanation.systemLogsItem" = "Archivos de registro del sistema obsoletos. Para leer algunos se necesita Acceso total al disco.";
 "cleanup.explanation.temporary" = "Archivos temporales que dejan las aplicaciones.";
 "cleanup.explanation.xcodeArchives" = "Compilaciones archivadas. El proyecto se puede archivar de nuevo, pero este archivo no se puede recuperar.";
+"cleanup.failure.appManagement" = "Necesita permiso de gestión de apps";
 "cleanup.failure.fileInUse" = "En uso, omitido";
 "cleanup.failure.fileNotFound" = "Ya eliminado";
 "cleanup.failure.itemChanged" = "Cambió, omitido";
@@ -75,6 +76,7 @@
 "cleanup.preparing.title" = "Comprobando elementos";
 "cleanup.result.details" = "Detalles de los elementos";
 "cleanup.result.exportReport" = "Exportar informe en PDF";
+"cleanup.result.keptInPlace" = "%d elementos siguen en su sitio; no se perdió nada.";
 "cleanup.result.moved" = "%d elementos movidos a la Papelera";
 "cleanup.result.moved.one" = "%d elemento movido a la Papelera";
 "cleanup.result.reclaimAfterEmpty" = "El espacio disponible aumenta %@ cuando vacías la Papelera";
@@ -83,6 +85,8 @@
 "cleanup.result.showTrash" = "Mostrar la Papelera en el Finder";
 "cleanup.result.stopped" = "Se detuvo después de %d elementos";
 "cleanup.result.title" = "Limpieza finalizada";
+"cleanup.result.titleFailed" = "No se movió nada";
+"cleanup.result.titlePartial" = "Completado en parte";
 "cleanup.result.undoAction" = "Deshacer esta limpieza";
 "cleanup.result.undoHint" = "Recupera los elementos de la Papelera mientras no la vacíes.";
 "cleanup.result.undoUnavailable" = "No se puede deshacer: la Papelera se vació o el elemento está en otro disco";

@@ -64,6 +64,7 @@
 "cleanup.explanation.systemLogsItem" = "קובצי יומן מערכת ישנים. קריאת חלקם דורשת גישה מלאה לכונן.";
 "cleanup.explanation.temporary" = "קבצי עבודה זמניים שהשאירו האפליקציות.";
 "cleanup.explanation.xcodeArchives" = "בניות בארכיון. אפשר לארכב את הפרויקט מחדש, אבל אי אפשר לשחזר את הארכיון הזה.";
+"cleanup.failure.appManagement" = "נדרשת הרשאת ניהול יישומים";
 "cleanup.failure.fileInUse" = "בשימוש, דולג";
 "cleanup.failure.fileNotFound" = "כבר הוסר";
 "cleanup.failure.itemChanged" = "השתנה, דולג";
@@ -75,6 +76,7 @@
 "cleanup.preparing.title" = "בודק פריטים";
 "cleanup.result.details" = "פרטי הפריטים";
 "cleanup.result.exportReport" = "ייצוא הדוח כקובץ PDF";
+"cleanup.result.keptInPlace" = "‏%d פריטים נשארו במקומם — דבר לא אבד.";
 "cleanup.result.moved" = "%d פריטים הועברו אל פח האשפה";
 "cleanup.result.moved.one" = "%d פריט הועבר אל פח האשפה";
 "cleanup.result.reclaimAfterEmpty" = "השטח הפנוי יגדל ב-%@ לאחר ריקון פח האשפה";
@@ -83,6 +85,8 @@
 "cleanup.result.showTrash" = "הצג את פח האשפה ב-Finder";
 "cleanup.result.stopped" = "הופסק לאחר %d פריטים";
 "cleanup.result.title" = "הניקוי הסתיים";
+"cleanup.result.titleFailed" = "לא הועבר דבר";
+"cleanup.result.titlePartial" = "הושלם חלקית";
 "cleanup.result.undoAction" = "בטל את הניקוי הזה";
 "cleanup.result.undoHint" = "אפשר לשחזר פריטים מפח האשפה עד שתרוקנו אותו.";
 "cleanup.result.undoUnavailable" = "לא ניתן לבטל: פח האשפה רוקן או שהפריט בכונן אחר";
