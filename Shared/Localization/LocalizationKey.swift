@@ -233,6 +233,8 @@ public enum LocalizationKey: String, Sendable, CaseIterable {
     case overviewReclaimableMeta = "overview.reclaimable.meta"
     case overviewReclaimableTitle = "overview.reclaimable.title"
     case overviewScanScope = "overview.scanScope"
+    case overviewScanning = "overview.scanning"
+    case overviewScanningDetail = "overview.scanningDetail"
     case overviewSelectedSummary = "overview.selectedSummary"
     case overviewShowAll = "overview.showAll"
     case overviewStatus = "overview.status"

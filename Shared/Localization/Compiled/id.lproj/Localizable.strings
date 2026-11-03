@@ -226,6 +226,8 @@
 "overview.reclaimable.meta" = "%d kategori, %d item";
 "overview.reclaimable.title" = "Aman untuk dibebaskan";
 "overview.scanScope" = "Apa yang dicakup pemindaian";
+"overview.scanning" = "Memindai";
+"overview.scanningDetail" = "Hasil muncul setelah pemindaian selesai.";
 "overview.selectedSummary" = "%d dipilih, %@";
 "overview.showAll" = "Tampilkan semua";
 "overview.status" = "%@";

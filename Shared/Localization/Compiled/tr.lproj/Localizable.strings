@@ -226,6 +226,8 @@
 "overview.reclaimable.meta" = "%d kategori, %d öğe";
 "overview.reclaimable.title" = "Güvenle kazanılabilir";
 "overview.scanScope" = "Tarama neleri kapsar";
+"overview.scanning" = "Taranıyor";
+"overview.scanningDetail" = "Sonuçlar tarama bitince görünür.";
 "overview.selectedSummary" = "%d seçildi, %@";
 "overview.showAll" = "Tümünü göster";
 "overview.status" = "%@";

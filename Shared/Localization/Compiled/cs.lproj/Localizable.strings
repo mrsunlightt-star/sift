@@ -226,6 +226,8 @@
 "overview.reclaimable.meta" = "Kategorie: %d, položky: %d";
 "overview.reclaimable.title" = "Bezpečné k uvolnění";
 "overview.scanScope" = "Co skenování zahrnuje";
+"overview.scanning" = "Probíhá skenování";
+"overview.scanningDetail" = "Výsledky se zobrazí po dokončení skenování.";
 "overview.selectedSummary" = "Vybráno: %d, %@";
 "overview.showAll" = "Zobrazit vše";
 "overview.status" = "%@";

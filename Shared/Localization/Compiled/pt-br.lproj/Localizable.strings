@@ -226,6 +226,8 @@
 "overview.reclaimable.meta" = "%d categorias, %d itens";
 "overview.reclaimable.title" = "Seguro para liberar";
 "overview.scanScope" = "O que a verificação cobre";
+"overview.scanning" = "Analisando";
+"overview.scanningDetail" = "Os resultados aparecem quando a verificação termina.";
 "overview.selectedSummary" = "%d selecionados, %@";
 "overview.showAll" = "Mostrar tudo";
 "overview.status" = "%@";

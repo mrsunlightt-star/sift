@@ -226,6 +226,8 @@
 "overview.reclaimable.meta" = "%d categorii, %d elemente";
 "overview.reclaimable.title" = "Sigur de eliberat";
 "overview.scanScope" = "Ce acoperă o scanare";
+"overview.scanning" = "Se scanează";
+"overview.scanningDetail" = "Rezultatele apar când scanarea se încheie.";
 "overview.selectedSummary" = "%d selectate, %@";
 "overview.showAll" = "Arată tot";
 "overview.status" = "%@";

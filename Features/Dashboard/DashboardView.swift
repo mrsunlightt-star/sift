@@ -39,10 +39,11 @@ public struct DashboardView: View {
     public var body: some View {
         VStack(spacing: 0) {
             SiftPageHeader(title: LocalizationKey.navDashboard.localized, status: statusLine) {
+                let state = overviewState
                 SiftMetricPill(
-                    symbolName: scan.hasResults ? "leaf.fill" : "clock",
+                    symbolName: state.hasResultSet ? "leaf.fill" : "clock",
                     value: lastScanCaption,
-                    tint: scan.hasResults ? SiftColor.safe : SiftColor.neutral
+                    tint: state.hasResultSet ? SiftColor.safe : SiftColor.neutral
                 )
             }
 
@@ -78,6 +79,17 @@ public struct DashboardView: View {
         }
     }
 
+    /// The page's situation, resolved once.
+    ///
+    /// The header pill, the hero's heading, its number, the sentence that stands
+    /// in for the number, the primary button and the suggestion list all read
+    /// this value instead of each asking `scan.hasResults` and
+    /// `environment.isScanInFlight` on their own — which is how the button came
+    /// to offer a first scan over a finished one.
+    private var overviewState: OverviewState {
+        OverviewState(hasResults: scan.hasResults, isScanInFlight: environment.isScanInFlight)
+    }
+
     // MARK: - Header
 
     private var statusLine: String {
@@ -103,22 +115,19 @@ public struct DashboardView: View {
     // MARK: - Hero
 
     private var heroCard: some View {
-        SiftGlassCard(padding: SiftMetrics.spacingXL) {
+        let state = overviewState
+        return SiftGlassCard(padding: SiftMetrics.spacingXL) {
             VStack(alignment: .leading, spacing: SiftMetrics.spacingL) {
                 HStack(alignment: .center) {
-                    Text(
-                        (scan.hasResults
-                            ? LocalizationKey.overviewReclaimableTitle
-                            : LocalizationKey.overviewReady).localized
-                    )
-                    .font(SiftFont.eyebrow)
-                    .tracking(0.8)
-                    .textCase(.uppercase)
-                    .foregroundStyle(SiftColor.accent)
+                    Text(state.eyebrowKey.localized)
+                        .font(SiftFont.eyebrow)
+                        .tracking(0.8)
+                        .textCase(.uppercase)
+                        .foregroundStyle(SiftColor.accent)
 
                     Spacer(minLength: SiftMetrics.spacingM)
 
-                    if scan.hasResults {
+                    if state.hasResultSet {
                         Text(
                             LocalizationKey.overviewReclaimableMeta.localized(
                                 scan.categoryTotals.count,
@@ -140,7 +149,7 @@ public struct DashboardView: View {
                     }
                 }
 
-                if scan.hasResults {
+                if state.hasResultSet {
                     let parts = Self.byteParts(scan.reclaimableBytes)
                     SiftHugeMetric(parts.value, unit: parts.unit)
                     if scan.riskTotalsComplete {
@@ -149,25 +158,28 @@ public struct DashboardView: View {
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
-                } else {
+                } else if let placeholderKey = state.placeholderKey {
                     // An em dash in the slot a size goes in read as "zero bytes"
                     // rather than "not measured yet". A sentence says which one it
                     // is, and the hero stops looking like a value that failed.
-                    Text(LocalizationKey.overviewNoResults.localized)
+                    // It also says which waiting room the user is in: a run in
+                    // flight is not the same page as one that never started.
+                    Text(placeholderKey.localized)
                         .font(SiftFont.body)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
                 HStack(spacing: SiftMetrics.spacingM) {
-                    let action = OverviewScanAction.resolve(
-                        hasResults: scan.hasResults,
-                        isScanInFlight: environment.isScanInFlight
-                    )
+                    let action = state.action
+                    // Not disabled while a run is in flight: in that stage the
+                    // button is "View scan progress", which only navigates. It
+                    // used to be disabled in exactly that state, so a user
+                    // watching a scan on the overview had a button that named
+                    // the page holding the progress and refused to open it.
                     SiftPrimaryButton(
                         titleKey: action.titleKey,
-                        symbolName: action.symbolName,
-                        isEnabled: !environment.isScanInFlight
+                        symbolName: action.symbolName
                     ) {
                         guard action.startsAScan else {
                             onOpenScan()
@@ -182,7 +194,7 @@ public struct DashboardView: View {
                     }
                     .accessibilityIdentifier("dashboard.primaryAction")
 
-                    if scan.hasResults {
+                    if state.offersResultsPage {
                         SiftSecondaryButton(titleKey: .overviewViewResults) {
                             onOpenScan()
                         }
@@ -324,7 +336,7 @@ public struct DashboardView: View {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .firstTextBaseline, spacing: SiftMetrics.spacingM) {
                     Text(
-                        (scan.hasResults
+                        (overviewState.hasResultSet
                             ? LocalizationKey.dashboardSuggestedCleanup
                             : LocalizationKey.overviewScanScope).localized
                     )
@@ -353,7 +365,7 @@ public struct DashboardView: View {
 
                 Divider()
 
-                if scan.hasResults, !cleanup.items.isEmpty {
+                if overviewState.hasResultSet, !cleanup.items.isEmpty {
                     ForEach(Array(cleanup.items.prefix(4))) { item in
                         suggestedRow(item)
                         Divider()

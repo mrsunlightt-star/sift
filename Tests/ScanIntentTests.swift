@@ -93,4 +93,49 @@ final class ScanIntentTests: XCTestCase, @unchecked Sendable {
         XCTAssertTrue(OverviewScanAction.rescan.startsAScan)
         XCTAssertFalse(OverviewScanAction.viewProgress.startsAScan)
     }
+
+    /// One value answers the whole page, so no two regions can disagree.
+    ///
+    /// The regression this pins: the hero's heading, its sentence, its button and
+    /// the header pill each asked `scan.hasResults` separately, and the button
+    /// ended up offering a first scan over a finished one. Every label is now a
+    /// function of `OverviewState.stage`, and the three stages are exclusive.
+    func test_theOverviewResolvesOneStateForEveryLabel() {
+        let untouched = OverviewState(hasResults: false, isScanInFlight: false)
+        XCTAssertEqual(untouched.stage, .notScanned)
+        XCTAssertEqual(untouched.action, .start)
+        XCTAssertEqual(untouched.eyebrowKey, .overviewReady)
+        XCTAssertEqual(untouched.placeholderKey, .overviewNoResults)
+        XCTAssertFalse(untouched.hasResultSet)
+        XCTAssertFalse(untouched.isRunning)
+        XCTAssertFalse(untouched.offersResultsPage)
+
+        let running = OverviewState(hasResults: false, isScanInFlight: true)
+        XCTAssertEqual(running.stage, .scanning)
+        XCTAssertEqual(running.action, .viewProgress)
+        XCTAssertEqual(running.eyebrowKey, .overviewScanning, "a run in flight is not \"ready to scan\"")
+        XCTAssertEqual(running.placeholderKey, .overviewScanningDetail)
+        XCTAssertTrue(running.isRunning)
+        XCTAssertFalse(running.hasResultSet)
+
+        let finished = OverviewState(hasResults: true, isScanInFlight: false)
+        XCTAssertEqual(finished.stage, .scanned)
+        XCTAssertEqual(finished.action, .rescan)
+        XCTAssertEqual(finished.eyebrowKey, .overviewReclaimableTitle)
+        XCTAssertNil(finished.placeholderKey, "a result set has a number, not a sentence")
+        XCTAssertTrue(finished.hasResultSet)
+        XCTAssertTrue(finished.offersResultsPage)
+        XCTAssertFalse(finished.isRunning)
+
+        // The action cannot be derived a second way.
+        for hasResults in [true, false] {
+            for isScanInFlight in [true, false] {
+                let state = OverviewState(hasResults: hasResults, isScanInFlight: isScanInFlight)
+                XCTAssertEqual(
+                    state.action,
+                    OverviewScanAction.resolve(hasResults: hasResults, isScanInFlight: isScanInFlight)
+                )
+            }
+        }
+    }
 }

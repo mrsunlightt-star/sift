@@ -112,9 +112,12 @@ public enum OverviewScanAction: String, Sendable, CaseIterable {
     /// the user to the progress it is already making.
     case viewProgress
 
+    /// Delegates to `OverviewState`, which is the one place the two inputs are
+    /// turned into a situation. Kept because an action is the thing a caller
+    /// usually wants, and because a second mapping here is exactly how the page
+    /// came to describe two different runs at once.
     public static func resolve(hasResults: Bool, isScanInFlight: Bool) -> OverviewScanAction {
-        if isScanInFlight { return .viewProgress }
-        return hasResults ? .rescan : .start
+        OverviewState(hasResults: hasResults, isScanInFlight: isScanInFlight).action
     }
 
     /// Whether pressing it begins a scan.
@@ -135,4 +138,76 @@ public enum OverviewScanAction: String, Sendable, CaseIterable {
         case .viewProgress: "arrow.right"
         }
     }
+}
+
+/// Everything the overview page states, resolved once.
+///
+/// The page used to ask "has the scan produced results?" in five places and read
+/// the in-flight flag separately, so the header pill, the hero heading, the big
+/// number, the sentence under it and the primary button were each their own
+/// derivation — and one of them disagreed with the rest. The button said "Start
+/// scan" over a 731 MB result set while the pill beside it said "last scan:
+/// today".
+///
+/// One value now answers all of it. `stage` is the whole truth about the page —
+/// nothing scanned, a run in flight, or a result set on screen — and every label
+/// is a function of it, so a region cannot describe a situation the page is not
+/// in. The stages are exclusive because they are: `ScanModel.hasResults` waits
+/// for a report, so a run in flight never has a result set behind it.
+public struct OverviewState: Sendable, Equatable {
+    public enum Stage: String, Sendable, Equatable, CaseIterable {
+        /// Nothing has been scanned in this session, and nothing is running.
+        case notScanned
+        /// A run is in flight. There is no result set to describe yet.
+        case scanning
+        /// A result set exists and nothing is running.
+        case scanned
+    }
+
+    public let stage: Stage
+
+    public init(hasResults: Bool, isScanInFlight: Bool) {
+        if isScanInFlight {
+            stage = .scanning
+        } else {
+            stage = hasResults ? .scanned : .notScanned
+        }
+    }
+
+    /// What the primary button offers, in this stage.
+    public var action: OverviewScanAction {
+        switch stage {
+        case .notScanned: .start
+        case .scanning: .viewProgress
+        case .scanned: .rescan
+        }
+    }
+
+    /// Whether a result set is on screen: the totals, the count and the rows.
+    public var hasResultSet: Bool { stage == .scanned }
+
+    /// Whether a run is in flight.
+    public var isRunning: Bool { stage == .scanning }
+
+    /// The heading above the number. "Ready to scan" over a run in flight was
+    /// the same defect as "Start scan" over its results.
+    public var eyebrowKey: LocalizationKey {
+        switch stage {
+        case .notScanned: .overviewReady
+        case .scanning: .overviewScanning
+        case .scanned: .overviewReclaimableTitle
+        }
+    }
+
+    /// What the hero says where the total goes, when there is no total to show.
+    public var placeholderKey: LocalizationKey? {
+        switch stage {
+        case .notScanned: .overviewNoResults
+        case .scanning: .overviewScanningDetail
+        case .scanned: nil
+        }
+    }
+
+    /// Whether the "view results" control has a page to open.
+    public var offersResultsPage: Bool { hasResultSet }
 }

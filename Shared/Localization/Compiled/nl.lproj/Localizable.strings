@@ -226,6 +226,8 @@
 "overview.reclaimable.meta" = "%d categorieën, %d items";
 "overview.reclaimable.title" = "Veilig vrij te maken";
 "overview.scanScope" = "Wat een scan dekt";
+"overview.scanning" = "Scannen";
+"overview.scanningDetail" = "Resultaten verschijnen zodra de scan klaar is.";
 "overview.selectedSummary" = "%d geselecteerd, %@";
 "overview.showAll" = "Alles tonen";
 "overview.status" = "%@";

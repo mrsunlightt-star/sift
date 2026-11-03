@@ -226,6 +226,8 @@
 "overview.reclaimable.meta" = "%d دسته, %d مورد";
 "overview.reclaimable.title" = "امن برای آزادسازی";
 "overview.scanScope" = "اسکن چه چیزی را در بر می‌گیرد";
+"overview.scanning" = "در حال اسکن";
+"overview.scanningDetail" = "نتایج پس از پایان اسکن نمایش داده می‌شود.";
 "overview.selectedSummary" = "%d مورد انتخاب شد, %@";
 "overview.showAll" = "نمایش همه";
 "overview.status" = "%@";

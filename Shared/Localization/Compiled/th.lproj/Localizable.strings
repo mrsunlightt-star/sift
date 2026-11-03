@@ -226,6 +226,8 @@
 "overview.reclaimable.meta" = "%d หมวดหมู่, %d รายการ";
 "overview.reclaimable.title" = "ปลดปล่อยได้อย่างปลอดภัย";
 "overview.scanScope" = "สิ่งที่การสแกนครอบคลุม";
+"overview.scanning" = "กำลังสแกน";
+"overview.scanningDetail" = "ผลลัพธ์จะแสดงเมื่อการสแกนเสร็จสิ้น";
 "overview.selectedSummary" = "เลือกแล้ว %d รายการ, %@";
 "overview.showAll" = "แสดงทั้งหมด";
 "overview.status" = "%@";

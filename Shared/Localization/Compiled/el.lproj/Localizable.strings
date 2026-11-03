@@ -226,6 +226,8 @@
 "overview.reclaimable.meta" = "%d κατηγορίες, %d στοιχεία";
 "overview.reclaimable.title" = "Ασφαλής ελευθέρωση χώρου";
 "overview.scanScope" = "Τι καλύπτει μια σάρωση";
+"overview.scanning" = "Γίνεται σάρωση";
+"overview.scanningDetail" = "Τα αποτελέσματα εμφανίζονται όταν ολοκληρωθεί η σάρωση.";
 "overview.selectedSummary" = "%d επιλεγμένα, %@";
 "overview.showAll" = "Εμφάνιση όλων";
 "overview.status" = "%@";

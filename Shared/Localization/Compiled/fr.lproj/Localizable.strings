@@ -226,6 +226,8 @@
 "overview.reclaimable.meta" = "%d catégories, %d éléments";
 "overview.reclaimable.title" = "Libérable sans risque";
 "overview.scanScope" = "Ce que couvre l’analyse";
+"overview.scanning" = "Analyse en cours";
+"overview.scanningDetail" = "Les résultats apparaissent à la fin de l’analyse.";
 "overview.selectedSummary" = "%d sélectionnés, %@";
 "overview.showAll" = "Tout afficher";
 "overview.status" = "%@";

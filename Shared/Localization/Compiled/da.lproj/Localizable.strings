@@ -226,6 +226,8 @@
 "overview.reclaimable.meta" = "%d kategorier, %d elementer";
 "overview.reclaimable.title" = "Sikkert at frigive";
 "overview.scanScope" = "Det dækker en scanning";
+"overview.scanning" = "Skanner nu";
+"overview.scanningDetail" = "Resultaterne vises, når kørslen er færdig.";
 "overview.selectedSummary" = "%d valgt, %@";
 "overview.showAll" = "Vis alle";
 "overview.status" = "%@";

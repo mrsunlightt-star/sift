@@ -226,6 +226,8 @@
 "overview.reclaimable.meta" = "%d categorie, %d elementi";
 "overview.reclaimable.title" = "Liberabile senza rischi";
 "overview.scanScope" = "Cosa copre una scansione";
+"overview.scanning" = "Scansione in corso";
+"overview.scanningDetail" = "I risultati compaiono al termine della scansione.";
 "overview.selectedSummary" = "%d selezionati, %@";
 "overview.showAll" = "Mostra tutto";
 "overview.status" = "%@";

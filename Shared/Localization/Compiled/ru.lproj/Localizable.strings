@@ -226,6 +226,8 @@
 "overview.reclaimable.meta" = "Категорий: %d, элементов: %d";
 "overview.reclaimable.title" = "Можно безопасно освободить";
 "overview.scanScope" = "Что охватывает сканирование";
+"overview.scanning" = "Идёт сканирование";
+"overview.scanningDetail" = "Результаты появятся после завершения сканирования.";
 "overview.selectedSummary" = "Выбрано: %d, %@";
 "overview.showAll" = "Показать все";
 "overview.status" = "%@";

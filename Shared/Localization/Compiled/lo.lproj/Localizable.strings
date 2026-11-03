@@ -226,6 +226,8 @@
 "overview.reclaimable.meta" = "%d ປະເພດ, %d ລາຍການ";
 "overview.reclaimable.title" = "ປອດໄພທີ່ຈະສ້າງຄືນ";
 "overview.scanScope" = "ສິ່ງທີ່ການສະແກນຄຸມ";
+"overview.scanning" = "ກຳລັງສະແກນ";
+"overview.scanningDetail" = "ຜົນຈະສະແດງເມື່ອການສະແກນສຳເລັດ.";
 "overview.selectedSummary" = "ເລືອກແລ້ວ %d ລາຍການ, %@";
 "overview.showAll" = "ສະແດງທັງໝົດ";
 "overview.status" = "%@";

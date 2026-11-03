@@ -226,6 +226,8 @@
 "overview.reclaimable.meta" = "%d فئات, %d عناصر";
 "overview.reclaimable.title" = "أمن للتحرير";
 "overview.scanScope" = "ما يشمله الفحص";
+"overview.scanning" = "جارٍ الفحص";
+"overview.scanningDetail" = "تظهر النتائج عند انتهاء الفحص.";
 "overview.selectedSummary" = "تم تحديد %d, %@";
 "overview.showAll" = "عرض الكل";
 "overview.status" = "%@";

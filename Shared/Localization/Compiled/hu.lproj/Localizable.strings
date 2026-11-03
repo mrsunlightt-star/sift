@@ -226,6 +226,8 @@
 "overview.reclaimable.meta" = "%d kategória, %d elem";
 "overview.reclaimable.title" = "Biztonságosan felszabadítható";
 "overview.scanScope" = "Mit fed le a vizsgálat";
+"overview.scanning" = "Vizsgálat folyamatban";
+"overview.scanningDetail" = "Az eredmények a vizsgálat végén jelennek meg.";
 "overview.selectedSummary" = "%d kijelölve, %@";
 "overview.showAll" = "Összes megjelenítése";
 "overview.status" = "%@";

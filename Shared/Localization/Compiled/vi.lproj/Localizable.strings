@@ -226,6 +226,8 @@
 "overview.reclaimable.meta" = "%d danh mục, %d mục";
 "overview.reclaimable.title" = "Có thể giải phóng an toàn";
 "overview.scanScope" = "Phạm vi quét";
+"overview.scanning" = "Đang quét";
+"overview.scanningDetail" = "Kết quả sẽ hiện khi quá trình quét xong.";
 "overview.selectedSummary" = "Đã chọn %d, %@";
 "overview.showAll" = "Hiện tất cả";
 "overview.status" = "%@";

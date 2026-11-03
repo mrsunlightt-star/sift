@@ -226,6 +226,8 @@
 "overview.reclaimable.meta" = "%d categories, %d items";
 "overview.reclaimable.title" = "Safe to release";
 "overview.scanScope" = "What a scan covers";
+"overview.scanning" = "Scanning now";
+"overview.scanningDetail" = "Results appear when the run finishes.";
 "overview.selectedSummary" = "%d selected, %@";
 "overview.showAll" = "Show all";
 "overview.status" = "%@";

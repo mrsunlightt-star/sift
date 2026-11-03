@@ -226,6 +226,8 @@
 "overview.reclaimable.meta" = "%d категории, %d елемента";
 "overview.reclaimable.title" = "Безопасно за освобождаване";
 "overview.scanScope" = "Какво обхваща сканирането";
+"overview.scanning" = "Сканира се";
+"overview.scanningDetail" = "Резултатите се появяват, когато сканирането приключи.";
 "overview.selectedSummary" = "Избрани: %d, %@";
 "overview.showAll" = "Покажете всички";
 "overview.status" = "%@";

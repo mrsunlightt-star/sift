@@ -226,6 +226,8 @@
 "overview.reclaimable.meta" = "%d categorías, %d elementos";
 "overview.reclaimable.title" = "Se puede liberar";
 "overview.scanScope" = "Qué cubre el análisis";
+"overview.scanning" = "Analizando";
+"overview.scanningDetail" = "Los resultados aparecerán al terminar el análisis.";
 "overview.selectedSummary" = "%d seleccionados, %@";
 "overview.showAll" = "Mostrar todo";
 "overview.status" = "%@";

@@ -226,6 +226,8 @@
 "overview.reclaimable.meta" = "%d קטגוריות, %d פריטים";
 "overview.reclaimable.title" = "בטוח לפינוי";
 "overview.scanScope" = "מה הסריקה מכסה";
+"overview.scanning" = "סורק כעת";
+"overview.scanningDetail" = "התוצאות יופיעו כשהסריקה תסתיים.";
 "overview.selectedSummary" = "נבחרו %d, %@";
 "overview.showAll" = "הצג הכול";
 "overview.status" = "%@";

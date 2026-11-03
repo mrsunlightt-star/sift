@@ -226,6 +226,8 @@
 "overview.reclaimable.meta" = "%d kategorier, %d elementer";
 "overview.reclaimable.title" = "Trygt å frigjøre";
 "overview.scanScope" = "Det en skanning dekker";
+"overview.scanning" = "Skanner nå";
+"overview.scanningDetail" = "Resultatene vises når kjøringen er ferdig.";
 "overview.selectedSummary" = "%d valgt, %@";
 "overview.showAll" = "Vis alle";
 "overview.status" = "%@";

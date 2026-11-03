@@ -226,6 +226,8 @@
 "overview.reclaimable.meta" = "%d kategori, %d item";
 "overview.reclaimable.title" = "Selamat untuk dilepaskan";
 "overview.scanScope" = "Apa yang diliputi imbasan";
+"overview.scanning" = "Mengimbas";
+"overview.scanningDetail" = "Hasil dipaparkan apabila imbasan selesai.";
 "overview.selectedSummary" = "%d dipilih, %@";
 "overview.showAll" = "Tunjukkan semua";
 "overview.status" = "%@";

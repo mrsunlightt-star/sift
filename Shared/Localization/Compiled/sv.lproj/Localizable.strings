@@ -226,6 +226,8 @@
 "overview.reclaimable.meta" = "%d kategorier, %d objekt";
 "overview.reclaimable.title" = "Säkert att frigöra";
 "overview.scanScope" = "Vad en skanning omfattar";
+"overview.scanning" = "Söker igenom";
+"overview.scanningDetail" = "Resultaten visas när körningen är klar.";
 "overview.selectedSummary" = "%d markerade, %@";
 "overview.showAll" = "Visa alla";
 "overview.status" = "%@";

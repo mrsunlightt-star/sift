@@ -226,6 +226,8 @@
 "overview.reclaimable.meta" = "%d 類，%d 項";
 "overview.reclaimable.title" = "本次可安全釋放";
 "overview.scanScope" = "可掃描的內容";
+"overview.scanning" = "正在掃描";
+"overview.scanningDetail" = "掃描完成後會顯示結果。";
 "overview.selectedSummary" = "已選 %d 項，%@";
 "overview.showAll" = "展開全部";
 "overview.status" = "%@";

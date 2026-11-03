@@ -226,6 +226,8 @@
 "overview.reclaimable.meta" = "%d개 카테고리, %d개 항목";
 "overview.reclaimable.title" = "안전하게 확보 가능";
 "overview.scanScope" = "검사 대상";
+"overview.scanning" = "스캔 중";
+"overview.scanningDetail" = "검사가 끝나면 결과가 표시됩니다.";
 "overview.selectedSummary" = "%d개 선택, %@";
 "overview.showAll" = "모두 펼치기";
 "overview.status" = "%@";

@@ -226,6 +226,8 @@
 "overview.reclaimable.meta" = "%d kategoriaa, %d kohdetta";
 "overview.reclaimable.title" = "Turvallista vapauttaa";
 "overview.scanScope" = "Mitä skannaus kattaa";
+"overview.scanning" = "Skannataan";
+"overview.scanningDetail" = "Tulokset näkyvät, kun skannaus päättyy.";
 "overview.selectedSummary" = "%d valittu, %@";
 "overview.showAll" = "Näytä kaikki";
 "overview.status" = "%@";

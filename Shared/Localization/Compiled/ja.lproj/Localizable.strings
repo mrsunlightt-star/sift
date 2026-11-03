@@ -226,6 +226,8 @@
 "overview.reclaimable.meta" = "%d カテゴリ，%d 項目";
 "overview.reclaimable.title" = "安全に解放できる容量";
 "overview.scanScope" = "スキャンの対象";
+"overview.scanning" = "スキャン中";
+"overview.scanningDetail" = "スキャンが終わると結果が表示されます。";
 "overview.selectedSummary" = "%d 件選択，%@";
 "overview.showAll" = "すべて表示";
 "overview.status" = "%@";

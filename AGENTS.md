@@ -812,6 +812,21 @@ These are product promises, not implementation details. Each has tests behind it
     in flight — so a page cannot say "start" over its own results. Test:
     `test_theOverviewOffersARerunOnceAResultSetExists`.
 
+    One page reads one value, not one flag per region. The same page asked
+    `scan.hasResults` in five places and `environment.isScanInFlight` in three, so
+    fixing the button left the heading ("Ready to scan" over a finished run) and
+    the sentence in the metric's slot still describing a page nobody was looking
+    at. `OverviewState` resolves the two inputs into one `stage` — `notScanned`,
+    `scanning`, `scanned` — and every label on the page is a function of it:
+    `eyebrowKey`, `placeholderKey`, `action`, `hasResultSet`, `isRunning`,
+    `offersResultsPage`. The stages are exclusive because they are exclusive in
+    the model: `hasResults` waits for a report, so a run in flight never has a
+    result set behind it. `OverviewScanAction.resolve` delegates to the same
+    value, so the action cannot be derived a second way. Adding a state means
+    adding a case and letting the compiler find every label that owes it an
+    answer — which is the point. Test:
+    `test_theOverviewResolvesOneStateForEveryLabel`.
+
 ## Layout notes
 
 - `Core/` is one library; `Features/` are separate libraries so a change to one

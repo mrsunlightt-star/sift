@@ -47251,6 +47251,426 @@
         }
       }
     },
+    "overview.scanning": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scanning now"
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在扫描"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "스캔 중"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Идёт сканирование"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Analizando"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スキャン中"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Analyse en cours"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird gescannt"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scansione in corso"
+          }
+        },
+        "pt-br": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Analisando"
+          }
+        },
+        "zh-hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在掃描"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Taranıyor"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skanowanie"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scannen"
+          }
+        },
+        "lo": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ກຳລັງສະແກນ"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "جارٍ الفحص"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "סורק כעת"
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "در حال اسکن"
+          }
+        },
+        "bg": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сканира се"
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Probíhá skenování"
+          }
+        },
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skanner nu"
+          }
+        },
+        "el": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Γίνεται σάρωση"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Analizando"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skannataan"
+          }
+        },
+        "hu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vizsgálat folyamatban"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Memindai"
+          }
+        },
+        "ms": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mengimbas"
+          }
+        },
+        "nb": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skanner nå"
+          }
+        },
+        "pt-pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A analisar"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se scanează"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Söker igenom"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "กำลังสแกน"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Триває сканування"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đang quét"
+          }
+        }
+      }
+    },
+    "overview.scanningDetail": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Results appear when the run finishes."
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "扫描完成后会显示结果。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "검사가 끝나면 결과가 표시됩니다."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Результаты появятся после завершения сканирования."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Los resultados aparecerán al terminar el análisis."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スキャンが終わると結果が表示されます。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les résultats apparaissent à la fin de l’analyse."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ergebnisse erscheinen, wenn der Lauf endet."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I risultati compaiono al termine della scansione."
+          }
+        },
+        "pt-br": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Os resultados aparecem quando a verificação termina."
+          }
+        },
+        "zh-hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "掃描完成後會顯示結果。"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sonuçlar tarama bitince görünür."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wyniki pojawią się po zakończeniu skanowania."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resultaten verschijnen zodra de scan klaar is."
+          }
+        },
+        "lo": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ຜົນຈະສະແດງເມື່ອການສະແກນສຳເລັດ."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تظهر النتائج عند انتهاء الفحص."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "התוצאות יופיעו כשהסריקה תסתיים."
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "نتایج پس از پایان اسکن نمایش داده می‌شود."
+          }
+        },
+        "bg": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Резултатите се появяват, когато сканирането приключи."
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Výsledky se zobrazí po dokončení skenování."
+          }
+        },
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resultaterne vises, når kørslen er færdig."
+          }
+        },
+        "el": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Τα αποτελέσματα εμφανίζονται όταν ολοκληρωθεί η σάρωση."
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Los resultados aparecen cuando termina el análisis."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tulokset näkyvät, kun skannaus päättyy."
+          }
+        },
+        "hu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Az eredmények a vizsgálat végén jelennek meg."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hasil muncul setelah pemindaian selesai."
+          }
+        },
+        "ms": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hasil dipaparkan apabila imbasan selesai."
+          }
+        },
+        "nb": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resultatene vises når kjøringen er ferdig."
+          }
+        },
+        "pt-pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Os resultados aparecem quando a análise termina."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rezultatele apar când scanarea se încheie."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resultaten visas när körningen är klar."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ผลลัพธ์จะแสดงเมื่อการสแกนเสร็จสิ้น"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Результати з’являться після завершення сканування."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kết quả sẽ hiện khi quá trình quét xong."
+          }
+        }
+      }
+    },
     "overview.selectedSummary": {
       "comment": null,
       "extractionState": "manual",
