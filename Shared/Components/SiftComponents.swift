@@ -3,20 +3,15 @@ import SwiftUI
 
 // MARK: - Surfaces
 
-/// A glass card: the surface every section sits on.
-///
-/// Three layers, in the order the design language describes them: the system
-/// material blurs what is behind the card, a tinted fill decides how much of the
-/// backdrop survives, and a top-edge highlight makes the surface look lit. The
-/// border is a hairline rather than a frame — a card that is outlined looks like
-/// a box, not like glass.
+/// A restrained opaque content surface. The legacy name is retained so feature
+/// pages can migrate incrementally without changing their data or interaction
+/// logic. Ordinary content no longer receives material blur, highlight gradients,
+/// or decorative shadows.
 public struct SiftGlassCard<Content: View>: View {
     private let surface: SiftSurface
     private let cornerRadius: CGFloat
     private let padding: CGFloat
     private let content: Content
-
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     public init(
         surface: SiftSurface = .card,
@@ -35,50 +30,15 @@ public struct SiftGlassCard<Content: View>: View {
         content
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background {
-                ZStack {
-                    if reduceTransparency {
-                        shape.fill(surface.opaqueFill)
-                    } else {
-                        shape.fill(surface.material)
-                        shape.fill(surface.tint)
-                    }
-                    shape.fill(
-                        LinearGradient(
-                            colors: [
-                                SiftColor.glassHighlight.opacity(surface == .floating ? 0.16 : 0.08),
-                                .clear,
-                            ],
-                            startPoint: .top,
-                            endPoint: .center
-                        )
-                    )
-                }
-            }
+            .background { shape.fill(surface.opaqueFill) }
             .overlay {
                 shape.strokeBorder(SiftColor.glassBorder, lineWidth: SiftMetrics.panelBorderWidth)
             }
-            .overlay {
-                shape.strokeBorder(
-                    LinearGradient(
-                        colors: [SiftColor.glassHighlight.opacity(0.50), .clear],
-                        startPoint: .top,
-                        endPoint: .center
-                    ),
-                    lineWidth: SiftMetrics.panelBorderWidth
-                )
-                .allowsHitTesting(false)
-            }
             .clipShape(shape)
-            .shadow(
-                color: .black.opacity(surface.shadowOpacity),
-                radius: surface.shadowRadius,
-                y: surface == .card ? 6 : 10
-            )
     }
 }
 
-/// A panel with a hairline border, the surface every section sits on.
+/// A named panel that shares the restrained opaque surface.
 public struct SiftPanel<Content: View>: View {
     private let padding: CGFloat
     private let content: Content
@@ -95,15 +55,11 @@ public struct SiftPanel<Content: View>: View {
     }
 }
 
-/// The window background: a quiet porcelain canvas with two ambient glows.
-///
-/// The glow is what the glass has to show through. Without it the material has
-/// nothing to blur and every card reads as flat grey. Jade breathes from the
-/// top-right, a faint warmth from the lower-left, and the base stays quiet.
+/// The window background: pure white in light appearance, restrained dark
+/// neutral in dark appearance. No ambient glow or gradient wash.
 public struct SiftCanvasBackground: View {
     public init() {}
 
-    /// A flat canvas: one colour, no wash. The glass layers carry the depth.
     public var body: some View {
         SiftColor.canvas
             .ignoresSafeArea()
@@ -112,12 +68,8 @@ public struct SiftCanvasBackground: View {
 
 // MARK: - Page chrome
 
-/// A page header: a small status line, then the display title.
-///
-/// The status line opens with a jade tick — the same mark a section header uses —
-/// so every page carries one quiet instance of the accent before any action is
-/// taken. The hairline beneath fades out at the edges, which reads as structure
-/// rather than as a rule boxing the page in.
+/// A compact page header. Status appears only when it communicates useful
+/// context; the title remains the visual anchor.
 public struct SiftPageHeader<Trailing: View>: View {
     private let title: String
     private let status: String?
@@ -138,19 +90,15 @@ public struct SiftPageHeader<Trailing: View>: View {
             HStack(alignment: .bottom, spacing: SiftMetrics.spacingXL) {
                 VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
                     if let status, !status.isEmpty {
-                        HStack(spacing: 6) {
-                            Circle()
-                                .fill(SiftColor.accent)
-                                .frame(width: 4, height: 4)
-                            Text(status)
-                                .font(SiftFont.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        .lineLimit(1)
-                        .truncationMode(.middle)
+                        Text(status)
+                            .font(SiftFont.caption)
+                            .foregroundStyle(SiftColor.subtleText)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
                     }
                     Text(title)
                         .siftFont(.display)
+                        .foregroundStyle(SiftColor.mainText)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: SiftMetrics.spacingL)
@@ -162,18 +110,7 @@ public struct SiftPageHeader<Trailing: View>: View {
             .padding(.bottom, SiftMetrics.spacingM)
 
             Rectangle()
-                .fill(
-                    LinearGradient(
-                        stops: [
-                            .init(color: .clear, location: 0),
-                            .init(color: SiftColor.glassBorder, location: 0.06),
-                            .init(color: SiftColor.glassBorder, location: 0.94),
-                            .init(color: .clear, location: 1),
-                        ],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
+                .fill(SiftColor.glassBorder)
                 .frame(height: 1)
         }
     }
@@ -184,6 +121,7 @@ extension SiftPageHeader where Trailing == EmptyView {
         self.init(title: title, status: status) { EmptyView() }
     }
 }
+
 /// The scrolling page column.
 ///
 /// Every page uses the same outer margins and vertical rhythm; only the column
@@ -214,11 +152,10 @@ public struct SiftPage<Content: View>: View {
 
 // MARK: - Entrance
 
-/// A staggered entrance: the view fades in and rises a step after its siblings.
+/// A subtle opacity transition for content that is revealed after an action.
 ///
-/// Applied with `siftAppear(index:)` down a column of cards, so a page settles
-/// in one wave instead of snapping. Honours `siftReduceMotion` by appearing
-/// immediately.
+/// There is no stagger or vertical movement: the page should become usable
+/// immediately rather than presenting a sequence of decorative entrances.
 struct SiftAppear: ViewModifier {
     let index: Int
     @Environment(\.siftReduceMotion) private var reduceMotion
@@ -227,16 +164,12 @@ struct SiftAppear: ViewModifier {
     func body(content: Content) -> some View {
         content
             .opacity(shown ? 1 : 0)
-            .offset(y: shown ? 0 : 10)
             .onAppear {
                 guard !shown else { return }
                 if reduceMotion {
                     shown = true
                 } else {
-                    // At most two steps of stagger: the page already fades in
-                    // for 0.2 s, and a full wave pushed the first meaningful
-                    // content half a second behind the click.
-                    withAnimation(SiftMotion.quick.delay(Double(min(index, 2)) * 0.03)) {
+                    withAnimation(.easeOut(duration: 0.12)) {
                         shown = true
                     }
                 }
@@ -274,8 +207,7 @@ public extension View {
 
 // MARK: - Buttons
 
-/// The primary action: a deep jade rounded rectangle with a lit top edge and a
-/// soft glow.
+/// The primary action: a solid functional-green control with a restrained hover state.
 public struct SiftPrimaryButton: View {
     private let title: String
     private let symbolName: String?
@@ -309,44 +241,20 @@ public struct SiftPrimaryButton: View {
                 }
                 Text(title)
                     .font(SiftFont.bodyEmphasis)
-                    // A label built from a count and a size reaches 60+
-                    // characters in German and Russian. Truncating the action is
-                    // not an option, so the label shrinks a little first and
-                    // only then truncates.
                     .lineLimit(1)
                     .minimumScaleFactor(0.85)
             }
-            .foregroundStyle(SiftColor.onAccent)
+            .foregroundStyle(isEnabled ? SiftColor.onAccent : SiftColor.subtleText)
             .padding(.horizontal, SiftMetrics.spacingXL)
             .frame(minHeight: SiftMetrics.buttonHeight)
             .background {
                 RoundedRectangle(cornerRadius: SiftMetrics.controlCornerRadius, style: .continuous)
-                    .fill(SiftColor.accentFill)
-                    .overlay {
-                        RoundedRectangle(cornerRadius: SiftMetrics.controlCornerRadius, style: .continuous)
-                            .fill(
-                                LinearGradient(
-                                    colors: [.white.opacity(isHovering ? 0.18 : 0.10), .clear],
-                                    startPoint: .top,
-                                    endPoint: .center
-                                )
-                            )
-                    }
-                    .opacity(isEnabled ? 1 : 0.42)
+                    .fill(isEnabled
+                        ? (isHovering ? SiftColor.accentHover : SiftColor.accentFill)
+                        : SiftColor.subtleFill
+                    )
             }
-            .overlay {
-                RoundedRectangle(cornerRadius: SiftMetrics.controlCornerRadius, style: .continuous)
-                    .strokeBorder(.black.opacity(0.14), lineWidth: SiftMetrics.hairline)
-            }
-            .shadow(
-                color: SiftColor.accent.opacity(isHovering ? 0.40 : 0.26),
-                radius: isHovering ? 16 : 10,
-                y: 6
-            )
-            // The label stays at full opacity when the control is disabled: a
-            // whole-view 0.45 wash left the button's own text at 1.27:1, which
-            // is a button that says nothing.
-            .opacity(isEnabled ? 1 : 0.72)
+            .contentShape(RoundedRectangle(cornerRadius: SiftMetrics.controlCornerRadius, style: .continuous))
         }
         .buttonStyle(SiftPressButtonStyle())
         .disabled(!isEnabled)
@@ -355,7 +263,7 @@ public struct SiftPrimaryButton: View {
     }
 }
 
-/// A secondary action: the same rectangle, but glass instead of paint.
+/// A quiet secondary action with a white surface and a fine neutral outline.
 public struct SiftSecondaryButton: View {
     private let title: String
     private let symbolName: String?
@@ -384,15 +292,12 @@ public struct SiftSecondaryButton: View {
                     .font(SiftFont.bodyEmphasis)
                     .lineLimit(1)
             }
+            .foregroundStyle(SiftColor.mainText)
             .padding(.horizontal, SiftMetrics.spacingXL)
             .frame(minHeight: SiftMetrics.buttonHeight)
             .background {
                 RoundedRectangle(cornerRadius: SiftMetrics.controlCornerRadius, style: .continuous)
-                    .fill(.ultraThinMaterial)
-                    .overlay {
-                        RoundedRectangle(cornerRadius: SiftMetrics.controlCornerRadius, style: .continuous)
-                            .fill(isHovering ? SiftColor.hoverFill : SiftColor.subtleFill)
-                    }
+                    .fill(isHovering ? SiftColor.hoverFill : SiftColor.canvas)
             }
             .overlay {
                 RoundedRectangle(cornerRadius: SiftMetrics.controlCornerRadius, style: .continuous)
@@ -482,7 +387,7 @@ private struct SiftPressBody: View {
 
     var body: some View {
         configuration.label
-            .scaleEffect(reduceMotion ? 1 : (configuration.isPressed ? 0.97 : 1))
+            .scaleEffect(reduceMotion ? 1 : (configuration.isPressed ? 0.99 : 1))
             .animation(reduceMotion ? nil : SiftMotion.press, value: configuration.isPressed)
     }
 }
@@ -518,20 +423,14 @@ public struct IconTile: View {
     private let symbolName: String
     private let tint: Color
 
-    public init(symbolName: String, tint: Color = SiftColor.accent) {
+    public init(symbolName: String, tint: Color = SiftColor.accentText) {
         self.symbolName = symbolName
         self.tint = tint
     }
 
     public var body: some View {
         RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
-            .fill(
-                LinearGradient(
-                    colors: [tint.opacity(0.18), tint.opacity(0.08)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
+            .fill(tint.opacity(0.12))
             .frame(width: SiftMetrics.iconTileSize, height: SiftMetrics.iconTileSize)
             .overlay {
                 Image(systemName: symbolName)
@@ -584,7 +483,7 @@ public struct RiskBadge: View {
     }
 }
 
-/// A filter chip: the selected chip is jade glass, the rest are quiet wells.
+/// A compact filter control. Selection is shown with a pale green wash and a fine boundary.
 public struct SiftFilterChip: View {
     private let title: String
     private let detail: String?
@@ -608,34 +507,23 @@ public struct SiftFilterChip: View {
                 if let detail {
                     Text(detail)
                         .font(SiftFont.caption)
-                        .opacity(0.7)
+                        .foregroundStyle(isSelected ? SiftColor.accentText.opacity(0.82) : SiftColor.subtleText)
                 }
             }
-            .foregroundStyle(isSelected ? SiftColor.accentText : Color.primary)
-            .padding(.horizontal, SiftMetrics.spacingL)
+            .foregroundStyle(isSelected ? SiftColor.accentText : SiftColor.mainText)
+            .padding(.horizontal, SiftMetrics.spacingM)
             .frame(minHeight: SiftMetrics.chipHeight)
             .background {
-                RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
-                    .fill(
-                        isSelected
-                            ? SiftColor.selectedFill
-                            : (isHovering ? SiftColor.hoverFill : SiftColor.subtleFill)
-                    )
-                    .background(
-                        RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
-                            .fill(.ultraThinMaterial)
-                    )
+                RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
+                    .fill(isSelected ? SiftColor.selectedFill : (isHovering ? SiftColor.hoverFill : .clear))
             }
             .overlay {
-                RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
-                    .strokeBorder(
-                        isSelected ? SiftColor.accentText.opacity(0.55) : SiftColor.glassBorder,
-                        lineWidth: 1
-                    )
+                RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
+                    .strokeBorder(isSelected ? SiftColor.selectedBorder : .clear, lineWidth: 1)
             }
-            .animation(SiftMotion.hover, value: isHovering)
+            .contentShape(Rectangle())
         }
-        .buttonStyle(SiftPressButtonStyle())
+        .buttonStyle(.plain)
         .onHover { isHovering = $0 }
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
@@ -722,7 +610,7 @@ public struct UsageBar: View {
 
     @Environment(\.siftReduceMotion) private var reduceMotion
 
-    public init(fraction: Double, tint: Color = SiftColor.accent, height: CGFloat = 8) {
+    public init(fraction: Double, tint: Color = SiftColor.brandGreen, height: CGFloat = 8) {
         self.fraction = min(max(fraction, 0), 1)
         self.tint = tint
         self.height = height
@@ -733,13 +621,7 @@ public struct UsageBar: View {
             ZStack(alignment: .leading) {
                 Capsule(style: .continuous).fill(SiftColor.neutral.opacity(0.14))
                 Capsule(style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [tint.opacity(0.85), tint],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
+                    .fill(tint)
                     .frame(width: max(geometry.size.width * fraction, fraction > 0 ? 4 : 0))
             }
         }
@@ -1114,8 +996,8 @@ public struct NoticeBanner: View {
         .accessibilityElement(children: .contain)
     }
 }
-/// A primary block: an icon, a short headline, an explanation and the action
-/// that belongs to them, on one tinted glass surface.
+/// A compact primary block: an icon, a short headline, an explanation and
+/// the action that belongs to them, on a restrained white surface.
 public struct SiftHeroCard<Actions: View>: View {
     private let symbolName: String
     private let title: String
@@ -1127,7 +1009,7 @@ public struct SiftHeroCard<Actions: View>: View {
         symbolName: String,
         title: String,
         detail: String? = nil,
-        tint: Color = SiftColor.accent,
+        tint: Color = SiftColor.actionGreen,
         @ViewBuilder actions: () -> Actions
     ) {
         self.symbolName = symbolName
@@ -1138,20 +1020,14 @@ public struct SiftHeroCard<Actions: View>: View {
     }
 
     public var body: some View {
-        let shape = RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusXL, style: .continuous)
-        HStack(alignment: .top, spacing: SiftMetrics.spacingXL) {
-            RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusL, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [tint.opacity(0.30), tint.opacity(0.10)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .frame(width: 58, height: 58)
+        let shape = RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
+        HStack(alignment: .top, spacing: SiftMetrics.spacingL) {
+            RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
+                .fill(tint.opacity(0.12))
+                .frame(width: 44, height: 44)
                 .overlay {
                     Image(systemName: symbolName)
-                        .font(.system(size: 24, weight: .medium))
+                        .font(.system(size: 19, weight: .medium))
                         .foregroundStyle(tint)
                 }
                 .accessibilityHidden(true)
@@ -1159,44 +1035,23 @@ public struct SiftHeroCard<Actions: View>: View {
             VStack(alignment: .leading, spacing: SiftMetrics.spacingXS) {
                 Text(title)
                     .siftFont(.title)
+                    .foregroundStyle(SiftColor.mainText)
                     .fixedSize(horizontal: false, vertical: true)
                 if let detail, !detail.isEmpty {
                     Text(detail)
                         .font(SiftFont.body)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(SiftColor.secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 actions
                     .padding(.top, SiftMetrics.spacingXS)
             }
-
             Spacer(minLength: 0)
         }
-        .padding(SiftMetrics.spacingXL)
-        .background {
-            ZStack {
-                shape.fill(.thinMaterial)
-                shape.fill(
-                    LinearGradient(
-                        colors: [tint.opacity(0.18), SiftColor.cardGlass],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                shape.fill(
-                    LinearGradient(
-                        colors: [SiftColor.glassHighlight.opacity(0.10), .clear],
-                        startPoint: .top,
-                        endPoint: .center
-                    )
-                )
-            }
-        }
-        .overlay {
-            shape.strokeBorder(tint.opacity(0.22), lineWidth: SiftMetrics.hairline)
-        }
+        .padding(SiftMetrics.spacingL)
+        .background { shape.fill(SiftColor.canvas) }
+        .overlay { shape.strokeBorder(SiftColor.glassBorder, lineWidth: 1) }
         .clipShape(shape)
-        .shadow(color: .black.opacity(0.12), radius: 14, y: 6)
     }
 }
 
@@ -1268,11 +1123,10 @@ public struct SiftMetricPill: View {
     }
 }
 
-/// A rail entry's label: the icon over its one-word caption.
+/// A horizontal sidebar entry: icon first, then its label.
 ///
-/// Every entry in the rail draws this same box — the four destinations and the
-/// footer controls — so the bottom of the rail cannot drift into a second scale
-/// of icon or type by being written somewhere else.
+/// The same component is used for primary destinations and footer controls so
+/// their alignment, type size and hit target remain consistent.
 public struct SiftRailItemLabel: View {
     private let symbolName: String
     private let title: String
@@ -1283,15 +1137,18 @@ public struct SiftRailItemLabel: View {
     }
 
     public var body: some View {
-        VStack(spacing: 5) {
+        HStack(spacing: SiftMetrics.spacingM) {
             Image(systemName: symbolName)
-                .font(.system(size: 19, weight: .medium))
-                .frame(height: 22)
+                .font(.system(size: 16, weight: .medium))
+                .frame(width: 20)
             Text(title)
                 .font(SiftFont.railLabel)
                 .lineLimit(1)
+                .minimumScaleFactor(0.85)
+            Spacer(minLength: 0)
         }
-        .frame(width: SiftMetrics.railItemWidth, height: SiftMetrics.railItemHeight)
+        .padding(.horizontal, SiftMetrics.spacingM)
+        .frame(width: SiftMetrics.railItemWidth, height: SiftMetrics.railItemHeight, alignment: .leading)
         .contentShape(Rectangle())
     }
 }
@@ -1491,8 +1348,8 @@ public struct LanguageMenu: View {
     /// The picker opens toward the window's content, away from the rail edge.
     private var popoverEdge: Edge {
         switch style {
-        case .rail: .trailing
-        case .sidebar, .settings: .leading
+        case .rail, .sidebar: .trailing
+        case .settings: .leading
         }
     }
 

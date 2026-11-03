@@ -1,3 +1,4 @@
+import AppKit
 import Core
 import FeatureDashboard
 import FeatureJunkCleanup
@@ -12,11 +13,9 @@ import SwiftUI
 /// `PreferencesSnapshot` and the paywall reason bridge live in the junk cleanup
 /// feature, which owns the confirmation panel the shell presents.
 
-/// The window: an icon rail and the selected page, over the shared canvas.
-///
-/// The redesign replaces the system sidebar with a narrow rail. It carries the
-/// four destinations a user goes to, the language control and settings; category
-/// filters moved into the scan page, which is where they belong.
+/// The window: a horizontal macOS sidebar and the selected page, over the
+/// shared canvas. Primary destinations stay separate from appearance, account,
+/// language and settings controls in the footer.
 public struct RootShellView: View {
     public init() {}
 
@@ -233,91 +232,68 @@ private struct ConfirmationHost: View {
 struct IconRailView: View {
     @EnvironmentObject private var environment: AppEnvironment
     @EnvironmentObject private var router: AppRouter
-    /// Whether a footer popover is up. The two popover controls are rail entries
-    /// like any other, so their group's fill has to travel to them; the state
-    /// lives here because one slider draws the fill for all four footer slots.
-    @State private var isAppearancePresented = false
     @State private var isLanguagePresented = false
 
     var body: some View {
-        VStack(spacing: SiftMetrics.spacingXS) {
-            SiftMark()
-                .frame(width: 40, height: 40)
-                // The window keeps its traffic lights (hidden title bar, not a
-                // hidden title bar zone), and they occupy the first ~28 pt.
-                .padding(.top, 28)
-                .padding(.bottom, SiftMetrics.spacingXL)
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: SiftMetrics.spacingM) {
+                SiftMark()
+                    .frame(width: 42, height: 42)
+                Text("Sift")
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(SiftColor.mainText)
+            }
+            .padding(.horizontal, SiftMetrics.spacingM)
+            .padding(.top, 28)
+            .padding(.bottom, SiftMetrics.spacingXL)
 
-            // One fill for the whole group, drawn behind the entries and moved
-            // to the entry the window is showing: switching pages slides it
-            // instead of lighting a second entry and fading the first.
-            ZStack(alignment: .top) {
-                RailSelectionSlider(index: primarySelection, count: AppDestination.primary.count)
-                VStack(spacing: SiftMetrics.spacingXS) {
-                    ForEach(AppDestination.primary) { destination in
-                        railItem(destination)
-                    }
+            VStack(spacing: SiftMetrics.spacingXS) {
+                ForEach(AppDestination.primary) { destination in
+                    railItem(destination)
                 }
             }
 
-            Spacer(minLength: SiftMetrics.spacingL)
+            Spacer(minLength: SiftMetrics.spacingXL)
 
-            // The footer is its own group, and its entries pass the fill to the
-            // same slider for the same reason: account and settings are pages, so
-            // moving between them slides one fill rather than swapping two.
-            ZStack(alignment: .top) {
-                RailSelectionSlider(index: footerSelection, count: IconRailView.footerSlotCount)
-                VStack(spacing: SiftMetrics.spacingXS) {
-                    // The appearance switcher lives in the rail, above the account
-                    // entry: it is a window-level control, and the footer is where
-                    // the window-level controls sit. It keeps its own highlight
-                    // while its popover is open — it is not a page.
-                    AppearanceRailMenu(
-                        selection: environment.preferences.appearance,
-                        onSelect: { appearance in
-                            Task { await environment.updateSettings { $0.appearance = appearance } }
-                        },
-                        onPresentedChange: { isAppearancePresented = $0 }
-                    )
+            Rectangle()
+                .fill(SiftColor.glassBorder)
+                .frame(height: 1)
+                .padding(.horizontal, SiftMetrics.spacingM)
+                .padding(.bottom, SiftMetrics.spacingS)
 
-                    // The footer item is the purchase state: an accent call to unlock
-                    // while locked, the account entry once unlocked.
-                    if !environment.entitlement.isUnlocked {
-                        unlockButton
-                    } else {
-                        accountButton
+            VStack(spacing: SiftMetrics.spacingXS) {
+                AppearanceRailMenu(
+                    selection: environment.preferences.appearance,
+                    onSelect: { appearance in
+                        Task { await environment.updateSettings { $0.appearance = appearance } }
                     }
+                )
+                .padding(.horizontal, SiftMetrics.spacingS)
 
-                    LanguageMenu(
-                        selection: environment.preferences.language,
-                        style: .rail,
-                        identifier: "sidebar.language",
-                        onPickerPresentedChange: { isLanguagePresented = $0 },
-                        onSelect: { language in
-                            environment.selectLanguage(language)
-                        }
-                    )
-                    .help(LocalizationKey.settingsGroupLanguage.localized)
-
-                    railItem(.settings)
+                if !environment.entitlement.isUnlocked {
+                    unlockButton
+                } else {
+                    accountButton
                 }
+
+                LanguageMenu(
+                    selection: environment.preferences.language,
+                    style: .sidebar,
+                    identifier: "sidebar.language",
+                    onPickerPresentedChange: { isLanguagePresented = $0 },
+                    onSelect: { language in environment.selectLanguage(language) }
+                )
+                .padding(.horizontal, SiftMetrics.spacingS)
+                .siftRailItemChrome(isSelected: isLanguagePresented)
+
+                railItem(.settings)
             }
+            .padding(.bottom, SiftMetrics.spacingM)
         }
-        .padding(.bottom, SiftMetrics.spacingM)
+        .padding(.horizontal, SiftMetrics.spacingS)
         .frame(width: SiftMetrics.railWidth)
         .frame(maxHeight: .infinity)
-        .background {
-            ZStack {
-                Rectangle().fill(.ultraThinMaterial)
-                Rectangle().fill(SiftColor.baseGlass)
-                LinearGradient(
-                    colors: [SiftColor.glassHighlight.opacity(0.06), .clear],
-                    startPoint: .top,
-                    endPoint: .center
-                )
-            }
-            .ignoresSafeArea()
-        }
+        .background(SiftColor.canvas.ignoresSafeArea())
         .overlay(alignment: .trailing) {
             Rectangle()
                 .fill(SiftColor.glassBorder)
@@ -326,45 +302,6 @@ struct IconRailView: View {
         }
     }
 
-    /// The footer's slots, in the order they are laid out: appearance, the
-    /// purchase state (unlock while locked, account once unlocked), language and
-    /// settings.
-    static let footerSlotCount = 4
-
-    /// Which destination the rail's top group is showing, or `nil` while the
-    /// window is on a page that group does not hold.
-    private var primarySelection: Int? {
-        AppDestination.primary.firstIndex(of: router.destination)
-    }
-
-    /// Which footer slot the fill sits on.
-    ///
-    /// All four slots are entries the user can press, so all four move the fill:
-    /// an open popover wins over the page underneath it, because it is the thing
-    /// the user just did. The one slot that never takes the fill is the unlock
-    /// call to action — a fill parked on it read as "the page you are on", which
-    /// the rail already got wrong once. Its state is `nil` there, so the fill
-    /// fades out rather than sliding onto the CTA.
-    private var footerSelection: Int? {
-        if isAppearancePresented { return 0 }
-        if isLanguagePresented { return 2 }
-        switch router.destination {
-        case .purchase:
-            return environment.entitlement.isUnlocked ? 1 : nil
-        case .settings:
-            return 3
-        default:
-            return nil
-        }
-    }
-
-    /// One rail entry.
-    ///
-    /// The box, the label, the hover and press feedback and the selection fill
-    /// all come from `SiftRailItemLabel` and `siftRailItemChrome`, which the
-    /// footer controls wear too — so "the buttons at the bottom do not look like
-    /// the buttons at the top" cannot come back from two hand-written styles
-    /// drifting apart.
     private func railItem(_ destination: AppDestination) -> some View {
         let isSelected = router.destination == destination
         return Button {
@@ -374,12 +311,10 @@ struct IconRailView: View {
                 symbolName: destination.symbolName,
                 title: destination.titleKey.localized
             )
-            .foregroundStyle(isSelected ? SiftColor.accentText : Color.secondary)
+            .foregroundStyle(isSelected ? SiftColor.accentText : SiftColor.mainText)
         }
-        .buttonStyle(SiftPressButtonStyle())
-        // The group's slider paints the selection fill, so this entry only
-        // contributes its box, its hover fill and its leading mark.
-        .siftRailItemChrome(isSelected: isSelected, fillsSelection: false)
+        .buttonStyle(.plain)
+        .siftRailItemChrome(isSelected: isSelected, showsSelectionMark: true)
         .accessibilityLabel(Text(destination.titleKey.localized))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
         .accessibilityIdentifier("sidebar.\(destination.rawValue)")
@@ -389,29 +324,18 @@ struct IconRailView: View {
         Button {
             router.requestPurchase(reason: .cleanJunk)
         } label: {
-            // The one accent-tinted entry in the rail, but the same item box,
-            // icon size and label as every other rail entry: the footer reads
-            // as one column, not three controls that arrived separately.
             SiftRailItemLabel(
                 symbolName: "lock.open",
                 title: LocalizationKey.purchaseTitle.localized
             )
             .foregroundStyle(SiftColor.accentText)
         }
-        .buttonStyle(SiftPressButtonStyle())
-        // Not `isSelected: true`: the call to action used to wear the same
-        // selection fill as the current page, so the rail showed two selected
-        // items and VoiceOver heard the CTA as "the page you are on". The accent
-        // label is what distinguishes it.
+        .buttonStyle(.plain)
         .siftRailItemChrome(isSelected: false)
         .accessibilityIdentifier("sidebar.purchase")
         .help(LocalizationKey.purchaseTitle.localized)
     }
 
-    /// The unlocked footer item: the account page, where the purchase state and
-    /// the stored licence are shown. Same item box, icon size and label as every
-    /// other rail entry — the call to action is gone because there is nothing
-    /// left to sell here.
     private var accountButton: some View {
         let isSelected = router.destination == .purchase
         return Button {
@@ -421,81 +345,26 @@ struct IconRailView: View {
                 symbolName: "person.crop.circle",
                 title: LocalizationKey.navAccount.localized
             )
-            .foregroundStyle(isSelected ? SiftColor.accentText : Color.secondary)
+            .foregroundStyle(isSelected ? SiftColor.accentText : SiftColor.mainText)
         }
-        .buttonStyle(SiftPressButtonStyle())
-        .siftRailItemChrome(isSelected: isSelected, fillsSelection: false)
+        .buttonStyle(.plain)
+        .siftRailItemChrome(isSelected: isSelected, showsSelectionMark: true)
         .accessibilityIdentifier("sidebar.account")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
         .help(LocalizationKey.navAccount.localized)
     }
 }
 
-/// The rail's selection fill, drawn once per group.
-///
-/// It is placed by slot rather than by `matchedGeometryEffect`: the rail's
-/// entries are a fixed size in a fixed column, so the slot's offset is known
-/// arithmetic, and a geometry hand-off would add a second source of truth about
-/// where the fill belongs. `nil` means "this group holds no page", and the fill
-/// fades out rather than sliding back to the first slot.
-private struct RailSelectionSlider: View {
-    let index: Int?
-    let count: Int
-    @Environment(\.siftReduceMotion) private var reduceMotion
-
-    var body: some View {
-        let stride = SiftMetrics.railItemHeight + SiftMetrics.spacingXS
-        let slot = min(max(index ?? 0, 0), max(count - 1, 0))
-        ZStack(alignment: .leading) {
-            RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
-                .fill(SiftColor.selectedFill)
-            // The leading selection mark rides with the fill. Drawn on the entry
-            // instead, it jumped to the next slot a frame before the fill
-            // arrived, which read as two indicators disagreeing about where the
-            // window was.
-            Capsule()
-                .fill(SiftColor.accent)
-                .frame(width: 3, height: 18)
-                .padding(.leading, 3)
-        }
-        .frame(width: SiftMetrics.railItemWidth, height: SiftMetrics.railItemHeight)
-        .offset(y: CGFloat(slot) * stride)
-        .opacity(index == nil ? 0 : 1)
-        .animation(reduceMotion ? nil : SiftMotion.settle, value: index)
-        .allowsHitTesting(false)
-    }
-}
-
-/// The product mark: three lines in a violet rounded square.
+/// The product mark is the actual application icon, not a separate gradient
+/// menu glyph. The icon is the source of Sift's green and gold identity.
 struct SiftMark: View {
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [SiftColor.accentBright, SiftColor.accent],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-            VStack(spacing: 4) {
-                markLine(width: 18)
-                markLine(width: 14)
-                markLine(width: 18)
-            }
-        }
-        .overlay {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(.white.opacity(0.22), lineWidth: SiftMetrics.hairline)
-        }
-        .shadow(color: SiftColor.accent.opacity(0.35), radius: 10, y: 4)
-        .accessibilityHidden(true)
-    }
-
-    private func markLine(width: CGFloat) -> some View {
-        Capsule()
-            .fill(.white.opacity(0.92))
-            .frame(width: width, height: 2.2)
+        Image(nsImage: NSApplication.shared.applicationIconImage)
+            .resizable()
+            .interpolation(.high)
+            .scaledToFit()
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .accessibilityHidden(true)
     }
 }
 
@@ -597,7 +466,7 @@ struct AppearanceRailMenu: View {
                 .foregroundStyle(isPresented ? SiftColor.accentText : Color.secondary)
         }
         .buttonStyle(SiftPressButtonStyle())
-        .siftRailItemChrome(isSelected: isPresented, fillsSelection: false)
+        .siftRailItemChrome(isSelected: isPresented)
         .popover(isPresented: presented, arrowEdge: .trailing) {
             picker
         }

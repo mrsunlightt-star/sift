@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900">
+<rect width="1440" height="900" fill="#FFFFFF"/><rect x=".5" y=".5" width="1439" height="899" rx="18" fill="none" stroke="#DDE4DE"/>
+<rect width="224" height="900" fill="#FFFFFF"/><path d="M224 0V900" stroke="#E5EAE6"/>
+<circle cx="28" cy="28" r="8" fill="#FF6258"/><circle cx="54" cy="28" r="8" fill="#FFBD2E"/><circle cx="80" cy="28" r="8" fill="#28C840"/>
+<rect x="28" y="76" width="46" height="46" rx="11" fill="#00BF63"/><path d="M51 81L56 95L71 97L60 107L63 122L51 114L39 122L42 107L31 97L46 95Z" fill="#FFBA36"/><text x="86" y="108" font-size="28" font-weight="650" fill="#202722" font-family="SF Pro Display, PingFang SC, sans-serif">Sift</text>
+<g font-family="PingFang SC, sans-serif" font-size="17" fill="#354038">
+<rect x="18" y="157" width="188" height="44" rx="8" fill="#E8F7EF"/><rect x="18" y="169" width="3" height="20" rx="1.5" fill="#007E46"/><path d="M43 179L53 170L63 179V192H56V185H50V192H43Z" fill="#007E46"/><text x="80" y="185" fill="#007E46" font-weight="600">总览</text>
+<circle cx="53" cy="238" r="9" fill="none" stroke="#58635B" stroke-width="2"/><path d="M60 245L68 253" stroke="#58635B" stroke-width="2.4"/><text x="80" y="244">扫描</text>
+<rect x="44" y="281" width="19" height="19" rx="4" fill="none" stroke="#58635B" stroke-width="2"/><text x="80" y="297">应用</text>
+<path d="M44 355H63M47 355V341M53 355V334M60 355V345" stroke="#58635B" stroke-width="2.4"/><text x="80" y="352">存储</text>
+</g>
+<path d="M24 405H200" stroke="#E5EAE6"/><text x="80" y="453" font-size="15" fill="#58635B" font-family="PingFang SC, sans-serif">设置</text><text x="80" y="503" font-size="15" fill="#58635B" font-family="PingFang SC, sans-serif">账户</text><text x="26" y="861" font-size="13" fill="#68716B" font-family="PingFang SC, sans-serif">简体中文　⌄</text>
+<g transform="translate(270 58)" font-family="PingFang SC, sans-serif">
+<text x="0" y="0" font-size="12" letter-spacing=".5" fill="#68716B">SIFT / FIRST RUN</text>
+<text x="0" y="54" font-size="34" font-weight="650" fill="#202722">欢迎使用 Sift</text>
+<text x="0" y="86" font-size="16" fill="#5F6962">先了解磁盘空间，再决定需要处理的内容。</text>
+<text x="0" y="166" font-size="15" fill="#5F6962">第一次扫描</text>
+<text x="0" y="226" font-size="48" font-weight="650" fill="#202722">让 Mac 保持清爽、高效。</text>
+<text x="0" y="264" font-size="15" fill="#5F6962">扫描过程在本机完成。结果会列出文件位置、大小和处理原因。</text>
+<rect x="0" y="304" width="174" height="46" rx="8" fill="#007E46"/><text x="87" y="333" text-anchor="middle" font-size="15" font-weight="600" fill="#FFFFFF">开始扫描　›</text>
+<text x="0" y="400" font-size="13" fill="#68716B">扫描范围</text>
+<g font-size="14" fill="#202722">
+<text x="0" y="438">应用缓存</text><text x="245" y="438" fill="#68716B">~/Library/Caches</text>
+<text x="0" y="480">系统日志</text><text x="245" y="480" fill="#68716B">~/Library/Logs</text>
+<text x="0" y="522">下载与安装包</text><text x="245" y="522" fill="#68716B">~/Downloads</text>
+<text x="0" y="564">应用支持数据</text><text x="245" y="564" fill="#68716B">~/Library/Application Support</text>
+</g>
+<path d="M0 590H760" stroke="#E5EAE6"/>
+<text x="0" y="628" font-size="13" fill="#68716B">你可以在设置中调整扫描范围和授权文件夹。</text>
+<g transform="translate(890 150)">
+<path d="M110 0L138 78L220 88L158 139L179 222L110 174L41 222L62 139L0 88L82 78Z" fill="#FFBA36"/>
+<path d="M110 26L132 88L194 95L147 134L162 196L110 163L58 196L73 134L26 95L88 88Z" fill="none" stroke="#DFA022" stroke-width="1.4"/>
+<text x="110" y="274" text-anchor="middle" font-size="13" fill="#68716B">Sift 品牌图形</text>
+</g>
+<path d="M0 684H1136" stroke="#E5EAE6"/>
+<g>
+<text x="0" y="726" font-size="13" fill="#68716B">磁盘已用</text><text x="0" y="762" font-size="22" font-weight="620" fill="#202722">87%</text>
+<path d="M360 704V772" stroke="#E5EAE6"/>
+<text x="400" y="726" font-size="13" fill="#68716B">本机处理</text><text x="400" y="762" font-size="22" font-weight="620" fill="#202722">不上传文件</text>
+<path d="M760 704V772" stroke="#E5EAE6"/>
+<text x="800" y="726" font-size="13" fill="#68716B">操作方式</text><text x="800" y="762" font-size="22" font-weight="620" fill="#202722">先预检，再移入废纸篓</text>
+</g>
+</g></svg>

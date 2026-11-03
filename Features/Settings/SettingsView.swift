@@ -787,13 +787,19 @@ struct SettingsGroup<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
+        VStack(alignment: .leading, spacing: SiftMetrics.spacingM) {
             Text(titleKey.localized)
                 .font(SiftFont.sectionTitle)
-            SiftGlassCard(padding: SiftMetrics.spacingL) {
-                content
-            }
+                .foregroundStyle(SiftColor.mainText)
+
+            content
+                .padding(.bottom, SiftMetrics.spacingL)
+
+            Rectangle()
+                .fill(SiftColor.glassBorder)
+                .frame(height: 1)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

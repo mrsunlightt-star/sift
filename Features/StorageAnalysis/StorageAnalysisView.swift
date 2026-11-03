@@ -126,77 +126,70 @@ public struct StorageAnalysisView: View {
     /// The toggle and the sentence that explains it share a surface, so the two
     /// halves of the same decision do not sit at opposite edges of the window.
     private var scopeRow: some View {
-        SiftGlassCard(padding: SiftMetrics.spacingL) {
-            HStack(alignment: .center, spacing: SiftMetrics.spacingL) {
-                Toggle(
-                    LocalizationKey.storageIncludeVolume.localized,
-                    isOn: $model.includeVolumeRoot
-                )
-                .toggleStyle(.checkbox)
-                .disabled(isAnalyzing)
-
-                Divider()
-                    .frame(height: 20)
-
-                Text(LocalizationKey.storageScopeNote.localized)
+        HStack(alignment: .center, spacing: SiftMetrics.spacingL) {
+            Toggle(
+                LocalizationKey.storageIncludeVolume.localized,
+                isOn: $model.includeVolumeRoot
+            )
+            .toggleStyle(.checkbox)
+            .disabled(isAnalyzing)
+            Text(LocalizationKey.storageScopeNote.localized)
+                .font(SiftFont.caption)
+                .foregroundStyle(SiftColor.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+            if hasResult, let last = model.lastAnalyzedAt {
+                Text(LocalizationKey.storageLastAnalyzed.localized(SiftFormat.relativeDate(last)))
                     .font(SiftFont.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Spacer(minLength: 0)
-
-                if hasResult, let last = model.lastAnalyzedAt {
-                    Text(LocalizationKey.storageLastAnalyzed.localized(SiftFormat.relativeDate(last)))
-                        .font(SiftFont.caption)
-                        .foregroundStyle(.tertiary)
-                }
+                    .foregroundStyle(SiftColor.subtleText)
             }
+        }
+        .padding(.vertical, SiftMetrics.spacingS)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(SiftColor.glassBorder).frame(height: 1)
         }
     }
 
     private var startCard: some View {
-        SiftGlassCard(padding: SiftMetrics.spacingXL) {
-            HStack(alignment: .top, spacing: SiftMetrics.spacingXL) {
+        VStack(alignment: .leading, spacing: SiftMetrics.spacingM) {
+            HStack(spacing: SiftMetrics.spacingM) {
                 Image(systemName: "chart.bar.xaxis")
-                    .font(.system(size: 28, weight: .medium))
-                    // fill-role: the card's illustration glyph, inside its own accent tile
-                    .foregroundStyle(SiftColor.accent)
-                    .frame(width: 58, height: 58)
-                    .background(
-                        RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusL, style: .continuous)
-                            .fill(SiftColor.accent.opacity(0.14))
-                    )
-                VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
-                    Text(LocalizationKey.storageStartTitle.localized)
-                        .font(SiftFont.title)
-                    // The scope sentence is stated once, beside the toggle it
-                    // describes, at the top of this page.
-                    SiftPrimaryButton(titleKey: .storageStart, symbolName: "arrow.clockwise") {
-                        Task { await environment.analyzeStorage() }
-                    }
-                    .accessibilityIdentifier("storage.analyze")
-                    .padding(.top, SiftMetrics.spacingXS)
-                }
-                Spacer(minLength: 0)
+                    .font(.system(size: 19, weight: .medium))
+                    .foregroundStyle(SiftColor.accentText)
+                    .frame(width: 28, height: 28)
+                    .accessibilityHidden(true)
+                Text(LocalizationKey.storageStartTitle.localized)
+                    .font(SiftFont.sectionTitle)
+                    .foregroundStyle(SiftColor.mainText)
             }
+            SiftPrimaryButton(titleKey: .storageStart, symbolName: "chart.bar.xaxis") {
+                Task { await environment.analyzeStorage() }
+            }
+            .accessibilityIdentifier("storage.analyze")
         }
+        .padding(.vertical, SiftMetrics.spacingXL)
     }
 
     private var analyzingCard: some View {
-        SiftGlassCard(padding: SiftMetrics.spacingL) {
-            HStack(spacing: SiftMetrics.spacingL) {
-                SiftProgressRing(progress: nil, lineWidth: 6)
-                    .frame(width: 38, height: 38)
-                VStack(alignment: .leading, spacing: SiftMetrics.spacingXS) {
-                    Text(LocalizationKey.storageAnalysing.localized)
-                        .font(SiftFont.sectionTitle)
-                }
-                Spacer()
-                SiftSecondaryButton(titleKey: .storageCancelAnalysis) {
-                    environment.cancelStorageAnalysis()
-                }
-                .keyboardShortcut(.cancelAction)
+        HStack(spacing: SiftMetrics.spacingL) {
+            SiftProgressRing(progress: nil, lineWidth: 5).frame(width: 32, height: 32)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(LocalizationKey.storageAnalysing.localized)
+                    .font(SiftFont.sectionTitle)
+                    .foregroundStyle(SiftColor.mainText)
+                Text(LocalizationKey.storageScopeNote.localized)
+                    .font(SiftFont.caption)
+                    .foregroundStyle(SiftColor.secondaryText)
             }
+            Spacer()
+            SiftSecondaryButton(titleKey: .storageCancelAnalysis) {
+                environment.cancelStorageAnalysis()
+            }
+            .keyboardShortcut(.cancelAction)
+        }
+        .padding(.vertical, SiftMetrics.spacingL)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(SiftColor.glassBorder).frame(height: 1)
         }
         .accessibilityIdentifier("storage.analyzing")
     }
@@ -206,11 +199,8 @@ public struct StorageAnalysisView: View {
     private var leftColumn: some View {
         VStack(spacing: SiftMetrics.pageSpacing) {
             distributionCard
-
-            HStack(alignment: .top, spacing: SiftMetrics.spacingL) {
-                directoriesCard
-                filesCard
-            }
+            directoriesCard
+            filesCard
         }
     }
 
@@ -257,70 +247,48 @@ public struct StorageAnalysisView: View {
     }
 
     private var categoryCard: some View {
-        SiftGlassCard(padding: SiftMetrics.spacingL) {
-            VStack(alignment: .leading, spacing: SiftMetrics.spacingM) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(LocalizationKey.storageCategoryDetail.localized)
-                        .font(SiftFont.sectionTitle)
-                    Spacer()
-                    Text(LocalizationKey.storageUsed.localized(analysis.formattedUsage, analysis.formattedTotal))
-                        .font(SiftFont.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                ForEach(analysis.categories) { category in
-                    HStack(spacing: SiftMetrics.spacingM) {
-                        Circle()
-                            .fill(StorageCategoryTint.tint(for: category.id))
-                            .frame(width: 7, height: 7)
-                        Text(category.title)
-                            .font(SiftFont.body)
-                            .lineLimit(1)
-                        Spacer(minLength: SiftMetrics.spacingS)
-                        Text(category.formattedSize)
-                            .font(SiftFont.bodyEmphasis)
-                            .monospacedDigit()
-                    }
-                    .accessibilityElement(children: .combine)
-                }
-
-                Divider()
-
-                HStack(spacing: SiftMetrics.spacingM) {
-                    Circle()
-                        .fill(SiftColor.neutral.opacity(0.35))
-                        .frame(width: 7, height: 7)
-                    Text(LocalizationKey.storageAvailableSpace.localized)
-                        .font(SiftFont.body)
-                    Spacer(minLength: SiftMetrics.spacingS)
-                    Text(analysis.formattedFree)
-                        .font(SiftFont.bodyEmphasis)
-                        .monospacedDigit()
-                }
-
-                Divider()
-
-                Text(LocalizationKey.storageUsageShare.localized)
+        VStack(alignment: .leading, spacing: SiftMetrics.spacingM) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(LocalizationKey.storageCategoryDetail.localized)
+                    .font(SiftFont.sectionTitle)
+                    .foregroundStyle(SiftColor.mainText)
+                Spacer()
+                Text(LocalizationKey.storageUsed.localized(analysis.formattedUsage, analysis.formattedTotal))
                     .font(SiftFont.caption)
-                    .foregroundStyle(.secondary)
-                SegmentedUsageBar(segments: usageSegments, height: 10)
-                    .background(Capsule().fill(SiftColor.neutral.opacity(0.10)))
-                HStack(spacing: SiftMetrics.spacingM) {
-                    Text(analysis.formattedUsed)
-                        .font(SiftFont.badge)
-                        .foregroundStyle(SiftColor.accentText)
-                    Spacer()
-                    Text(analysis.formattedFree)
-                        .font(SiftFont.badge)
-                        .foregroundStyle(.secondary)
-                }
-                Text(LocalizationKey.storageLocalNote.localized)
-                    .font(SiftFont.caption)
-                    .foregroundStyle(.tertiary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, SiftMetrics.spacingXS)
+                    .foregroundStyle(SiftColor.secondaryText)
             }
+            ForEach(analysis.categories) { category in
+                HStack(spacing: SiftMetrics.spacingM) {
+                    Circle().fill(StorageCategoryTint.tint(for: category.id)).frame(width: 7, height: 7)
+                    Text(category.title).font(SiftFont.body).lineLimit(1)
+                    Spacer(minLength: SiftMetrics.spacingS)
+                    Text(category.formattedSize).font(SiftFont.bodyEmphasis).monospacedDigit()
+                }
+                .accessibilityElement(children: .combine)
+            }
+            Divider()
+            HStack(spacing: SiftMetrics.spacingM) {
+                Circle().fill(SiftColor.neutral.opacity(0.35)).frame(width: 7, height: 7)
+                Text(LocalizationKey.storageAvailableSpace.localized).font(SiftFont.body)
+                Spacer(minLength: SiftMetrics.spacingS)
+                Text(analysis.formattedFree).font(SiftFont.bodyEmphasis).monospacedDigit()
+            }
+            Divider()
+            Text(LocalizationKey.storageUsageShare.localized)
+                .font(SiftFont.caption).foregroundStyle(SiftColor.secondaryText)
+            SegmentedUsageBar(segments: usageSegments, height: 8)
+                .background(Capsule().fill(SiftColor.neutral.opacity(0.10)))
+            HStack(spacing: SiftMetrics.spacingM) {
+                Text(analysis.formattedUsed).font(SiftFont.badge).foregroundStyle(SiftColor.accentText)
+                Spacer()
+                Text(analysis.formattedFree).font(SiftFont.badge).foregroundStyle(SiftColor.secondaryText)
+            }
+            Text(LocalizationKey.storageLocalNote.localized)
+                .font(SiftFont.caption).foregroundStyle(SiftColor.subtleText)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, SiftMetrics.spacingXS)
         }
+        .padding(.vertical, SiftMetrics.spacingS)
     }
 
     /// The usage bar accounts for the whole volume: the measured categories, the
@@ -359,40 +327,20 @@ public struct StorageAnalysisView: View {
     }
 
     private var suggestionCard: some View {
-        SiftGlassCard(padding: SiftMetrics.spacingL) {
-            VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
-                Text(LocalizationKey.storageSuggestionTitle.localized)
-                    .font(SiftFont.eyebrow)
-                    .textCase(.uppercase)
-                    .tracking(0.8)
-                    .foregroundStyle(SiftColor.accentText)
-                Text(
-                    LocalizationKey.storageCleanableHeading.localized(
-                        SiftFormat.bytes(analysis.reclaimableBytes)
-                    )
-                )
-                .font(SiftFont.title)
+        VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
+            Text(LocalizationKey.storageSuggestionTitle.localized)
+                .font(SiftFont.sectionTitle).foregroundStyle(SiftColor.mainText)
+            Text(LocalizationKey.storageCleanableHeading.localized(SiftFormat.bytes(analysis.reclaimableBytes)))
+                .font(SiftFont.title).fixedSize(horizontal: false, vertical: true)
+            Text(LocalizationKey.storageSuggestionDetail.localized)
+                .font(SiftFont.caption).foregroundStyle(SiftColor.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
-                Text(LocalizationKey.storageSuggestionDetail.localized)
-                    .font(SiftFont.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                SiftPrimaryButton(titleKey: .storageGoClean) {
-                    onGoClean()
-                }
+            SiftPrimaryButton(titleKey: .storageGoClean) { onGoClean() }
                 .padding(.top, SiftMetrics.spacingS)
-            }
         }
-        .overlay {
-            RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusXL, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [SiftColor.accent.opacity(0.12), .clear],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .allowsHitTesting(false)
+        .padding(.vertical, SiftMetrics.spacingL)
+        .overlay(alignment: .top) {
+            Rectangle().fill(SiftColor.glassBorder).frame(height: 1)
         }
     }
 
@@ -440,71 +388,57 @@ public struct StorageAnalysisView: View {
     // MARK: - Largest items
 
     private var directoriesCard: some View {
-        SiftGlassCard(padding: SiftMetrics.spacingL) {
-            VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
-                Text(LocalizationKey.storageTopDirectories.localized)
-                    .font(SiftFont.sectionTitle)
+        VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
+            Text(LocalizationKey.storageTopDirectories.localized)
+                .font(SiftFont.sectionTitle).foregroundStyle(SiftColor.mainText)
+            Divider()
+            ForEach(visibleDirectories) { directory in
+                PathRow(
+                    name: directory.displayName,
+                    path: directory.displayPath,
+                    detail: SiftFormat.bytes(directory.sizeInBytes),
+                    secondary: LocalizationKey.commonFileCount.counted(directory.fileCount),
+                    onReveal: { Task { await environment.reveal(directory.url) } }
+                )
                 Divider()
-                ForEach(visibleDirectories) { directory in
-                    PathRow(
-                        name: directory.displayName,
-                        path: directory.displayPath,
-                        detail: SiftFormat.bytes(directory.sizeInBytes),
-                        secondary: LocalizationKey.commonFileCount.counted(directory.fileCount),
-                        onReveal: { Task { await environment.reveal(directory.url) } }
-                    )
-                }
-                if analysis.topDirectories.count > visibleDirectories.count {
-                    Button {
-                        showAllDirectories = true
-                    } label: {
-                        Text(
-                            LocalizationKey.commonOf.localized(
-                                "\(visibleDirectories.count)",
-                                "\(analysis.topDirectories.count)"
-                            )
-                        )
+            }
+            if analysis.topDirectories.count > visibleDirectories.count {
+                Button { showAllDirectories = true } label: {
+                    Text(LocalizationKey.commonOf.localized("\(visibleDirectories.count)", "\(analysis.topDirectories.count)"))
                         .font(SiftFont.caption)
-                    }
-                    .buttonStyle(SiftLinkButtonStyle())
                 }
+                .buttonStyle(SiftLinkButtonStyle())
             }
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, SiftMetrics.spacingS)
     }
 
     private var filesCard: some View {
-        SiftGlassCard(padding: SiftMetrics.spacingL) {
-            VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
-                Text(LocalizationKey.storageTopFiles.localized)
-                    .font(SiftFont.sectionTitle)
+        VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
+            Text(LocalizationKey.storageTopFiles.localized)
+                .font(SiftFont.sectionTitle).foregroundStyle(SiftColor.mainText)
+            Divider()
+            ForEach(visibleFiles) { file in
+                PathRow(
+                    name: file.displayName,
+                    path: file.displayPath,
+                    detail: SiftFormat.bytes(file.sizeInBytes),
+                    secondary: file.modifiedAt.map { SiftFormat.relativeDate($0) } ?? "",
+                    onReveal: { Task { await environment.reveal(file.url) } }
+                )
                 Divider()
-                ForEach(visibleFiles) { file in
-                    PathRow(
-                        name: file.displayName,
-                        path: file.displayPath,
-                        detail: SiftFormat.bytes(file.sizeInBytes),
-                        secondary: file.modifiedAt.map { SiftFormat.relativeDate($0) } ?? "",
-                        onReveal: { Task { await environment.reveal(file.url) } }
-                    )
-                }
-                if analysis.topFiles.count > visibleFiles.count {
-                    Button {
-                        showAllFiles = true
-                    } label: {
-                        Text(
-                            LocalizationKey.commonOf.localized(
-                                "\(visibleFiles.count)",
-                                "\(analysis.topFiles.count)"
-                            )
-                        )
+            }
+            if analysis.topFiles.count > visibleFiles.count {
+                Button { showAllFiles = true } label: {
+                    Text(LocalizationKey.commonOf.localized("\(visibleFiles.count)", "\(analysis.topFiles.count)"))
                         .font(SiftFont.caption)
-                    }
-                    .buttonStyle(SiftLinkButtonStyle())
                 }
+                .buttonStyle(SiftLinkButtonStyle())
             }
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, SiftMetrics.spacingS)
     }
 
     private var visibleFiles: [StorageAnalysis.FileEntry] {
@@ -525,65 +459,57 @@ public struct StorageAnalysisView: View {
         action: (() -> Void)? = nil
     ) -> some View {
         if !findings.isEmpty {
-            SiftGlassCard(padding: SiftMetrics.spacingL) {
-                VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
-                    Text(titleKey.localized)
-                        .font(SiftFont.sectionTitle)
-                    Divider()
-                    ForEach(findings) { finding in
-                        FindingRow(
-                            finding: finding,
-                            onReveal: {
-                                guard let path = finding.path else { return }
-                                Task { await environment.reveal(path) }
-                            }
-                        )
-                    }
-                    // Some categories have a follow-up that belongs to another
-                    // application: snapshots are managed by Time Machine, and
-                    // reclaiming them needs an administrator. The link says so
-                    // instead of offering a button that cannot.
-                    if let actionTitle, let action {
-                        Divider()
-                        Button(action: action) {
-                            Label(actionTitle.localized, systemImage: "arrow.up.forward.app")
-                                .font(SiftFont.caption)
+            VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
+                Text(titleKey.localized)
+                    .font(SiftFont.sectionTitle).foregroundStyle(SiftColor.mainText)
+                Divider()
+                ForEach(findings) { finding in
+                    FindingRow(
+                        finding: finding,
+                        onReveal: {
+                            guard let path = finding.path else { return }
+                            Task { await environment.reveal(path) }
                         }
-                        .buttonStyle(SiftLinkButtonStyle())
+                    )
+                    Divider()
+                }
+                if let actionTitle, let action {
+                    Button(action: action) {
+                        Label(actionTitle.localized, systemImage: "arrow.up.forward.app")
+                            .font(SiftFont.caption)
                     }
+                    .buttonStyle(SiftLinkButtonStyle())
                 }
             }
+            .padding(.vertical, SiftMetrics.spacingM)
         }
     }
 
     private var skippedCard: some View {
         Group {
             if !report.skips.isEmpty {
-                SiftGlassCard(padding: SiftMetrics.spacingL) {
-                    VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
-                        Text(LocalizationKey.diagnosticsSectionSkipped.localized)
-                            .font(SiftFont.sectionTitle)
-                        Divider()
-                        ForEach(report.skips) { skip in
-                            HStack(spacing: SiftMetrics.spacingM) {
-                                Image(systemName: skip.reason.needsFullDiskAccess
-                                    ? "lock.fill"
-                                    : "questionmark.circle")
-                                    .foregroundStyle(.secondary)
-                                    .accessibilityHidden(true)
-                                Text(skip.displayPath)
-                                    .font(SiftFont.caption)
-                                    .lineLimit(1)
-                                    .truncationMode(.middle)
-                                Spacer(minLength: SiftMetrics.spacingS)
-                            }
-                            .padding(.vertical, SiftMetrics.spacingXS)
+                VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
+                    Text(LocalizationKey.diagnosticsSectionSkipped.localized)
+                        .font(SiftFont.sectionTitle).foregroundStyle(SiftColor.mainText)
+                    Divider()
+                    ForEach(report.skips) { skip in
+                        HStack(spacing: SiftMetrics.spacingM) {
+                            Image(systemName: skip.reason.needsFullDiskAccess ? "lock.fill" : "questionmark.circle")
+                                .foregroundStyle(SiftColor.secondaryText)
+                                .accessibilityHidden(true)
+                            Text(skip.displayPath)
+                                .font(SiftFont.caption).foregroundStyle(SiftColor.secondaryText)
+                                .lineLimit(1).truncationMode(.middle)
+                            Spacer(minLength: SiftMetrics.spacingS)
                         }
+                        .padding(.vertical, SiftMetrics.spacingXS)
                     }
                 }
+                .padding(.vertical, SiftMetrics.spacingM)
             }
         }
     }
+
 }
 
 // MARK: - Treemap

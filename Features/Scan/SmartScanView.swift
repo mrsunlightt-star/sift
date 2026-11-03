@@ -259,80 +259,129 @@ public struct ScanView: View {
     /// while the skipped locations and the cancelled notice follow the results
     /// they supplement.
     private var resultsWorkspace: some View {
-        HStack(alignment: .top, spacing: SiftMetrics.spacingL) {
-            ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: SiftMetrics.pageSpacing) {
-                        Color.clear
-                            .frame(height: 1)
-                            .accessibilityHidden(true)
-                            .id(Self.listTopID)
-                        failureBanners
-                        if scan.hasStoppedResults {
-                            NoticeBanner(
-                                level: .information,
-                                message: LocalizationKey.scanStoppedDetail.localized(
-                                    scan.report?.itemCount ?? cleanup.items.count,
-                                    SiftFormat.bytes(scan.liveFoundBytes)
-                                ),
-                                actionTitle: .scanRescan,
-                                action: { Task { await environment.runScan(.everything) } }
+        GeometryReader { geometry in
+            Group {
+                if geometry.size.width >= 920 {
+                    HStack(alignment: .top, spacing: SiftMetrics.spacingL) {
+                        resultsList
+                        summaryRail
+                            .frame(width: SiftMetrics.summaryColumnWidth)
+                            .padding(.trailing, SiftMetrics.pagePadding)
+                            .padding(.bottom, SiftMetrics.spacingXL)
+                    }
+                } else {
+                    VStack(spacing: 0) {
+                        resultsList
+                        compactSummaryRail
+                    }
+                }
+            }
+            .padding(.top, SiftMetrics.pageSpacing)
+            .frame(maxWidth: SiftMetrics.contentWidthWide, alignment: .leading)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        }
+    }
+
+    /// The same paged result view is used in wide and narrow layouts so changing
+    /// the inspector position never changes selection, paging, or scroll identity.
+    private var resultsList: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: SiftMetrics.pageSpacing) {
+                    Color.clear
+                        .frame(height: 1)
+                        .accessibilityHidden(true)
+                        .id(Self.listTopID)
+                    failureBanners
+                    if scan.hasStoppedResults {
+                        NoticeBanner(
+                            level: .information,
+                            message: LocalizationKey.scanStoppedDetail.localized(
+                                scan.report?.itemCount ?? cleanup.items.count,
+                                SiftFormat.bytes(scan.liveFoundBytes)
+                            ),
+                            actionTitle: .scanRescan,
+                            action: { Task { await environment.runScan(.everything) } }
+                        )
+                    }
+                    if filter == .duplicates {
+                        if scan.duplicateGroups.isEmpty {
+                            SiftEmptyState(
+                                symbolName: "doc.on.doc",
+                                titleKey: .filesNoDuplicates,
+                                detailKey: .filesRequiresAuthorization
                             )
-                        }
-                        if filter == .duplicates {
-                            if scan.duplicateGroups.isEmpty {
-                                SiftGlassCard(padding: SiftMetrics.spacingXL) {
-                                    SiftEmptyState(
-                                        symbolName: "doc.on.doc",
-                                        titleKey: .filesNoDuplicates,
-                                        detailKey: .filesRequiresAuthorization
-                                    )
-                                }
-                            } else {
-                                DuplicateGroupsCard(
-                                    groups: scan.duplicateGroups,
-                                    scan: scan,
-                                    cleanup: cleanup
-                                )
-                            }
+                            .frame(maxWidth: .infinity, minHeight: 180)
                         } else {
-                            resultsCard
-                        }
-                        supplementalMessages
-                        // Duplicates come last in "All". They are a second,
-                        // self-contained result set — and the one result whose
-                        // rows the user has to read before deciding anything —
-                        // so they belong after the junk that is already
-                        // judged, not in front of it.
-                        if !scan.duplicateGroups.isEmpty, filter == .all {
                             DuplicateGroupsCard(
                                 groups: scan.duplicateGroups,
                                 scan: scan,
                                 cleanup: cleanup
                             )
                         }
+                    } else {
+                        resultsCard
                     }
-                    .padding(.horizontal, SiftMetrics.pagePadding)
-                    .padding(.bottom, SiftMetrics.spacingXL)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    supplementalMessages
+                    if !scan.duplicateGroups.isEmpty, filter == .all {
+                        DuplicateGroupsCard(
+                            groups: scan.duplicateGroups,
+                            scan: scan,
+                            cleanup: cleanup
+                        )
+                    }
                 }
-                // A reload replaces the list the user may have scrolled down
-                // past, so the new one is shown from its first row.
-                .task(id: reloadKey) {
-                    proxy.scrollTo(Self.listTopID, anchor: .top)
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-            summaryRail
-                .frame(width: SiftMetrics.summaryColumnWidth)
-                .padding(.trailing, SiftMetrics.pagePadding)
+                .padding(.horizontal, SiftMetrics.pagePadding)
                 .padding(.bottom, SiftMetrics.spacingXL)
-                .frame(maxHeight: .infinity)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .task(id: reloadKey) {
+                proxy.scrollTo(Self.listTopID, anchor: .top)
+            }
         }
-        .padding(.top, SiftMetrics.pageSpacing)
-        .frame(maxWidth: SiftMetrics.contentWidthWide, alignment: .leading)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// A compact fixed action summary for windows where a right-hand inspector
+    /// would make the result list too narrow. It shares the same selection model.
+    private var compactSummaryRail: some View {
+        VStack(spacing: SiftMetrics.spacingS) {
+            HStack(alignment: .center, spacing: SiftMetrics.spacingM) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(cleanup.formattedSelectedBytes)
+                        .font(SiftFont.metric)
+                        .monospacedDigit()
+                    Text(LocalizationKey.commonItemCount.counted(cleanup.selectedCount))
+                        .font(SiftFont.caption)
+                        .foregroundStyle(SiftColor.secondaryText)
+                }
+                Spacer(minLength: SiftMetrics.spacingS)
+                SiftPrimaryButton(
+                    title: LocalizationKey.scanResultsCleanButton.localized(cleanup.selectedCount),
+                    isEnabled: cleanup.selectedCount > 0 && !cleanup.isWorking
+                ) {
+                    Task { await beginCleanup() }
+                }
+                .accessibilityIdentifier("scan.clean")
+            }
+            if hiddenSelectedCount > 0 {
+                Text(LocalizationKey.scanHiddenSelected.localized(hiddenSelectedCount))
+                    .font(SiftFont.caption)
+                    .foregroundStyle(SiftColor.textColor(for: .review))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            if let actionNotice {
+                NoticeBanner(level: actionNotice.level, message: actionNotice.text)
+            }
+        }
+        .padding(.horizontal, SiftMetrics.pagePadding)
+        .padding(.vertical, SiftMetrics.spacingM)
+        .background(SiftColor.canvas)
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(SiftColor.glassBorder)
+                .frame(height: 1)
+        }
     }
 
     /// The id of the invisible anchor at the top of the result scroll.
@@ -490,8 +539,7 @@ public struct ScanView: View {
                 HStack(alignment: .top, spacing: SiftMetrics.spacingXL) {
                     Image(systemName: "viewfinder")
                         .font(.system(size: 30, weight: .medium))
-                        // fill-role: the card's illustration glyph, inside its own accent tile
-                        .foregroundStyle(SiftColor.accent)
+                        .foregroundStyle(SiftColor.accentText)
                         .frame(width: 58, height: 58)
                         .background(
                             RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusL, style: .continuous)
@@ -584,36 +632,36 @@ public struct ScanView: View {
     // MARK: - Results
 
     private var resultsCard: some View {
-        SiftGlassCard(padding: SiftMetrics.spacingL) {
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(alignment: .firstTextBaseline, spacing: SiftMetrics.spacingM) {
-                    Text(LocalizationKey.scanResults.localized)
-                        .font(SiftFont.sectionTitle)
-                    Text(resultSummary)
-                        .font(SiftFont.caption)
-                        .foregroundStyle(.secondary)
-                    Spacer(minLength: SiftMetrics.spacingS)
-                    sortMenu
-                }
-                .padding(.bottom, SiftMetrics.spacingM)
-
-                Divider()
-
-                if items.isEmpty, !isLoading, scan.resultLoadFailure == nil {
-                    let empty = emptyState
-                    SiftEmptyState(
-                        symbolName: empty.symbolName,
-                        titleKey: empty.titleKey,
-                        detailKey: empty.detailKey
-                    )
-                } else {
-                    resultGroups
-                }
-
-                Divider()
-                resultsFooter
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .firstTextBaseline, spacing: SiftMetrics.spacingM) {
+                Text(LocalizationKey.scanResults.localized)
+                    .font(SiftFont.sectionTitle)
+                    .foregroundStyle(SiftColor.mainText)
+                Text(resultSummary)
+                    .font(SiftFont.caption)
+                    .foregroundStyle(SiftColor.secondaryText)
+                Spacer(minLength: SiftMetrics.spacingS)
+                sortMenu
             }
+            .padding(.bottom, SiftMetrics.spacingM)
+
+            Divider()
+
+            if items.isEmpty, !isLoading, scan.resultLoadFailure == nil {
+                let empty = emptyState
+                SiftEmptyState(
+                    symbolName: empty.symbolName,
+                    titleKey: empty.titleKey,
+                    detailKey: empty.detailKey
+                )
+            } else {
+                resultGroups
+            }
+
+            Divider()
+            resultsFooter
         }
+        .padding(.vertical, SiftMetrics.spacingS)
     }
 
     /// Asks LaunchServices which application a residue row belongs to.
@@ -972,80 +1020,82 @@ public struct ScanView: View {
     // MARK: - Summary rail
 
     private var summaryRail: some View {
-        SiftGlassCard(padding: SiftMetrics.spacingL) {
-            VStack(alignment: .leading, spacing: SiftMetrics.spacingM) {
-                Text(LocalizationKey.scanResultsCleanTitle.localized)
-                    .font(SiftFont.eyebrow)
-                    .textCase(.uppercase)
-                    .tracking(0.8)
-                    .foregroundStyle(SiftColor.accentText)
+        VStack(alignment: .leading, spacing: SiftMetrics.spacingM) {
+            Text(LocalizationKey.scanResultsCleanTitle.localized)
+                .font(SiftFont.sectionTitle)
+                .foregroundStyle(SiftColor.mainText)
 
-                Text(cleanup.formattedSelectedBytes)
-                    .font(SiftFont.metricLarge)
-                    .monospacedDigit()
-                    .contentTransition(.numericText())
+            Text(cleanup.formattedSelectedBytes)
+                .font(SiftFont.metricLarge)
+                .monospacedDigit()
+                .contentTransition(.numericText())
 
+            Text(
+                "\(LocalizationKey.commonItemCount.counted(cleanup.selectedCount)), \(LocalizationKey.cleanupConfirmMethodValue.localized)"
+            )
+            .font(SiftFont.caption)
+            .foregroundStyle(SiftColor.secondaryText)
+            .fixedSize(horizontal: false, vertical: true)
+
+            if hiddenSelectedCount > 0 {
+                Text(LocalizationKey.scanHiddenSelected.localized(hiddenSelectedCount))
+                    .font(SiftFont.caption)
+                    .foregroundStyle(SiftColor.textColor(for: .review))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if let actionNotice {
+                NoticeBanner(level: actionNotice.level, message: actionNotice.text)
+            }
+
+            if !cleanup.selectedByCategory.isEmpty {
                 Text(
-                    "\(LocalizationKey.commonItemCount.counted(cleanup.selectedCount)), \(LocalizationKey.cleanupConfirmMethodValue.localized)"
+                    LocalizationKey.scanResultsCategoryTotals.localized(
+                        cleanup.selectedByCategory
+                            .map { "\($0.category.titleKey.localized) \($0.formattedSize)" }
+                            .joined(separator: ", ")
+                    )
                 )
                 .font(SiftFont.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(SiftColor.subtleText)
+                .lineLimit(3)
                 .fixedSize(horizontal: false, vertical: true)
-
-                if hiddenSelectedCount > 0 {
-                    Text(LocalizationKey.scanHiddenSelected.localized(hiddenSelectedCount))
-                        .font(SiftFont.caption)
-                        .foregroundStyle(SiftColor.textColor(for: .review))
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                if let actionNotice {
-                    NoticeBanner(level: actionNotice.level, message: actionNotice.text)
-                }
-
-                if !cleanup.selectedByCategory.isEmpty {
-                    Text(
-                        LocalizationKey.scanResultsCategoryTotals.localized(
-                            cleanup.selectedByCategory
-                                .map { "\($0.category.titleKey.localized) \($0.formattedSize)" }
-                                .joined(separator: ", ")
-                        )
-                    )
-                    .font(SiftFont.caption)
-                    .foregroundStyle(SiftColor.subtleText)
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
-                }
-
-                Divider()
-
-                summaryHint(
-                    symbolName: "arrow.uturn.backward.circle",
-                    text: LocalizationKey.scanResultsTrashHint.localized
-                )
-                summaryHint(
-                    symbolName: "lock.shield",
-                    text: LocalizationKey.scanResultsProtectedHint.localized
-                )
-
-                Spacer(minLength: SiftMetrics.spacingXL)
-
-                SiftPrimaryButton(
-                    title: LocalizationKey.scanResultsCleanButton.localized(cleanup.selectedCount),
-                    isEnabled: cleanup.selectedCount > 0 && !cleanup.isWorking
-                ) {
-                    Task { await beginCleanup() }
-                }
-                .accessibilityIdentifier("scan.clean")
-
-                Text(LocalizationKey.scanResultsReportHint.localized)
-                    .font(SiftFont.caption)
-                    .foregroundStyle(SiftColor.subtleText)
-                    .frame(maxWidth: .infinity)
-                    .multilineTextAlignment(.center)
             }
-            .frame(maxHeight: .infinity, alignment: .top)
+
+            Divider()
+
+            summaryHint(
+                symbolName: "arrow.uturn.backward.circle",
+                text: LocalizationKey.scanResultsTrashHint.localized
+            )
+            summaryHint(
+                symbolName: "lock.shield",
+                text: LocalizationKey.scanResultsProtectedHint.localized
+            )
+
+            Spacer(minLength: SiftMetrics.spacingXL)
+
+            SiftPrimaryButton(
+                title: LocalizationKey.scanResultsCleanButton.localized(cleanup.selectedCount),
+                isEnabled: cleanup.selectedCount > 0 && !cleanup.isWorking
+            ) {
+                Task { await beginCleanup() }
+            }
+            .accessibilityIdentifier("scan.clean")
+
+            Text(LocalizationKey.scanResultsReportHint.localized)
+                .font(SiftFont.caption)
+                .foregroundStyle(SiftColor.subtleText)
+                .frame(maxWidth: .infinity)
+                .multilineTextAlignment(.center)
         }
+        .padding(.leading, SiftMetrics.spacingL)
+        .overlay(alignment: .leading) {
+            Rectangle()
+                .fill(SiftColor.glassBorder)
+                .frame(width: 1)
+        }
+        .frame(maxHeight: .infinity, alignment: .top)
     }
 
     private func summaryHint(symbolName: String, text: String) -> some View {
