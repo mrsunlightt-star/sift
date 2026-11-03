@@ -22,6 +22,7 @@ The icon colors are brand identifiers, not colors to spread indiscriminately acr
 2. [02 — Scan and cleanup experience](02-scan-and-cleanup.md)
 3. [03 — Remaining page specifications](03-page-specifications.md)
 4. [04 — Implementation and acceptance plan](04-implementation-plan.md)
+5. [05 — Component-level implementation specification](05-component-specifications.md)
 
 ## Visual explorations
 
