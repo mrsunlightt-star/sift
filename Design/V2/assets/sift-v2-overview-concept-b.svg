@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900">
+<rect width="1440" height="900" fill="#FFFFFF"/>
+<rect x=".5" y=".5" width="1439" height="899" rx="18" fill="none" stroke="#DDE4DE"/>
+<rect width="224" height="900" fill="#FFFFFF"/><path d="M224 0V900" stroke="#E5EAE6"/>
+<circle cx="28" cy="28" r="8" fill="#FF6258"/><circle cx="54" cy="28" r="8" fill="#FFBD2E"/><circle cx="80" cy="28" r="8" fill="#28C840"/>
+<rect x="28" y="76" width="54" height="54" rx="12" fill="#00BF63"/><path d="M55 83L61 99L78 101L65 112L69 128L55 119L41 128L45 112L32 101L49 99Z" fill="#FFBA36"/>
+<text x="94" y="112" font-size="29" font-weight="650" fill="#202722" font-family="SF Pro Display, PingFang SC, sans-serif">Sift</text>
+<g font-family="PingFang SC, sans-serif" font-size="18" fill="#303A33">
+<rect x="20" y="162" width="184" height="54" rx="10" fill="#E8F7EF"/><path d="M43 187L54 177L65 187V202H57V193H51V202H43Z" fill="#007E46"/><text x="82" y="197" fill="#007E46" font-weight="600">总览</text>
+<circle cx="54" cy="256" r="10" fill="none" stroke="#58635B" stroke-width="2"/><path d="M61 263L69 271" stroke="#58635B" stroke-width="2.5"/><text x="82" y="263">扫描</text>
+<rect x="44" y="308" width="20" height="20" rx="4" fill="none" stroke="#58635B" stroke-width="2"/><text x="82" y="326">应用</text>
+<path d="M44 386H64M47 386V372M54 386V365M61 386V376" stroke="#58635B" stroke-width="2.5"/><text x="82" y="383">存储</text>
+</g>
+<path d="M24 432H200" stroke="#E5EAE6"/><g font-family="PingFang SC, sans-serif" font-size="16" fill="#58635B"><text x="82" y="488">设置</text><text x="82" y="542">账户</text></g>
+<g transform="translate(270 62)" font-family="PingFang SC, sans-serif">
+<text x="0" y="0" font-size="13" fill="#68716B">SIFT / HOME</text>
+<text x="0" y="48" font-size="34" font-weight="650" fill="#202722">欢迎使用 Sift</text>
+<text x="0" y="79" font-size="15" fill="#5F6962">让 Mac 保持清爽、高效。</text>
+<rect x="0" y="115" width="1136" height="320" rx="14" fill="#FFFFFF" stroke="#E5EAE6"/>
+<text x="34" y="164" font-size="15" fill="#5F6962">本次可处理空间</text>
+<text x="34" y="244" font-size="66" font-weight="650" fill="#007E46">12.8 GB</text>
+<text x="36" y="280" font-size="15" fill="#5F6962">安全项目 38 项　·　需要检查 6 项</text>
+<rect x="32" y="323" width="190" height="46" rx="8" fill="#007E46"/><text x="127" y="352" text-anchor="middle" font-size="16" font-weight="600" fill="#FFFFFF">开始扫描　›</text>
+<path d="M845 148L870 227L954 234L890 285L911 367L845 319L779 367L800 285L736 234L820 227Z" fill="#FFBA36" opacity=".9"/>
+<path d="M845 128L885 220L982 233L910 295L933 387L845 338L757 387L780 295L708 233L805 220Z" fill="none" stroke="#00BF63" stroke-width="3" opacity=".38"/>
+<path d="M0 467H1136" stroke="#E5EAE6"/>
+<g>
+<circle cx="50" cy="528" r="28" stroke="#E5EAE6" stroke-width="7" fill="none"/><circle cx="50" cy="528" r="28" stroke="#00BF63" stroke-width="7" fill="none" stroke-dasharray="153 176" transform="rotate(-90 50 528)"/>
+<text x="92" y="520" font-size="13" fill="#5F6962">磁盘已用</text><text x="92" y="548" font-size="22" fill="#202722" font-weight="620">87%</text>
+<path d="M380 494V565M760 494V565" stroke="#E5EAE6"/>
+<circle cx="436" cy="528" r="17" stroke="#68716B" stroke-width="2" fill="none"/><path d="M436 516V529L447 535" stroke="#68716B" stroke-width="2" fill="none"/>
+<text x="472" y="520" font-size="13" fill="#5F6962">上次扫描</text><text x="472" y="548" font-size="22" fill="#202722" font-weight="620">今天</text>
+<path d="M813 515L828 540M828 515L813 540" stroke="#007E46" stroke-width="3" stroke-linecap="round"/><text x="850" y="520" font-size="13" fill="#5F6962">上次清理</text><text x="850" y="548" font-size="22" fill="#202722" font-weight="620">4.0 GB</text>
+</g>
+<path d="M0 588H1136" stroke="#E5EAE6"/>
+<text x="0" y="632" font-size="20" font-weight="620" fill="#202722">建议优先处理</text>
+<path d="M0 652H650" stroke="#E5EAE6"/>
+<g font-size="16" fill="#202722"><text x="30" y="699">应用缓存</text><text x="30" y="758">旧安装包</text><text x="30" y="817">系统日志</text></g>
+<g font-size="13" fill="#68716B"><text x="30" y="718">~/Library/Caches</text><text x="30" y="777">~/Downloads</text><text x="30" y="836">~/Library/Logs</text></g>
+<g font-size="15" font-weight="620" fill="#202722" text-anchor="end"><text x="640" y="699">6.8 GB</text><text x="640" y="758">2.1 GB</text><text x="640" y="817">520 MB</text></g>
+<path d="M0 728H650M0 787H650" stroke="#E5EAE6"/>
+<rect x="690" y="652" width="446" height="220" rx="12" fill="#EAF8F0"/>
+<text x="722" y="700" font-size="19" font-weight="620" fill="#202722">保持 Mac 运行流畅</text>
+<text x="722" y="739" font-size="14" fill="#5F6962">从可验证的扫描结果开始，</text><text x="722" y="763" font-size="14" fill="#5F6962">逐项检查后再执行清理。</text>
+<rect x="722" y="794" width="136" height="42" rx="8" fill="#FFFFFF" stroke="#007E46"/><text x="790" y="821" text-anchor="middle" font-size="14" font-weight="600" fill="#007E46">查看建议　›</text>
+</g></svg>

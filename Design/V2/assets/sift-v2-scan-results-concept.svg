@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900">
+<rect width="1440" height="900" fill="#FFFFFF"/><rect x=".5" y=".5" width="1439" height="899" rx="18" fill="none" stroke="#DDE4DE"/>
+<rect width="224" height="900" fill="#FFFFFF"/><path d="M224 0V900" stroke="#E5EAE6"/>
+<circle cx="28" cy="28" r="8" fill="#FF6258"/><circle cx="54" cy="28" r="8" fill="#FFBD2E"/><circle cx="80" cy="28" r="8" fill="#28C840"/>
+<rect x="28" y="76" width="54" height="54" rx="12" fill="#00BF63"/><path d="M55 83L61 99L78 101L65 112L69 128L55 119L41 128L45 112L32 101L49 99Z" fill="#FFBA36"/><text x="94" y="112" font-size="29" font-weight="650" fill="#202722" font-family="PingFang SC, sans-serif">Sift</text>
+<g font-family="PingFang SC, sans-serif" font-size="18" fill="#303A33">
+<rect x="20" y="162" width="184" height="54" rx="10" fill="#FFFFFF"/><path d="M43 187L54 177L65 187V202H57V193H51V202H43Z" fill="#68716B"/><text x="82" y="197">总览</text>
+<rect x="20" y="228" width="184" height="54" rx="10" fill="#E8F7EF"/><rect x="20" y="238" width="3" height="34" rx="1.5" fill="#007E46"/><circle cx="54" cy="256" r="10" fill="none" stroke="#007E46" stroke-width="2"/><path d="M61 263L69 271" stroke="#007E46" stroke-width="2.5"/><text x="82" y="263" fill="#007E46" font-weight="600">扫描</text>
+<rect x="44" y="308" width="20" height="20" rx="4" fill="none" stroke="#58635B" stroke-width="2"/><text x="82" y="326">应用</text><path d="M44 386H64M47 386V372M54 386V365M61 386V376" stroke="#58635B" stroke-width="2.5"/><text x="82" y="383">存储</text>
+</g>
+<path d="M24 432H200" stroke="#E5EAE6"/><text x="82" y="488" font-size="16" fill="#58635B" font-family="PingFang SC, sans-serif">设置</text><text x="82" y="542" font-size="16" fill="#58635B" font-family="PingFang SC, sans-serif">账户</text><text x="28" y="862" font-size="14" fill="#68716B" font-family="PingFang SC, sans-serif">简体中文　⌄</text>
+<g transform="translate(270 52)" font-family="PingFang SC, sans-serif">
+<text x="0" y="0" font-size="13" fill="#68716B">SIFT / SCAN</text><text x="0" y="46" font-size="32" font-weight="650" fill="#202722">扫描结果</text><text x="0" y="75" font-size="14" fill="#5F6962">发现 62 个项目；先检查内容，再决定要移动什么。</text>
+<rect x="0" y="102" width="93" height="38" rx="8" fill="#007E46"/><text x="46" y="126" text-anchor="middle" font-size="14" font-weight="600" fill="#FFFFFF">全部　62</text>
+<rect x="103" y="102" width="100" height="38" rx="8" fill="#F6F8F6" stroke="#E5EAE6"/><text x="153" y="126" text-anchor="middle" font-size="14" fill="#303A33">垃圾　38</text>
+<rect x="213" y="102" width="114" height="38" rx="8" fill="#F6F8F6" stroke="#E5EAE6"/><text x="270" y="126" text-anchor="middle" font-size="14" fill="#303A33">大文件　12</text>
+<rect x="337" y="102" width="102" height="38" rx="8" fill="#F6F8F6" stroke="#E5EAE6"/><text x="388" y="126" text-anchor="middle" font-size="14" fill="#303A33">旧文件　7</text>
+<rect x="449" y="102" width="116" height="38" rx="8" fill="#F6F8F6" stroke="#E5EAE6"/><text x="507" y="126" text-anchor="middle" font-size="14" fill="#303A33">重复文件　5</text>
+<text x="0" y="180" font-size="18" font-weight="620" fill="#202722">扫描结果</text><text x="750" y="180" font-size="13" fill="#68716B" text-anchor="end">按大小排序　⌄</text>
+<path d="M0 196H760" stroke="#E5EAE6"/>
+<circle cx="12" cy="226" r="4" fill="#286D41"/><text x="28" y="231" font-size="14" font-weight="620" fill="#202722">安全项目 · 38 项</text><text x="740" y="231" font-size="12" fill="#68716B" text-anchor="end">默认选中</text>
+<path d="M0 248H760" stroke="#E5EAE6"/>
+<rect x="10" y="270" width="20" height="20" rx="4" fill="#007E46"/><path d="M14 280L19 285L27 275" stroke="#FFFFFF" stroke-width="2" fill="none"/>
+<text x="48" y="280" font-size="15" font-weight="600" fill="#202722">应用缓存</text><text x="48" y="303" font-size="12" fill="#68716B">~/Library/Caches</text><text x="670" y="289" text-anchor="end" font-size="15" font-weight="600" fill="#202722">6.8 GB</text><text x="741" y="289" text-anchor="end" font-size="12" fill="#286D41">安全</text>
+<path d="M0 322H760" stroke="#E5EAE6"/>
+<rect x="10" y="344" width="20" height="20" rx="4" fill="#007E46"/><path d="M14 354L19 359L27 349" stroke="#FFFFFF" stroke-width="2" fill="none"/>
+<text x="48" y="354" font-size="15" font-weight="600" fill="#202722">旧安装包</text><text x="48" y="377" font-size="12" fill="#68716B">~/Downloads</text><text x="670" y="363" text-anchor="end" font-size="15" font-weight="600" fill="#202722">1.2 GB</text><text x="741" y="363" text-anchor="end" font-size="12" fill="#286D41">安全</text>
+<path d="M0 396H760" stroke="#E5EAE6"/>
+<circle cx="12" cy="429" r="4" fill="#8A5A00"/><text x="28" y="434" font-size="14" font-weight="620" fill="#202722">需要检查 · 16 项</text><text x="740" y="434" font-size="12" fill="#68716B" text-anchor="end">未默认选中</text>
+<path d="M0 451H760" stroke="#E5EAE6"/>
+<rect x="10" y="473" width="20" height="20" rx="4" fill="#FFFFFF" stroke="#AAB3AC" stroke-width="1.5"/>
+<text x="48" y="483" font-size="15" font-weight="600" fill="#202722">系统日志</text><text x="48" y="506" font-size="12" fill="#68716B">~/Library/Logs · 超过 30 天</text><text x="670" y="492" text-anchor="end" font-size="15" font-weight="600" fill="#202722">520 MB</text><text x="741" y="492" text-anchor="end" font-size="12" fill="#8A5A00">需检查</text>
+<path d="M0 525H760" stroke="#E5EAE6"/>
+<rect x="10" y="547" width="20" height="20" rx="4" fill="#FFFFFF" stroke="#AAB3AC" stroke-width="1.5"/>
+<text x="48" y="557" font-size="15" font-weight="600" fill="#202722">浏览器数据</text><text x="48" y="580" font-size="12" fill="#68716B">~/Library/Safari</text><text x="670" y="566" text-anchor="end" font-size="15" font-weight="600" fill="#202722">180 MB</text><text x="741" y="566" text-anchor="end" font-size="12" fill="#8A5A00">需检查</text>
+<path d="M0 599H760" stroke="#E5EAE6"/>
+<circle cx="12" cy="632" r="4" fill="#7A8580"/><text x="28" y="637" font-size="14" font-weight="620" fill="#202722">受保护 · 8 项</text><text x="740" y="637" font-size="12" fill="#68716B" text-anchor="end">不会移动</text>
+<path d="M0 654H760" stroke="#E5EAE6"/>
+<rect x="10" y="676" width="20" height="20" rx="4" fill="#F3F5F3" stroke="#D8DED9"/><path d="M16 685V681A4 4 0 0 1 24 681V685M14 685H26V695H14Z" fill="none" stroke="#68716B" stroke-width="1.6"/>
+<text x="48" y="687" font-size="15" font-weight="600" fill="#202722">系统关键文件</text><text x="48" y="710" font-size="12" fill="#68716B">受保护路径</text><text x="670" y="696" text-anchor="end" font-size="15" font-weight="600" fill="#202722">520 MB</text><text x="741" y="696" text-anchor="end" font-size="12" fill="#68716B">受保护</text>
+<path d="M0 731H760" stroke="#E5EAE6"/>
+<text x="0" y="772" font-size="12" fill="#68716B">已选 38 项 · 6.8 GB　|　另有折叠或未载入项目时应明确显示数量</text>
+</g>
+<g transform="translate(1060 154)" font-family="PingFang SC, sans-serif">
+<rect x="0" y="0" width="320" height="610" rx="12" fill="#FFFFFF" stroke="#DDE9E1"/>
+<rect x="1" y="1" width="318" height="608" rx="11" fill="#EAF8F0" opacity=".28"/>
+<text x="28" y="48" font-size="20" font-weight="620" fill="#202722">本次清理</text>
+<text x="28" y="119" font-size="43" font-weight="650" fill="#007E46">6.8 GB</text><text x="28" y="151" font-size="14" fill="#5F6962">已选中 38 个项目</text>
+<path d="M28 174H292" stroke="#DDE9E1"/>
+<text x="28" y="215" font-size="14" fill="#286D41">安全项目</text><text x="290" y="215" text-anchor="end" font-size="14" fill="#202722">38 项</text>
+<text x="28" y="258" font-size="14" fill="#8A5A00">需要检查（未选）</text><text x="290" y="258" text-anchor="end" font-size="14" fill="#202722">16 项</text>
+<text x="28" y="301" font-size="14" fill="#68716B">受保护（不可选）</text><text x="290" y="301" text-anchor="end" font-size="14" fill="#202722">8 项</text>
+<path d="M28 326H292" stroke="#DDE9E1"/>
+<text x="28" y="365" font-size="13" fill="#5F6962">移入废纸篓；清空前可恢复。</text><text x="28" y="388" font-size="13" fill="#5F6962">受保护项目不会被移动。</text>
+<rect x="24" y="530" width="272" height="48" rx="8" fill="#007E46"/><text x="160" y="560" text-anchor="middle" font-size="15" font-weight="600" fill="#FFFFFF">移入废纸篓</text>
+</g>
+<text x="270" y="862" font-size="12" fill="#8A948D" font-family="PingFang SC, sans-serif">示意数据 · 真实项目计数和可执行集合以预检结果为准</text>
+</svg>
