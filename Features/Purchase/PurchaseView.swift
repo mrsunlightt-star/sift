@@ -8,6 +8,11 @@ import SwiftUI
 /// price line is exactly "$4.99 once, yours forever, no subscription", and the
 /// free tier is described honestly — what it already does — rather than being
 /// framed as a limitation.
+///
+/// The layout is one hero, one list of rows, one primary action. The hero states
+/// the offer, the rows state what each tier does, and the page never claims a
+/// purchase happened: with no licence service in the build, the most it can say
+/// is that the store link is unavailable and that a stored key can be removed.
 public struct PurchaseView: View {
     @EnvironmentObject private var environment: AppEnvironment
     let reason: PaywallReasonLink?
@@ -15,12 +20,17 @@ public struct PurchaseView: View {
     @State private var isWorking = false
     @State private var maskedKey: String?
     @State private var message: (isError: Bool, text: String)?
+    @Environment(\.siftReduceMotion) private var reduceMotion
 
     public init(reason: PaywallReasonLink? = nil) {
         self.reason = reason
     }
 
     private var isUnlocked: Bool { environment.entitlement.isUnlocked }
+
+    private var canActivate: Bool {
+        !isWorking && !licenseKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
 
     public var body: some View {
         VStack(spacing: 0) {
@@ -34,46 +44,37 @@ public struct PurchaseView: View {
                 )
             }
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: SiftMetrics.pageSpacing) {
-                    if isUnlocked {
-                        accountSection
-                    } else {
-                        SiftHeroCard(
-                            symbolName: "lock.open",
-                            title: LocalizationKey.purchasePriceLine.localized,
-                            detail: LocalizationKey.purchaseUpdatesPromise.localized,
-                            tint: SiftColor.accent
-                        ) {
-                            EmptyView()
-                        }
+            SiftPage(maxWidth: SiftMetrics.contentWidthForm) {
+                if isUnlocked {
+                    accountSection
+                } else {
+                    salesHero
 
-                        if reason != nil {
-                            // The reason is its own sentence. Concatenating it
-                            // with the free-tier sentence produced "Scan, scanning
-                            // and previews stay free" — the page name used as a
-                            // clause.
-                            NoticeBanner(
-                                level: .information,
-                                message: LocalizationKey.purchaseLicenseRequiredDetail.localized
-                            )
-                        }
-
-                        comparison
-                        licenseSection
-                    }
-                    if let message {
+                    // The reason the paywall opened is its own sentence.
+                    // Concatenating it with the free-tier sentence produced "Scan,
+                    // scanning and previews stay free" — the page name used as a
+                    // clause.
+                    if reason != nil {
                         NoticeBanner(
-                            level: message.isError ? .warning : .success,
-                            message: message.text
+                            level: .information,
+                            message: LocalizationKey.purchaseLicenseRequiredDetail.localized
                         )
                     }
-                    footer
+
+                    comparison
                 }
-                .padding(.horizontal, SiftMetrics.pagePadding)
-                .padding(.vertical, SiftMetrics.pageSpacing)
-                .frame(maxWidth: SiftMetrics.contentWidthStandard, alignment: .leading)
-                .frame(maxWidth: .infinity, alignment: .top)
+
+                if let message {
+                    NoticeBanner(
+                        level: message.isError ? .warning : .success,
+                        message: message.text
+                    )
+                }
+
+                Text(LocalizationKey.settingsPrivacyStatement.localized)
+                    .font(SiftFont.supporting)
+                    .foregroundStyle(SiftColor.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         // The masked key is read after the refresh: reading the stored key is
@@ -82,6 +83,13 @@ public struct PurchaseView: View {
             await environment.refreshEntitlement()
             maskedKey = await environment.entitlements.maskedLicenseKey()
         }
+        // Locked and unlocked are two layouts, not one with parts hidden: the
+        // swap is a fade long enough to read as a change of state and short
+        // enough not to make the page wait.
+        .animation(
+            SiftMotion.respectingReduceMotion(SiftMotion.quick, reduceMotion: reduceMotion),
+            value: isUnlocked
+        )
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("purchase.view")
     }
@@ -107,134 +115,38 @@ public struct PurchaseView: View {
         }
     }
 
-    // MARK: - Account (unlocked)
+    // MARK: - Locked
 
-    /// The account panel: the plan, the activation date and the stored key with
-    /// only its ends showing, plus the two actions a direct licence has.
+    /// The offer, and the one action that changes it.
     ///
-    /// The free/paid comparison is paywall material — an unlocked user has
-    /// already decided — so it stays on the locked page only.
-    private var accountSection: some View {
-        SiftPanel {
+    /// The key field lives inside the hero rather than in a panel of its own: a
+    /// second boxed block under a boxed block is two offers on one page, and the
+    /// button that reads the field has to sit beside it or the page asks the user
+    /// to type in one place and act in another.
+    private var salesHero: some View {
+        // `actionFill` is a fill-role token here: it tints the hero's wash and its
+        // glyph, never the title. The page's text stays `mainText`/`secondaryText`,
+        // so the offer reads at full contrast in both appearances.
+        SiftHeroCard(
+            symbolName: "lock.open",
+            title: LocalizationKey.purchasePriceLine.localized,
+            detail: LocalizationKey.purchaseUpdatesPromise.localized,
+            tint: SiftColor.actionFill
+        ) {
             VStack(alignment: .leading, spacing: SiftMetrics.spacingM) {
-                Label {
-                    Text(LocalizationKey.navAccount.localized)
-                        .font(SiftFont.sectionTitle)
-                } icon: {
-                    Image(systemName: "person.crop.circle")
-                        .foregroundStyle(SiftColor.accentText)
-                }
-                Text(LocalizationKey.purchasePriceLine.localized)
-                    .font(SiftFont.caption)
-                    .foregroundStyle(.secondary)
+                HStack(spacing: SiftMetrics.spacingS) {
+                    TextField(LocalizationKey.purchaseActivateLicense.localized, text: $licenseKey)
+                        .textFieldStyle(.plain)
+                        .font(SiftFont.body)
+                        .padding(.horizontal, SiftMetrics.spacingM)
+                        .frame(maxWidth: 320)
+                        .frame(height: SiftMetrics.fieldHeight)
+                        .siftFieldSurface()
+                        .accessibilityLabel(Text(LocalizationKey.purchaseActivateLicense.localized))
 
-                Divider()
-
-                if let activatedAt {
-                    accountRow(
-                        LocalizationKey.accountActivatedAt.localized,
-                        SiftFormat.timestamp(activatedAt)
-                    )
-                }
-                if let maskedKey {
-                    accountRow(
-                        LocalizationKey.accountLicenseKey.localized,
-                        maskedKey
-                    )
-                }
-                if let days = environment.entitlement.status.graceDaysRemaining {
-                    Text(LocalizationKey.purchaseOfflineGrace.localized(days))
-                        .font(SiftFont.caption)
-                        .foregroundStyle(SiftColor.review)
-                }
-
-                Divider()
-
-                HStack(spacing: SiftMetrics.spacingM) {
-                    SiftSecondaryButton(titleKey: .purchaseRestore) {
-                        Task { await restore() }
-                    }
-                    .disabled(isWorking)
-
-                    // The remove action exists where a key exists; it is how a
-                    // stored key leaves the machine short of the terminal.
-                    if maskedKey != nil {
-                        Button {
-                            Task { await removeStoredLicense() }
-                        } label: {
-                            Text(LocalizationKey.settingsRemoveLicense.localized)
-                                .font(SiftFont.caption)
-                        }
-                        .buttonStyle(SiftLinkButtonStyle())
-                        .disabled(isWorking)
-                    }
-
-                    if isWorking {
-                        ProgressView().controlSize(.small)
-                    }
-                }
-            }
-        }
-    }
-
-    private func accountRow(_ label: String, _ value: String) -> some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(label)
-                .font(SiftFont.body)
-                .foregroundStyle(.secondary)
-            Spacer(minLength: SiftMetrics.spacingM)
-            Text(value)
-                .font(SiftFont.bodyEmphasis)
-                .monospacedDigit()
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .textSelection(.enabled)
-        }
-    }
-
-    private var comparison: some View {
-        HStack(alignment: .top, spacing: SiftMetrics.spacingL) {
-            TierCard(
-                titleKey: .purchaseStatusFree,
-                symbolName: "checkmark.seal",
-                glyph: SiftColor.safeText,
-                items: [
-                    .purchaseFreeTierScan,
-                    .purchaseFreeTierExplain,
-                    .purchaseFreeTierEstimate,
-                    .purchaseFreeTierStorage,
-                ]
-            )
-            TierCard(
-                titleKey: .purchasePaidTierTitle,
-                symbolName: "lock.open",
-                glyph: SiftColor.accentText,
-                items: [
-                    .purchasePaidTierClean,
-                    .purchasePaidTierUninstall,
-                    .purchasePaidTierFiles,
-                    .purchasePaidTierReport,
-                ]
-            )
-        }
-    }
-
-    private var licenseSection: some View {
-        SiftPanel {
-            VStack(alignment: .leading, spacing: SiftMetrics.spacingM) {
-                Text(LocalizationKey.purchaseActivateLicense.localized)
-                    .font(SiftFont.sectionTitle)
-                TextField(LocalizationKey.purchaseActivateLicense.localized, text: $licenseKey)
-                    .textFieldStyle(.plain)
-                    .font(SiftFont.body)
-                    .padding(.horizontal, SiftMetrics.spacingM)
-                    .frame(maxWidth: 320)
-                    .frame(height: SiftMetrics.fieldHeight)
-                    .siftFieldSurface()
-                HStack(spacing: SiftMetrics.spacingM) {
                     SiftPrimaryButton(
                         title: LocalizationKey.purchaseActivate.localized,
-                        isEnabled: !isWorking && !licenseKey.trimmingCharacters(in: .whitespaces).isEmpty
+                        isEnabled: canActivate
                     ) {
                         Task { await activate() }
                     }
@@ -249,40 +161,201 @@ public struct PurchaseView: View {
                         ProgressView().controlSize(.small)
                     }
                 }
+
                 // The purchase happens on the website, so this is a link with an
                 // address — not a button that pretends to charge a card it never
                 // sees. With no store URL configured the row says why instead of
-                // opening something that cannot work.
+                // opening something that cannot work: a release build has no
+                // licence service behind it, and the page must not imply one.
                 if let storeURL = Self.storeURL {
                     Button {
                         NSWorkspace.shared.open(storeURL)
                     } label: {
                         Text(LocalizationKey.purchaseOpenStore.localized)
-                            .font(SiftFont.caption)
+                            .font(SiftFont.supporting)
                     }
                     .buttonStyle(SiftLinkButtonStyle())
                     .accessibilityIdentifier("purchase.openStore")
                 } else {
                     Text(LocalizationKey.purchaseUnavailable.localized)
-                        .font(SiftFont.caption)
-                        .foregroundStyle(SiftColor.subtleText)
+                        .font(SiftFont.supporting)
+                        .foregroundStyle(SiftColor.secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                Text(LocalizationKey.purchaseLicenseRequiredDetail.localized)
-                    .font(SiftFont.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
 
-    private var footer: some View {
-        VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
-            Text(LocalizationKey.settingsPrivacyStatement.localized)
-                .font(SiftFont.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+    /// What each tier does, as rows.
+    ///
+    /// The two items were cards side by side, which presented a statement of fact
+    /// ("this is what the free tier does") and a list of features as two competing
+    /// products. As rows they read as one table: the boundary sentence first, then
+    /// what stays free, then what unlocking adds.
+    private var comparison: some View {
+        SiftSection {
+            VStack(alignment: .leading, spacing: 0) {
+                Text(LocalizationKey.purchaseLicenseRequiredDetail.localized)
+                    .font(SiftFont.body)
+                    .foregroundStyle(SiftColor.mainText)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.bottom, SiftMetrics.spacingM)
+
+                tierRows(
+                    titleKey: .purchaseStatusFree,
+                    symbolName: "checkmark.circle",
+                    glyph: SiftColor.safeTextColor,
+                    items: [
+                        .purchaseFreeTierScan,
+                        .purchaseFreeTierExplain,
+                        .purchaseFreeTierEstimate,
+                        .purchaseFreeTierStorage,
+                    ]
+                )
+
+                SiftHairline()
+                    .padding(.vertical, SiftMetrics.spacingM)
+
+                tierRows(
+                    titleKey: .purchasePaidTierTitle,
+                    symbolName: "lock.open",
+                    glyph: SiftColor.actionGreen,
+                    items: [
+                        .purchasePaidTierClean,
+                        .purchasePaidTierUninstall,
+                        .purchasePaidTierFiles,
+                        .purchasePaidTierReport,
+                    ]
+                )
+            }
         }
+    }
+
+    /// One tier: a heading and four rows, each marked with a glyph and a word-free
+    /// tick, because the glyph repeats what the heading already says.
+    private func tierRows(
+        titleKey: LocalizationKey,
+        symbolName: String,
+        glyph: Color,
+        items: [LocalizationKey]
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: SiftMetrics.spacingS) {
+                Image(systemName: symbolName)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(glyph)
+                    .accessibilityHidden(true)
+                Text(titleKey.localized)
+                    .font(SiftFont.secondaryHeading)
+                    .foregroundStyle(SiftColor.mainText)
+            }
+            .padding(.bottom, SiftMetrics.spacingXS)
+
+            ForEach(items, id: \.rawValue) { item in
+                HStack(alignment: .firstTextBaseline, spacing: SiftMetrics.spacingS) {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(glyph)
+                        .padding(.top, 3)
+                        .accessibilityHidden(true)
+                    Text(item.localized)
+                        .font(SiftFont.body)
+                        .foregroundStyle(SiftColor.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(minHeight: 26)
+                .accessibilityElement(children: .combine)
+            }
+        }
+    }
+
+    // MARK: - Account (unlocked)
+
+    /// The account, in the same shape as the offer: a hero that states the plan,
+    /// then rows for the two facts and the two actions a direct licence has.
+    ///
+    /// The free/paid comparison is paywall material — an unlocked user has already
+    /// decided — so it stays on the locked page only.
+    private var accountSection: some View {
+        VStack(alignment: .leading, spacing: SiftMetrics.pageSpacing) {
+            SiftHeroCard(
+                symbolName: "checkmark.seal.fill",
+                title: LocalizationKey.purchaseStatusPurchased.localized,
+                detail: LocalizationKey.purchasePriceLine.localized,
+                tint: SiftColor.actionFill
+            ) {
+                HStack(spacing: SiftMetrics.spacingM) {
+                    SiftSecondaryButton(titleKey: .purchaseRestore) {
+                        Task { await restore() }
+                    }
+                    .disabled(isWorking)
+
+                    // The remove action exists where a key exists; it is how a
+                    // stored key leaves the machine short of the terminal.
+                    if maskedKey != nil {
+                        Button {
+                            Task { await removeStoredLicense() }
+                        } label: {
+                            Text(LocalizationKey.settingsRemoveLicense.localized)
+                                .font(SiftFont.supporting)
+                        }
+                        .buttonStyle(SiftLinkButtonStyle())
+                        .disabled(isWorking)
+                    }
+
+                    if isWorking {
+                        ProgressView().controlSize(.small)
+                    }
+                }
+            }
+
+            SiftSection {
+                VStack(alignment: .leading, spacing: 0) {
+                    if let activatedAt {
+                        accountRow(
+                            LocalizationKey.accountActivatedAt.localized,
+                            SiftFormat.timestamp(activatedAt)
+                        )
+                    }
+                    if let maskedKey {
+                        if activatedAt != nil {
+                            SiftHairline()
+                        }
+                        accountRow(
+                            LocalizationKey.accountLicenseKey.localized,
+                            maskedKey
+                        )
+                    }
+                    if let days = environment.entitlement.status.graceDaysRemaining {
+                        if activatedAt != nil || maskedKey != nil {
+                            SiftHairline()
+                        }
+                        Text(LocalizationKey.purchaseOfflineGrace.localized(days))
+                            .font(SiftFont.supporting)
+                            .foregroundStyle(SiftColor.reviewTextColor)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.vertical, SiftMetrics.spacingS)
+                    }
+                }
+            }
+        }
+    }
+
+    private func accountRow(_ label: String, _ value: String) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(label)
+                .font(SiftFont.body)
+                .foregroundStyle(SiftColor.secondaryText)
+            Spacer(minLength: SiftMetrics.spacingM)
+            Text(value)
+                .font(SiftFont.monospacedEmphasis)
+                .foregroundStyle(SiftColor.mainText)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .textSelection(.enabled)
+        }
+        .frame(minHeight: SiftMetrics.rowHeight)
+        .accessibilityElement(children: .combine)
     }
 
     /// The hosted checkout page, from `Info.plist`.
@@ -333,43 +406,5 @@ public struct PurchaseView: View {
         maskedKey = nil
         // No banner: the page itself flips to the locked layout, which is the
         // answer the user can see.
-    }
-}
-
-/// One column of the free/paid comparison.
-struct TierCard: View {
-    let titleKey: LocalizationKey
-    let symbolName: String
-    /// Both uses below are `.foregroundStyle` on a small glyph — the card's icon
-    /// and its tick list — so this is a text role and takes a text token; the
-    /// card itself draws no wash of its own.
-    let glyph: Color
-    let items: [LocalizationKey]
-
-    var body: some View {
-        SiftPanel {
-            VStack(alignment: .leading, spacing: SiftMetrics.spacingM) {
-                Label {
-                    Text(titleKey.localized)
-                        .font(SiftFont.sectionTitle)
-                } icon: {
-                    Image(systemName: symbolName)
-                        .foregroundStyle(glyph)
-                }
-                ForEach(items, id: \.rawValue) { item in
-                    HStack(alignment: .top, spacing: SiftMetrics.spacingS) {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(glyph)
-                            .padding(.top, 3)
-                            .accessibilityHidden(true)
-                        Text(item.localized)
-                            .font(SiftFont.body)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-            }
-        }
-        .frame(maxWidth: .infinity)
     }
 }

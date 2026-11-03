@@ -5,15 +5,21 @@ import SwiftUI
 
 /// The uninstaller (§5.3), presented as the Apps page.
 ///
-/// Left: the installed applications, with search and sorting. Right: the
-/// selected application, what belongs to it, and the one action that removes it.
-/// The page is the only place an application is uninstalled; the scan page never
-/// offers that, because removing an application is not a cleanup item.
+/// Left: the installed applications, with search, scopes and sorting. Right: an
+/// inspector for the selected application — what it is, what belongs to it, and
+/// the one action that removes it. The page is the only place an application is
+/// uninstalled; the scan page never offers that, because removing an application
+/// is not a cleanup item.
+///
+/// V2 draws the two panes as a list and an inspector rather than as two floating
+/// cards: a card says "this is a thing", and an inventory of 128 applications is
+/// not a thing. The panes are separated by a rule, and neither is a surface.
 public struct UninstallerView: View {
     @EnvironmentObject private var environment: AppEnvironment
     private let onRequestPurchase: () -> Void
     @State private var search = ""
     @State private var sort: ApplicationSortOrder = .largestFirst
+    @State private var filter: ApplicationFilter = .large
     @State private var selected: InstalledApplication?
     @State private var plan: UninstallPlan?
     @State private var isLoadingPlan = false
@@ -26,12 +32,15 @@ public struct UninstallerView: View {
     @State private var outcomeReport: CleanupReport?
     @State private var includeReviewFiles = false
     @State private var quitFailure: String?
-    @State private var showsAllApps = false
 
     /// The list starts with the applications that are worth removing. A 12 MB
     /// helper is not what this page is for, and showing 128 rows of them buries
-    /// the ones that matter.
+    /// the ones that matter — but the default is now a labelled chip with its own
+    /// count, and "Show all" is one click away, instead of an unmentioned
+    /// threshold applied to a list that claimed to be the inventory.
     private let visibleSizeThreshold: Int64 = 200 * 1024 * 1024
+
+    private let inspectorWidth: CGFloat = 320
 
     public init(onRequestPurchase: @escaping () -> Void = {}) {
         self.onRequestPurchase = onRequestPurchase
@@ -56,7 +65,9 @@ public struct UninstallerView: View {
             SiftPageHeader(title: LocalizationKey.navApps.localized, status: statusLine) {
                 SiftMetricPill(
                     symbolName: "shippingbox",
-                    value: LocalizationKey.commonItemCount.counted(environment.installedApplications.count),
+                    value: LocalizationKey.commonItemCount.counted(
+                        environment.installedApplications.count
+                    ),
                     tone: .accent
                 )
             }
@@ -64,19 +75,22 @@ public struct UninstallerView: View {
             if environment.appManagement == .denied {
                 appManagementNotice
                     .padding(.horizontal, SiftMetrics.pagePadding)
-                    .padding(.top, SiftMetrics.pageSpacing)
+                    .padding(.top, SiftMetrics.spacingM)
                     .frame(maxWidth: SiftMetrics.contentWidthWide, alignment: .leading)
             }
 
-            HStack(alignment: .top, spacing: SiftMetrics.spacingL) {
-                applicationListCard
-                    .frame(maxHeight: .infinity)
-                detailPane
-                    .frame(width: SiftMetrics.summaryColumnWidth)
+            HStack(alignment: .top, spacing: 0) {
+                listColumn
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                paneRule
+                inspector
+                    .frame(width: inspectorWidth)
                     .frame(maxHeight: .infinity)
             }
-            .padding(.horizontal, SiftMetrics.pagePadding)
-            .padding(.vertical, SiftMetrics.pageSpacing)
+            .padding(.leading, SiftMetrics.pagePadding)
+            .padding(.trailing, SiftMetrics.pagePadding)
+            .padding(.top, SiftMetrics.spacingL)
+            .padding(.bottom, SiftMetrics.spacingXXL)
             .frame(maxWidth: SiftMetrics.contentWidthWide, alignment: .leading)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
@@ -102,7 +116,7 @@ public struct UninstallerView: View {
                 Task { await environment.recheckAppManagement() }
             } label: {
                 Text(LocalizationKey.appManagementRecheck.localized)
-                    .font(SiftFont.caption)
+                    .font(SiftFont.supporting)
             }
             .buttonStyle(SiftLinkButtonStyle())
             .fixedSize()
@@ -121,72 +135,129 @@ public struct UninstallerView: View {
         environment.installedApplications.filter { $0.isUnused() }.count
     }
 
+    // MARK: - Scopes
+
+    /// What the list is showing.
+    ///
+    /// Every scope is a chip, so the list's own rule is visible before it is
+    /// applied. The counts beside the titles are the rows each scope would show,
+    /// which is what makes the default scope a statement rather than a surprise.
+    private enum ApplicationFilter: String, CaseIterable, Identifiable {
+        case all
+        case large
+        case unused
+
+        var id: String { rawValue }
+
+        /// The chip's own word, not the scan page's.
+        ///
+        /// These three scopes filtered applications and were labelled with the
+        /// scan page's file vocabulary — "Large" and "Old" beside a list of
+        /// `.app` bundles, which read as large *files* and old *files*. An
+        /// application is large by its bundle and unused by its launch record,
+        /// so it says so.
+        var titleKey: LocalizationKey {
+            switch self {
+            case .all: .scanFilterAll
+            case .large: .appsFilterLarge
+            case .unused: .appsFilterUnused
+            }
+        }
+    }
+
     // MARK: - List
 
-    private var applicationListCard: some View {
-        SiftGlassCard(padding: SiftMetrics.spacingL) {
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(alignment: .firstTextBaseline, spacing: SiftMetrics.spacingM) {
-                    Text(LocalizationKey.appsListTitle.localized)
-                        .font(SiftFont.sectionTitle)
-                    Spacer(minLength: SiftMetrics.spacingS)
-                    Text(
-                        LocalizationKey.appsSortSummary.localized(
-                            sort.title,
-                            SiftFormat.bytes(environment.installedApplications.reduce(0) { $0 + $1.sizeInBytes })
-                        )
-                    )
-                    .font(SiftFont.caption)
-                    .foregroundStyle(.secondary)
-                }
-                .padding(.bottom, SiftMetrics.spacingM)
-
-                HStack(spacing: SiftMetrics.spacingM) {
-                    searchField
-                    rescanButton
-                    sortMenu
-                }
-                .padding(.bottom, SiftMetrics.spacingM)
-
-                Divider()
-
-                if environment.isLoadingApplications {
-                    ProgressView(LocalizationKey.commonLoading.localized)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if filteredApplications.isEmpty {
-                    SiftEmptyState(symbolName: "shippingbox", titleKey: .uninstallNoneInstalled)
-                        .frame(maxHeight: .infinity)
-                } else {
-                    ScrollView {
-                        LazyVStack(spacing: 2) {
-                            ForEach(filteredApplications) { application in
-                                appRow(application)
-                            }
-                        }
-                        .padding(.vertical, SiftMetrics.spacingS)
-                    }
-                    .frame(maxHeight: .infinity)
-                }
-
-                Divider()
-
-                HStack(spacing: SiftMetrics.spacingM) {
-                    Text(footerCaption)
-                        .font(SiftFont.caption)
-                        .foregroundStyle(.secondary)
-                    Spacer(minLength: SiftMetrics.spacingS)
-                    if hiddenApplicationCount > 0 {
-                        Button {
-                            showsAllApps = true
-                        } label: {
-                            Text(LocalizationKey.overviewShowAll.localized)
-                                .font(SiftFont.caption)
-                        }
-                        .buttonStyle(SiftLinkButtonStyle())
-                    }
-                }
+    private var listColumn: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(LocalizationKey.appsListTitle.localized)
+                .font(SiftFont.sectionHeading)
+                .foregroundStyle(SiftColor.mainText)
+                .accessibilityAddTraits(.isHeader)
                 .padding(.top, SiftMetrics.spacingM)
+
+            toolbar
+            scopeBar
+            SiftHairline()
+
+            if environment.isLoadingApplications {
+                VStack(spacing: SiftMetrics.spacingM) {
+                    ForEach(0..<6, id: \.self) { index in
+                        SiftSkeletonRow(isFirst: index == 0)
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .padding(.top, SiftMetrics.spacingS)
+            } else if filteredApplications.isEmpty {
+                SiftEmptyState(
+                    symbolName: search.isEmpty ? "shippingbox" : "magnifyingglass",
+                    titleKey: search.isEmpty ? .uninstallNoneInstalled : .appsNoMatches
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(filteredApplications) { application in
+                            appRow(application)
+                            SiftHairline(inset: rowRuleInset)
+                        }
+                    }
+                    .padding(.bottom, SiftMetrics.spacingS)
+                }
+                .frame(maxHeight: .infinity)
             }
+
+            SiftHairline()
+            listFooter
+        }
+        .padding(.trailing, SiftMetrics.spacingXL)
+    }
+
+    /// Where a row's rule starts: under the name, not under the icon.
+    private var rowRuleInset: CGFloat {
+        SiftMetrics.spacingM + 34 + SiftMetrics.spacingM
+    }
+
+    private var toolbar: some View {
+        HStack(spacing: SiftMetrics.spacingM) {
+            searchField
+            Spacer(minLength: SiftMetrics.spacingS)
+            sortMenu
+            rescanButton
+        }
+        .padding(.vertical, SiftMetrics.spacingM)
+    }
+
+    /// The scopes, as chips with the number of rows each would show.
+    private var scopeBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: SiftMetrics.spacingS) {
+                ForEach(ApplicationFilter.allCases) { candidate in
+                    SiftFilterChip(
+                        title: candidate.titleKey.localized,
+                        detail: SiftFormat.count(count(for: candidate)),
+                        isSelected: filter == candidate
+                    ) {
+                        filter = candidate
+                    }
+                    .accessibilityIdentifier("apps.filter.\(candidate.rawValue)")
+                }
+            }
+            .padding(.bottom, SiftMetrics.spacingM)
+        }
+    }
+
+    private func count(for candidate: ApplicationFilter) -> Int {
+        switch candidate {
+        case .all:
+            return search.isEmpty
+                ? environment.installedApplications.count
+                : searched(environment.installedApplications).count
+        case .large:
+            return search.isEmpty
+                ? environment.installedApplications.filter { $0.sizeInBytes >= visibleSizeThreshold }.count
+                : searched(environment.installedApplications).count
+        case .unused:
+            return searched(environment.installedApplications).filter { $0.isUnused() }.count
         }
     }
 
@@ -194,7 +265,8 @@ public struct UninstallerView: View {
         HStack(spacing: SiftMetrics.spacingS) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(SiftColor.secondaryText)
+                .accessibilityHidden(true)
             TextField(LocalizationKey.uninstallSearch.localized, text: $search)
                 .textFieldStyle(.plain)
                 .font(SiftFont.body)
@@ -202,6 +274,7 @@ public struct UninstallerView: View {
         .padding(.horizontal, SiftMetrics.spacingM)
         .frame(height: SiftMetrics.fieldHeight)
         .siftFieldSurface()
+        .accessibilityIdentifier("apps.search")
     }
 
     /// Re-runs discovery, because the list is discovered once and then kept.
@@ -217,7 +290,7 @@ public struct UninstallerView: View {
         } label: {
             Image(systemName: "arrow.clockwise")
                 .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(SiftColor.secondaryText)
                 .padding(.horizontal, SiftMetrics.spacingM)
                 .frame(height: SiftMetrics.fieldHeight)
                 .siftFieldSurface()
@@ -261,8 +334,8 @@ public struct UninstallerView: View {
                 Image(systemName: "chevron.down")
                     .font(.system(size: 8, weight: .semibold))
             }
-            .font(SiftFont.caption)
-            .foregroundStyle(.secondary)
+            .font(SiftFont.supporting)
+            .foregroundStyle(SiftColor.secondaryText)
             .padding(.horizontal, SiftMetrics.spacingM)
             .frame(height: SiftMetrics.fieldHeight)
             .siftFieldSurface()
@@ -270,6 +343,7 @@ public struct UninstallerView: View {
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .fixedSize()
+        .accessibilityIdentifier("apps.sort")
     }
 
     private func appRow(_ application: InstalledApplication) -> some View {
@@ -286,10 +360,11 @@ public struct UninstallerView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(application.name)
                         .font(SiftFont.bodyEmphasis)
+                        .foregroundStyle(SiftColor.mainText)
                         .lineLimit(1)
-                    Text(secondaryLine(application))
-                        .font(SiftFont.caption)
-                        .foregroundStyle(.secondary)
+                    Text(launchLine(application))
+                        .font(SiftFont.supporting)
+                        .foregroundStyle(SiftColor.secondaryText)
                         .lineLimit(1)
                 }
 
@@ -297,185 +372,265 @@ public struct UninstallerView: View {
 
                 if application.isSystemApplication {
                     Text(LocalizationKey.uninstallSystemApp.localized)
-                        .font(SiftFont.badge)
-                        .foregroundStyle(.secondary)
+                        .font(SiftFont.metadata)
+                        .foregroundStyle(SiftColor.quietText)
+                        .lineLimit(1)
                 } else if application.isRunning {
                     Image(systemName: "play.circle")
-                        .foregroundStyle(SiftColor.review)
+                        .foregroundStyle(SiftColor.reviewTextColor)
                         .accessibilityLabel(
                             Text(LocalizationKey.uninstallAppRunning.localized(application.name))
                         )
                 }
 
                 Text(application.formattedSize)
-                    .font(SiftFont.bodyEmphasis)
-                    .monospacedDigit()
+                    .font(SiftFont.monospacedEmphasis)
+                    .foregroundStyle(SiftColor.mainText)
             }
             .padding(.vertical, 4)
         }
         .accessibilityIdentifier("apps.row.\(application.id)")
     }
 
-    /// What the row says under the name.
+    /// What the row says under the name: the launch record, with its year.
     ///
-    /// Both dates are always stated, not only the one the list is ordered by. They
-    /// are two different records — the bundle's birth time and the launch
-    /// LaunchServices wrote — and the page showed them as one number because it
-    /// read one record twice. A row that prints both makes the independence
-    /// visible, and it is what lets a person see that an application installed
-    /// four days ago was opened this morning.
-    ///
-    /// The launch record is stated as what it is: a recorded date, "never opened"
-    /// when the system holds the bundle and no launch, and "no open record" when
-    /// the system holds no record of the bundle at all. The last two are not the
-    /// same sentence, because only one of them is a claim about use.
-    private func secondaryLine(_ application: InstalledApplication) -> String {
-        let version = application.version ?? LocalizationKey.commonNotAvailable.localized
-        let installed = application.installedAt.map {
-            LocalizationKey.appsInstalledOn.localized(SiftFormat.day($0))
-        } ?? LocalizationKey.commonNotAvailable.localized
-        let lastUsed: String
+    /// The row states the date the list can be sorted by, and it states which
+    /// record it is. "Never opened" and "no open record" are different sentences
+    /// because only one of them is a claim about use (invariant 47); the install
+    /// date, the version and the bundle id live in the inspector, where there is
+    /// room for all three without a row becoming two lines of metadata.
+    private func launchLine(_ application: InstalledApplication) -> String {
         switch application.lastUsed {
         case let .known(date):
-            lastUsed = LocalizationKey.appsLastOpened.localized(SiftFormat.day(date))
+            return LocalizationKey.appsLastOpened.localized(SiftFormat.day(date))
         case .neverOpened:
-            lastUsed = LocalizationKey.appsNeverOpened.localized
+            return LocalizationKey.appsNeverOpened.localized
         case .unavailable:
-            lastUsed = LocalizationKey.appsLastUsedUnknown.localized
+            return LocalizationKey.appsLastUsedUnknown.localized
         }
-        return "\(version), \(installed), \(lastUsed)"
+    }
+
+    private func searched(_ applications: [InstalledApplication]) -> [InstalledApplication] {
+        guard !search.isEmpty else { return applications }
+        return applications.filter {
+            $0.name.localizedCaseInsensitiveContains(search)
+                || $0.bundleIdentifier.localizedCaseInsensitiveContains(search)
+        }
     }
 
     private var filteredApplications: [InstalledApplication] {
-        var matching = search.isEmpty
-            ? environment.installedApplications
-            : environment.installedApplications.filter {
-                $0.name.localizedCaseInsensitiveContains(search)
-                    || $0.bundleIdentifier.localizedCaseInsensitiveContains(search)
-            }
-        // The size filter is a default for the unfiltered list. A search is an
-        // explicit request, so every match is shown whatever its size.
-        if !showsAllApps, search.isEmpty {
-            matching = matching.filter { $0.sizeInBytes >= visibleSizeThreshold }
+        sort.sorted(inScope(searched(environment.installedApplications)))
+    }
+
+    /// The scope's own rule.
+    ///
+    /// A search is an explicit request, so the size default does not narrow it —
+    /// that is the one relaxation this page has always made, and it stays. The
+    /// unused scope is a claim about launches and is not relaxed by typing.
+    private func inScope(_ applications: [InstalledApplication]) -> [InstalledApplication] {
+        switch filter {
+        case .all:
+            return applications
+        case .large:
+            guard search.isEmpty else { return applications }
+            return applications.filter { $0.sizeInBytes >= visibleSizeThreshold }
+        case .unused:
+            return applications.filter { $0.isUnused() }
         }
-        return sort.sorted(matching)
     }
 
     private var hiddenApplicationCount: Int {
-        guard !showsAllApps, search.isEmpty else { return 0 }
-        return environment.installedApplications.filter {
-            $0.sizeInBytes < visibleSizeThreshold
-        }.count
+        guard search.isEmpty else { return 0 }
+        return max(environment.installedApplications.count - filteredApplications.count, 0)
     }
 
     /// The list's footer says what the list is actually showing: a search
-    /// result, the full list, or the default size-filtered list.
+    /// result, a scope, or the full inventory.
     private var footerCaption: String {
         let total = environment.installedApplications.count
         if !search.isEmpty {
             return LocalizationKey.commonItemCount.counted(filteredApplications.count)
         }
-        if showsAllApps {
+        switch filter {
+        case .all:
             return LocalizationKey.commonItemCount.counted(total)
+        case .large:
+            return LocalizationKey.appsFooter.localized(total)
+        case .unused:
+            return LocalizationKey.commonItemCount.counted(filteredApplications.count)
         }
-        return LocalizationKey.appsFooter.localized(total)
     }
 
-    // MARK: - Detail
+    /// The rows' own footprint, so the list keeps the one number the "Sorted by"
+    /// sentence used to carry. It describes what is on screen, not the disk.
+    private var shownBytes: String {
+        SiftFormat.bytes(filteredApplications.reduce(Int64(0)) { $0 + $1.sizeInBytes })
+    }
+
+    private var listFooter: some View {
+        HStack(spacing: SiftMetrics.spacingM) {
+            Text(footerCaption)
+                .font(SiftFont.supporting)
+                .foregroundStyle(SiftColor.secondaryText)
+            Text(shownBytes)
+                .font(SiftFont.metadata)
+                .monospacedDigit()
+                .foregroundStyle(SiftColor.quietText)
+            Spacer(minLength: SiftMetrics.spacingS)
+            if hiddenApplicationCount > 0 {
+                Button {
+                    filter = .all
+                } label: {
+                    Text(LocalizationKey.overviewShowAll.localized)
+                        .font(SiftFont.supporting)
+                }
+                .buttonStyle(SiftLinkButtonStyle())
+                .accessibilityIdentifier("apps.showAll")
+            }
+        }
+        .frame(minHeight: SiftMetrics.minimumHitTarget, alignment: .center)
+    }
+
+    // MARK: - Inspector
+
+    private var paneRule: some View {
+        Rectangle()
+            .fill(SiftColor.divider)
+            .frame(width: SiftMetrics.panelBorderWidth)
+            .frame(maxHeight: .infinity)
+            .accessibilityHidden(true)
+    }
 
     @ViewBuilder
-    private var detailPane: some View {
+    private var inspector: some View {
         if let application = selected {
-            SiftGlassCard(padding: SiftMetrics.spacingL) {
+            ScrollView {
                 VStack(alignment: .leading, spacing: SiftMetrics.spacingL) {
                     applicationHeader(application)
 
-                    if application.isSystemApplication {
-                        NoticeBanner(level: .information, titleKey: .uninstallSystemAppDetail)
-                    }
-                    if application.isRunning {
-                        NoticeBanner(
-                            level: .warning,
-                            message: LocalizationKey.uninstallAppRunning.localized(application.name),
-                            actionTitle: .commonQuitApp
-                        ) {
-                            Task { await quit(application) }
-                        }
-                    }
-                    if let refusalMessage {
-                        NoticeBanner(level: .warning, message: refusalMessage)
-                    }
-                    if let quitFailure {
-                        NoticeBanner(level: .error, message: quitFailure)
-                    }
+                    notices(for: application)
 
                     if isLoadingPlan {
-                        ProgressView().controlSize(.small)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        SiftSkeletonRow()
+                            .frame(height: SiftMetrics.rowHeightTwoLine)
                     } else if let plan {
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: SiftMetrics.spacingL) {
-                                reclaimableBlock(plan)
-                                relatedFilesSection(plan)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                        .frame(maxHeight: .infinity)
-
-                        uninstallButton(plan)
+                        reclaimableBlock(plan)
+                        SiftHairline()
+                        relatedFilesSection(plan)
                     } else {
-                        Spacer(minLength: 0)
+                        SiftEmptyState(
+                            symbolName: "questionmark.folder",
+                            titleKey: .uninstallSelectApp
+                        )
                     }
                 }
-                .frame(maxHeight: .infinity, alignment: .top)
+                .padding(.leading, SiftMetrics.spacingXL)
+                .padding(.trailing, SiftMetrics.spacingM)
+                .padding(.top, SiftMetrics.spacingL)
+                .padding(.bottom, SiftMetrics.spacingXXL)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if !isLoadingPlan, let plan {
+                    uninstallButton(plan)
+                        .padding(.leading, SiftMetrics.spacingXL)
+                        .padding(.trailing, SiftMetrics.spacingM)
+                        .padding(.vertical, SiftMetrics.spacingM)
+                        .background(SiftColor.canvasSurface)
+                }
             }
         } else {
-            SiftGlassCard(padding: SiftMetrics.spacingL) {
-                SiftEmptyState(
-                    symbolName: "questionmark.folder",
-                    titleKey: .uninstallSelectApp
-                )
-                .frame(maxHeight: .infinity)
-            }
+            SiftEmptyState(
+                symbolName: "questionmark.folder",
+                titleKey: .uninstallSelectApp
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.leading, SiftMetrics.spacingXL)
         }
     }
 
+    @ViewBuilder
+    private func notices(for application: InstalledApplication) -> some View {
+        if application.isSystemApplication {
+            NoticeBanner(level: .information, titleKey: .uninstallSystemAppDetail)
+        }
+        if application.isRunning {
+            NoticeBanner(
+                level: .warning,
+                message: LocalizationKey.uninstallAppRunning.localized(application.name),
+                actionTitle: .commonQuitApp
+            ) {
+                Task { await quit(application) }
+            }
+        }
+        if let refusalMessage {
+            NoticeBanner(level: .warning, message: refusalMessage)
+        }
+        if let quitFailure {
+            NoticeBanner(level: .error, message: quitFailure)
+        }
+    }
+
+    /// The application's identity: what it is, which build, and the two dates.
+    ///
+    /// Both dates are stated, and both carry their year (`SiftFormat.day`), because
+    /// they are two different records — when the item arrived and when it was last
+    /// opened — and the page used to print one of them twice. They are read
+    /// against one another here, which is why the relative form is not used
+    /// (invariant 47).
     private func applicationHeader(_ application: InstalledApplication) -> some View {
-        HStack(alignment: .top, spacing: SiftMetrics.spacingM) {
-            ApplicationIcon(application: application, size: 54)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(application.name)
-                    .font(SiftFont.title)
-                    .lineLimit(2)
-                Text(secondaryLine(application))
-                    .font(SiftFont.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
+        VStack(alignment: .leading, spacing: SiftMetrics.spacingM) {
+            HStack(alignment: .top, spacing: SiftMetrics.spacingM) {
+                ApplicationIcon(application: application, size: 48)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(application.name)
+                        .font(SiftFont.sectionHeading)
+                        .foregroundStyle(SiftColor.mainText)
+                        .lineLimit(2)
+                    if let version = application.version {
+                        Text(version)
+                            .font(SiftFont.monospacedNumber)
+                            .foregroundStyle(SiftColor.secondaryText)
+                            .lineLimit(1)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+
+            VStack(alignment: .leading, spacing: SiftMetrics.spacingXS) {
+                Text(
+                    LocalizationKey.appsInstalledOn.localized(
+                        application.formattedInstalledAt
+                    )
+                )
+                Text(application.formattedLastUsed)
                 Text(application.bundleIdentifier)
-                    .font(SiftFont.caption)
-                    .foregroundStyle(.tertiary)
+                    .font(SiftFont.metadata)
+                    .foregroundStyle(SiftColor.quietText)
+                    .textSelection(.enabled)
                     .lineLimit(1)
                     .truncationMode(.middle)
-                    .textSelection(.enabled)
             }
-            Spacer(minLength: 0)
+            .font(SiftFont.supporting)
+            .foregroundStyle(SiftColor.secondaryText)
         }
+        .accessibilityElement(children: .contain)
     }
 
-    /// The big number in the detail column: the application plus the related
-    /// files Sift is confident about. The review files are counted separately and
-    /// only when the user opts in.
+    /// The number the action is about: the application plus the related files
+    /// Sift is confident about. The review files are counted separately and only
+    /// when the user opts in.
     private func reclaimableBlock(_ plan: UninstallPlan) -> some View {
-        VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
+        VStack(alignment: .leading, spacing: SiftMetrics.spacingXS) {
+            // Sentence case, no tracking — `01` retires the all-caps eyebrow.
             Text(LocalizationKey.appsReclaimable.localized)
                 .font(SiftFont.eyebrow)
-                .textCase(.uppercase)
-                .tracking(0.8)
-                .foregroundStyle(SiftColor.accentText)
+                .foregroundStyle(SiftColor.actionGreen)
 
             Text(plan.formattedTotal(includeReviewFiles: includeReviewFiles))
-                .font(SiftFont.metricLarge)
+                .font(SiftFont.pageTitle)
                 .monospacedDigit()
+                .foregroundStyle(SiftColor.mainText)
                 .contentTransition(.numericText())
 
             Text(
@@ -484,25 +639,23 @@ public struct UninstallerView: View {
                     plan.formattedRelatedSize(includeReviewFiles: includeReviewFiles)
                 )
             )
-            .font(SiftFont.caption)
-            .foregroundStyle(.secondary)
+            .font(SiftFont.supporting)
+            .foregroundStyle(SiftColor.secondaryText)
             .fixedSize(horizontal: false, vertical: true)
-
-            Divider()
-                .padding(.vertical, SiftMetrics.spacingXS)
-
-            Text(LocalizationKey.appsRelatedWillRemove.localized)
-                .font(SiftFont.caption)
-                .foregroundStyle(.secondary)
         }
+        .accessibilityElement(children: .combine)
     }
 
     private func relatedFilesSection(_ plan: UninstallPlan) -> some View {
         VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
+            Text(LocalizationKey.appsRelatedWillRemove.localized)
+                .font(SiftFont.secondaryHeading)
+                .foregroundStyle(SiftColor.mainText)
+
             if plan.confirmedFiles.isEmpty, plan.reviewFiles.isEmpty {
                 Text(LocalizationKey.uninstallNoRelatedFiles.localized)
                     .font(SiftFont.body)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(SiftColor.secondaryText)
             }
 
             ForEach(plan.confirmedFiles) { file in
@@ -510,18 +663,35 @@ public struct UninstallerView: View {
             }
 
             if !plan.reviewFiles.isEmpty {
-                Divider()
-                    .padding(.vertical, SiftMetrics.spacingXS)
-                Toggle(isOn: $includeReviewFiles) {
-                    Text(LocalizationKey.uninstallNeedsReview.localized)
-                        .font(SiftFont.caption)
-                        .foregroundStyle(SiftColor.review)
-                }
-                .toggleStyle(.checkbox)
-                ForEach(plan.reviewFiles) { file in
-                    relatedFileRow(file, isEnabled: includeReviewFiles)
-                }
+                // Two claims, kept apart: what the page is confident about is
+                // already in the list, and what needs a decision sits under its
+                // own control. A review file is never removed because it was
+                // listed — only because the user said so.
+                reviewGroup(plan)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func reviewGroup(_ plan: UninstallPlan) -> some View {
+        SiftHairline()
+            .padding(.vertical, SiftMetrics.spacingXS)
+
+        HStack(spacing: SiftMetrics.spacingS) {
+            SiftCheckbox(isOn: $includeReviewFiles)
+                .accessibilityLabel(Text(LocalizationKey.uninstallNeedsReview.localized))
+            Text(LocalizationKey.uninstallNeedsReview.localized)
+                .font(SiftFont.supporting)
+                .foregroundStyle(SiftColor.reviewTextColor)
+                .onTapGesture { includeReviewFiles.toggle() }
+            Spacer(minLength: 0)
+            Text(LocalizationKey.commonItemCount.counted(plan.reviewFiles.count))
+                .font(SiftFont.metadata)
+                .foregroundStyle(SiftColor.quietText)
+        }
+
+        ForEach(plan.reviewFiles) { file in
+            relatedFileRow(file, isEnabled: includeReviewFiles)
         }
     }
 
@@ -529,23 +699,28 @@ public struct UninstallerView: View {
         HStack(alignment: .top, spacing: SiftMetrics.spacingS) {
             Image(systemName: file.confidence == .confirmed ? "checkmark.circle" : "questionmark.circle")
                 .font(.system(size: 11))
-                .foregroundStyle(file.confidence == .confirmed ? SiftColor.safe : SiftColor.review)
+                .foregroundStyle(
+                    file.confidence == .confirmed
+                        ? SiftColor.safeTextColor
+                        : SiftColor.reviewTextColor
+                )
                 .padding(.top, 2)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
                 Text(file.displayName)
-                    .font(SiftFont.caption)
+                    .font(SiftFont.supporting)
+                    .foregroundStyle(SiftColor.mainText)
                     .lineLimit(1)
                     .truncationMode(.middle)
                 Text(file.displayPath)
-                    .font(SiftFont.caption)
-                    .foregroundStyle(.tertiary)
+                    .font(SiftFont.metadata)
+                    .foregroundStyle(SiftColor.quietText)
                     .lineLimit(1)
                     .truncationMode(.middle)
                 if file.confidence == .needsReview {
                     Text(file.reason.titleKey.localized)
-                        .font(SiftFont.badge)
-                        .foregroundStyle(SiftColor.review)
+                        .font(SiftFont.metadata)
+                        .foregroundStyle(SiftColor.reviewTextColor)
                         .lineLimit(2)
                         // The group id is what the entitlement actually says. It is
                         // not printed as a second line because the container's own
@@ -564,17 +739,18 @@ public struct UninstallerView: View {
                         LocalizationKey.uninstallSharedContainer
                             .localized(file.sharedWith.joined(separator: ", "))
                     )
-                    .font(SiftFont.badge)
-                    .foregroundStyle(SiftColor.review)
+                    .font(SiftFont.metadata)
+                    .foregroundStyle(SiftColor.reviewTextColor)
                     .lineLimit(2)
                 }
             }
             Spacer(minLength: SiftMetrics.spacingS)
             Text(file.formattedSize)
-                .font(SiftFont.caption)
+                .font(SiftFont.supporting)
                 .monospacedDigit()
-                .foregroundStyle(isEnabled ? .secondary : .tertiary)
+                .foregroundStyle(isEnabled ? SiftColor.secondaryText : SiftColor.quietText)
         }
+        .padding(.vertical, SiftMetrics.spacingXS)
         .opacity(isEnabled ? 1 : 0.55)
         .accessibilityElement(children: .combine)
         // The same two actions the row can offer, and the group id as something
@@ -615,19 +791,21 @@ public struct UninstallerView: View {
             ) {
                 Task { await requestUninstall(plan) }
             }
+            .frame(maxWidth: .infinity)
+
             Text(LocalizationKey.appsRestoreHint.localized)
-                .font(SiftFont.caption)
-                .foregroundStyle(.tertiary)
+                .font(SiftFont.supporting)
+                .foregroundStyle(SiftColor.quietText)
                 .frame(maxWidth: .infinity)
                 .multilineTextAlignment(.center)
         }
-        .padding(.top, SiftMetrics.spacingS)
     }
 
     private var uninstallConfirmation: some View {
         VStack(alignment: .leading, spacing: SiftMetrics.spacingL) {
             Text(LocalizationKey.cleanupConfirmTitle.localized)
-                .font(SiftFont.title)
+                .font(SiftFont.pageTitle)
+                .foregroundStyle(SiftColor.mainText)
             if let plan {
                 Text(
                     LocalizationKey.appsUninstallAndClean.localized(
@@ -635,6 +813,7 @@ public struct UninstallerView: View {
                     )
                 )
                 .font(SiftFont.bodyEmphasis)
+                .foregroundStyle(SiftColor.mainText)
             }
             if let preparedSummary {
                 Text(
@@ -642,11 +821,12 @@ public struct UninstallerView: View {
                 )
                 .font(SiftFont.body)
                 .monospacedDigit()
+                .foregroundStyle(SiftColor.secondaryText)
             }
             if let refused = preparedSummary?.refused, !refused.isEmpty {
                 Text(LocalizationKey.cleanupConfirmProtectedCount.localized(refused.count))
-                    .font(SiftFont.caption)
-                    .foregroundStyle(SiftColor.textColor(for: .review))
+                    .font(SiftFont.supporting)
+                    .foregroundStyle(SiftColor.reviewTextColor)
             }
             NoticeBanner(level: .information, titleKey: .cleanupConfirmUndoNotice)
             HStack {
@@ -670,14 +850,14 @@ public struct UninstallerView: View {
         }
         .padding(SiftMetrics.spacingXL)
         .frame(width: 480)
-        .background(SiftColor.canvas)
+        .background(SiftColor.canvasSurface)
     }
 
     // MARK: - Result
 
     private func outcomeView(_ outcome: CleanupOutcome) -> some View {
         ScrollView {
-            SiftGlassCard(surface: .floating, padding: 0) {
+            SiftSection(style: .floating, padding: 0, cornerRadius: SiftMetrics.cornerRadiusL) {
                 CleanupResultView(
                     outcome: outcome,
                     report: outcomeReport,
@@ -790,7 +970,7 @@ public struct UninstallerView: View {
     /// Discovers the installed applications again, from scratch.
     ///
     /// One function for the two places that ask for a fresh list — the control in
-    /// the list header and a completed uninstall — so a refresh cannot mean one
+    /// the list toolbar and a completed uninstall — so a refresh cannot mean one
     /// thing here and another there.
     private func reloadApplications() async {
         environment.invalidateApplications()

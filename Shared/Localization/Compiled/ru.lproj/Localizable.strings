@@ -7,12 +7,15 @@
 "app.management.required" = "Разрешите Sift в разделе «Управление приложениями», чтобы перемещать приложения других разработчиков.";
 "app.management.title" = "Управление приложениями";
 "apps.appAndRelated" = "Приложение %@, связанные файлы %@";
+"apps.filter.large" = "Большие";
+"apps.filter.unused" = "Неиспользуемые";
 "apps.footer" = "Показаны приложения больше 200 МБ, всего %d";
 "apps.installedOn" = "Установлено: %@";
 "apps.lastOpened" = "Последний запуск: %@";
 "apps.lastUsedUnknown" = "Нет записи об открытии";
 "apps.listTitle" = "Приложения";
 "apps.neverOpened" = "Не открывалось";
+"apps.noMatches" = "Нет приложений, соответствующих этому запросу.";
 "apps.reclaimable" = "Можно освободить";
 "apps.relatedWillRemove" = "Связанные файлы к удалению";
 "apps.rescan" = "Пересканировать приложения";

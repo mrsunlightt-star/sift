@@ -1,22 +1,138 @@
 import Foundation
 import SwiftUI
 
+// The shared component primitives. A page composes these and nothing else: no
+// page introduces a second palette, a second surface or a second button.
+//
+// V2 rule, and the reason this file is shaped the way it is: a surface earns its
+// paint. Most content on a page is separated by whitespace and a hairline, not by
+// a card, so the default surface here is a plain one. A fill, a border and a
+// radius exist for the cases the design study names — a floating sheet, a small
+// meaningful group — and glass is not one of them: nothing in this file blurs
+// what is behind it, because a blurred surface under every section is what made
+// the old pages read as a stack of panes.
+
 // MARK: - Surfaces
 
-/// A glass card: the surface every section sits on.
+/// A page section, in one of four surface styles.
 ///
-/// Three layers, in the order the design language describes them: the system
-/// material blurs what is behind the card, a tinted fill decides how much of the
-/// backdrop survives, and a top-edge highlight makes the surface look lit. The
-/// border is a hairline rather than a frame — a card that is outlined looks like
-/// a box, not like glass.
+/// - `plain` (default): no fill, no border, no shadow. Whitespace, the page's own
+///   rhythm and `SiftHairline` are what separate one group from the next.
+/// - `outlined`: a `surfaceColor` fill with a 1 pt `divider` border, for content
+///   that is genuinely a block — a form, an empty state, a group the user acts on
+///   as a unit.
+/// - `subtle`: a single small group that needs to be read as one thing without
+///   becoming a card; a low-contrast wash (`brandWash`) and the same hairline.
+/// - `floating`: sheets and popovers only. It takes the raised fill, because the
+///   platform already draws the elevation for the window it is in; drawing a
+///   second shadow inside a sheet is the doubled depth the design study rules out.
+///
+/// A page should not become a grid of outlined cards: reach for `.outlined` when
+/// the block is an object, not for every heading.
+public struct SiftSection<Content: View>: View {
+    public enum Style: String, Sendable, CaseIterable {
+        case plain
+        case outlined
+        case subtle
+        case floating
+    }
+
+    private let style: Style
+    private let padding: CGFloat?
+    private let cornerRadius: CGFloat
+    private let content: Content
+
+    /// - Parameters:
+    ///   - style: the surface, `.plain` unless the content is an object.
+    ///   - padding: the inset; `nil` asks the style for its own (0 for `.plain`,
+    ///     `spacingL` for a painted surface, so text never touches a border).
+    ///   - cornerRadius: ignored by `.plain`, which paints nothing to round.
+    public init(
+        style: Style = .plain,
+        padding: CGFloat? = nil,
+        cornerRadius: CGFloat = SiftMetrics.cornerRadiusM,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.style = style
+        self.padding = padding
+        self.cornerRadius = cornerRadius
+        self.content = content()
+    }
+
+    private var resolvedPadding: CGFloat {
+        padding ?? (style == .plain ? 0 : SiftMetrics.spacingL)
+    }
+
+    private var fill: Color? {
+        switch style {
+        case .plain: nil
+        case .outlined: SiftColor.surfaceColor
+        case .subtle: SiftColor.brandWash
+        case .floating: SiftColor.elevatedSurface
+        }
+    }
+
+    private var hasBorder: Bool {
+        switch style {
+        case .plain: false
+        case .outlined, .subtle, .floating: true
+        }
+    }
+
+    public var body: some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        content
+            .padding(resolvedPadding)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background {
+                if let fill {
+                    shape.fill(fill)
+                }
+            }
+            .overlay {
+                if hasBorder {
+                    shape.strokeBorder(SiftColor.divider, lineWidth: SiftMetrics.panelBorderWidth)
+                }
+            }
+    }
+}
+
+/// A section rule: the line that separates two groups on a plain page.
+///
+/// One pixel of `divider`, not of the system's own separator, so a rule on a page
+/// and a rule between two sections are the same weight.
+public struct SiftHairline: View {
+    private let inset: CGFloat
+
+    public init(inset: CGFloat = 0) {
+        self.inset = inset
+    }
+
+    public var body: some View {
+        Rectangle()
+            .fill(SiftColor.divider)
+            .frame(height: SiftMetrics.panelBorderWidth)
+            .padding(.horizontal, inset)
+            .accessibilityHidden(true)
+    }
+}
+
+/// A flat content block, kept under its old name for the call sites that already
+/// use it.
+///
+/// This used to be three layers of blur, a tint, a lit top edge and a glow. V2
+/// makes it the outlined section and nothing else: the same padding at the same
+/// radius, so a page that has not been rewritten yet keeps its geometry while the
+/// material stack and the decorative shadow are gone from the app.
+///
+/// `surface` is accepted and ignored. Its only two callers pass `.floating` for
+/// content hosted by a sheet, which already carries the platform's own elevation;
+/// a fill there would draw a card inside a sheet.
 public struct SiftGlassCard<Content: View>: View {
     private let surface: SiftSurface
     private let cornerRadius: CGFloat
     private let padding: CGFloat
     private let content: Content
-
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     public init(
         surface: SiftSurface = .card,
@@ -31,54 +147,14 @@ public struct SiftGlassCard<Content: View>: View {
     }
 
     public var body: some View {
-        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-        content
-            .padding(padding)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background {
-                ZStack {
-                    if reduceTransparency {
-                        shape.fill(surface.opaqueFill)
-                    } else {
-                        shape.fill(surface.material)
-                        shape.fill(surface.tint)
-                    }
-                    shape.fill(
-                        LinearGradient(
-                            colors: [
-                                SiftColor.glassHighlight.opacity(surface == .floating ? 0.16 : 0.08),
-                                .clear,
-                            ],
-                            startPoint: .top,
-                            endPoint: .center
-                        )
-                    )
-                }
-            }
-            .overlay {
-                shape.strokeBorder(SiftColor.glassBorder, lineWidth: SiftMetrics.panelBorderWidth)
-            }
-            .overlay {
-                shape.strokeBorder(
-                    LinearGradient(
-                        colors: [SiftColor.glassHighlight.opacity(0.50), .clear],
-                        startPoint: .top,
-                        endPoint: .center
-                    ),
-                    lineWidth: SiftMetrics.panelBorderWidth
-                )
-                .allowsHitTesting(false)
-            }
-            .clipShape(shape)
-            .shadow(
-                color: .black.opacity(surface.shadowOpacity),
-                radius: surface.shadowRadius,
-                y: surface == .card ? 6 : 10
-            )
+        SiftSection(style: .outlined, padding: padding, cornerRadius: cornerRadius) {
+            content
+        }
     }
 }
 
-/// A panel with a hairline border, the surface every section sits on.
+/// A bordered panel. Kept under its old name; it is now exactly the outlined
+/// section, which is what the hairline it always promised actually is.
 public struct SiftPanel<Content: View>: View {
     private let padding: CGFloat
     private let content: Content
@@ -89,35 +165,38 @@ public struct SiftPanel<Content: View>: View {
     }
 
     public var body: some View {
-        SiftGlassCard(padding: padding) {
+        SiftSection(style: .outlined, padding: padding) {
             content
         }
     }
 }
 
-/// The window background: a quiet porcelain canvas with two ambient glows.
+/// The window background: one flat canvas colour.
 ///
-/// The glow is what the glass has to show through. Without it the material has
-/// nothing to blur and every card reads as flat grey. Jade breathes from the
-/// top-right, a faint warmth from the lower-left, and the base stays quiet.
+/// The two ambient glows that used to sit here existed to give the material
+/// something to blur. With no material on an ordinary page there is nothing to
+/// show through, so the canvas is what the design study asks for — a quiet field
+/// that leaves the content as the only thing with edges.
 public struct SiftCanvasBackground: View {
     public init() {}
 
-    /// A flat canvas: one colour, no wash. The glass layers carry the depth.
     public var body: some View {
-        SiftColor.canvas
+        SiftColor.canvasSurface
             .ignoresSafeArea()
     }
 }
 
 // MARK: - Page chrome
 
-/// A page header: a small status line, then the display title.
+/// A page header: the title, an optional status line beneath it, and the page's
+/// trailing controls.
 ///
-/// The status line opens with a jade tick — the same mark a section header uses —
-/// so every page carries one quiet instance of the accent before any action is
-/// taken. The hairline beneath fades out at the edges, which reads as structure
-/// rather than as a rule boxing the page in.
+/// The title is the anchor — `pageTitle`, `mainText`, the largest thing on the
+/// page — and the status is quiet metadata under it. There is no decorative dot
+/// beside the status any more: a mark that is always there and never means
+/// anything is a second accent on a page that has one real action. The rule below
+/// is a plain hairline rather than a gradient that fades out at the edges; the
+/// fade read as a decorative flourish and did not survive the V2 pass.
 public struct SiftPageHeader<Trailing: View>: View {
     private let title: String
     private let status: String?
@@ -125,6 +204,8 @@ public struct SiftPageHeader<Trailing: View>: View {
 
     public init(
         title: String,
+        /// Shown only when it says something the title does not. An empty string
+        /// is the same as no status.
         status: String? = nil,
         @ViewBuilder trailing: () -> Trailing
     ) {
@@ -136,45 +217,33 @@ public struct SiftPageHeader<Trailing: View>: View {
     public var body: some View {
         VStack(spacing: 0) {
             HStack(alignment: .bottom, spacing: SiftMetrics.spacingXL) {
-                VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
+                VStack(alignment: .leading, spacing: SiftMetrics.spacingXS) {
                     if let status, !status.isEmpty {
-                        HStack(spacing: 6) {
-                            Circle()
-                                .fill(SiftColor.accent)
-                                .frame(width: 4, height: 4)
-                            Text(status)
-                                .font(SiftFont.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        .lineLimit(1)
-                        .truncationMode(.middle)
+                        Text(status)
+                            .font(SiftFont.supporting)
+                            .foregroundStyle(SiftColor.secondaryText)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
                     }
                     Text(title)
+                        // `display` is the ladder's own name for the page
+                        // title (28 pt semibold); `pageTitle` is the metric it
+                        // resolves to.
                         .siftFont(.display)
+                        .foregroundStyle(SiftColor.mainText)
                         .fixedSize(horizontal: false, vertical: true)
+                        // The page's one heading. VoiceOver's rotor and the
+                        // window's reading order both need it to say so.
+                        .accessibilityAddTraits(.isHeader)
                 }
                 Spacer(minLength: SiftMetrics.spacingL)
                 trailing
-                    .padding(.bottom, 2)
             }
             .padding(.horizontal, SiftMetrics.pagePadding)
             .padding(.top, SiftMetrics.spacingL)
             .padding(.bottom, SiftMetrics.spacingM)
 
-            Rectangle()
-                .fill(
-                    LinearGradient(
-                        stops: [
-                            .init(color: .clear, location: 0),
-                            .init(color: SiftColor.glassBorder, location: 0.06),
-                            .init(color: SiftColor.glassBorder, location: 0.94),
-                            .init(color: .clear, location: 1),
-                        ],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .frame(height: 1)
+            SiftHairline()
         }
     }
 }
@@ -184,6 +253,7 @@ extension SiftPageHeader where Trailing == EmptyView {
         self.init(title: title, status: status) { EmptyView() }
     }
 }
+
 /// The scrolling page column.
 ///
 /// Every page uses the same outer margins and vertical rhythm; only the column
@@ -214,11 +284,15 @@ public struct SiftPage<Content: View>: View {
 
 // MARK: - Entrance
 
-/// A staggered entrance: the view fades in and rises a step after its siblings.
+/// The entrance: a short fade, and nothing else.
 ///
-/// Applied with `siftAppear(index:)` down a column of cards, so a page settles
-/// in one wave instead of snapping. Honours `siftReduceMotion` by appearing
-/// immediately.
+/// This used to rise 10 pt and wait a step behind its siblings, which read as a
+/// page assembling itself out of parts. V2 wants the content to be there, so the
+/// rise and the stagger are gone and only the opacity change remains — which is
+/// also what the user asked for when they turned Reduce Motion on.
+///
+/// `index` stays in the signature because six call sites pass it and they are not
+/// this file's to edit; it no longer orders anything.
 struct SiftAppear: ViewModifier {
     let index: Int
     @Environment(\.siftReduceMotion) private var reduceMotion
@@ -227,25 +301,18 @@ struct SiftAppear: ViewModifier {
     func body(content: Content) -> some View {
         content
             .opacity(shown ? 1 : 0)
-            .offset(y: shown ? 0 : 10)
             .onAppear {
                 guard !shown else { return }
-                if reduceMotion {
+                withAnimation(reduceMotion ? nil : SiftMotion.quick) {
                     shown = true
-                } else {
-                    // At most two steps of stagger: the page already fades in
-                    // for 0.2 s, and a full wave pushed the first meaningful
-                    // content half a second behind the click.
-                    withAnimation(SiftMotion.quick.delay(Double(min(index, 2)) * 0.03)) {
-                        shown = true
-                    }
                 }
             }
     }
 }
 
 public extension View {
-    /// Fades the view in with a slight rise, delayed by its position in a wave.
+    /// Fades the view in. The index is accepted for source compatibility and
+    /// ignored: there is no wave to take a position in any more.
     func siftAppear(index: Int = 0) -> some View {
         modifier(SiftAppear(index: index))
     }
@@ -254,7 +321,7 @@ public extension View {
 // MARK: - Fields
 
 public extension View {
-    /// The quiet well a text field sits in: a subtle fill and a hairline border.
+    /// The quiet well a text field sits in: a control fill and a hairline border.
     ///
     /// The caller owns its padding and height; this draws only the surface, so a
     /// search field and a form field can share it without agreeing on content.
@@ -263,19 +330,27 @@ public extension View {
     ) -> some View {
         background {
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .fill(SiftColor.subtleFill)
+                .fill(SiftColor.controlFill)
         }
         .overlay {
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .strokeBorder(SiftColor.glassBorder, lineWidth: SiftMetrics.panelBorderWidth)
+                .strokeBorder(SiftColor.divider, lineWidth: SiftMetrics.panelBorderWidth)
         }
     }
 }
 
 // MARK: - Buttons
 
-/// The primary action: a deep jade rounded rectangle with a lit top edge and a
-/// soft glow.
+/// The primary action: one solid `actionFill` rectangle, 40 pt high, 8 pt radius.
+///
+/// No gradient, no lit edge, no glow. Hover and press both move the fill to
+/// `actionGreenHover` rather than adding a highlight on top of it, so the button
+/// has exactly two appearances and both of them carry the label at 5.16:1 in light
+/// mode and 7.13:1 in dark.
+///
+/// Disabled keeps the label readable instead of washing the whole control out:
+/// white on a diluted green measures under 3:1, so the fill drops to `controlFill`
+/// and the label takes `quietText` — a grey button that still says what it does.
 public struct SiftPrimaryButton: View {
     private let title: String
     private let symbolName: String?
@@ -283,6 +358,7 @@ public struct SiftPrimaryButton: View {
     private let action: () -> Void
 
     @State private var isHovering = false
+    @Environment(\.siftReduceMotion) private var reduceMotion
 
     public init(title: String, symbolName: String? = nil, isEnabled: Bool = true, action: @escaping () -> Void) {
         self.title = title
@@ -298,6 +374,17 @@ public struct SiftPrimaryButton: View {
         action: @escaping () -> Void
     ) {
         self.init(title: titleKey.localized, symbolName: symbolName, isEnabled: isEnabled, action: action)
+    }
+
+    private var fillColor: Color {
+        guard isEnabled else { return SiftColor.controlFill }
+        return isHovering ? SiftColor.actionGreenHover : SiftColor.actionFill
+    }
+
+    /// The glyph and the word in one colour: the pair the fill was measured
+    /// against, not a fill token the label would be painted with.
+    private var labelColor: Color {
+        isEnabled ? SiftColor.onActionFill : SiftColor.quietText
     }
 
     public var body: some View {
@@ -316,52 +403,49 @@ public struct SiftPrimaryButton: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.85)
             }
-            .foregroundStyle(SiftColor.onAccent)
+            .foregroundStyle(labelColor)
             .padding(.horizontal, SiftMetrics.spacingXL)
             .frame(minHeight: SiftMetrics.buttonHeight)
             .background {
                 RoundedRectangle(cornerRadius: SiftMetrics.controlCornerRadius, style: .continuous)
-                    .fill(SiftColor.accentFill)
-                    .overlay {
-                        RoundedRectangle(cornerRadius: SiftMetrics.controlCornerRadius, style: .continuous)
-                            .fill(
-                                LinearGradient(
-                                    colors: [.white.opacity(isHovering ? 0.18 : 0.10), .clear],
-                                    startPoint: .top,
-                                    endPoint: .center
-                                )
-                            )
-                    }
-                    .opacity(isEnabled ? 1 : 0.42)
+                    .fill(fillColor)
             }
             .overlay {
-                RoundedRectangle(cornerRadius: SiftMetrics.controlCornerRadius, style: .continuous)
-                    .strokeBorder(.black.opacity(0.14), lineWidth: SiftMetrics.hairline)
+                // A disabled control keeps a hairline so it still reads as a
+                // control; an enabled one needs no border at all.
+                if !isEnabled {
+                    RoundedRectangle(cornerRadius: SiftMetrics.controlCornerRadius, style: .continuous)
+                        .strokeBorder(SiftColor.divider, lineWidth: SiftMetrics.panelBorderWidth)
+                }
             }
-            .shadow(
-                color: SiftColor.accent.opacity(isHovering ? 0.40 : 0.26),
-                radius: isHovering ? 16 : 10,
-                y: 6
-            )
-            // The label stays at full opacity when the control is disabled: a
-            // whole-view 0.45 wash left the button's own text at 1.27:1, which
-            // is a button that says nothing.
-            .opacity(isEnabled ? 1 : 0.72)
+            // 40 pt of paint, 44 pt of target: the extra 2 pt on each side is
+            // taken back out of the layout, so the button sits where the design
+            // says while the pointer gets a target it can hit.
+            .padding(.vertical, (SiftMetrics.minimumHitTarget - SiftMetrics.buttonHeight) / 2)
+            .contentShape(Rectangle())
+            .padding(.vertical, -(SiftMetrics.minimumHitTarget - SiftMetrics.buttonHeight) / 2)
         }
         .buttonStyle(SiftPressButtonStyle())
         .disabled(!isEnabled)
         .accessibilityLabel(Text(title))
         .onHover { isHovering = $0 }
+        .animation(reduceMotion ? nil : SiftMotion.hover, value: isHovering)
     }
 }
 
-/// A secondary action: the same rectangle, but glass instead of paint.
+/// The secondary action: a quiet button beside the primary one.
+///
+/// It is deliberately not a second filled control. The fill only appears under
+/// the pointer, the border is the 1 pt `divider` the rest of the page uses, and
+/// the label is `mainText` at 13.81:1 — a native-looking button that cannot
+/// compete with the one action the page is offering.
 public struct SiftSecondaryButton: View {
     private let title: String
     private let symbolName: String?
     private let action: () -> Void
 
     @State private var isHovering = false
+    @Environment(\.siftReduceMotion) private var reduceMotion
 
     public init(title: String, symbolName: String? = nil, action: @escaping () -> Void) {
         self.title = title
@@ -383,25 +467,27 @@ public struct SiftSecondaryButton: View {
                 Text(title)
                     .font(SiftFont.bodyEmphasis)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.85)
             }
-            .padding(.horizontal, SiftMetrics.spacingXL)
+            .foregroundStyle(SiftColor.mainText)
+            .padding(.horizontal, SiftMetrics.spacingL)
             .frame(minHeight: SiftMetrics.buttonHeight)
             .background {
                 RoundedRectangle(cornerRadius: SiftMetrics.controlCornerRadius, style: .continuous)
-                    .fill(.ultraThinMaterial)
-                    .overlay {
-                        RoundedRectangle(cornerRadius: SiftMetrics.controlCornerRadius, style: .continuous)
-                            .fill(isHovering ? SiftColor.hoverFill : SiftColor.subtleFill)
-                    }
+                    .fill(isHovering ? SiftColor.rowHoverFill : Color.clear)
             }
             .overlay {
                 RoundedRectangle(cornerRadius: SiftMetrics.controlCornerRadius, style: .continuous)
-                    .strokeBorder(SiftColor.glassBorder, lineWidth: SiftMetrics.hairline)
+                    .strokeBorder(SiftColor.divider, lineWidth: SiftMetrics.panelBorderWidth)
             }
+            .padding(.vertical, (SiftMetrics.minimumHitTarget - SiftMetrics.buttonHeight) / 2)
+            .contentShape(Rectangle())
+            .padding(.vertical, -(SiftMetrics.minimumHitTarget - SiftMetrics.buttonHeight) / 2)
         }
         .buttonStyle(SiftPressButtonStyle())
         .accessibilityLabel(Text(title))
         .onHover { isHovering = $0 }
+        .animation(reduceMotion ? nil : SiftMotion.hover, value: isHovering)
     }
 }
 
@@ -412,6 +498,7 @@ public struct SiftIconButton: View {
     private let action: () -> Void
 
     @State private var isHovering = false
+    @Environment(\.siftReduceMotion) private var reduceMotion
 
     public init(symbolName: String, help: String, action: @escaping () -> Void) {
         self.symbolName = symbolName
@@ -423,27 +510,37 @@ public struct SiftIconButton: View {
         Button(action: action) {
             Image(systemName: symbolName)
                 .font(.system(size: 13, weight: .medium))
-                // The hovered glyph is read, so it takes the text token: `accent`
-                // is the fill colour and is 2.54:1 on a glass row.
-                .foregroundStyle(isHovering ? SiftColor.accentText : .secondary)
+                // The glyph is read, so it takes the text token: `actionGreen` is
+                // the colour that clears 4.5:1 on a row. `accent` is the fill and
+                // is 2.43:1 there — an icon nobody can see is not an icon.
+                .foregroundStyle(isHovering ? SiftColor.actionGreen : SiftColor.quietText)
                 .frame(width: 30, height: 30)
-                .background(
+                .background {
                     RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
-                        .fill(isHovering ? SiftColor.hoverFill : .clear)
-                )
+                        .fill(isHovering ? SiftColor.rowHoverFill : Color.clear)
+                }
+                // 30 pt of paint, 44 pt of target: 7 pt on each side, given
+                // back to the layout so a dense row keeps its height.
+                .padding((SiftMetrics.minimumHitTarget - 30) / 2)
                 .contentShape(Rectangle())
+                .padding(-(SiftMetrics.minimumHitTarget - 30) / 2)
         }
         .buttonStyle(.plain)
         .help(help)
+        // The glyph has no spoken name of its own once the tooltip is a hint
+        // rather than a label; VoiceOver reads the same words.
+        .accessibilityLabel(Text(help))
         .onHover { isHovering = $0 }
+        .animation(reduceMotion ? nil : SiftMotion.hover, value: isHovering)
     }
 }
 
 /// A link in the app's own accent.
 ///
 /// The system link style is blue, which puts a second accent colour on a page
-/// whose primary action is jade. This style keeps link semantics — a text
-/// button with no chrome — and uses the product's accent, easing out on hover.
+/// whose primary action is jade. This style keeps link semantics — a text button
+/// with no chrome — and uses `actionGreen`, the text twin of the action fill,
+/// easing out on hover.
 public struct SiftLinkButtonStyle: ButtonStyle {
     public init() {}
 
@@ -458,9 +555,9 @@ private struct SiftLinkBody: View {
 
     var body: some View {
         configuration.label
-            .foregroundStyle(SiftColor.accentText)
+            .foregroundStyle(SiftColor.actionGreen)
             .opacity(configuration.isPressed ? 0.55 : 1)
-            .underline(isHovering && !configuration.isPressed, color: SiftColor.accentText.opacity(0.6))
+            .underline(isHovering && !configuration.isPressed, color: SiftColor.actionGreen.opacity(0.6))
             .contentShape(Rectangle())
             .onHover { isHovering = $0 }
     }
@@ -468,6 +565,10 @@ private struct SiftLinkBody: View {
 
 /// Scale-on-press, the interaction the design language specifies for every
 /// control with a fill.
+///
+/// 0.98 rather than 0.97: the button is the largest thing that moves, and the
+/// deeper scale read as a bounce on a control that is pressed dozens of times in a
+/// row.
 public struct SiftPressButtonStyle: ButtonStyle {
     public init() {}
 
@@ -482,11 +583,13 @@ private struct SiftPressBody: View {
 
     var body: some View {
         configuration.label
-            .scaleEffect(reduceMotion ? 1 : (configuration.isPressed ? 0.97 : 1))
+            .scaleEffect(reduceMotion ? 1 : (configuration.isPressed ? 0.98 : 1))
             .animation(reduceMotion ? nil : SiftMotion.press, value: configuration.isPressed)
     }
 }
+
 // MARK: - Metrics and badges
+
 /// The large number on a hero card: the value at display size, the unit beside it.
 public struct SiftHugeMetric: View {
     private let value: String
@@ -501,12 +604,13 @@ public struct SiftHugeMetric: View {
         HStack(alignment: .firstTextBaseline, spacing: SiftMetrics.spacingS) {
             Text(value)
                 .siftFont(.heroMetric)
+                .foregroundStyle(SiftColor.mainText)
                 .monospacedDigit()
                 .contentTransition(.numericText())
             if let unit {
                 Text(unit)
                     .siftFont(.heroUnit)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(SiftColor.secondaryText)
             }
         }
         .accessibilityElement(children: .combine)
@@ -514,39 +618,38 @@ public struct SiftHugeMetric: View {
 }
 
 /// A rounded icon tile used at the start of a row.
+///
+/// One flat wash of the tint and the glyph on top. It used to be a two-stop
+/// gradient, which is decoration on a 32 pt square: at this size the gradient is
+/// two shades of one colour nobody can tell apart.
 public struct IconTile: View {
     private let symbolName: String
     private let tint: Color
 
-    public init(symbolName: String, tint: Color = SiftColor.accent) {
+    public init(symbolName: String, tint: Color = SiftColor.actionGreen) {
         self.symbolName = symbolName
         self.tint = tint
     }
 
     public var body: some View {
         RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
-            .fill(
-                LinearGradient(
-                    colors: [tint.opacity(0.18), tint.opacity(0.08)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
+            .fill(tint.opacity(0.14))
             .frame(width: SiftMetrics.iconTileSize, height: SiftMetrics.iconTileSize)
             .overlay {
                 Image(systemName: symbolName)
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(tint)
             }
+            .accessibilityHidden(true)
     }
 }
 
 /// Risk badge.
 ///
-/// Colour is never the only signal: the badge always carries a word, and a lock
-/// for a protected item, as §11.4 requires for accessibility and for colour-blind
-/// users. The shape follows the control language — a small rounded rectangle —
-/// so a badge reads as a label, not as a pill bolted on.
+/// Colour is never the only signal: the badge always carries a word and its own
+/// glyph, which is what §11.4 asks for and what a colour-blind reader needs. The
+/// shape is a small label on a wash, not a lozenge — a risk level is metadata
+/// beside a row, not a badge the page is about.
 public struct RiskBadge: View {
     private let risk: RiskLevel
 
@@ -554,29 +657,30 @@ public struct RiskBadge: View {
         self.risk = risk
     }
 
+    /// The wash under the label. The theme names a text colour and a wash per
+    /// semantic role; a badge needs the second one, and painting the text colour
+    /// at an opacity would put the two roles on one token.
+    private var wash: Color {
+        switch risk {
+        case .safe: SiftColor.safeWash
+        case .review: SiftColor.reviewWash
+        case .protected: SiftColor.protectedWash
+        }
+    }
+
     public var body: some View {
-        HStack(spacing: 5) {
-            if risk == .protected {
-                Image(systemName: "lock.fill")
-                    .font(.system(size: 8, weight: .bold))
-            } else {
-                Circle()
-                    .fill(SiftColor.color(for: risk))
-                    .frame(width: 5, height: 5)
-            }
+        HStack(spacing: SiftMetrics.spacingXS) {
+            Image(systemName: risk.symbolName)
+                .font(.system(size: 8, weight: .bold))
             Text(risk.labelKey.localized)
-                .font(SiftFont.badge)
+                .font(SiftFont.metadata)
         }
         .foregroundStyle(SiftColor.textColor(for: risk))
         .padding(.horizontal, SiftMetrics.spacingS)
         .padding(.vertical, 3)
-        .background(
+        .background {
             RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
-                .fill(SiftColor.color(for: risk).opacity(0.12))
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
-                .strokeBorder(SiftColor.color(for: risk).opacity(0.18), lineWidth: SiftMetrics.hairline)
+                .fill(wash)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Text(risk.labelKey.localized))
@@ -584,7 +688,14 @@ public struct RiskBadge: View {
     }
 }
 
-/// A filter chip: the selected chip is jade glass, the rest are quiet wells.
+/// A filter chip: one line, 32 pt, 8 pt radius.
+///
+/// The selected chip is `selectedWash` with `actionGreen` text and the
+/// `selectedBorder` hairline — the same treatment a selected row and a selected
+/// rail entry wear, so "this one is chosen" looks the same everywhere in the app.
+/// It is not a solid `actionFill` chip: a filter is a view of the list, not the
+/// page's action, and a row of solid green pills competed with the one real button.
+/// `actionGreen` on that wash measures 4.66:1 in light mode and clears AA.
 public struct SiftFilterChip: View {
     private let title: String
     private let detail: String?
@@ -592,6 +703,7 @@ public struct SiftFilterChip: View {
     private let action: () -> Void
 
     @State private var isHovering = false
+    @Environment(\.siftReduceMotion) private var reduceMotion
 
     public init(title: String, detail: String? = nil, isSelected: Bool, action: @escaping () -> Void) {
         self.title = title
@@ -600,43 +712,46 @@ public struct SiftFilterChip: View {
         self.action = action
     }
 
+    private var fillColor: Color {
+        if isSelected { return SiftColor.selectedWash }
+        return isHovering ? SiftColor.rowHoverFill : SiftColor.controlFill
+    }
+
     public var body: some View {
         Button(action: action) {
-            HStack(spacing: 6) {
+            HStack(spacing: SiftMetrics.spacingS) {
                 Text(title)
                     .font(SiftFont.bodyEmphasis)
                 if let detail {
                     Text(detail)
-                        .font(SiftFont.caption)
-                        .opacity(0.7)
+                        .font(SiftFont.metadata)
+                        // A quieter second line of text, not the title's colour
+                        // at an opacity: 70 % of a green is not a text token and
+                        // measures under 4.5:1 on the wash.
+                        .foregroundStyle(SiftColor.secondaryText)
                 }
             }
-            .foregroundStyle(isSelected ? SiftColor.accentText : Color.primary)
-            .padding(.horizontal, SiftMetrics.spacingL)
+            .foregroundStyle(isSelected ? SiftColor.actionGreen : SiftColor.mainText)
+            .padding(.horizontal, SiftMetrics.spacingM)
             .frame(minHeight: SiftMetrics.chipHeight)
             .background {
-                RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
-                    .fill(
-                        isSelected
-                            ? SiftColor.selectedFill
-                            : (isHovering ? SiftColor.hoverFill : SiftColor.subtleFill)
-                    )
-                    .background(
-                        RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
-                            .fill(.ultraThinMaterial)
-                    )
+                RoundedRectangle(cornerRadius: SiftMetrics.controlCornerRadius, style: .continuous)
+                    .fill(fillColor)
             }
             .overlay {
-                RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
+                RoundedRectangle(cornerRadius: SiftMetrics.controlCornerRadius, style: .continuous)
                     .strokeBorder(
-                        isSelected ? SiftColor.accentText.opacity(0.55) : SiftColor.glassBorder,
-                        lineWidth: 1
+                        isSelected ? SiftColor.selectedBorder : SiftColor.divider,
+                        lineWidth: SiftMetrics.panelBorderWidth
                     )
             }
-            .animation(SiftMotion.hover, value: isHovering)
+            .padding(.vertical, (SiftMetrics.minimumHitTarget - SiftMetrics.chipHeight) / 2)
+            .contentShape(Rectangle())
+            .padding(.vertical, -(SiftMetrics.minimumHitTarget - SiftMetrics.chipHeight) / 2)
         }
         .buttonStyle(SiftPressButtonStyle())
         .onHover { isHovering = $0 }
+        .animation(reduceMotion ? nil : SiftMotion.hover, value: isHovering)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
@@ -664,23 +779,22 @@ public struct SiftCheckbox: View {
             isOn.toggle()
         } label: {
             RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
-                // The theme names `accentFill` + `onAccent` as the selected
-                // toggle's pair; `accentDeep` with a white tick was 3.17:1 in
-                // light mode and, because `accentDeep` is the bright jade in
-                // dark mode, the 2.54:1 case there.
-                .fill(isOn && isEnabled ? SiftColor.accentFill : SiftColor.subtleFill)
+                // The action pair, which the palette measured: `actionFill` with
+                // `onActionFill` on it. The border is the same fill, so the mark
+                // has no outline of a second colour.
+                .fill(isOn && isEnabled ? SiftColor.actionFill : SiftColor.controlFill)
                 .overlay {
                     RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
                         .strokeBorder(
-                            isOn && isEnabled ? SiftColor.accent.opacity(0.9) : SiftColor.glassBorder,
-                            lineWidth: 1
+                            isOn && isEnabled ? SiftColor.actionFill : SiftColor.divider,
+                            lineWidth: SiftMetrics.panelBorderWidth
                         )
                 }
                 .overlay {
                     if isOn && isEnabled {
                         Image(systemName: "checkmark")
                             .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(SiftColor.onAccent)
+                            .foregroundStyle(SiftColor.onActionFill)
                             .transition(
                                 reduceMotion
                                     ? .opacity
@@ -689,7 +803,9 @@ public struct SiftCheckbox: View {
                     }
                 }
                 .frame(width: 18, height: 18)
-                .opacity(isEnabled ? 1 : 0.35)
+                // A disabled box keeps a readable border: at 0.35 the whole
+                // control disappeared and a list of protected items looked empty.
+                .opacity(isEnabled ? 1 : 0.55)
                 // The drawn control is 18 pt; the target is not. 13 pt of
                 // padding on every side makes a 44 pt square — the value
                 // `SiftMetrics.minimumHitTarget` states — and the negative
@@ -715,6 +831,10 @@ public struct SiftCheckbox: View {
 // MARK: - Bars and rings
 
 /// A coloured bar showing how much of a total a value represents.
+///
+/// One solid fill on a `divider` track. The two-stop gradient it used to carry
+/// described nothing — a bar states a fraction, and the eye reads the fraction
+/// from the length, not from a shade change along it.
 public struct UsageBar: View {
     private let fraction: Double
     private let tint: Color
@@ -722,7 +842,7 @@ public struct UsageBar: View {
 
     @Environment(\.siftReduceMotion) private var reduceMotion
 
-    public init(fraction: Double, tint: Color = SiftColor.accent, height: CGFloat = 8) {
+    public init(fraction: Double, tint: Color = SiftColor.actionFill, height: CGFloat = 8) {
         self.fraction = min(max(fraction, 0), 1)
         self.tint = tint
         self.height = height
@@ -731,15 +851,9 @@ public struct UsageBar: View {
     public var body: some View {
         GeometryReader { geometry in
             ZStack(alignment: .leading) {
-                Capsule(style: .continuous).fill(SiftColor.neutral.opacity(0.14))
+                Capsule(style: .continuous).fill(SiftColor.divider)
                 Capsule(style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [tint.opacity(0.85), tint],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
+                    .fill(tint)
                     .frame(width: max(geometry.size.width * fraction, fraction > 0 ? 4 : 0))
             }
         }
@@ -750,6 +864,10 @@ public struct UsageBar: View {
 }
 
 /// A stacked bar showing several segments of one total.
+///
+/// The segments are the category colours and they carry meaning, so they are
+/// already solid; the gaps between them are what keeps two adjacent segments
+/// readable as two.
 public struct SegmentedUsageBar: View {
     public struct Segment: Identifiable, Sendable {
         public let id: String
@@ -798,6 +916,12 @@ public struct SegmentedUsageBar: View {
 /// (`progress == nil`) slides a short arc around the track. The scan engine
 /// reports phases rather than a fraction, so the running page uses the
 /// indeterminate form instead of inventing a percentage.
+///
+/// The determinate stroke is one solid colour: a progress indicator is allowed a
+/// gradient where it says something, and a shade that fades along the arc says
+/// nothing about how far along the run is. The one gradient left is the
+/// indeterminate arc, where the fading tail is what makes a moving segment read as
+/// motion rather than as a static mark at an arbitrary angle.
 public struct SiftProgressRing: View {
     private let progress: Double?
     private let tint: Color
@@ -814,7 +938,7 @@ public struct SiftProgressRing: View {
 
     public init(
         progress: Double?,
-        tint: Color = SiftColor.accent,
+        tint: Color = SiftColor.actionFill,
         lineWidth: CGFloat = 10,
         label: String? = nil,
         caption: String? = nil,
@@ -833,16 +957,13 @@ public struct SiftProgressRing: View {
     public var body: some View {
         ZStack {
             Circle()
-                .stroke(SiftColor.neutral.opacity(0.12), lineWidth: lineWidth)
+                .stroke(SiftColor.divider, lineWidth: lineWidth)
 
             if let progress {
                 Circle()
                     .trim(from: 0, to: max(progress, 0.001))
                     .stroke(
-                        AngularGradient(
-                            colors: [tint.opacity(0.55), tint, tint.opacity(0.55)],
-                            center: .center
-                        ),
+                        tint,
                         style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
                     )
                     .rotationEffect(.degrees(-90))
@@ -852,7 +973,7 @@ public struct SiftProgressRing: View {
                     .trim(from: 0, to: 0.34)
                     .stroke(
                         AngularGradient(
-                            colors: [tint.opacity(0.15), tint, tint.opacity(0.15)],
+                            colors: [tint.opacity(0.18), tint, tint.opacity(0.18)],
                             center: .center
                         ),
                         style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
@@ -867,16 +988,20 @@ public struct SiftProgressRing: View {
                     .onAppear { spin = true }
             }
 
-            VStack(spacing: 2) {
+            VStack(spacing: SiftMetrics.spacingXS) {
                 if let label {
                     Text(label)
-                        .font(.system(size: 22, weight: .semibold))
+                        // On the type ladder, not a size of its own: the ring's
+                        // numeral used to be a private 22 pt and ignored the
+                        // reader's type-size setting.
+                        .siftFont(.heroUnit)
+                        .foregroundStyle(SiftColor.mainText)
                         .monospacedDigit()
                 }
                 if let caption {
                     Text(caption)
-                        .font(SiftFont.caption)
-                        .foregroundStyle(.secondary)
+                        .font(SiftFont.supporting)
+                        .foregroundStyle(SiftColor.secondaryText)
                 }
             }
         }
@@ -887,13 +1012,25 @@ public struct SiftProgressRing: View {
 }
 
 // MARK: - Rows and states
-/// A selectable row surface with a hover highlight and a selected fill.
+
+/// A selectable row surface: a 52 pt row with a hover wash and a selected wash.
+///
+/// Selection is never a saturated fill. A list of twelve rows where the chosen one
+/// is painted in the action colour is a list with a button in it; `selectedWash`
+/// plus the `selectedBorder` hairline says "this one" and leaves the row's own
+/// text and risk badge as the brightest things in it.
+///
+/// The row is one button, and the caller's content owns everything inside it — a
+/// checkbox in the content has its own 44 pt target and does not send the row's
+/// action, which is the two behaviours the design study asks for: clicking the row
+/// selects it, clicking the box ticks it.
 public struct SiftSelectableRow<Content: View>: View {
     private let isSelected: Bool
     private let content: Content
     private let action: () -> Void
 
     @State private var isHovering = false
+    @Environment(\.siftReduceMotion) private var reduceMotion
 
     public init(isSelected: Bool, action: @escaping () -> Void, @ViewBuilder content: () -> Content) {
         self.isSelected = isSelected
@@ -901,29 +1038,38 @@ public struct SiftSelectableRow<Content: View>: View {
         self.content = content()
     }
 
+    private var fillColor: Color {
+        if isSelected { return SiftColor.selectedWash }
+        return isHovering ? SiftColor.rowHoverFill : Color.clear
+    }
+
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: SiftMetrics.controlCornerRadius, style: .continuous)
+    }
+
     public var body: some View {
         Button(action: action) {
             content
                 .padding(.horizontal, SiftMetrics.spacingM)
-                .padding(.vertical, SiftMetrics.spacingS)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
-                        .fill(isSelected ? SiftColor.selectedFill : (isHovering ? SiftColor.hoverFill : .clear))
-                )
+                .frame(maxWidth: .infinity, minHeight: SiftMetrics.rowHeight, alignment: .leading)
+                .background { shape.fill(fillColor) }
                 .overlay {
-                    RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
-                        .strokeBorder(isSelected ? SiftColor.accent.opacity(0.30) : .clear, lineWidth: SiftMetrics.hairline)
+                    shape.strokeBorder(
+                        isSelected ? SiftColor.selectedBorder : Color.clear,
+                        lineWidth: SiftMetrics.panelBorderWidth
+                    )
                 }
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .onHover { isHovering = $0 }
+        .animation(reduceMotion ? nil : SiftMotion.hover, value: isHovering)
+        .animation(reduceMotion ? nil : SiftMotion.quick, value: isSelected)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
-/// An empty-state block: a symbol resting in a soft well, a headline and a short
+/// An empty-state block: a symbol resting in a quiet well, a headline and a short
 /// explanation.
 public struct SiftEmptyState: View {
     private let symbolName: String
@@ -949,22 +1095,25 @@ public struct SiftEmptyState: View {
         VStack(spacing: SiftMetrics.spacingM) {
             Image(systemName: symbolName)
                 .font(.system(size: 24, weight: .light))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(SiftColor.quietText)
                 .frame(width: 56, height: 56)
-                .background(Circle().fill(SiftColor.subtleFill))
-                .overlay(Circle().strokeBorder(SiftColor.glassBorder, lineWidth: SiftMetrics.hairline))
+                .background(Circle().fill(SiftColor.controlFill))
+                .overlay(Circle().strokeBorder(SiftColor.divider, lineWidth: SiftMetrics.panelBorderWidth))
+                .accessibilityHidden(true)
             Text(titleKey.localized)
                 .siftFont(.sectionTitle)
+                .foregroundStyle(SiftColor.mainText)
+                .multilineTextAlignment(.center)
             if let detailKey {
                 Text(detailKey.localized)
                     .font(SiftFont.body)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(SiftColor.secondaryText)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 380)
             } else if let detail {
                 Text(detail)
                     .font(SiftFont.body)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(SiftColor.secondaryText)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 380)
             }
@@ -994,8 +1143,12 @@ public struct SiftSkeletonRow: View {
     public var body: some View {
         HStack(spacing: SiftMetrics.spacingM) {
             RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
-                .fill(SiftColor.subtleFill)
+                .fill(SiftColor.controlFill)
                 .frame(width: 18, height: 18)
+                .overlay {
+                    RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
+                        .strokeBorder(SiftColor.divider, lineWidth: SiftMetrics.panelBorderWidth)
+                }
             VStack(alignment: .leading, spacing: 6) {
                 bar(width: isFirst ? 180 : 220, height: 11)
                 bar(width: isFirst ? 260 : 300, height: 9)
@@ -1003,7 +1156,7 @@ public struct SiftSkeletonRow: View {
             Spacer(minLength: SiftMetrics.spacingS)
             bar(width: 56, height: 11)
         }
-        .padding(.vertical, SiftMetrics.spacingM)
+        .frame(minHeight: SiftMetrics.rowHeight)
         .opacity(dim ? 0.55 : 1)
         .animation(
             reduceMotion ? nil : .easeInOut(duration: 0.9).repeatForever(autoreverses: true),
@@ -1018,39 +1171,51 @@ public struct SiftSkeletonRow: View {
 
     private func bar(width: CGFloat, height: CGFloat) -> some View {
         RoundedRectangle(cornerRadius: height / 2, style: .continuous)
-            .fill(SiftColor.subtleFill)
+            .fill(SiftColor.divider)
             .frame(width: width, height: height)
     }
 }
 
 /// A message surface for skips, partial failures and warnings.
+///
+/// The role is carried by three things and never by colour alone: the glyph, the
+/// sentence itself, and a small wash. What it is not is a large coloured panel —
+/// the semantic washes measure a few percent away from the canvas, so the banner
+/// states its role with an icon on a wash and a hairline border, at the weight of
+/// a note beside the content rather than a block over it.
 public struct NoticeBanner: View {
-    public enum Level: Sendable {
+    public enum Level: String, Sendable, CaseIterable {
         case information
         case warning
         case error
         case success
 
-        /// The banner's surface: a wash and a hairline, which is a fill role.
-        var fill: Color {
+        /// The banner's surface: a small wash, which is a fill role.
+        var wash: Color {
             switch self {
-            case .information: return SiftColor.accent
-            case .warning: return SiftColor.review
-            case .error: return SiftColor.danger
-            case .success: return SiftColor.safe
+            case .information: SiftColor.infoWash
+            case .warning: SiftColor.reviewWash
+            case .error: SiftColor.dangerWash
+            case .success: SiftColor.safeWash
             }
         }
 
         /// The banner's icon: a small glyph the user reads, so it takes the text
-        /// twin of `fill`. On the accent pair that is 2.42:1 against the banner's
-        /// own wash instead of 4.5:1.
+        /// twin of `wash`. On the accent pair that is 2.43:1 against the banner's
+        /// own background instead of 4.5:1.
         var glyph: Color {
             switch self {
-            case .information: return SiftColor.accentText
-            case .warning: return SiftColor.reviewText
-            case .error: return SiftColor.dangerText
-            case .success: return SiftColor.safeText
+            case .information: SiftColor.infoTextColor
+            case .warning: SiftColor.reviewTextColor
+            case .error: SiftColor.dangerTextColor
+            case .success: SiftColor.safeTextColor
             }
+        }
+
+        /// The hairline: a tinted rule, at an opacity low enough to stay a rule
+        /// rather than become a frame around the message.
+        var border: Color {
+            glyph.opacity(0.28)
         }
 
         var symbolName: String {
@@ -1088,12 +1253,15 @@ public struct NoticeBanner: View {
     }
 
     public var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: SiftMetrics.spacingM) {
+        let shape = RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
+        HStack(alignment: .firstTextBaseline, spacing: SiftMetrics.spacingS) {
             Image(systemName: level.symbolName)
+                .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(level.glyph)
                 .accessibilityHidden(true)
             Text(message)
                 .font(SiftFont.body)
+                .foregroundStyle(SiftColor.mainText)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: SiftMetrics.spacingS)
             if let actionTitle, let action {
@@ -1104,18 +1272,21 @@ public struct NoticeBanner: View {
                 .buttonStyle(SiftLinkButtonStyle())
             }
         }
-        .padding(SiftMetrics.spacingM)
-        .background(level.fill.opacity(0.10))
-        .clipShape(RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
-                .strokeBorder(level.fill.opacity(0.18), lineWidth: SiftMetrics.hairline)
-        }
+        .padding(.horizontal, SiftMetrics.spacingM)
+        .padding(.vertical, SiftMetrics.spacingS)
+        .background { shape.fill(level.wash) }
+        .overlay { shape.strokeBorder(level.border, lineWidth: SiftMetrics.panelBorderWidth) }
         .accessibilityElement(children: .contain)
     }
 }
+
 /// A primary block: an icon, a short headline, an explanation and the action
-/// that belongs to them, on one tinted glass surface.
+/// that belongs to them.
+///
+/// Flat: one wash of the tint, a hairline in the same tint and the content on top.
+/// The material, the three-stop gradient and the 14 pt shadow it used to carry
+/// were the glass treatment on the single largest surface in the app, which is
+/// exactly where it made ordinary content look like a floating pane.
 public struct SiftHeroCard<Actions: View>: View {
     private let symbolName: String
     private let title: String
@@ -1127,7 +1298,7 @@ public struct SiftHeroCard<Actions: View>: View {
         symbolName: String,
         title: String,
         detail: String? = nil,
-        tint: Color = SiftColor.accent,
+        tint: Color = SiftColor.actionFill,
         @ViewBuilder actions: () -> Actions
     ) {
         self.symbolName = symbolName
@@ -1139,16 +1310,10 @@ public struct SiftHeroCard<Actions: View>: View {
 
     public var body: some View {
         let shape = RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusXL, style: .continuous)
-        HStack(alignment: .top, spacing: SiftMetrics.spacingXL) {
+        HStack(alignment: .top, spacing: SiftMetrics.spacingL) {
             RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusL, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [tint.opacity(0.30), tint.opacity(0.10)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .frame(width: 58, height: 58)
+                .fill(tint.opacity(0.14))
+                .frame(width: 56, height: 56)
                 .overlay {
                     Image(systemName: symbolName)
                         .font(.system(size: 24, weight: .medium))
@@ -1159,11 +1324,12 @@ public struct SiftHeroCard<Actions: View>: View {
             VStack(alignment: .leading, spacing: SiftMetrics.spacingXS) {
                 Text(title)
                     .siftFont(.title)
+                    .foregroundStyle(SiftColor.mainText)
                     .fixedSize(horizontal: false, vertical: true)
                 if let detail, !detail.isEmpty {
                     Text(detail)
                         .font(SiftFont.body)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(SiftColor.secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 actions
@@ -1173,65 +1339,47 @@ public struct SiftHeroCard<Actions: View>: View {
             Spacer(minLength: 0)
         }
         .padding(SiftMetrics.spacingXL)
-        .background {
-            ZStack {
-                shape.fill(.thinMaterial)
-                shape.fill(
-                    LinearGradient(
-                        colors: [tint.opacity(0.18), SiftColor.cardGlass],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                shape.fill(
-                    LinearGradient(
-                        colors: [SiftColor.glassHighlight.opacity(0.10), .clear],
-                        startPoint: .top,
-                        endPoint: .center
-                    )
-                )
-            }
-        }
-        .overlay {
-            shape.strokeBorder(tint.opacity(0.22), lineWidth: SiftMetrics.hairline)
-        }
-        .clipShape(shape)
-        .shadow(color: .black.opacity(0.12), radius: 14, y: 6)
+        .background { shape.fill(tint.opacity(0.10)) }
+        .overlay { shape.strokeBorder(tint.opacity(0.22), lineWidth: SiftMetrics.panelBorderWidth) }
     }
 }
 
 /// A small labelled value used in the page summary strips.
 ///
-/// The pill is two roles at once and used to be painted with one colour: the
-/// wash and hairline are a *fill*, while the 13 pt value and the 10 pt glyph
-/// beside it are text the user reads. On the accent pair that is the difference
-/// between 2.42:1 and 4.54:1, so the pigment is named by `Tone` rather than
-/// passed as a `Color` — a call site cannot hand a fill token to the label.
+/// The pill is two roles at once and used to be painted with one colour: the wash
+/// and hairline are a *fill*, while the value and the glyph beside it are text the
+/// user reads. On the accent pair that is the difference between 2.43:1 and
+/// 5.16:1, so the pigment is named by `Tone` rather than passed as a `Color` — a
+/// call site cannot hand a fill token to the label.
+///
+/// `neutral` is the default because most pills are metadata: a count, a date, a
+/// size. A pill takes a semantic tone when it states a state — a scan that came
+/// back partial, an item that may need a look — and that is the only reason for
+/// pigment to appear in a summary strip.
 public struct SiftMetricPill: View {
-    /// The palette pair a pill is painted with: `fill` for its surface, `glyph`
+    /// The palette pair a pill is painted with: `wash` for its surface, `glyph`
     /// for the value and icon.
-    public enum Tone: Sendable {
+    public enum Tone: String, Sendable, CaseIterable {
         case accent
         case safe
         case review
         case neutral
 
-        var fill: Color {
+        var wash: Color {
             switch self {
-            case .accent: return SiftColor.accent
-            case .safe: return SiftColor.safe
-            case .review: return SiftColor.review
-            case .neutral: return SiftColor.neutral
+            case .accent: return SiftColor.brandWash
+            case .safe: return SiftColor.safeWash
+            case .review: return SiftColor.reviewWash
+            case .neutral: return SiftColor.controlFill
             }
         }
 
         var glyph: Color {
             switch self {
-            case .accent: return SiftColor.accentText
-            case .safe: return SiftColor.safeText
-            case .review: return SiftColor.reviewText
-            // `neutral` is already the secondary label colour, i.e. a text role.
-            case .neutral: return SiftColor.neutral
+            case .accent: return SiftColor.actionGreen
+            case .safe: return SiftColor.safeTextColor
+            case .review: return SiftColor.reviewTextColor
+            case .neutral: return SiftColor.quietText
             }
         }
     }
@@ -1240,7 +1388,7 @@ public struct SiftMetricPill: View {
     private let value: String
     private let tone: Tone
 
-    public init(symbolName: String, value: String, tone: Tone = .accent) {
+    public init(symbolName: String, value: String, tone: Tone = .neutral) {
         self.symbolName = symbolName
         self.value = value
         self.tone = tone
@@ -1256,15 +1404,16 @@ public struct SiftMetricPill: View {
         }
         .foregroundStyle(tone.glyph)
         .padding(.horizontal, SiftMetrics.spacingM)
-        .padding(.vertical, 6)
-        .background(
-            RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS + 2, style: .continuous)
-                .fill(tone.fill.opacity(0.10))
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS + 2, style: .continuous)
-                .strokeBorder(tone.fill.opacity(0.16), lineWidth: SiftMetrics.hairline)
+        .frame(minHeight: SiftMetrics.chipHeight)
+        .background {
+            RoundedRectangle(cornerRadius: SiftMetrics.controlCornerRadius, style: .continuous)
+                .fill(tone.wash)
         }
+        .overlay {
+            RoundedRectangle(cornerRadius: SiftMetrics.controlCornerRadius, style: .continuous)
+                .strokeBorder(SiftColor.divider, lineWidth: SiftMetrics.panelBorderWidth)
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -1297,13 +1446,17 @@ public struct SiftRailItemLabel: View {
 }
 
 /// The rail item's background chrome: the selection fill, the hover fill that
-/// tracks the pointer, and — for an entry that is a destination — the accent
-/// mark on its leading edge.
+/// tracks the pointer, and — for an entry that is a destination — the mark on its
+/// leading edge.
 ///
 /// Every entry wears it: the four destinations, the appearance switcher, the
 /// account entry, the language control and settings. One implementation is what
 /// keeps a footer press reading exactly like a navigation press; the fills are
 /// adaptive, so light and dark modes both get them.
+///
+/// The mark is `actionFill`, not the brand green: on the selection wash the brand
+/// colour is 1.9:1, which is a mark the user cannot see, and the mark is the one
+/// thing in the rail that has to be legible at a glance.
 ///
 /// `isSelected` is also what a footer control passes while its popover is open,
 /// so an open appearance or language picker lights its own entry instead of
@@ -1334,15 +1487,15 @@ public struct SiftRailItemChrome: ViewModifier {
     /// pointer is over it: a hover fill on top of the slider would tint the row
     /// the window is on, which reads as a second state rather than as hover.
     private var fillColor: Color {
-        if fillsSelection && isSelected { return SiftColor.selectedFill }
-        if isHovering && !isSelected { return SiftColor.hoverFill }
+        if fillsSelection && isSelected { return SiftColor.selectedWash }
+        if isHovering && !isSelected { return SiftColor.rowHoverFill }
         return .clear
     }
 
     public func body(content: Content) -> some View {
         content
             .background {
-                RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
+                RoundedRectangle(cornerRadius: SiftMetrics.sidebarRowRadius, style: .continuous)
                     .fill(fillColor)
                     .animation(reduceMotion ? nil : SiftMotion.hover, value: isHovering)
                     .animation(reduceMotion ? nil : SiftMotion.quick, value: isSelected)
@@ -1352,7 +1505,7 @@ public struct SiftRailItemChrome: ViewModifier {
                 // page the window is showing reads without a border boxing the
                 // item in. Only a destination can be "the page you are on".
                 Capsule()
-                    .fill(SiftColor.accent)
+                    .fill(SiftColor.actionFill)
                     .frame(width: 3, height: 18)
                     .padding(.leading, 3)
                     .opacity(showsSelectionMark && isSelected ? 1 : 0)
@@ -1433,7 +1586,6 @@ public struct LanguageMenu: View {
         .accessibilityIdentifier(identifier)
         .accessibilityLabel(Text(LocalizationKey.settingsGroupLanguage.localized))
         .accessibilityValue(Text(selection.displayName))
-        .accessibilityAddTraits(isPickerPresented ? .isSelected : [])
     }
 
     /// The picker's presentation state, reporting every change.
@@ -1488,11 +1640,18 @@ public struct LanguageMenu: View {
         }
     }
 
-    /// The picker opens toward the window's content, away from the rail edge.
+    /// The picker opens toward the window's content, away from the edge the
+    /// control sits against.
+    ///
+    /// Both fixed columns are on the left — the retired icon rail and the V2
+    /// sidebar alike — so both point the picker right, over the content. A
+    /// `.leading` arrow on a control 12 pt from the window's left edge aims the
+    /// popover at the wall; only the Settings form, which sits inside the
+    /// scrolling content, still opens leftward.
     private var popoverEdge: Edge {
         switch style {
-        case .rail: .trailing
-        case .sidebar, .settings: .leading
+        case .rail, .sidebar: .trailing
+        case .settings: .leading
         }
     }
 
@@ -1503,11 +1662,14 @@ public struct LanguageMenu: View {
             // The label already carries the rail item's box.
             trigger
         case .sidebar:
+            // 44 pt, not the 32 pt the label draws: a sidebar row is pressed
+            // with a pointer on a trackpad, and `01 §Spacing` holds every hit
+            // target at 44×44 while the destination rows above are 44.
             trigger
-                .frame(maxWidth: .infinity, minHeight: 30)
+                .frame(maxWidth: .infinity, minHeight: SiftMetrics.minimumHitTarget)
         case .settings:
             trigger
-                .frame(maxWidth: .infinity, minHeight: 30)
+                .frame(maxWidth: .infinity, minHeight: SiftMetrics.chipHeight)
         }
     }
 
@@ -1519,7 +1681,7 @@ public struct LanguageMenu: View {
             // and label as the navigation entries above it, so the footer does
             // not introduce a second scale at the bottom of the rail.
             SiftRailItemLabel(symbolName: "globe", title: shortName)
-                .foregroundStyle(isPickerPresented ? SiftColor.accentText : Color.secondary)
+                .foregroundStyle(isPickerPresented ? SiftColor.actionGreen : SiftColor.quietText)
 
         case .sidebar:
             HStack(spacing: SiftMetrics.spacingS) {
@@ -1532,25 +1694,26 @@ public struct LanguageMenu: View {
                 Spacer(minLength: SiftMetrics.spacingS)
                 Image(systemName: "chevron.up.chevron.down")
                     .font(.system(size: 8, weight: .semibold))
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(SiftColor.quietText)
             }
-            .foregroundStyle(.secondary)
+            .foregroundStyle(SiftColor.secondaryText)
             .padding(.horizontal, SiftMetrics.spacingS)
-            .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
+            .frame(maxWidth: .infinity, minHeight: SiftMetrics.minimumHitTarget, alignment: .leading)
             .contentShape(Rectangle())
 
         case let .settings(title):
             HStack {
                 Text(title.localized)
                     .font(SiftFont.body)
+                    .foregroundStyle(SiftColor.mainText)
                 Spacer()
                 HStack(spacing: SiftMetrics.spacingXS) {
                     Text(selection.displayName)
                         .font(SiftFont.body)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(SiftColor.secondaryText)
                     Image(systemName: "chevron.up.chevron.down")
                         .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(SiftColor.quietText)
                 }
             }
             .contentShape(Rectangle())
@@ -1632,14 +1795,14 @@ private struct LanguagePickerView: View {
     var body: some View {
         VStack(spacing: 0) {
             searchField
-            Divider()
+            SiftHairline()
             if matches.isEmpty {
                 emptyState
             } else {
                 list
             }
         }
-        .frame(width: 272, height: 360)
+        .frame(width: SiftMetrics.summaryColumnWidth, height: 360)
         .onAppear {
             // The field is not in a window until after the popover's first
             // layout pass, so focusing it synchronously is ignored.
@@ -1651,7 +1814,7 @@ private struct LanguagePickerView: View {
         HStack(spacing: SiftMetrics.spacingS) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(SiftColor.quietText)
             TextField(LocalizationKey.languageSearch.localized, text: $query)
                 .textFieldStyle(.plain)
                 .font(SiftFont.body)
@@ -1686,10 +1849,10 @@ private struct LanguagePickerView: View {
         VStack(spacing: SiftMetrics.spacingS) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 20, weight: .medium))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(SiftColor.quietText)
             Text(LocalizationKey.languageNoResults.localized)
                 .font(SiftFont.body)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(SiftColor.secondaryText)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -1704,6 +1867,10 @@ private struct LanguagePickerView: View {
 /// One row of the language picker: a checkmark column, the endonym, and a
 /// hover/selection fill that keeps the current language visible while the list
 /// scrolls.
+///
+/// 34 pt rather than the 30 it used to be: the row is a target, and this is the
+/// densest list in the app short of the results table, so it takes the field
+/// height the rest of the controls use instead of a size of its own.
 private struct LanguagePickerRow: View {
     let language: SiftLanguage
     let isSelected: Bool
@@ -1723,9 +1890,9 @@ private struct LanguagePickerRow: View {
                     .lineLimit(1)
                 Spacer(minLength: 0)
             }
-            .foregroundStyle(isSelected ? SiftColor.accentText : .primary)
+            .foregroundStyle(isSelected ? SiftColor.actionGreen : SiftColor.mainText)
             .padding(.horizontal, SiftMetrics.spacingS)
-            .frame(height: 30)
+            .frame(height: SiftMetrics.fieldHeight)
             .contentShape(Rectangle())
             .background {
                 RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
@@ -1739,7 +1906,7 @@ private struct LanguagePickerRow: View {
     }
 
     private var background: Color {
-        if isSelected { return SiftColor.selectedFill }
-        return isHovering ? SiftColor.hoverFill : .clear
+        if isSelected { return SiftColor.selectedWash }
+        return isHovering ? SiftColor.rowHoverFill : .clear
     }
 }

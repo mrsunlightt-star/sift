@@ -7,12 +7,15 @@
 "app.management.required" = "ອະນຸຍາດ Sift ໃນການຈັດການແອັບ ເພື່ອຍ້າຍແອັບຂອງນັກພັດທະນາຄົນອື່ນ.";
 "app.management.title" = "ການຈັດການແອັບ";
 "apps.appAndRelated" = "ແອັບ %@, ໄຟລ໌ທີ່ກ່ຽວຂ້ອງ %@";
+"apps.filter.large" = "ໃຫຍ່";
+"apps.filter.unused" = "ບໍ່ໄດ້ໃຊ້";
 "apps.footer" = "ສະແດງແອັບທີ່ໃຫຍ່ກວ່າ 200 MB · ລວມ %d ອັນ";
 "apps.installedOn" = "ຕິດຕັ້ງ %@";
 "apps.lastOpened" = "ເປີດຄັ້ງສຸດທ້າຍ %@";
 "apps.lastUsedUnknown" = "ບໍ່ມີບັນທຶກການເປີດ";
 "apps.listTitle" = "ແອັບພລິເຄຊັນ";
 "apps.neverOpened" = "ບໍ່ເຄີຍເປີດ";
+"apps.noMatches" = "ບໍ່ມີແອັບໃດກົງກັບການຄົ້ນຫານີ້.";
 "apps.reclaimable" = "ສາມາດສ້າງຄືນ";
 "apps.relatedWillRemove" = "ໄຟລ໌ທີ່ກ່ຽວຂ້ອງທີ່ຈະລຶບ";
 "apps.rescan" = "ສະແກນແອັບຄືນໃໝ່";

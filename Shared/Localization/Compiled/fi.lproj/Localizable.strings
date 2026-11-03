@@ -7,12 +7,15 @@
 "app.management.required" = "Salli Siftille sovellusten hallinnassa muiden kehittäjien sovellusten siirto.";
 "app.management.title" = "Sovellusten hallinta";
 "apps.appAndRelated" = "Sovellus %@, liittyvät tiedostot %@";
+"apps.filter.large" = "Suuret";
+"apps.filter.unused" = "Käyttämättömät";
 "apps.footer" = "Näytetään yli 200 Mt:n sovellukset · %d yhteensä";
 "apps.installedOn" = "Asennettu %@";
 "apps.lastOpened" = "Viimeksi avattu %@";
 "apps.lastUsedUnknown" = "Ei avaustietoa";
 "apps.listTitle" = "Sovellukset";
 "apps.neverOpened" = "Ei koskaan avattu";
+"apps.noMatches" = "Mikään sovellus ei vastaa tätä hakua.";
 "apps.reclaimable" = "Vapautettavissa";
 "apps.relatedWillRemove" = "Poistettavat liittyvät tiedostot";
 "apps.rescan" = "Skannaa sovellukset uudelleen";

@@ -12,6 +12,12 @@ import SwiftUI
 /// A stop is soft and says so. Rolling a move back automatically would need a
 /// second, better-tested undo than the Trash already is, and the Trash is the
 /// undo this product sells.
+///
+/// The layout is one column with no card around it: the ring, the one sentence
+/// that states where the batch has got to, the bar, and the footer. An overlay
+/// that is itself a card inside a sheet that is also a card read as two nested
+/// surfaces for one fact. Nothing here invents a percentage the model does not
+/// have: the bar is `done / total` and the sentence is the pair of numbers.
 public struct CleanupExecutionView: View {
     @ObservedObject var cleanup: CleanupModel
     let onStop: () -> Void
@@ -38,15 +44,16 @@ public struct CleanupExecutionView: View {
                 VStack(alignment: .leading, spacing: SiftMetrics.spacingXS) {
                     Text(title)
                         .font(SiftFont.sectionTitle)
+                        .foregroundStyle(SiftColor.mainText)
                     Text(detail)
                         .font(SiftFont.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(SiftColor.secondaryText)
                         .monospacedDigit()
                         .contentTransition(.numericText())
                     if let name = cleanup.executionProgress?.currentName, !name.isEmpty {
                         Text(name)
                             .font(SiftFont.caption)
-                            .foregroundStyle(SiftColor.subtleText)
+                            .foregroundStyle(SiftColor.quietText)
                             .lineLimit(1)
                             .truncationMode(.middle)
                     }
@@ -56,16 +63,18 @@ public struct CleanupExecutionView: View {
 
             ProgressView(value: cleanup.executionProgress?.fraction ?? 0)
                 .progressViewStyle(.linear)
-                .tint(SiftColor.accentFill)
+                .tint(SiftColor.actionFill)
                 .animation(reduceMotion ? nil : .linear(duration: 0.2), value: cleanup.executionProgress?.done)
+
+            SiftHairline()
 
             HStack(spacing: SiftMetrics.spacingM) {
                 Image(systemName: "arrow.uturn.backward.circle")
                     .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(SiftColor.subtleText)
+                    .foregroundStyle(SiftColor.quietText)
                 Text(LocalizationKey.cleanupResultUndoHint.localized)
                     .font(SiftFont.caption)
-                    .foregroundStyle(SiftColor.subtleText)
+                    .foregroundStyle(SiftColor.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: SiftMetrics.spacingS)
                 SiftSecondaryButton(

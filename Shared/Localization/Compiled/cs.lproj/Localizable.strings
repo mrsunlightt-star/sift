@@ -7,12 +7,15 @@
 "app.management.required" = "Povolte Siftu ve Správě aplikací přesouvat aplikace jiných vývojářů.";
 "app.management.title" = "Správa aplikací";
 "apps.appAndRelated" = "Aplikace %@, související soubory %@";
+"apps.filter.large" = "Velké";
+"apps.filter.unused" = "Nepoužité";
 "apps.footer" = "Zobrazeny aplikace nad 200 MB · celkem %d";
 "apps.installedOn" = "Nainstalováno %@";
 "apps.lastOpened" = "Naposledy otevřeno %@";
 "apps.lastUsedUnknown" = "Žádný záznam o otevření";
 "apps.listTitle" = "Aplikace";
 "apps.neverOpened" = "Nikdy neotevřeno";
+"apps.noMatches" = "Žádné aplikace neodpovídají tomuto hledání.";
 "apps.reclaimable" = "Lze uvolnit";
 "apps.relatedWillRemove" = "Související soubory k odstranění";
 "apps.rescan" = "Znovu prohledat aplikace";

@@ -7,12 +7,15 @@
 "app.management.required" = "Дозвольте Sift у «Керуванні програмами», щоб переміщати програми інших розробників.";
 "app.management.title" = "Керування програмами";
 "apps.appAndRelated" = "Програма %@, пов'язані файли %@";
+"apps.filter.large" = "Великі";
+"apps.filter.unused" = "Невикористовувані";
 "apps.footer" = "Показано програми понад 200 МБ · усього %d";
 "apps.installedOn" = "Встановлено %@";
 "apps.lastOpened" = "Останнє відкриття: %@";
 "apps.lastUsedUnknown" = "Немає запису про відкриття";
 "apps.listTitle" = "Програми";
 "apps.neverOpened" = "Ніколи не відкривано";
+"apps.noMatches" = "Жодна програма не відповідає цьому пошуку.";
 "apps.reclaimable" = "Можна звільнити";
 "apps.relatedWillRemove" = "Пов'язані файли до видалення";
 "apps.rescan" = "Пересканувати програми";

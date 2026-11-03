@@ -7,12 +7,15 @@
 "app.management.required" = "Sta Sift toe bij App-beheer om apps van andere ontwikkelaars te verplaatsen.";
 "app.management.title" = "App-beheer";
 "apps.appAndRelated" = "App %@, gerelateerde bestanden %@";
+"apps.filter.large" = "Groot";
+"apps.filter.unused" = "Ongebruikt";
 "apps.footer" = "Toont apps boven 200 MB, %d totaal";
 "apps.installedOn" = "Geïnstalleerd op %@";
 "apps.lastOpened" = "Laatst geopend %@";
 "apps.lastUsedUnknown" = "Geen openingsrecord";
 "apps.listTitle" = "Apps";
 "apps.neverOpened" = "Nooit geopend";
+"apps.noMatches" = "Geen apps komen overeen met deze zoekopdracht.";
 "apps.reclaimable" = "Vrij te maken";
 "apps.relatedWillRemove" = "Gerelateerde bestanden om te verwijderen";
 "apps.rescan" = "Apps opnieuw scannen";

@@ -7,12 +7,15 @@
 "app.management.required" = "Tillad Sift under App-administration at flytte andre udvikleres apps.";
 "app.management.title" = "App-administration";
 "apps.appAndRelated" = "App %@, relaterede filer %@";
+"apps.filter.large" = "Store";
+"apps.filter.unused" = "Ubrugte";
 "apps.footer" = "Viser apps over 200 MB · %d i alt";
 "apps.installedOn" = "Installeret %@";
 "apps.lastOpened" = "Senest åbnet %@";
 "apps.lastUsedUnknown" = "Ingen åbningshistorik";
 "apps.listTitle" = "Programmer";
 "apps.neverOpened" = "Aldrig åbnet";
+"apps.noMatches" = "Ingen apps matcher denne søgning.";
 "apps.reclaimable" = "Kan frigives";
 "apps.relatedWillRemove" = "Relaterede filer, der fjernes";
 "apps.rescan" = "Scan apps igen";

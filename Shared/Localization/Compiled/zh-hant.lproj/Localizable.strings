@@ -7,12 +7,15 @@
 "app.management.required" = "要在「應用程式管理」中允許 Sift，才能移動其他開發者的應用程式。";
 "app.management.title" = "應用程式管理";
 "apps.appAndRelated" = "應用程式本體 %@，相關檔案 %@";
+"apps.filter.large" = "大型";
+"apps.filter.unused" = "未使用";
 "apps.footer" = "僅顯示超過 200 MB 的應用程式，共 %d 個";
 "apps.installedOn" = "安裝於%@";
 "apps.lastOpened" = "上次開啟於%@";
 "apps.lastUsedUnknown" = "無開啟記錄";
 "apps.listTitle" = "應用程式列表";
 "apps.neverOpened" = "從未開啟";
+"apps.noMatches" = "沒有符合此搜尋的應用程式。";
 "apps.reclaimable" = "本次可釋放";
 "apps.relatedWillRemove" = "將一併刪除的相關檔案";
 "apps.rescan" = "重新掃描應用程式";

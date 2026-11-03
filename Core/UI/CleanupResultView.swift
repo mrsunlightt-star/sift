@@ -14,6 +14,12 @@ import SwiftUI
 ///    with the reason, and the failed ones can be retried from here;
 ///  * "you can undo it" without offering the undo — the batch can be put back
 ///    until the bin is emptied, and the button says so or says why it cannot.
+///
+/// The page has one primary number and one list per outcome. The number is what
+/// moved to the Trash, because that is the only quantity the move actually
+/// produced; the counts beside it say how much of the batch that was. A row per
+/// item follows, grouped by what happened to it — failed, then skipped — with the
+/// remedy the error table names and nothing invented by the view.
 public struct CleanupResultView: View {
     let outcome: CleanupOutcome
     let report: CleanupReport?
@@ -91,14 +97,20 @@ public struct CleanupResultView: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: SiftMetrics.spacingXL) {
+        VStack(alignment: .leading, spacing: 0) {
             header
-            metrics
+                .padding(.bottom, SiftMetrics.spacingL)
+
+            SiftHairline()
+            primaryMetric
+            SiftHairline()
+
             if outcome.wasStopped {
                 NoticeBanner(
                     level: .information,
                     message: LocalizationKey.cleanupResultStopped.localized(outcome.movedCount)
                 )
+                .padding(.top, SiftMetrics.spacingL)
             }
             if outcome.hasFailures {
                 failureList
@@ -167,26 +179,32 @@ public struct CleanupResultView: View {
 
     // MARK: - Header
 
+    /// The outcome, one line: what happened, then what is still on the disk.
+    ///
+    /// The icon and the title come from the same value, so a page cannot show a
+    /// green tick beside a refusal. `CleanupOutcome.headline` decides the title;
+    /// the view only draws it.
     private var header: some View {
-        VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
-            HStack(spacing: SiftMetrics.spacingM) {
-                Image(systemName: outcome.hasFailures ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
-                    .font(.system(size: 30))
-                    .foregroundStyle(SiftColor.textColor(for: outcome.hasFailures ? .review : .safe))
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 2) {
-                    // The title states the outcome, not the fact that the page
-                    // opened. "Cleanup finished" above a 2 GB application that
-                    // refused to move is a sentence the user has to argue with;
-                    // the warning icon alone did not say which half was true.
-                    Text(resultTitle.localized)
-                        .siftFont(.display)
-                    Text(resultSubtitle)
-                        .font(SiftFont.body)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+        HStack(alignment: .top, spacing: SiftMetrics.spacingM) {
+            Image(systemName: outcome.hasFailures ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                .font(.system(size: 22, weight: .medium))
+                .foregroundStyle(outcome.hasFailures ? SiftColor.reviewTextColor : SiftColor.actionGreen)
+                .frame(width: 28, alignment: .leading)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 4) {
+                // The title states the outcome, not the fact that the page
+                // opened. "Cleanup finished" above a 2 GB application that
+                // refused to move is a sentence the user has to argue with;
+                // the warning icon alone did not say which half was true.
+                Text(resultTitle.localized)
+                    .siftFont(.display)
+                    .foregroundStyle(SiftColor.mainText)
+                Text(resultSubtitle)
+                    .font(SiftFont.body)
+                    .foregroundStyle(SiftColor.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
             }
+            Spacer(minLength: 0)
         }
     }
 
@@ -211,50 +229,76 @@ public struct CleanupResultView: View {
         return LocalizationKey.cleanupResultKeptInPlace.localized(outcome.failedCount)
     }
 
-    // MARK: - Metrics
+    // MARK: - Primary metric
 
-    /// Three facts, none of them overstated.
+    /// One number, in the slot the eye lands on: the bytes that moved to the
+    /// Trash.
     ///
-    /// "Released" is the one word that must not appear here while the bin still
-    /// holds the bytes: it is only true once the Trash is empty, and the page
-    /// either knows that from the bin it just read or does not claim it.
-    private var metrics: some View {
+    /// The three tiles this replaces gave the same weight to the successes, the
+    /// failures and the bytes, and the bytes are the only one of the three the
+    /// user asked about. The counts are stated beside it as facts, not as peers:
+    /// "moved" then "not completed", each with its own word, neither reading as
+    /// the total.
+    private var primaryMetric: some View {
         VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
-            HStack(spacing: SiftMetrics.spacingM) {
-                metric(
-                    outcome.formattedReleased,
-                    caption: trash.isEmpty
-                        ? LocalizationKey.dashboardCleanupCompleted.localized
-                        : LocalizationKey.reportMoved.localized,
-                    symbolName: trash.isEmpty ? "internaldrive" : "trash",
-                    tint: trash.isEmpty ? SiftColor.safeText : SiftColor.accentText
-                )
-                metric(
-                    SiftFormat.count(outcome.movedCount),
-                    // The count of what moved, said as such. It used to read
-                    // "1 items", which next to a green tick and a second tile
-                    // saying "1 not completed" could be read either way: as the
-                    // total, or as the successes.
-                    caption: LocalizationKey.reportMoved.localized,
-                    symbolName: "checkmark.circle",
-                    tint: SiftColor.safeText
-                )
-                metric(
-                    SiftFormat.count(outcome.failedCount),
-                    caption: LocalizationKey.reportFailed.localized,
-                    symbolName: "exclamationmark.triangle",
-                    tint: outcome.failedCount > 0 ? SiftColor.reviewText : SiftColor.subtleText
-                )
+            HStack(alignment: .firstTextBaseline, spacing: SiftMetrics.spacingM) {
+                Text(outcome.formattedReleased)
+                    .font(SiftFont.metricPrimary)
+                    .monospacedDigit()
+                    .foregroundStyle(SiftColor.mainText)
+                    .contentTransition(.numericText())
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+
+                // Always "Moved to Trash", never "freed": the bytes are in the
+                // bin, and the disk still holds them until it is emptied
+                // (invariant 46, 02 §6). The sentence about emptying states the
+                // only thing that changes when it is.
+                Text(LocalizationKey.reportMoved.localized)
+                    .font(SiftFont.caption)
+                    .foregroundStyle(SiftColor.secondaryText)
+                    .lineLimit(1)
+
+                Spacer(minLength: SiftMetrics.spacingS)
             }
+            .accessibilityElement(children: .combine)
+
+            HStack(spacing: SiftMetrics.spacingM) {
+                // The count of what moved, said as such. It used to read
+                // "1 items", which next to a green tick and a second tile
+                // saying "1 not completed" could be read either way: as the
+                // total, or as the successes.
+                countFact(
+                    symbolName: "checkmark.circle",
+                    value: SiftFormat.count(outcome.movedCount),
+                    caption: LocalizationKey.reportMoved.localized,
+                    tint: SiftColor.actionGreen
+                )
+
+                Rectangle()
+                    .fill(SiftColor.divider)
+                    .frame(width: 1, height: 22)
+                    .accessibilityHidden(true)
+
+                countFact(
+                    symbolName: "exclamationmark.triangle",
+                    value: SiftFormat.count(outcome.failedCount),
+                    caption: LocalizationKey.reportFailed.localized,
+                    tint: outcome.failedCount > 0 ? SiftColor.reviewTextColor : SiftColor.quietText
+                )
+                Spacer(minLength: 0)
+            }
+
             // Only while the space has not been reclaimed: the sentence states
             // what emptying the bin will do, and what the disk says right now.
             if !trash.isEmpty {
                 Text(spaceSentence)
                     .font(SiftFont.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(SiftColor.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+        .padding(.vertical, SiftMetrics.spacingL)
     }
 
     private var spaceSentence: String {
@@ -266,42 +310,47 @@ public struct CleanupResultView: View {
         return "\(reclaim) · \(measured)"
     }
 
-    private func metric(
-        _ value: String,
-        caption: String,
+    /// A count with its unit and its glyph, so the pair is never read as a pair
+    /// of colours.
+    private func countFact(
         symbolName: String,
+        value: String,
+        caption: String,
         tint: Color
     ) -> some View {
-        HStack(alignment: .top, spacing: SiftMetrics.spacingM) {
-            IconTile(symbolName: symbolName, tint: tint)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(value)
-                    .font(SiftFont.title)
-                    .monospacedDigit()
-                    .contentTransition(.numericText())
-                Text(caption)
-                    .font(SiftFont.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
+        HStack(spacing: SiftMetrics.spacingS) {
+            Image(systemName: symbolName)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(tint)
+            Text(value)
+                .font(SiftFont.bodyEmphasis)
+                .monospacedDigit()
+                .foregroundStyle(SiftColor.mainText)
+            Text(caption)
+                .font(SiftFont.caption)
+                .foregroundStyle(SiftColor.secondaryText)
+                .lineLimit(1)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(SiftMetrics.spacingM)
-        .background(
-            RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
-                .fill(SiftColor.subtleFill)
-        )
         .accessibilityElement(children: .combine)
     }
 
     // MARK: - Failures
 
+    /// The rows that did not move, each with its own reason and remedy.
+    ///
+    /// Plain section, hairline between rows: this is a list of items still on the
+    /// disk, not a card about an error. The retry control sits in the heading
+    /// because it acts on the whole list.
     private var failureList: some View {
-        SiftPanel {
-            VStack(alignment: .leading, spacing: SiftMetrics.spacingM) {
+        SiftSection(style: .plain) {
+            VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .firstTextBaseline) {
                     Text(LocalizationKey.reportFailed.localized)
                         .font(SiftFont.sectionTitle)
+                        .foregroundStyle(SiftColor.mainText)
+                    Text(LocalizationKey.commonItemCount.counted(outcome.failedResults.count))
+                        .font(SiftFont.caption)
+                        .foregroundStyle(SiftColor.secondaryText)
                     Spacer(minLength: SiftMetrics.spacingS)
                     if let onRetryFailed {
                         Button {
@@ -317,39 +366,53 @@ public struct CleanupResultView: View {
                         .accessibilityIdentifier("result.retryFailed")
                     }
                 }
-                Divider()
-                ForEach(outcome.failedResults) { result in
-                    resultRow(result, symbolName: "exclamationmark.triangle.fill", tint: SiftColor.reviewText)
+                .padding(.bottom, SiftMetrics.spacingS)
+
+                SiftHairline()
+
+                ForEach(Array(outcome.failedResults.enumerated()), id: \.element.id) { index, result in
+                    if index > 0 {
+                        SiftHairline(inset: SiftMetrics.spacingM)
+                    }
+                    resultRow(result, symbolName: "exclamationmark.triangle.fill", tint: SiftColor.reviewTextColor)
                 }
             }
         }
+        .padding(.top, SiftMetrics.spacingL)
     }
 
     /// One item that was not moved, and why.
     ///
     /// Shared by both lists so a skipped item and a failed one are described the
     /// same way: the path, the reason from the product error table, its size, and
-    /// the three things a user can do about it — look at it, try it again, or
-    /// take the reason somewhere.
+    /// the three things a user can do about it — look at it, open the switch that
+    /// lifts the refusal, or take the reason somewhere.
     private func resultRow(
         _ result: FileOperationResult,
         symbolName: String,
         tint: Color
     ) -> some View {
         HStack(alignment: .top, spacing: SiftMetrics.spacingM) {
-            IconTile(symbolName: symbolName, tint: tint)
+            Image(systemName: symbolName)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(tint)
+                .frame(width: 16, alignment: .leading)
+                .padding(.top, 2)
             VStack(alignment: .leading, spacing: 2) {
                 Text(result.displayPath)
                     .font(SiftFont.body)
+                    .foregroundStyle(SiftColor.mainText)
                     .lineLimit(1)
                     .truncationMode(.middle)
                 Text(result.failureTitle)
                     .font(SiftFont.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(SiftColor.secondaryText)
             }
             Spacer(minLength: SiftMetrics.spacingS)
             Text(SiftFormat.bytes(result.sizeInBytes))
                 .font(SiftFont.monospacedNumber)
+                .monospacedDigit()
+                .foregroundStyle(SiftColor.mainText)
 
             // The remedy comes from the error table, so a refusal the table
             // knows how to lift is offered the switch that lifts it — and a
@@ -386,6 +449,7 @@ public struct CleanupResultView: View {
             .help(LocalizationKey.commonCopyReason.localized)
             .accessibilityLabel(Text(LocalizationKey.commonCopyReason.localized))
         }
+        .padding(.vertical, SiftMetrics.spacingS)
         .accessibilityElement(children: .combine)
     }
 
@@ -417,22 +481,31 @@ public struct CleanupResultView: View {
     }
 
     /// What was left alone, listed rather than only counted.
+    ///
+    /// A skipped row is not a failure: the object was already gone when the move
+    /// reached it. It is listed for the same reason — the batch is smaller than
+    /// the confirmation described, and the difference has to be accountable.
     private var skippedList: some View {
-        SiftPanel {
-            VStack(alignment: .leading, spacing: SiftMetrics.spacingM) {
+        SiftSection(style: .plain) {
+            VStack(alignment: .leading, spacing: 0) {
                 Text(LocalizationKey.reportSkipped.localized)
                     .font(SiftFont.sectionTitle)
+                    .foregroundStyle(SiftColor.mainText)
                 Text(LocalizationKey.reportSkippedDetail.localized(outcome.skippedResults.count))
                     .font(SiftFont.caption)
-                    .foregroundStyle(.secondary)
-                if !outcome.skippedResults.isEmpty {
-                    Divider()
-                    ForEach(Array(outcome.skippedResults.prefix(20))) { result in
-                        resultRow(result, symbolName: "minus.circle.fill", tint: SiftColor.subtleText)
+                    .foregroundStyle(SiftColor.secondaryText)
+                    .padding(.top, 2)
+                SiftHairline()
+                    .padding(.vertical, SiftMetrics.spacingS)
+                ForEach(Array(outcome.skippedResults.prefix(20).enumerated()), id: \.element.id) { index, result in
+                    if index > 0 {
+                        SiftHairline(inset: SiftMetrics.spacingM)
                     }
+                    resultRow(result, symbolName: "minus.circle.fill", tint: SiftColor.quietText)
                 }
             }
         }
+        .padding(.top, SiftMetrics.spacingL)
     }
 
     // MARK: - Footer
@@ -448,20 +521,25 @@ public struct CleanupResultView: View {
                     message: LocalizationKey.cleanupFailurePartialFailure.localized
                 )
                 if !emptyTrashLeftovers.isEmpty {
-                    SiftPanel {
-                        VStack(alignment: .leading, spacing: SiftMetrics.spacingXS) {
-                            ForEach(Array(emptyTrashLeftovers.prefix(5).enumerated()), id: \.offset) { _, leftover in
+                    SiftSection(style: .plain) {
+                        VStack(alignment: .leading, spacing: 0) {
+                            ForEach(Array(emptyTrashLeftovers.prefix(5).enumerated()), id: \.offset) { index, leftover in
+                                if index > 0 {
+                                    SiftHairline()
+                                }
                                 HStack(spacing: SiftMetrics.spacingS) {
                                     Text(leftover.url.lastPathComponent)
                                         .font(SiftFont.caption)
+                                        .foregroundStyle(SiftColor.mainText)
                                         .lineLimit(1)
                                         .truncationMode(.middle)
                                     Spacer(minLength: SiftMetrics.spacingS)
                                     Text(leftover.message)
                                         .font(SiftFont.caption)
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(SiftColor.secondaryText)
                                         .lineLimit(1)
                                 }
+                                .padding(.vertical, SiftMetrics.spacingXS)
                             }
                             if emptyTrashLeftovers.count > 5 {
                                 Text(
@@ -471,12 +549,15 @@ public struct CleanupResultView: View {
                                     )
                                 )
                                 .font(SiftFont.caption)
-                                .foregroundStyle(SiftColor.subtleText)
+                                .foregroundStyle(SiftColor.quietText)
                             }
                         }
                     }
                 }
             }
+
+            SiftHairline()
+
             // One row when the window can hold it, two when it cannot. With the
             // undo, the Trash and the report actions plus a Full Disk Access
             // explainer, a single row in a normal window compressed every label
@@ -495,68 +576,68 @@ public struct CleanupResultView: View {
                     doneButton
                 }
             }
+            .padding(.top, SiftMetrics.spacingM)
+
             Text(LocalizationKey.reportPrivacyNote.localized)
                 .font(SiftFont.caption)
-                .foregroundStyle(SiftColor.subtleText)
+                .foregroundStyle(SiftColor.quietText)
                 .fixedSize(horizontal: false, vertical: true)
         }
+        .padding(.top, SiftMetrics.spacingL)
     }
 
     /// The secondary actions, each at its natural width.
     @ViewBuilder
     private var actionButtons: some View {
-        Group {
-            HStack(spacing: SiftMetrics.spacingM) {
-                if let onUndo {
-                    SiftSecondaryButton(
-                        title: LocalizationKey.cleanupResultUndoAction.localized,
-                        symbolName: "arrow.uturn.backward"
-                    ) {
-                        onUndo()
-                    }
-                    .disabled(outcome.movedCount == 0)
-                    .accessibilityIdentifier("result.undo")
-                }
-
+        HStack(spacing: SiftMetrics.spacingM) {
+            if let onUndo {
                 SiftSecondaryButton(
-                    title: LocalizationKey.cleanupResultShowTrash.localized,
-                    symbolName: "trash"
+                    title: LocalizationKey.cleanupResultUndoAction.localized,
+                    symbolName: "arrow.uturn.backward"
                 ) {
-                    onOpenTrash()
+                    onUndo()
                 }
+                .disabled(outcome.movedCount == 0)
+                .accessibilityIdentifier("result.undo")
+            }
 
-                if let unreadable = trash.unreadable {
-                    Text(unreadable.titleKey.localized)
-                        .font(SiftFont.caption)
-                        .foregroundStyle(.secondary)
-                    if unreadable.offersSettingsAction {
-                        Button {
-                            Task { await WorkspaceActions.openFullDiskAccessSettings() }
-                        } label: {
-                            Text(LocalizationKey.scanOpenSystemSettings.localized)
-                                .font(SiftFont.caption)
-                        }
-                        .buttonStyle(SiftLinkButtonStyle())
+            SiftSecondaryButton(
+                title: LocalizationKey.cleanupResultShowTrash.localized,
+                symbolName: "trash"
+            ) {
+                onOpenTrash()
+            }
+
+            if let unreadable = trash.unreadable {
+                Text(unreadable.titleKey.localized)
+                    .font(SiftFont.caption)
+                    .foregroundStyle(SiftColor.secondaryText)
+                if unreadable.offersSettingsAction {
+                    Button {
+                        Task { await WorkspaceActions.openFullDiskAccessSettings() }
+                    } label: {
+                        Text(LocalizationKey.scanOpenSystemSettings.localized)
+                            .font(SiftFont.caption)
                     }
-                } else if !trash.isEmpty {
-                    SiftSecondaryButton(
-                        title: LocalizationKey.trashEmptyAction.localized,
-                        symbolName: "trash.slash"
-                    ) {
-                        isConfirmingEmptyTrash = true
-                    }
-                    .disabled(isTrashBusy)
+                    .buttonStyle(SiftLinkButtonStyle())
                 }
-
-                if report != nil {
-                    SiftSecondaryButton(
-                        title: LocalizationKey.cleanupResultExportReport.localized,
-                        symbolName: "doc.text"
-                    ) {
-                        onExport()
-                    }
+            } else if !trash.isEmpty {
+                SiftSecondaryButton(
+                    title: LocalizationKey.trashEmptyAction.localized,
+                    symbolName: "trash.slash"
+                ) {
+                    isConfirmingEmptyTrash = true
                 }
+                .disabled(isTrashBusy)
+            }
 
+            if report != nil {
+                SiftSecondaryButton(
+                    title: LocalizationKey.cleanupResultExportReport.localized,
+                    symbolName: "doc.text"
+                ) {
+                    onExport()
+                }
             }
         }
         .fixedSize(horizontal: true, vertical: false)

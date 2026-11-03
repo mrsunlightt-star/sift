@@ -7,12 +7,15 @@
 "app.management.required" = "Tillåt Sift under Apphantering att flytta andra utvecklares appar.";
 "app.management.title" = "Apphantering";
 "apps.appAndRelated" = "App %@, relaterade filer %@";
+"apps.filter.large" = "Stora";
+"apps.filter.unused" = "Oanvända";
 "apps.footer" = "Visar appar över 200 MB · %d totalt";
 "apps.installedOn" = "Installerad %@";
 "apps.lastOpened" = "Senast öppnad %@";
 "apps.lastUsedUnknown" = "Ingen öppningshistorik";
 "apps.listTitle" = "Program";
 "apps.neverOpened" = "Aldrig öppnad";
+"apps.noMatches" = "Inga appar matchar den här sökningen.";
 "apps.reclaimable" = "Kan frigöras";
 "apps.relatedWillRemove" = "Relaterade filer som tas bort";
 "apps.rescan" = "Skanna appar igen";

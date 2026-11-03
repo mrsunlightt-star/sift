@@ -1326,6 +1326,9 @@ STRINGS: dict[str, list[str]] = {
     "settings.textSizeDefault": ["Default", "默认", "기본", "Обычный", "Predeterminado", "標準", "Par défaut", "Standard"],
     "settings.textSizeLarge": ["Large", "大", "크게", "Крупный", "Grande", "大", "Grand", "Groß"],
     "scan.firstRun.review": ["First cleanup: expand the list before you confirm.", "第一次清理：确认前建议展开清单看一眼。", "첫 정리입니다. 확인 전에 목록을 펼쳐 보세요.", "Первая очистка: раскройте список перед подтверждением.", "Primera limpieza: despliega la lista antes de confirmar.", "初めてのクリーンアップです。確認前に一覧を開いてください。", "Premier nettoyage : ouvrez la liste avant de confirmer.", "Erste Bereinigung: Klappen Sie die Liste vor dem Bestätigen auf."],
+    "apps.filter.large": ["Large", "大应用", "큰 앱", "Большие", "Grandes", "大容量", "Grosses", "Groß"],
+    "apps.filter.unused": ["Unused", "未使用", "미사용", "Неиспользуемые", "Sin usar", "未使用", "Inutilisées", "Ungenutzt"],
+    "apps.noMatches": ["No applications match this search.", "没有与此搜索匹配的应用程序。", "이 검색과 일치하는 앱이 없습니다.", "Нет приложений, соответствующих этому запросу.", "Ninguna aplicación coincide con esta búsqueda.", "この検索に一致するアプリはありません。", "Aucune application ne correspond à cette recherche.", "Keine App entspricht dieser Suche."],
 }
 
 # Languages added with the 2.0 expansion. They are appended to every row in
@@ -2027,6 +2030,9 @@ STRINGS_EXPANSION: dict[str, list[str]] = {
     "settings.textSizeDefault": ["Predefinito", "Padrão", "預設", "Varsayılan", "Domyślny", "Standaard"],
     "settings.textSizeLarge": ["Grande", "Grande", "大", "Büyük", "Duży", "Groot"],
     "scan.firstRun.review": ["Prima pulizia: apri l'elenco prima di confermare.", "Primeira limpeza: abra a lista antes de confirmar.", "第一次清理：確認前建議展開清單看一眼。", "İlk temizlik: onaylamadan önce listeyi açın.", "Pierwsze czyszczenie: rozwiń listę przed potwierdzeniem.", "Eerste opschoning: open de lijst voordat je bevestigt."],
+    "apps.filter.large": ["Grandi", "Grandes", "大型", "Büyük", "Duże", "Groot"],
+    "apps.filter.unused": ["Non usate", "Não usados", "未使用", "Kullanılmıyor", "Nieużywane", "Ongebruikt"],
+    "apps.noMatches": ["Nessuna applicazione corrisponde a questa ricerca.", "Nenhum aplicativo corresponde a esta pesquisa.", "沒有符合此搜尋的應用程式。", "Bu aramayla eşleşen uygulama yok.", "Żadna aplikacja nie pasuje do tego wyszukiwania.", "Geen apps komen overeen met deze zoekopdracht."],
 }
 
 # The two tables are one catalogue: the v1 columns stay first and the expansion
@@ -2650,6 +2656,9 @@ STRINGS_EXPANSION_2: dict[str, list[str]] = {
     "settings.textSizeDefault": ["ຄ່າເລີ່ມຕົ້ນ", "افتراضي", "ברירת מחדל", "پیشفرض"],
     "settings.textSizeLarge": ["ໃຫຍ່", "كبير", "גדול", "بزرگ"],
     "scan.firstRun.review": ["ການລຶບລ້າງຄັ້ງທຳອິດ: ເປີດລາຍການກ່ອນຢືນຢັນ.", "أول عملية تنظيف: وسّع القائمة قبل التأكيد.", "ניקוי ראשון: פתחו את הרשימה לפני האישור.", "نخستین پاکسازی: پیش از تأیید فهرست را باز کنید."],
+    "apps.filter.large": ["ໃຫຍ່", "كبيرة", "גדולות", "بزرگ"],
+    "apps.filter.unused": ["ບໍ່ໄດ້ໃຊ້", "غير مستخدمة", "לא בשימוש", "استفاده‌نشده"],
+    "apps.noMatches": ["ບໍ່ມີແອັບໃດກົງກັບການຄົ້ນຫານີ້.", "لا توجد تطبيقات تطابق هذا البحث.", "אין יישומים התואמים לחיפוש הזה.", "هیچ برنامه‌ای با این جستجو مطابقت ندارد."],
 }
 
 LANGUAGES = LANGUAGES + EXPANSION_2_LANGUAGES
@@ -3178,6 +3187,9 @@ STRINGS_EXPANSION_3: dict[str, list[str]] = {
     "settings.textSizeDefault": ["Стандартен", "Výchozí", "Standard", "Προεπιλογή", "Predeterminado", "Oletus", "Alap", "Standar", "Lalai", "Standard", "Padrão", "Implicit", "Standard", "ค่าเริ่มต้น", "Стандартний", "Mặc định"],
     "settings.textSizeLarge": ["Голям", "Velký", "Stor", "Μεγάλο", "Grande", "Suuri", "Nagy", "Besar", "Besar", "Stor", "Grande", "Mare", "Stor", "ใหญ่", "Великий", "Lớn"],
     "scan.firstRun.review": ["Първо почистване: разгънете списъка преди да потвърдите.", "První čištění: před potvrzením rozbalte seznam.", "Første oprydning: åbn listen, før du bekræfter.", "Πρώτος καθαρισμός: ανοίξτε τη λίστα πριν επιβεβαιώσετε.", "Primera limpieza: abre la lista antes de confirmar.", "Ensimmäinen siivous: avaa luettelo ennen vahvistusta.", "Első tisztítás: a megerősítés előtt nyissa ki a listát.", "Pembersihan pertama: buka daftar sebelum mengonfirmasi.", "Pembersihan pertama: buka senarai sebelum mengesahkan.", "Første opprydding: åpne listen før du bekrefter.", "Primeira limpeza: abra a lista antes de confirmar.", "Prima curățare: deschide lista înainte de a confirma.", "Första rensningen: öppna listan innan du bekräftar.", "การทำความสะอาดครั้งแรก: เปิดรายการก่อนยืนยัน", "Перше очищення: розгорніть список перед підтвердженням.", "Lần dọn dẹp đầu tiên: mở danh sách trước khi xác nhận."],
+    "apps.filter.large": ["Големи", "Velké", "Store", "Μεγάλες", "Grandes", "Suuret", "Nagyok", "Besar", "Besar", "Store", "Grandes", "Mari", "Stora", "ใหญ่", "Великі", "Lớn"],
+    "apps.filter.unused": ["Неизползвани", "Nepoužité", "Ubrugte", "Αχρησιμοποίητες", "Sin usar", "Käyttämättömät", "Nem használt", "Tidak dipakai", "Tidak digunakan", "Ubrukte", "Não usadas", "Neutilizate", "Oanvända", "ไม่ได้ใช้", "Невикористовувані", "Không dùng"],
+    "apps.noMatches": ["Няма приложения, отговарящи на това търсене.", "Žádné aplikace neodpovídají tomuto hledání.", "Ingen apps matcher denne søgning.", "Καμία εφαρμογή δεν ταιριάζει με αυτήν την αναζήτηση.", "Ninguna aplicación coincide con esta búsqueda.", "Mikään sovellus ei vastaa tätä hakua.", "Egyetlen alkalmazás sem felel meg a keresésnek.", "Tidak ada aplikasi yang cocok dengan pencarian ini.", "Tiada aplikasi sepadan dengan carian ini.", "Ingen apper samsvarer med dette søket.", "Nenhuma aplicação corresponde a esta pesquisa.", "Nicio aplicație nu corespunde acestei căutări.", "Inga appar matchar den här sökningen.", "ไม่มีแอปที่ตรงกับการค้นหานี้", "Жодна програма не відповідає цьому пошуку.", "Không có ứng dụng nào khớp với tìm kiếm này."],
 }
 
 LANGUAGES = LANGUAGES + EXPANSION_3_LANGUAGES

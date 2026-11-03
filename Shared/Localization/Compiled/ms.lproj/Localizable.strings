@@ -7,12 +7,15 @@
 "app.management.required" = "Benarkan Sift dalam Pengurusan App untuk memindahkan apl pembangun lain.";
 "app.management.title" = "Pengurusan App";
 "apps.appAndRelated" = "Apl %@, fail berkaitan %@";
+"apps.filter.large" = "Besar";
+"apps.filter.unused" = "Tidak digunakan";
 "apps.footer" = "Memaparkan apl melebihi 200 MB · %d jumlah";
 "apps.installedOn" = "Dipasang %@";
 "apps.lastOpened" = "Terakhir dibuka %@";
 "apps.lastUsedUnknown" = "Tiada rekod pembukaan";
 "apps.listTitle" = "Aplikasi";
 "apps.neverOpened" = "Tidak pernah dibuka";
+"apps.noMatches" = "Tiada aplikasi sepadan dengan carian ini.";
 "apps.reclaimable" = "Boleh dilepaskan";
 "apps.relatedWillRemove" = "Fail berkaitan untuk dibuang";
 "apps.rescan" = "Imbas semula aplikasi";

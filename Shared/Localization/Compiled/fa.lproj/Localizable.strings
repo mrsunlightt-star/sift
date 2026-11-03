@@ -7,12 +7,15 @@
 "app.management.required" = "برای جابه‌جایی برنامه‌های توسعه‌دهندگان دیگر، به Sift در مدیریت برنامه‌ها اجازه دهید.";
 "app.management.title" = "مدیریت برنامه‌ها";
 "apps.appAndRelated" = "برنامه %@, فایل‌های مرتبط %@";
+"apps.filter.large" = "بزرگ";
+"apps.filter.unused" = "استفاده‌نشده";
 "apps.footer" = "نمایش برنامه‌های بالای ۲۰۰ مگابایت · در مجموع %d";
 "apps.installedOn" = "نصب شده در %@";
 "apps.lastOpened" = "آخرین بازشدن %@";
 "apps.lastUsedUnknown" = "بدون سابقهٔ باز شدن";
 "apps.listTitle" = "برنامه‌ها";
 "apps.neverOpened" = "هرگز باز نشده";
+"apps.noMatches" = "هیچ برنامه‌ای با این جستجو مطابقت ندارد.";
 "apps.reclaimable" = "قابل آزادسازی";
 "apps.relatedWillRemove" = "فایل‌های مرتبط برای حذف";
 "apps.rescan" = "اسکن دوبارهٔ برنامه‌ها";

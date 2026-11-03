@@ -1,7 +1,7 @@
 # Sift V2 — UI / Visual Design
 
-> Status: design direction and page specification  
-> Branch: `design/sift-v2-ui`  
+> Status: design direction, page specification, and implemented (see 06)
+> Branch: `main`  
 > Scope: macOS application UI only; no changes to scanner, file-operation, entitlement, permission, or cleanup-safety behavior.
 
 ## Design decision
@@ -23,6 +23,7 @@ The icon colors are brand identifiers, not colors to spread indiscriminately acr
 3. [03 — Remaining page specifications](03-page-specifications.md)
 4. [04 — Implementation and acceptance plan](04-implementation-plan.md)
 5. [05 — Component-level implementation specification](05-component-specifications.md)
+6. [06 — Implementation record](06-implementation-record.md) — what was built, what was decided, what is open
 
 ## Visual explorations
 
@@ -33,6 +34,16 @@ The SVGs below are repository-ready vector redraws of the agreed visual directio
 | ![Overview concept A](assets/sift-v2-overview-concept-a.svg) | ![Overview concept B](assets/sift-v2-overview-concept-b.svg) |
 
 ![Scan results concept](assets/sift-v2-scan-results-concept.svg)
+
+## Implemented screenshots
+
+Captured from the built app, not from a preview. Light at the default and at a
+compact width, plus the dark appearance; see
+[06 — Implementation record](06-implementation-record.md) §7.
+
+| Overview, light | Overview, dark | Apps, dark |
+|---|---|---|
+| ![Overview in the light appearance](assets/screenshots/overview-light-1280.png) | ![Overview in the dark appearance](assets/screenshots/overview-dark.png) | ![Apps in the dark appearance](assets/screenshots/apps-dark.png) |
 
 ## Product principles
 
@@ -68,3 +79,5 @@ The SVGs below are repository-ready vector redraws of the agreed visual directio
 
 - 2026-11-03: V2 direction established from the user-provided app icon and the preference for pure white over cool gray-white.
 - 2026-11-03: Scan workflow and all page specifications expanded; visual studies added.
+- 2026-11-04: Implemented. Token layer, shell and all six pages converted; `06`
+  records the decisions, the measurements and what remains open.

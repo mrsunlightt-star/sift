@@ -7,12 +7,15 @@
 "app.management.required" = "Diğer geliştiricilerin uygulamalarını taşımak için Uygulama Yönetimi’nde Sift’e izin verin.";
 "app.management.title" = "Uygulama Yönetimi";
 "apps.appAndRelated" = "Uygulama %@, ilgili dosyalar %@";
+"apps.filter.large" = "Büyük";
+"apps.filter.unused" = "Kullanılmıyor";
 "apps.footer" = "Yalnızca 200 MB üzeri uygulamalar, toplam %d";
 "apps.installedOn" = "Kurulma: %@";
 "apps.lastOpened" = "Son açılış %@";
 "apps.lastUsedUnknown" = "Açılma kaydı yok";
 "apps.listTitle" = "Uygulamalar";
 "apps.neverOpened" = "Hiç açılmadı";
+"apps.noMatches" = "Bu aramayla eşleşen uygulama yok.";
 "apps.reclaimable" = "Kazanılabilir";
 "apps.relatedWillRemove" = "Kaldırılacak ilgili dosyalar";
 "apps.rescan" = "Uygulamaları yeniden tara";

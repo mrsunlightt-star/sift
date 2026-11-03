@@ -7,12 +7,15 @@
 "app.management.required" = "Permita o Sift em Gestão de Apps para mover aplicações de outros programadores.";
 "app.management.title" = "Gestão de Apps";
 "apps.appAndRelated" = "Aplicação %@, ficheiros relacionados %@";
+"apps.filter.large" = "Grandes";
+"apps.filter.unused" = "Não usadas";
 "apps.footer" = "A mostrar aplicações com mais de 200 MB · %d no total";
 "apps.installedOn" = "Instalado em %@";
 "apps.lastOpened" = "Última abertura: %@";
 "apps.lastUsedUnknown" = "Sem registo de abertura";
 "apps.listTitle" = "Aplicações";
 "apps.neverOpened" = "Nunca aberta";
+"apps.noMatches" = "Nenhuma aplicação corresponde a esta pesquisa.";
 "apps.reclaimable" = "Pode ser libertado";
 "apps.relatedWillRemove" = "Ficheiros relacionados a eliminar";
 "apps.rescan" = "Analisar aplicações novamente";

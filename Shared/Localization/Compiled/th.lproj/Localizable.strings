@@ -7,12 +7,15 @@
 "app.management.required" = "อนุญาต Sift ในการจัดการแอปเพื่อย้ายแอปของผู้พัฒนารายอื่น";
 "app.management.title" = "การจัดการแอป";
 "apps.appAndRelated" = "แอป %@, ไฟล์ที่เกี่ยวข้อง %@";
+"apps.filter.large" = "ใหญ่";
+"apps.filter.unused" = "ไม่ได้ใช้";
 "apps.footer" = "แสดงแอปที่ใหญ่กว่า 200 MB · รวม %d";
 "apps.installedOn" = "ติดตั้งเมื่อ %@";
 "apps.lastOpened" = "เปิดล่าสุด %@";
 "apps.lastUsedUnknown" = "ไม่มีบันทึกการเปิด";
 "apps.listTitle" = "แอปพลิเคชัน";
 "apps.neverOpened" = "ไม่เคยเปิด";
+"apps.noMatches" = "ไม่มีแอปที่ตรงกับการค้นหานี้";
 "apps.reclaimable" = "ปลดปล่อยได้";
 "apps.relatedWillRemove" = "ไฟล์ที่เกี่ยวข้องที่จะลบ";
 "apps.rescan" = "สแกนแอปใหม่";

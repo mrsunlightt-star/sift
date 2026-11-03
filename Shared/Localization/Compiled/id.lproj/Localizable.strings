@@ -7,12 +7,15 @@
 "app.management.required" = "Izinkan Sift di Pengelolaan App untuk memindahkan app pengembang lain.";
 "app.management.title" = "Pengelolaan App";
 "apps.appAndRelated" = "Aplikasi %@, file terkait %@";
+"apps.filter.large" = "Besar";
+"apps.filter.unused" = "Tidak dipakai";
 "apps.footer" = "Menampilkan aplikasi di atas 200 MB · %d total";
 "apps.installedOn" = "Dipasang %@";
 "apps.lastOpened" = "Terakhir dibuka %@";
 "apps.lastUsedUnknown" = "Tidak ada catatan pembukaan";
 "apps.listTitle" = "Aplikasi";
 "apps.neverOpened" = "Belum pernah dibuka";
+"apps.noMatches" = "Tidak ada aplikasi yang cocok dengan pencarian ini.";
 "apps.reclaimable" = "Dapat dibebaskan";
 "apps.relatedWillRemove" = "File terkait yang akan dihapus";
 "apps.rescan" = "Pindai ulang aplikasi";

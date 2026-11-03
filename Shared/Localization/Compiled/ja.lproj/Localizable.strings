@@ -7,12 +7,15 @@
 "app.management.required" = "他の開発者のアプリを移動するには、「アプリ管理」で Sift を許可します。";
 "app.management.title" = "アプリ管理";
 "apps.appAndRelated" = "アプリ %@，関連ファイル %@";
+"apps.filter.large" = "大容量";
+"apps.filter.unused" = "未使用";
 "apps.footer" = "200 MB 超のアプリのみ表示，全 %d 件";
 "apps.installedOn" = "インストール：%@";
 "apps.lastOpened" = "最終使用：%@";
 "apps.lastUsedUnknown" = "開いた記録なし";
 "apps.listTitle" = "アプリ一覧";
 "apps.neverOpened" = "未使用";
+"apps.noMatches" = "この検索に一致するアプリはありません。";
 "apps.reclaimable" = "解放できる容量";
 "apps.relatedWillRemove" = "一緒に削除する関連ファイル";
 "apps.rescan" = "アプリを再スキャン";

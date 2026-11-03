@@ -22,6 +22,17 @@ import SwiftUI
 /// past 60 characters inside a one-line button, so the action and the quantity
 /// are separate lines: the button says what happens, the line above says how
 /// much.
+///
+/// Everything here comes from `cleanup.approvedItems` — the pre-flight snapshot,
+/// not the live selection (invariant 27), so a checkbox clicked behind the sheet
+/// cannot make the sentence and the move describe two batches. Only one item
+/// shape is *not* from that snapshot: the counts of what pre-flight refused,
+/// which the report states on its own.
+///
+/// The hierarchy is plain: a title, the facts, hairlines, and one filled surface
+/// at the very bottom for the two buttons. A dialog that is a stack of cards
+/// reads as a page; this is the last thing between a click and the Trash, so it
+/// is one column that can be read top to bottom.
 public struct CleanupConfirmationView: View {
     @ObservedObject var cleanup: CleanupModel
     @ObservedObject var preferences: PreferencesSnapshot
@@ -31,7 +42,7 @@ public struct CleanupConfirmationView: View {
 
     /// Which disclosure is open. Both start closed: the panel answers the
     /// common question ("how much, where, can I undo it") without scrolling.
-    private enum Detail: Hashable { case items, recoverability }
+    private enum Detail: Hashable { case items, recoverable }
     @State private var expanded: Set<Detail> = []
 
     public init(
@@ -49,22 +60,32 @@ public struct CleanupConfirmationView: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: SiftMetrics.spacingL) {
-            header
-            locations
-            itemList
-            recoverability
-            counts
-            if !preferences.hasCompletedCleanup {
-                NoticeBanner(level: .information, titleKey: .scanFirstRunReview)
+        VStack(alignment: .leading, spacing: 0) {
+            // One column, read top to bottom, sized by its content: the two
+            // disclosures start closed, so the common question ("how much, where,
+            // can I undo it") is answered without a scroll, and the only part that
+            // can grow — the item list — scrolls inside its own 220 pt frame.
+            VStack(alignment: .leading, spacing: SiftMetrics.spacingL) {
+                titleBlock
+                SiftHairline()
+                destination
+                itemList
+                counts
+                whyRecoverable
+                if !preferences.hasCompletedCleanup {
+                    NoticeBanner(level: .information, titleKey: .scanFirstRunReview)
+                }
+                if cleanup.approvedIncludesItemsNeedingReview {
+                    NoticeBanner(
+                        level: .warning,
+                        message: LocalizationKey.cleanupConfirmReviewCount.localized(reviewCount)
+                    )
+                }
             }
-            if cleanup.approvedIncludesItemsNeedingReview {
-                NoticeBanner(
-                    level: .warning,
-                    message: LocalizationKey.cleanupConfirmReviewCount.localized(reviewCount)
-                )
-            }
-            Divider()
+
+            SiftHairline()
+                .padding(.top, SiftMetrics.spacingL)
+            safety
             footer
         }
         .padding(SiftMetrics.spacingXL)
@@ -80,15 +101,26 @@ public struct CleanupConfirmationView: View {
 
     // MARK: - Header
 
-    private var header: some View {
+    /// The title states the action and the number of items it acts on — the
+    /// sheet's own frame has no title bar to state either.
+    private var titleBlock: some View {
         VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
             Text(LocalizationKey.cleanupConfirmTitleCount.localized(cleanup.approvedCount))
                 .font(SiftFont.title)
                 .fixedSize(horizontal: false, vertical: true)
-            HStack(spacing: SiftMetrics.spacingS) {
-                fact(SiftFormat.count(cleanup.approvedCount), .commonItemCount)
-                fact(SiftFormat.bytes(cleanup.approvedBytes), nil)
+
+            HStack(alignment: .firstTextBaseline, spacing: SiftMetrics.spacingS) {
+                Text(SiftFormat.bytes(cleanup.approvedBytes))
+                    .font(SiftFont.metricLarge)
+                    .monospacedDigit()
+                    .foregroundStyle(SiftColor.mainText)
+                Text(LocalizationKey.commonItemCount.counted(cleanup.approvedCount))
+                    .font(SiftFont.caption)
+                    .foregroundStyle(SiftColor.secondaryText)
+                Spacer(minLength: 0)
             }
+            .accessibilityElement(children: .combine)
+
             if !cleanup.approvedByCategory.isEmpty {
                 Text(
                     LocalizationKey.scanResultsCategoryTotals.localized(
@@ -98,31 +130,10 @@ public struct CleanupConfirmationView: View {
                     )
                 )
                 .font(SiftFont.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(SiftColor.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
             }
         }
-    }
-
-    /// One fact chip. `countKey` names the unit, so a chip never reads as a bare
-    /// number.
-    private func fact(_ value: String, _ countKey: LocalizationKey?) -> some View {
-        HStack(spacing: 5) {
-            Text(value)
-                .font(SiftFont.badge)
-                .monospacedDigit()
-            if let countKey {
-                Text(countKey.localized.replacingOccurrences(of: "%d ", with: ""))
-                    .font(SiftFont.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(.horizontal, SiftMetrics.spacingS)
-        .padding(.vertical, 4)
-        .background(
-            RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
-                .fill(SiftColor.subtleFill)
-        )
     }
 
     // MARK: - Where
@@ -156,14 +167,15 @@ public struct CleanupConfirmationView: View {
         return out.sorted()
     }
 
-    private var locations: some View {
+    /// Where the items are, as a summary rather than a path list.
+    private var destination: some View {
         let all = approvedLocations
         let shown = all.prefix(3)
         let extra = all.count - shown.count
         return VStack(alignment: .leading, spacing: SiftMetrics.spacingXS) {
             Text(LocalizationKey.cleanupConfirmLocations.localized)
                 .font(SiftFont.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(SiftColor.secondaryText)
             HStack(spacing: SiftMetrics.spacingS) {
                 ForEach(Array(shown), id: \.self) { location in
                     Text(location)
@@ -174,13 +186,13 @@ public struct CleanupConfirmationView: View {
                         .padding(.vertical, 3)
                         .background(
                             RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
-                                .fill(SiftColor.subtleFill)
+                                .fill(SiftColor.controlFill)
                         )
                 }
                 if extra > 0 {
                     Text("+\(extra)")
                         .font(SiftFont.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(SiftColor.secondaryText)
                 }
                 Spacer(minLength: 0)
             }
@@ -192,33 +204,49 @@ public struct CleanupConfirmationView: View {
 
     private var itemList: some View {
         VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
-            disclosureButton(
-                .items,
-                title: expanded.contains(.items)
-                    ? LocalizationKey.cleanupConfirmHideItems.localized
-                    : LocalizationKey.cleanupConfirmShowItems.localized(cleanup.approvedCount)
-            )
+            Button {
+                // Immediate: a disclosure states what is on screen, and the
+                // animation only ever inserted a wait between the click and the
+                // rows (invariant 45).
+                toggle(.items)
+            } label: {
+                HStack(spacing: SiftMetrics.spacingS) {
+                    Image(systemName: expanded.contains(.items) ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(SiftColor.quietText)
+                        .frame(width: 10)
+                    Text(
+                        expanded.contains(.items)
+                            ? LocalizationKey.cleanupConfirmHideItems.localized
+                            : LocalizationKey.cleanupConfirmShowItems.localized(cleanup.approvedCount)
+                    )
+                    .font(SiftFont.caption)
+                    .foregroundStyle(SiftColor.actionGreen)
+                    Spacer(minLength: 0)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityAddTraits(expanded.contains(.items) ? [.isSelected] : [])
 
             if expanded.contains(.items) {
-                ScrollView {
+                SiftSection(style: .plain) {
                     VStack(alignment: .leading, spacing: 0) {
-                        ForEach(cleanup.approvedItems) { item in
+                        ForEach(Array(cleanup.approvedItems.enumerated()), id: \.element.id) { index, item in
+                            if index > 0 {
+                                SiftHairline()
+                            }
                             approvedRow(item)
-                            Divider()
                         }
                     }
                 }
                 .frame(maxHeight: 220)
-                .background(
-                    RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
-                        .fill(SiftColor.subtleFill)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous))
-                .transition(.opacity)
+                .clipped()
             }
         }
     }
 
+    /// One approved item, as the move will act on it: name, path, size, risk.
     private func approvedRow(_ item: CleanupItem) -> some View {
         HStack(spacing: SiftMetrics.spacingM) {
             VStack(alignment: .leading, spacing: 2) {
@@ -228,57 +256,27 @@ public struct CleanupConfirmationView: View {
                     .truncationMode(.middle)
                 Text(item.displayPath)
                     .font(SiftFont.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(SiftColor.secondaryText)
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
             Spacer(minLength: SiftMetrics.spacingS)
             Text(SiftFormat.bytes(item.sizeInBytes))
                 .font(SiftFont.monospacedNumber)
+                .monospacedDigit()
+                .foregroundStyle(SiftColor.mainText)
             RiskBadge(risk: item.risk.level)
         }
-        .padding(.horizontal, SiftMetrics.spacingM)
         .padding(.vertical, 6)
         .accessibilityElement(children: .combine)
     }
 
-    private var recoverability: some View {
-        VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
-            disclosureButton(.recoverability, title: LocalizationKey.cleanupConfirmWhyRecoverable.localized)
-            if expanded.contains(.recoverability) {
-                VStack(alignment: .leading, spacing: SiftMetrics.spacingXS) {
-                    Text(LocalizationKey.cleanupConfirmUndoNotice.localized)
-                    Text(LocalizationKey.scanResultsProtectedHint.localized)
-                }
-                .font(SiftFont.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.leading, SiftMetrics.spacingM)
-                .transition(.opacity)
-            }
+    private func toggle(_ detail: Detail) {
+        if expanded.contains(detail) {
+            expanded.remove(detail)
+        } else {
+            expanded.insert(detail)
         }
-    }
-
-    private func disclosureButton(_ detail: Detail, title: String) -> some View {
-        Button {
-            withAnimation(SiftMotion.expand) {
-                if expanded.contains(detail) {
-                    expanded.remove(detail)
-                } else {
-                    expanded.insert(detail)
-                }
-            }
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 9, weight: .semibold))
-                    .rotationEffect(.degrees(expanded.contains(detail) ? 0 : -90))
-                Text(title)
-                    .font(SiftFont.caption)
-            }
-        }
-        .buttonStyle(SiftLinkButtonStyle())
-        .accessibilityAddTraits(expanded.contains(detail) ? [.isSelected] : [])
     }
 
     // MARK: - Counts
@@ -289,23 +287,100 @@ public struct CleanupConfirmationView: View {
     @ViewBuilder
     private var counts: some View {
         if let preflight = cleanup.preflight {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 if !preflight.protected.isEmpty {
-                    Text(LocalizationKey.cleanupConfirmProtectedCount.localized(preflight.protected.count))
-                        .foregroundStyle(SiftColor.textColor(for: .protected))
+                    countLine(
+                        LocalizationKey.cleanupConfirmProtectedCount.localized(preflight.protected.count),
+                        tint: SiftColor.protectedTextColor,
+                        symbolName: "lock.fill"
+                    )
                 }
                 if !preflight.skipped.isEmpty {
-                    Text(LocalizationKey.cleanupConfirmMissingCount.localized(preflight.skipped.count))
-                        .foregroundStyle(SiftColor.textColor(for: .review))
+                    countLine(
+                        LocalizationKey.cleanupConfirmMissingCount.localized(preflight.skipped.count),
+                        tint: SiftColor.reviewTextColor,
+                        symbolName: "questionmark.circle.fill"
+                    )
                 }
                 if !preflight.subsumed.isEmpty {
-                    Text(LocalizationKey.cleanupConfirmSelectedItems.localized(preflight.subsumed.count))
-                        .foregroundStyle(.secondary)
+                    countLine(
+                        LocalizationKey.cleanupConfirmSelectedItems.localized(preflight.subsumed.count),
+                        tint: SiftColor.secondaryText,
+                        symbolName: "square.stack.3d.up"
+                    )
                 }
             }
-            .font(SiftFont.caption)
             .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    /// A fact with a glyph, so the line is not read by its colour.
+    private func countLine(_ text: String, tint: Color, symbolName: String) -> some View {
+        HStack(spacing: SiftMetrics.spacingXS) {
+            Image(systemName: symbolName)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(tint)
+            Text(text)
+                .font(SiftFont.caption)
+                .foregroundStyle(tint)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    // MARK: - Recoverability
+
+    /// Why this is recoverable, and what is not moving.
+    ///
+    /// The sentence is in the footer, beside the button, because that is where it
+    /// is read. This disclosure holds the second half of the answer: what the
+    /// product refuses to move, and where the items go.
+    private var whyRecoverable: some View {
+        VStack(alignment: .leading, spacing: SiftMetrics.spacingXS) {
+            Button {
+                toggle(.recoverable)
+            } label: {
+                HStack(spacing: SiftMetrics.spacingS) {
+                    Image(systemName: expanded.contains(.recoverable) ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(SiftColor.quietText)
+                        .frame(width: 10)
+                    Text(LocalizationKey.cleanupConfirmWhyRecoverable.localized)
+                        .font(SiftFont.caption)
+                        .foregroundStyle(SiftColor.actionGreen)
+                    Spacer(minLength: 0)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityAddTraits(expanded.contains(.recoverable) ? [.isSelected] : [])
+
+            if expanded.contains(.recoverable) {
+                VStack(alignment: .leading, spacing: SiftMetrics.spacingXS) {
+                    Text(LocalizationKey.scanResultsProtectedHint.localized)
+                    Text(LocalizationKey.scanResultsReportHint.localized)
+                }
+                .font(SiftFont.caption)
+                .foregroundStyle(SiftColor.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.leading, 18)
+            }
+        }
+    }
+
+    /// The promise, stated once, next to the control that keeps it.
+    private var safety: some View {
+        HStack(alignment: .top, spacing: SiftMetrics.spacingS) {
+            Image(systemName: "arrow.uturn.backward.circle")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(SiftColor.quietText)
+                .padding(.top, 2)
+            Text(LocalizationKey.cleanupConfirmUndoNotice.localized)
+                .font(SiftFont.caption)
+                .foregroundStyle(SiftColor.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, SiftMetrics.spacingM)
     }
 
     // MARK: - Footer
@@ -321,7 +396,7 @@ public struct CleanupConfirmationView: View {
                         .font(SiftFont.body)
                     Text(LocalizationKey.settingsSkipConfirmationWarning.localized)
                         .font(SiftFont.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(SiftColor.secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -330,12 +405,14 @@ public struct CleanupConfirmationView: View {
             Spacer(minLength: SiftMetrics.spacingM)
 
             VStack(alignment: .trailing, spacing: SiftMetrics.spacingS) {
+                // The quantity, beside the button rather than inside it: the
+                // label states the action, the line states how much it acts on.
                 Text(
                     "\(LocalizationKey.commonItemCount.counted(cleanup.approvedCount)) · \(SiftFormat.bytes(cleanup.approvedBytes))"
                 )
                 .font(SiftFont.caption)
                 .monospacedDigit()
-                .foregroundStyle(.secondary)
+                .foregroundStyle(SiftColor.secondaryText)
 
                 HStack(spacing: SiftMetrics.spacingM) {
                     SiftSecondaryButton(titleKey: .cleanupConfirmCancel) {

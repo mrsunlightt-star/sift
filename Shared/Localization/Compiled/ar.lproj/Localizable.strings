@@ -7,12 +7,15 @@
 "app.management.required" = "اسمح لـ Sift في إدارة التطبيقات بنقل تطبيقات مطورين آخرين.";
 "app.management.title" = "إدارة التطبيقات";
 "apps.appAndRelated" = "التطبيق %@, ملفات مرتبطة %@";
+"apps.filter.large" = "كبيرة";
+"apps.filter.unused" = "غير مستخدمة";
 "apps.footer" = "عرض التطبيقات فوق 200 ميغابايت · %d إجمالًا";
 "apps.installedOn" = "تم التثبيت في %@";
 "apps.lastOpened" = "آخر فتح %@";
 "apps.lastUsedUnknown" = "لا يوجد سجل فتح";
 "apps.listTitle" = "التطبيقات";
 "apps.neverOpened" = "لم يُفتح أبدًا";
+"apps.noMatches" = "لا توجد تطبيقات تطابق هذا البحث.";
 "apps.reclaimable" = "يمكن تحريره";
 "apps.relatedWillRemove" = "ملفات مرتبطة للإزالة";
 "apps.rescan" = "إعادة فحص التطبيقات";

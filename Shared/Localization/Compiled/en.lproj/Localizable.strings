@@ -7,12 +7,15 @@
 "app.management.required" = "Allow Sift in App Management to move other developers' applications.";
 "app.management.title" = "App Management";
 "apps.appAndRelated" = "App %@, related files %@";
+"apps.filter.large" = "Large";
+"apps.filter.unused" = "Unused";
 "apps.footer" = "Showing apps over 200 MB, %d total";
 "apps.installedOn" = "Installed %@";
 "apps.lastOpened" = "Last opened %@";
 "apps.lastUsedUnknown" = "No open record";
 "apps.listTitle" = "Applications";
 "apps.neverOpened" = "Never opened";
+"apps.noMatches" = "No applications match this search.";
 "apps.reclaimable" = "Can be released";
 "apps.relatedWillRemove" = "Related files to remove";
 "apps.rescan" = "Rescan applications";

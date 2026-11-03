@@ -943,11 +943,33 @@ These are product promises, not implementation details. Each has tests behind it
   switcher's picker — attached to its own button — worked. `UITests` now presses
   the control and looks for the picker's rows, not just for the control.
 - `Shared/DesignSystem/SiftTheme.swift` and `Shared/Components/SiftComponents.swift`
-  are the design system. A page uses `SiftPageHeader`, `SiftGlassCard`,
-  `SiftPrimaryButton`, `SiftSecondaryButton`, `SiftCheckbox` and
+  are the design system, and `Design/V2/` is the specification it implements
+  (start at `Design/V2/README.md`; the component-level rules are `05`). A page
+  uses `SiftSection`, `SiftHairline`, `SiftPageHeader`, `SiftPrimaryButton`,
+  `SiftFilterChip`, `SiftSelectableRow`, `SiftCheckbox` and
   `SiftLinkButtonStyle`; it does not introduce a second palette, a system-blue
-  link or a surface that skips the glass layers. `SiftProgressRing` is
-  indeterminate only where the engine reports phases rather than a fraction.
+  link, or a surface with its own radius. `SiftProgressRing` is indeterminate
+  only where the engine reports phases rather than a fraction.
+
+  Page content is `SiftSection(.plain)`: white canvas, spacing and hairlines.
+  `SiftGlassCard`/`SiftPanel` still exist for the two sheets that float, and
+  they no longer stack a material, a top highlight or a glow — a page that
+  reaches for one to group ordinary content is the thing `05 §4` forbids, and
+  the five pages that did were rewritten. The one gradient left is the
+  indeterminate progress arc (`SiftComponents.swift`).
+
+  A colour is chosen by the role it plays, not by how it looks: `actionGreen`
+  for anything read or pressed, `actionFill`/`onActionFill` for a filled
+  control, `brandGreen` and `brandGold` for the mark and decoration only (the
+  icon green is 2.43:1 on white), `safeTextColor`/`reviewTextColor`/
+  `dangerTextColor` on their own washes, `mainText`/`secondaryText`/`quietText`
+  for the three ranks of prose. `Tests/V2PaletteTests.swift` measures those
+  pairs in both appearances and fails below 4.5:1, including text on the
+  selected row rather than only on the canvas — the dark `quietText` was moved
+  from `#8A948E` to `#96A19A` because the wash is lighter than the ground.
+  Legacy role names (`accent`, `baseGlass`, `glassBorder`, …) are aliases onto
+  the V2 roles so an un-migrated page is green and readable rather than blue;
+  they are not a second palette and new code does not use them.
 
 ## Two preferences that are scan scopes
 

@@ -7,12 +7,15 @@
 "app.management.required" = "Zezwól Siftowi w Zarządzaniu aplikacjami na przenoszenie aplikacji innych deweloperów.";
 "app.management.title" = "Zarządzanie aplikacjami";
 "apps.appAndRelated" = "Aplikacja %@, pliki powiązane %@";
+"apps.filter.large" = "Duże";
+"apps.filter.unused" = "Nieużywane";
 "apps.footer" = "Pokazano aplikacje ponad 200 MB, łącznie %d";
 "apps.installedOn" = "Zainstalowano %@";
 "apps.lastOpened" = "Ostatnio otwarto %@";
 "apps.lastUsedUnknown" = "Brak zapisu otwarcia";
 "apps.listTitle" = "Aplikacje";
 "apps.neverOpened" = "Nigdy nie otwierano";
+"apps.noMatches" = "Żadna aplikacja nie pasuje do tego wyszukiwania.";
 "apps.reclaimable" = "Można odzyskać";
 "apps.relatedWillRemove" = "Pliki powiązane do usunięcia";
 "apps.rescan" = "Skanuj aplikacje ponownie";

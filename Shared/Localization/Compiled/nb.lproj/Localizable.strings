@@ -7,12 +7,15 @@
 "app.management.required" = "Tillat Sift under App-administrasjon å flytte andre utvikleres apper.";
 "app.management.title" = "App-administrasjon";
 "apps.appAndRelated" = "App %@, tilknyttede filer %@";
+"apps.filter.large" = "Store";
+"apps.filter.unused" = "Ubrukte";
 "apps.footer" = "Viser apper over 200 MB · %d totalt";
 "apps.installedOn" = "Installert %@";
 "apps.lastOpened" = "Sist åpnet %@";
 "apps.lastUsedUnknown" = "Ingen åpningshistorikk";
 "apps.listTitle" = "Apper";
 "apps.neverOpened" = "Aldri åpnet";
+"apps.noMatches" = "Ingen apper samsvarer med dette søket.";
 "apps.reclaimable" = "Kan frigjøres";
 "apps.relatedWillRemove" = "Tilknyttede filer som fjernes";
 "apps.rescan" = "Skann apper på nytt";

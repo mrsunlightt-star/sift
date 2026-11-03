@@ -7,12 +7,15 @@
 "app.management.required" = "Разрешете на Sift в „Управление на приложения“, за да мести приложения на други разработчици.";
 "app.management.title" = "Управление на приложения";
 "apps.appAndRelated" = "Приложение %@, свързани файлове %@";
+"apps.filter.large" = "Големи";
+"apps.filter.unused" = "Неизползвани";
 "apps.footer" = "Показани са приложения над 200 MB · общо %d";
 "apps.installedOn" = "Инсталирано на %@";
 "apps.lastOpened" = "Последно отваряне: %@";
 "apps.lastUsedUnknown" = "Няма запис за отваряне";
 "apps.listTitle" = "Приложения";
 "apps.neverOpened" = "Никога не е отваряно";
+"apps.noMatches" = "Няма приложения, отговарящи на това търсене.";
 "apps.reclaimable" = "Може да се освободи";
 "apps.relatedWillRemove" = "Свързани файлове за премахване";
 "apps.rescan" = "Повторно сканиране на приложения";

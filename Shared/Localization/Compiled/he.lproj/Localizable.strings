@@ -7,12 +7,15 @@
 "app.management.required" = "‏אפשרו ל‑Sift בניהול יישומים כדי להעביר יישומים של מפתחים אחרים.";
 "app.management.title" = "ניהול יישומים";
 "apps.appAndRelated" = "אפליקציה %@, קבצים קשורים %@";
+"apps.filter.large" = "גדולות";
+"apps.filter.unused" = "לא בשימוש";
 "apps.footer" = "מציג אפליקציות מעל 200 MB · %d בסך הכול";
 "apps.installedOn" = "הותקן ב־%@";
 "apps.lastOpened" = "נפתח לאחרונה %@";
 "apps.lastUsedUnknown" = "אין רשומת פתיחה";
 "apps.listTitle" = "אפליקציות";
 "apps.neverOpened" = "מעולם לא נפתח";
+"apps.noMatches" = "אין יישומים התואמים לחיפוש הזה.";
 "apps.reclaimable" = "ניתן לפינוי";
 "apps.relatedWillRemove" = "קבצים קשורים להסרה";
 "apps.rescan" = "סרוק אפליקציות מחדש";

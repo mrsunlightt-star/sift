@@ -7,12 +7,15 @@
 "app.management.required" = "Engedélyezze a Siftet az Alkalmazáskezelésben más fejlesztők alkalmazásainak áthelyezéséhez.";
 "app.management.title" = "Alkalmazáskezelés";
 "apps.appAndRelated" = "Alkalmazás: %@, kapcsolódó fájlok: %@";
+"apps.filter.large" = "Nagyok";
+"apps.filter.unused" = "Nem használt";
 "apps.footer" = "A 200 MB-nál nagyobb alkalmazások láthatók · összesen %d";
 "apps.installedOn" = "Telepítve: %@";
 "apps.lastOpened" = "Utoljára megnyitva: %@";
 "apps.lastUsedUnknown" = "Nincs megnyitási előzmény";
 "apps.listTitle" = "Alkalmazások";
 "apps.neverOpened" = "Soha nem nyitották meg";
+"apps.noMatches" = "Egyetlen alkalmazás sem felel meg a keresésnek.";
 "apps.reclaimable" = "Felszabadítható";
 "apps.relatedWillRemove" = "Eltávolítandó kapcsolódó fájlok";
 "apps.rescan" = "Alkalmazások újraszkennelése";

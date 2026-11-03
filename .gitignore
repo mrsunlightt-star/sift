@@ -1,5 +1,8 @@
 # SwiftPM
 .build/
+# Per-worker scratch paths, so parallel workers do not fight over one build
+# database (`swift build --scratch-path .build-<name>`).
+.build-*/
 .swiftpm/
 Package.resolved
 

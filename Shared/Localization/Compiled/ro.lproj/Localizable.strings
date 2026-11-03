@@ -7,12 +7,15 @@
 "app.management.required" = "Permiteți Sift în Gestionare aplicații pentru a muta aplicații ale altor dezvoltatori.";
 "app.management.title" = "Gestionare aplicații";
 "apps.appAndRelated" = "Aplicație %@, fișiere asociate %@";
+"apps.filter.large" = "Mari";
+"apps.filter.unused" = "Neutilizate";
 "apps.footer" = "Se afișează aplicațiile peste 200 MB · %d în total";
 "apps.installedOn" = "Instalat la %@";
 "apps.lastOpened" = "Ultima deschidere %@";
 "apps.lastUsedUnknown" = "Fără istoric de deschidere";
 "apps.listTitle" = "Aplicații";
 "apps.neverOpened" = "Niciodată deschisă";
+"apps.noMatches" = "Nicio aplicație nu corespunde acestei căutări.";
 "apps.reclaimable" = "Poate fi eliberat";
 "apps.relatedWillRemove" = "Fișiere asociate de eliminat";
 "apps.rescan" = "Rescanează aplicațiile";
