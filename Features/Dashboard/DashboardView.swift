@@ -160,27 +160,27 @@ public struct DashboardView: View {
                 }
 
                 HStack(spacing: SiftMetrics.spacingM) {
-                    if environment.isScanInFlight {
-                        SiftPrimaryButton(
-                            titleKey: .overviewViewProgress,
-                            symbolName: "arrow.right"
-                        ) {
+                    let action = OverviewScanAction.resolve(
+                        hasResults: scan.hasResults,
+                        isScanInFlight: environment.isScanInFlight
+                    )
+                    SiftPrimaryButton(
+                        titleKey: action.titleKey,
+                        symbolName: action.symbolName,
+                        isEnabled: !environment.isScanInFlight
+                    ) {
+                        guard action.startsAScan else {
                             onOpenScan()
+                            return
                         }
-                    } else {
-                        SiftPrimaryButton(
-                            titleKey: .dashboardStartScan,
-                            symbolName: "viewfinder",
-                            isEnabled: !environment.isScanInFlight
-                        ) {
-                            // Starting a scan is also the navigation: the scan
-                            // page is where the run's progress lives, so the
-                            // hero hands the user straight to it instead of
-                            // offering a second button to click.
-                            onOpenScan()
-                            Task { await environment.runScan(.everything) }
-                        }
+                        // Starting a scan is also the navigation: the scan
+                        // page is where the run's progress lives, so the
+                        // hero hands the user straight to it instead of
+                        // offering a second button to click.
+                        onOpenScan()
+                        Task { await environment.runScan(.everything) }
                     }
+                    .accessibilityIdentifier("dashboard.primaryAction")
 
                     if scan.hasResults {
                         SiftSecondaryButton(titleKey: .overviewViewResults) {

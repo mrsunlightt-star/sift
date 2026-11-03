@@ -802,6 +802,16 @@ These are product promises, not implementation details. Each has tests behind it
     `test_aMoveTeachesTheStatusAndOutranksTheProbe`,
     `test_theBundleRefusalOffersAppManagementAndNotFullDiskAccess`.
 
+    The same rule applies to the action a page offers, not only to what it
+    reports. The overview's primary button said "Start scan" above a finished
+    run — a 731 MB result set under a button that claimed nothing had been
+    scanned yet, and a page whose "last scan: today" pill contradicted it.
+    `OverviewScanAction` (`Core/Scanner/ScanIntent.swift`) resolves the label,
+    the symbol and whether the button starts anything from the state — `start`
+    with no result set, `rescan` once one exists, `viewProgress` while a run is
+    in flight — so a page cannot say "start" over its own results. Test:
+    `test_theOverviewOffersARerunOnceAResultSetExists`.
+
 ## Layout notes
 
 - `Core/` is one library; `Features/` are separate libraries so a change to one

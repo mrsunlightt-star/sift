@@ -93,3 +93,46 @@ public extension CleanupCategory {
         .applicationResidue, .groupContainerResidue, .developerArtifacts,
     ]
 }
+
+/// The primary action the overview offers, and the words it puts on it.
+///
+/// The page used to say "Start scan" whether or not a result set already
+/// existed, so a user who had just scanned was told to start over instead of
+/// being offered a re-run — the same way the cleanup result page once said
+/// "Cleanup finished" above an item that refused to move. The decision is a value
+/// here rather than three branches inside a `ViewBuilder` so a test can pin it:
+/// the labels, the symbols and whether the button starts anything all come from
+/// one place, and a page cannot drift into saying "start" over an existing run.
+public enum OverviewScanAction: String, Sendable, CaseIterable {
+    /// Nothing has been scanned yet in this session.
+    case start
+    /// A result set exists: the action is another run, not a first one.
+    case rescan
+    /// A run is in flight, so there is nothing to start — the button only takes
+    /// the user to the progress it is already making.
+    case viewProgress
+
+    public static func resolve(hasResults: Bool, isScanInFlight: Bool) -> OverviewScanAction {
+        if isScanInFlight { return .viewProgress }
+        return hasResults ? .rescan : .start
+    }
+
+    /// Whether pressing it begins a scan.
+    public var startsAScan: Bool { self != .viewProgress }
+
+    public var titleKey: LocalizationKey {
+        switch self {
+        case .start: .dashboardStartScan
+        case .rescan: .scanRescan
+        case .viewProgress: .overviewViewProgress
+        }
+    }
+
+    public var symbolName: String {
+        switch self {
+        case .start: "viewfinder"
+        case .rescan: "arrow.clockwise"
+        case .viewProgress: "arrow.right"
+        }
+    }
+}

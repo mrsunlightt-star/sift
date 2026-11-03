@@ -66,4 +66,31 @@ final class ScanIntentTests: XCTestCase, @unchecked Sendable {
         XCTAssertEqual(totals.limited(to: nil).count, 3, "nil means no filter")
         XCTAssertTrue(totals.limited(to: []).isEmpty)
     }
+
+    /// The overview's primary button states what the next click does.
+    ///
+    /// "Start scan" above a finished run is the same defect as "Cleanup finished"
+    /// above an item that refused to move: the page names an action that has
+    /// already happened, and the user cannot tell whether the results on screen
+    /// belong to the scan the button would start.
+    func test_theOverviewOffersARerunOnceAResultSetExists() {
+        XCTAssertEqual(OverviewScanAction.resolve(hasResults: false, isScanInFlight: false), .start)
+        XCTAssertEqual(OverviewScanAction.resolve(hasResults: true, isScanInFlight: false), .rescan)
+        XCTAssertEqual(
+            OverviewScanAction.resolve(hasResults: true, isScanInFlight: true),
+            .viewProgress,
+            "a run in flight leaves nothing to start"
+        )
+        XCTAssertEqual(OverviewScanAction.resolve(hasResults: false, isScanInFlight: true), .viewProgress)
+
+        XCTAssertEqual(OverviewScanAction.start.titleKey, .dashboardStartScan)
+        XCTAssertEqual(OverviewScanAction.rescan.titleKey, .scanRescan)
+        XCTAssertNotEqual(
+            OverviewScanAction.rescan.titleKey,
+            OverviewScanAction.start.titleKey,
+            "the two states must not share a label"
+        )
+        XCTAssertTrue(OverviewScanAction.rescan.startsAScan)
+        XCTAssertFalse(OverviewScanAction.viewProgress.startsAScan)
+    }
 }
