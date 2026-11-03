@@ -8,13 +8,15 @@
 "app.management.title" = "App-Verwaltung";
 "apps.appAndRelated" = "App %@, zugehörige Dateien %@";
 "apps.footer" = "Apps über 200 MB, %d gesamt";
+"apps.installedOn" = "Installiert am %@";
 "apps.lastOpened" = "Zuletzt geöffnet: %@";
 "apps.listTitle" = "Apps";
 "apps.neverOpened" = "Nie geöffnet";
 "apps.reclaimable" = "Freigebbar";
 "apps.relatedWillRemove" = "Zugehörige Dateien zum Entfernen";
+"apps.rescan" = "Apps erneut suchen";
 "apps.restoreHint" = "Bis zum Leeren des Papierkorbs wiederherstellbar";
-"apps.sortSummary" = "Nach Größe, %@ gesamt";
+"apps.sortSummary" = "Nach %1$@, %2$@ gesamt";
 "apps.status" = "%d installiert, %d seit 6 Monaten nicht geöffnet";
 "apps.uninstallAndClean" = "Deinstallieren und %@ bereinigen";
 "cleanup.busyNotice" = "Ein anderer Vorgang läuft noch. Versuchen Sie es gleich noch einmal.";
@@ -466,6 +468,7 @@
 "uninstall.search" = "Apps suchen";
 "uninstall.selectApp" = "Wählen Sie eine App, um zu sehen, was entfernt würde.";
 "uninstall.sharedContainer" = "Auch geteilt mit: %@";
+"uninstall.sort.installedAt" = "Installationsdatum";
 "uninstall.sort.lastUsed" = "Zuletzt verwendet";
 "uninstall.sort.name" = "Name";
 "uninstall.sort.size" = "Größe";

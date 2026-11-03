@@ -8,13 +8,15 @@
 "app.management.title" = "ניהול יישומים";
 "apps.appAndRelated" = "אפליקציה %@, קבצים קשורים %@";
 "apps.footer" = "מציג אפליקציות מעל 200 MB · %d בסך הכול";
+"apps.installedOn" = "הותקן ב־%@";
 "apps.lastOpened" = "נפתח לאחרונה %@";
 "apps.listTitle" = "אפליקציות";
 "apps.neverOpened" = "מעולם לא נפתח";
 "apps.reclaimable" = "ניתן לפינוי";
 "apps.relatedWillRemove" = "קבצים קשורים להסרה";
+"apps.rescan" = "סרוק אפליקציות מחדש";
 "apps.restoreHint" = "ניתן לשחזר מפח האשפה עד שתרוקנו אותו";
-"apps.sortSummary" = "ממוינות לפי גודל, %@ בסך הכול";
+"apps.sortSummary" = "ממוין לפי %1$@, סה״כ %2$@";
 "apps.status" = "%d מותקנות · %d לא נפתחו 6 חודשים";
 "apps.uninstallAndClean" = "הסרה וניקוי של %@";
 "cleanup.busyNotice" = "פעולה אחרת עדיין פועלת. נסו שוב בעוד רגע.";
@@ -466,6 +468,7 @@
 "uninstall.search" = "חיפוש אפליקציות";
 "uninstall.selectApp" = "בחרו אפליקציה כדי לראות מה יוסר.";
 "uninstall.sharedContainer" = "משותף גם עם: %@";
+"uninstall.sort.installedAt" = "תאריך התקנה";
 "uninstall.sort.lastUsed" = "שימוש אחרון";
 "uninstall.sort.name" = "שם";
 "uninstall.sort.size" = "גודל";

@@ -8,13 +8,15 @@
 "app.management.title" = "Uygulama Yönetimi";
 "apps.appAndRelated" = "Uygulama %@, ilgili dosyalar %@";
 "apps.footer" = "Yalnızca 200 MB üzeri uygulamalar, toplam %d";
+"apps.installedOn" = "Kurulma: %@";
 "apps.lastOpened" = "Son açılış %@";
 "apps.listTitle" = "Uygulamalar";
 "apps.neverOpened" = "Hiç açılmadı";
 "apps.reclaimable" = "Kazanılabilir";
 "apps.relatedWillRemove" = "Kaldırılacak ilgili dosyalar";
+"apps.rescan" = "Uygulamaları yeniden tara";
 "apps.restoreHint" = "Çöp Sepeti’ni boşaltana kadar geri alınabilir";
-"apps.sortSummary" = "Boyuta göre sıralandı, toplam %@";
+"apps.sortSummary" = "%1$@ ölçütüne göre, toplam %2$@";
 "apps.status" = "%d yüklü, %d altı 6 aydır açılmadı";
 "apps.uninstallAndClean" = "Kaldır ve %@ temizle";
 "cleanup.busyNotice" = "Başka bir işlem sürüyor. Biraz sonra tekrar deneyin.";
@@ -466,6 +468,7 @@
 "uninstall.search" = "Uygulama ara";
 "uninstall.selectApp" = "Neyin kaldırılacağını görmek için bir uygulama seçin.";
 "uninstall.sharedContainer" = "Şunlarla da paylaşılıyor: %@";
+"uninstall.sort.installedAt" = "Kurulum tarihi";
 "uninstall.sort.lastUsed" = "Son kullanım";
 "uninstall.sort.name" = "Ad";
 "uninstall.sort.size" = "Boyut";

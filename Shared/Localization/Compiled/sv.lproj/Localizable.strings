@@ -8,13 +8,15 @@
 "app.management.title" = "Apphantering";
 "apps.appAndRelated" = "App %@, relaterade filer %@";
 "apps.footer" = "Visar appar över 200 MB · %d totalt";
+"apps.installedOn" = "Installerad %@";
 "apps.lastOpened" = "Senast öppnad %@";
 "apps.listTitle" = "Program";
 "apps.neverOpened" = "Aldrig öppnad";
 "apps.reclaimable" = "Kan frigöras";
 "apps.relatedWillRemove" = "Relaterade filer som tas bort";
+"apps.rescan" = "Skanna appar igen";
 "apps.restoreHint" = "Kan återställas från Papperskorgen tills du tömmer den";
-"apps.sortSummary" = "Sorterat efter storlek · %@ totalt";
+"apps.sortSummary" = "Sorterat efter %1$@, %2$@ totalt";
 "apps.status" = "Installerade %d · %d inte öppnade på 6 månader";
 "apps.uninstallAndClean" = "Avinstallera och rensa %@";
 "cleanup.busyNotice" = "En annan åtgärd pågår fortfarande. Försök igen om en stund.";
@@ -466,6 +468,7 @@
 "uninstall.search" = "Sök appar";
 "uninstall.selectApp" = "Välj en app för att se vad som skulle tas bort.";
 "uninstall.sharedContainer" = "Delas även med: %@";
+"uninstall.sort.installedAt" = "Installationsdatum";
 "uninstall.sort.lastUsed" = "Senast använd";
 "uninstall.sort.name" = "Namn";
 "uninstall.sort.size" = "Storlek";

@@ -8,13 +8,15 @@
 "app.management.title" = "앱 관리";
 "apps.appAndRelated" = "앱 %@, 관련 파일 %@";
 "apps.footer" = "200MB 초과 앱만 표시, 총 %d개";
+"apps.installedOn" = "설치 %@";
 "apps.lastOpened" = "마지막 실행 %@";
 "apps.listTitle" = "앱 목록";
 "apps.neverOpened" = "실행 기록 없음";
 "apps.reclaimable" = "확보 가능";
 "apps.relatedWillRemove" = "함께 삭제할 관련 파일";
+"apps.rescan" = "앱 다시 검사";
 "apps.restoreHint" = "휴지통을 비우기 전까지 복구 가능";
-"apps.sortSummary" = "크기순, 총 %@";
+"apps.sortSummary" = "%1$@순, 총 %2$@";
 "apps.status" = "설치 %d개, 6개월 이상 미실행 %d개";
 "apps.uninstallAndClean" = "제거하고 %@ 정리";
 "cleanup.busyNotice" = "다른 작업이 아직 진행 중입니다. 잠시 후 다시 시도하세요.";
@@ -466,6 +468,7 @@
 "uninstall.search" = "앱 검색";
 "uninstall.selectApp" = "앱을 선택하면 제거될 항목을 볼 수 있습니다.";
 "uninstall.sharedContainer" = "다음 앱과도 공유됩니다: %@";
+"uninstall.sort.installedAt" = "설치 날짜";
 "uninstall.sort.lastUsed" = "최근 사용";
 "uninstall.sort.name" = "이름";
 "uninstall.sort.size" = "크기";

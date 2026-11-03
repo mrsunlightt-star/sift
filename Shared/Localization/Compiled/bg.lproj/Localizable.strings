@@ -8,13 +8,15 @@
 "app.management.title" = "Управление на приложения";
 "apps.appAndRelated" = "Приложение %@, свързани файлове %@";
 "apps.footer" = "Показани са приложения над 200 MB · общо %d";
+"apps.installedOn" = "Инсталирано на %@";
 "apps.lastOpened" = "Последно отваряне: %@";
 "apps.listTitle" = "Приложения";
 "apps.neverOpened" = "Никога не е отваряно";
 "apps.reclaimable" = "Може да се освободи";
 "apps.relatedWillRemove" = "Свързани файлове за премахване";
+"apps.rescan" = "Повторно сканиране на приложения";
 "apps.restoreHint" = "Може да се върне от Кошчето, докато не го изпразните";
-"apps.sortSummary" = "Сортирани по размер · общо %@";
+"apps.sortSummary" = "Подредени по %1$@, общо %2$@";
 "apps.status" = "Инсталирани: %d · не отваряни от 6 месеца: %d";
 "apps.uninstallAndClean" = "Деинсталирайте и почистете %@";
 "cleanup.busyNotice" = "Друга операция още тече. Опитайте отново след малко.";
@@ -466,6 +468,7 @@
 "uninstall.search" = "Търсене на приложения";
 "uninstall.selectApp" = "Изберете приложение, за да видите какво ще бъде премахнато.";
 "uninstall.sharedContainer" = "Споделено също с: %@";
+"uninstall.sort.installedAt" = "Дата на инсталиране";
 "uninstall.sort.lastUsed" = "Последно използване";
 "uninstall.sort.name" = "Име";
 "uninstall.sort.size" = "Размер";

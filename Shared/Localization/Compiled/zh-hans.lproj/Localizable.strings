@@ -8,13 +8,15 @@
 "app.management.title" = "应用管理";
 "apps.appAndRelated" = "应用本体 %@，关联文件 %@";
 "apps.footer" = "仅显示超过 200 MB 的应用，共 %d 个";
+"apps.installedOn" = "安装于%@";
 "apps.lastOpened" = "上次打开于%@";
 "apps.listTitle" = "应用列表";
 "apps.neverOpened" = "从未打开";
 "apps.reclaimable" = "本次可释放";
 "apps.relatedWillRemove" = "将一并删除的关联文件";
+"apps.rescan" = "重新扫描应用";
 "apps.restoreHint" = "清空废纸篓前可恢复";
-"apps.sortSummary" = "按体积排序，共 %@";
+"apps.sortSummary" = "按%1$@排序，共 %2$@";
 "apps.status" = "已安装 %d 个，%d 个超过 6 个月未打开";
 "apps.uninstallAndClean" = "卸载并清理 %@";
 "cleanup.busyNotice" = "另一个操作还在进行，请稍后再试。";
@@ -466,6 +468,7 @@
 "uninstall.search" = "搜索应用";
 "uninstall.selectApp" = "选择一个应用以查看将被删除的内容。";
 "uninstall.sharedContainer" = "也被这些应用共用：%@";
+"uninstall.sort.installedAt" = "安装时间";
 "uninstall.sort.lastUsed" = "最近使用";
 "uninstall.sort.name" = "名称";
 "uninstall.sort.size" = "占用空间";

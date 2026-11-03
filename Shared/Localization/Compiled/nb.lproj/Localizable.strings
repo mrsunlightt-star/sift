@@ -8,13 +8,15 @@
 "app.management.title" = "App-administrasjon";
 "apps.appAndRelated" = "App %@, tilknyttede filer %@";
 "apps.footer" = "Viser apper over 200 MB · %d totalt";
+"apps.installedOn" = "Installert %@";
 "apps.lastOpened" = "Sist åpnet %@";
 "apps.listTitle" = "Apper";
 "apps.neverOpened" = "Aldri åpnet";
 "apps.reclaimable" = "Kan frigjøres";
 "apps.relatedWillRemove" = "Tilknyttede filer som fjernes";
+"apps.rescan" = "Skann apper på nytt";
 "apps.restoreHint" = "Kan gjenopprettes fra Papirkurven til du tømmer den";
-"apps.sortSummary" = "Sortert etter størrelse · %@ totalt";
+"apps.sortSummary" = "Sortert etter %1$@, %2$@ totalt";
 "apps.status" = "Installert %d · %d ikke åpnet på 6 måneder";
 "apps.uninstallAndClean" = "Avinstaller og rydd %@";
 "cleanup.busyNotice" = "En annen handling pågår fortsatt. Prøv igjen om litt.";
@@ -466,6 +468,7 @@
 "uninstall.search" = "Søk etter apper";
 "uninstall.selectApp" = "Velg en app for å se hva som ville bli fjernet.";
 "uninstall.sharedContainer" = "Deles også med: %@";
+"uninstall.sort.installedAt" = "Installasjonsdato";
 "uninstall.sort.lastUsed" = "Sist brukt";
 "uninstall.sort.name" = "Navn";
 "uninstall.sort.size" = "Størrelse";

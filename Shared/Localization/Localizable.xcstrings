@@ -1471,6 +1471,216 @@
         }
       }
     },
+    "apps.installedOn": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installed %@"
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "安装于%@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "설치 %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Установлено: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Instalada el %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "インストール：%@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installée le %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installiert am %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installata il %@"
+          }
+        },
+        "pt-br": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Instalado em %@"
+          }
+        },
+        "zh-hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "安裝於%@"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kurulma: %@"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zainstalowano %@"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geïnstalleerd op %@"
+          }
+        },
+        "lo": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ຕິດຕັ້ງ %@"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تم التثبيت في %@"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "הותקן ב־%@"
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "نصب شده در %@"
+          }
+        },
+        "bg": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Инсталирано на %@"
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nainstalováno %@"
+          }
+        },
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installeret %@"
+          }
+        },
+        "el": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Εγκαταστάθηκε %@"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Instalada el %@"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Asennettu %@"
+          }
+        },
+        "hu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Telepítve: %@"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dipasang %@"
+          }
+        },
+        "ms": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dipasang %@"
+          }
+        },
+        "nb": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installert %@"
+          }
+        },
+        "pt-pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Instalado em %@"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Instalat la %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installerad %@"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ติดตั้งเมื่อ %@"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Встановлено %@"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đã cài %@"
+          }
+        }
+      }
+    },
     "apps.lastOpened": {
       "comment": null,
       "extractionState": "manual",
@@ -2521,6 +2731,216 @@
         }
       }
     },
+    "apps.rescan": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rescan applications"
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新扫描应用"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "앱 다시 검사"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пересканировать приложения"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Volver a analizar aplicaciones"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アプリを再スキャン"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rescanner les applications"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apps erneut suchen"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ripeti la scansione delle app"
+          }
+        },
+        "pt-br": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verificar apps novamente"
+          }
+        },
+        "zh-hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新掃描應用程式"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uygulamaları yeniden tara"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skanuj aplikacje ponownie"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apps opnieuw scannen"
+          }
+        },
+        "lo": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ສະແກນແອັບຄືນໃໝ່"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إعادة فحص التطبيقات"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "סרוק אפליקציות מחדש"
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اسکن دوبارهٔ برنامه‌ها"
+          }
+        },
+        "bg": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Повторно сканиране на приложения"
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Znovu prohledat aplikace"
+          }
+        },
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scan apps igen"
+          }
+        },
+        "el": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Νέα σάρωση εφαρμογών"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Volver a analizar aplicaciones"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skannaa sovellukset uudelleen"
+          }
+        },
+        "hu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alkalmazások újraszkennelése"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pindai ulang aplikasi"
+          }
+        },
+        "ms": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Imbas semula aplikasi"
+          }
+        },
+        "nb": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skann apper på nytt"
+          }
+        },
+        "pt-pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Analisar aplicações novamente"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rescanează aplicațiile"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skanna appar igen"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "สแกนแอปใหม่"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пересканувати програми"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quét lại ứng dụng"
+          }
+        }
+      }
+    },
     "apps.restoreHint": {
       "comment": null,
       "extractionState": "manual",
@@ -2738,205 +3158,205 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sorted by size, %@ in total"
+            "value": "Sorted by %1$@, %2$@ in total"
           }
         },
         "zh-hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "按体积排序，共 %@"
+            "value": "按%1$@排序，共 %2$@"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "크기순, 총 %@"
+            "value": "%1$@순, 총 %2$@"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "По размеру, всего %@"
+            "value": "Сортировка: %1$@, всего %2$@"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Por tamaño, %@ en total"
+            "value": "Por %1$@, %2$@ en total"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "サイズ順，合計 %@"
+            "value": "%1$@順、合計 %2$@"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Par taille, %@ au total"
+            "value": "Trié par %1$@, %2$@ au total"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Nach Größe, %@ gesamt"
+            "value": "Nach %1$@, %2$@ gesamt"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ordinate per dimensione, %@ in totale"
+            "value": "Ordinate per %1$@, %2$@ in totale"
           }
         },
         "pt-br": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ordenados por tamanho, %@ no total"
+            "value": "Ordenados por %1$@, %2$@ no total"
           }
         },
         "zh-hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "按體積排序，共 %@"
+            "value": "按%1$@排序，共 %2$@"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Boyuta göre sıralandı, toplam %@"
+            "value": "%1$@ ölçütüne göre, toplam %2$@"
           }
         },
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sortowane według rozmiaru, łącznie %@"
+            "value": "Sortowane według: %1$@, łącznie %2$@"
           }
         },
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Op grootte gesorteerd, totaal %@"
+            "value": "Op %1$@ gesorteerd, totaal %2$@"
           }
         },
         "lo": {
           "stringUnit": {
             "state": "translated",
-            "value": "ຈັດລຳດັບຕາມຂະໜາດ, ລວມ %@"
+            "value": "ຮຽງຕາມ %1$@, ລວມ %2$@"
           }
         },
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "مرتّبة حسب الحجم, %@ إجمالًا"
+            "value": "مرتبة حسب %1$@، الإجمالي %2$@"
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "ממוינות לפי גודל, %@ בסך הכול"
+            "value": "ממוין לפי %1$@, סה״כ %2$@"
           }
         },
         "fa": {
           "stringUnit": {
             "state": "translated",
-            "value": "مرتب بر اساس اندازه, در مجموع %@"
+            "value": "مرتب‌شده بر اساس %1$@، مجموع %2$@"
           }
         },
         "bg": {
           "stringUnit": {
             "state": "translated",
-            "value": "Сортирани по размер · общо %@"
+            "value": "Подредени по %1$@, общо %2$@"
           }
         },
         "cs": {
           "stringUnit": {
             "state": "translated",
-            "value": "Seřazeno podle velikosti · celkem %@"
+            "value": "Seřazeno podle: %1$@, celkem %2$@"
           }
         },
         "da": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sorteret efter størrelse · %@ i alt"
+            "value": "Sorteret efter %1$@, %2$@ i alt"
           }
         },
         "el": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ταξινόμηση κατά μέγεθος · %@ συνολικά"
+            "value": "Ταξινόμηση κατά %1$@, σύνολο %2$@"
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ordenadas por tamaño · %@ en total"
+            "value": "Por %1$@, %2$@ en total"
           }
         },
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lajiteltu koon mukaan · %@ yhteensä"
+            "value": "Lajiteltu: %1$@, yhteensä %2$@"
           }
         },
         "hu": {
           "stringUnit": {
             "state": "translated",
-            "value": "Méret szerint rendezve · összesen %@"
+            "value": "Rendezve: %1$@, összesen %2$@"
           }
         },
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "Diurutkan menurut ukuran · %@ total"
+            "value": "Diurutkan menurut %1$@, total %2$@"
           }
         },
         "ms": {
           "stringUnit": {
             "state": "translated",
-            "value": "Diisih mengikut saiz · %@ jumlah"
+            "value": "Disusun mengikut %1$@, jumlah %2$@"
           }
         },
         "nb": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sortert etter størrelse · %@ totalt"
+            "value": "Sortert etter %1$@, %2$@ totalt"
           }
         },
         "pt-pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ordenadas por tamanho · %@ no total"
+            "value": "Ordenados por %1$@, %2$@ no total"
           }
         },
         "ro": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sortate după dimensiune · %@ în total"
+            "value": "Sortate după %1$@, %2$@ în total"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sorterat efter storlek · %@ totalt"
+            "value": "Sorterat efter %1$@, %2$@ totalt"
           }
         },
         "th": {
           "stringUnit": {
             "state": "translated",
-            "value": "เรียงตามขนาด · รวม %@"
+            "value": "เรียงตาม %1$@ รวม %2$@"
           }
         },
         "uk": {
           "stringUnit": {
             "state": "translated",
-            "value": "Сортовано за розміром · усього %@"
+            "value": "Сортовано за %1$@, усього %2$@"
           }
         },
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sắp xếp theo kích thước · tổng %@"
+            "value": "Sắp xếp theo %1$@, tổng %2$@"
           }
         }
       }
@@ -97647,6 +98067,216 @@
           "stringUnit": {
             "state": "translated",
             "value": "Chia sẻ với: %@"
+          }
+        }
+      }
+    },
+    "uninstall.sort.installedAt": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Install date"
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "安装时间"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "설치 날짜"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Дата установки"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fecha de instalación"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "インストール日"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Date d’installation"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installationsdatum"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Data di installazione"
+          }
+        },
+        "pt-br": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Data de instalação"
+          }
+        },
+        "zh-hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "安裝時間"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kurulum tarihi"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Data instalacji"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installatiedatum"
+          }
+        },
+        "lo": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ວັນຕິດຕັ້ງ"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تاريخ التثبيت"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "תאריך התקנה"
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تاریخ نصب"
+          }
+        },
+        "bg": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Дата на инсталиране"
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Datum instalace"
+          }
+        },
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installationsdato"
+          }
+        },
+        "el": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ημερομηνία εγκατάστασης"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fecha de instalación"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Asennuspäivä"
+          }
+        },
+        "hu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Telepítés dátuma"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tanggal pemasangan"
+          }
+        },
+        "ms": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tarikh pemasangan"
+          }
+        },
+        "nb": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installasjonsdato"
+          }
+        },
+        "pt-pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Data de instalação"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Data instalării"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installationsdatum"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "วันที่ติดตั้ง"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Дата встановлення"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ngày cài đặt"
           }
         }
       }

@@ -8,13 +8,15 @@
 "app.management.title" = "Керування програмами";
 "apps.appAndRelated" = "Програма %@, пов'язані файли %@";
 "apps.footer" = "Показано програми понад 200 МБ · усього %d";
+"apps.installedOn" = "Встановлено %@";
 "apps.lastOpened" = "Останнє відкриття: %@";
 "apps.listTitle" = "Програми";
 "apps.neverOpened" = "Ніколи не відкривано";
 "apps.reclaimable" = "Можна звільнити";
 "apps.relatedWillRemove" = "Пов'язані файли до видалення";
+"apps.rescan" = "Пересканувати програми";
 "apps.restoreHint" = "Можна відновити з Кошика, доки не спорожнено його";
-"apps.sortSummary" = "Сортовано за розміром · усього %@";
+"apps.sortSummary" = "Сортовано за %1$@, усього %2$@";
 "apps.status" = "Встановлено: %d · не відкривано 6 місяців: %d";
 "apps.uninstallAndClean" = "Видалити й очистити %@";
 "cleanup.busyNotice" = "Інша операція ще виконується. Спробуйте ще раз за мить.";
@@ -466,6 +468,7 @@
 "uninstall.search" = "Пошук програм";
 "uninstall.selectApp" = "Виберіть програму, щоб побачити, що буде видалено.";
 "uninstall.sharedContainer" = "Спільно з: %@";
+"uninstall.sort.installedAt" = "Дата встановлення";
 "uninstall.sort.lastUsed" = "Останнє використання";
 "uninstall.sort.name" = "Назва";
 "uninstall.sort.size" = "Розмір";

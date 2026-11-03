@@ -8,13 +8,15 @@
 "app.management.title" = "Gestão de Apps";
 "apps.appAndRelated" = "Aplicação %@, ficheiros relacionados %@";
 "apps.footer" = "A mostrar aplicações com mais de 200 MB · %d no total";
+"apps.installedOn" = "Instalado em %@";
 "apps.lastOpened" = "Última abertura: %@";
 "apps.listTitle" = "Aplicações";
 "apps.neverOpened" = "Nunca aberta";
 "apps.reclaimable" = "Pode ser libertado";
 "apps.relatedWillRemove" = "Ficheiros relacionados a eliminar";
+"apps.rescan" = "Analisar aplicações novamente";
 "apps.restoreHint" = "Recuperável a partir do Lixo até o esvaziar";
-"apps.sortSummary" = "Ordenadas por tamanho · %@ no total";
+"apps.sortSummary" = "Ordenados por %1$@, %2$@ no total";
 "apps.status" = "%d instaladas · %d não abertas há 6 meses";
 "apps.uninstallAndClean" = "Desinstalar e limpar %@";
 "cleanup.busyNotice" = "Outra operação ainda está a decorrer. Tente novamente dentro de momentos.";
@@ -466,6 +468,7 @@
 "uninstall.search" = "Pesquisar aplicações";
 "uninstall.selectApp" = "Escolha uma aplicação para ver o que seria eliminado.";
 "uninstall.sharedContainer" = "Partilhado também com: %@";
+"uninstall.sort.installedAt" = "Data de instalação";
 "uninstall.sort.lastUsed" = "Última utilização";
 "uninstall.sort.name" = "Nome";
 "uninstall.sort.size" = "Tamanho";

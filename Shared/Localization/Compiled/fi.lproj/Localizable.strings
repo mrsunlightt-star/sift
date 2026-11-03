@@ -8,13 +8,15 @@
 "app.management.title" = "Sovellusten hallinta";
 "apps.appAndRelated" = "Sovellus %@, liittyvät tiedostot %@";
 "apps.footer" = "Näytetään yli 200 Mt:n sovellukset · %d yhteensä";
+"apps.installedOn" = "Asennettu %@";
 "apps.lastOpened" = "Viimeksi avattu %@";
 "apps.listTitle" = "Sovellukset";
 "apps.neverOpened" = "Ei koskaan avattu";
 "apps.reclaimable" = "Vapautettavissa";
 "apps.relatedWillRemove" = "Poistettavat liittyvät tiedostot";
+"apps.rescan" = "Skannaa sovellukset uudelleen";
 "apps.restoreHint" = "Palautettavissa Roskakorista, kunnes tyhjennät sen";
-"apps.sortSummary" = "Lajiteltu koon mukaan · %@ yhteensä";
+"apps.sortSummary" = "Lajiteltu: %1$@, yhteensä %2$@";
 "apps.status" = "Asennettu %d · %d ei avattu 6 kuukauteen";
 "apps.uninstallAndClean" = "Poista asennus ja siivoa %@";
 "cleanup.busyNotice" = "Toinen toiminto on vielä käynnissä. Yritä hetken kuluttua uudelleen.";
@@ -466,6 +468,7 @@
 "uninstall.search" = "Hae sovelluksia";
 "uninstall.selectApp" = "Valitse sovellus, niin näet, mitä poistettaisiin.";
 "uninstall.sharedContainer" = "Jaettu myös: %@";
+"uninstall.sort.installedAt" = "Asennuspäivä";
 "uninstall.sort.lastUsed" = "Viimeksi käytetty";
 "uninstall.sort.name" = "Nimi";
 "uninstall.sort.size" = "Koko";

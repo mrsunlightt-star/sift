@@ -8,13 +8,15 @@
 "app.management.title" = "Quản lý ứng dụng";
 "apps.appAndRelated" = "Ứng dụng %@, tệp liên quan %@";
 "apps.footer" = "Đang hiển thị ứng dụng trên 200 MB · tổng %d";
+"apps.installedOn" = "Đã cài %@";
 "apps.lastOpened" = "Mở lần cuối %@";
 "apps.listTitle" = "Ứng dụng";
 "apps.neverOpened" = "Chưa từng mở";
 "apps.reclaimable" = "Có thể giải phóng";
 "apps.relatedWillRemove" = "Tệp liên quan sẽ xóa";
+"apps.rescan" = "Quét lại ứng dụng";
 "apps.restoreHint" = "Có thể khôi phục từ Thùng rác cho đến khi làm trống";
-"apps.sortSummary" = "Sắp xếp theo kích thước · tổng %@";
+"apps.sortSummary" = "Sắp xếp theo %1$@, tổng %2$@";
 "apps.status" = "Đã cài %d · %d ứng dụng không mở trong 6 tháng";
 "apps.uninstallAndClean" = "Gỡ cài đặt và dọn %@";
 "cleanup.busyNotice" = "Một thao tác khác vẫn đang chạy. Hãy thử lại sau giây lát.";
@@ -466,6 +468,7 @@
 "uninstall.search" = "Tìm ứng dụng";
 "uninstall.selectApp" = "Chọn một ứng dụng để xem những gì sẽ bị gỡ.";
 "uninstall.sharedContainer" = "Chia sẻ với: %@";
+"uninstall.sort.installedAt" = "Ngày cài đặt";
 "uninstall.sort.lastUsed" = "Dùng gần đây";
 "uninstall.sort.name" = "Tên";
 "uninstall.sort.size" = "Kích thước";

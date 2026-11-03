@@ -8,13 +8,15 @@
 "app.management.title" = "ການຈັດການແອັບ";
 "apps.appAndRelated" = "ແອັບ %@, ໄຟລ໌ທີ່ກ່ຽວຂ້ອງ %@";
 "apps.footer" = "ສະແດງແອັບທີ່ໃຫຍ່ກວ່າ 200 MB · ລວມ %d ອັນ";
+"apps.installedOn" = "ຕິດຕັ້ງ %@";
 "apps.lastOpened" = "ເປີດຄັ້ງສຸດທ້າຍ %@";
 "apps.listTitle" = "ແອັບພລິເຄຊັນ";
 "apps.neverOpened" = "ບໍ່ເຄີຍເປີດ";
 "apps.reclaimable" = "ສາມາດສ້າງຄືນ";
 "apps.relatedWillRemove" = "ໄຟລ໌ທີ່ກ່ຽວຂ້ອງທີ່ຈະລຶບ";
+"apps.rescan" = "ສະແກນແອັບຄືນໃໝ່";
 "apps.restoreHint" = "ກູ້ຄືນຈາກຖັງຂີ້ເຫຍື້ອໄດ້ ຈົນກວ່າຈະລ້າງຖັງ";
-"apps.sortSummary" = "ຈັດລຳດັບຕາມຂະໜາດ, ລວມ %@";
+"apps.sortSummary" = "ຮຽງຕາມ %1$@, ລວມ %2$@";
 "apps.status" = "ຕິດຕັ້ງ %d · %d ອັນບໍ່ໄດ້ເປີດ 6 ເດືອນ";
 "apps.uninstallAndClean" = "ຖອນການຕິດຕັ້ງ ແລະ ລ້າງ %@";
 "cleanup.busyNotice" = "ການດຳເນີນການອື່ນຍັງດຳເນີນຢູ່. ລອງໃໝ່ອີກຄັ້ງໃນອີກສັກຄູ່.";
@@ -466,6 +468,7 @@
 "uninstall.search" = "ຄົ້ນຫາແອັບ";
 "uninstall.selectApp" = "ເລືອກແອັບເພື່ອເບິ່ງວ່າຈະມີຫຍັງຖືກລຶບ.";
 "uninstall.sharedContainer" = "ແບ່ງປັນກັບ: %@";
+"uninstall.sort.installedAt" = "ວັນຕິດຕັ້ງ";
 "uninstall.sort.lastUsed" = "ໃຊ້ຫຼ້າສຸດ";
 "uninstall.sort.name" = "ຊື່";
 "uninstall.sort.size" = "ຂະໜາດ";

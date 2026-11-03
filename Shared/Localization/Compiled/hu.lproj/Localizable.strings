@@ -8,13 +8,15 @@
 "app.management.title" = "Alkalmazáskezelés";
 "apps.appAndRelated" = "Alkalmazás: %@, kapcsolódó fájlok: %@";
 "apps.footer" = "A 200 MB-nál nagyobb alkalmazások láthatók · összesen %d";
+"apps.installedOn" = "Telepítve: %@";
 "apps.lastOpened" = "Utoljára megnyitva: %@";
 "apps.listTitle" = "Alkalmazások";
 "apps.neverOpened" = "Soha nem nyitották meg";
 "apps.reclaimable" = "Felszabadítható";
 "apps.relatedWillRemove" = "Eltávolítandó kapcsolódó fájlok";
+"apps.rescan" = "Alkalmazások újraszkennelése";
 "apps.restoreHint" = "A Kukából visszaállítható, amíg ki nem üríti";
-"apps.sortSummary" = "Méret szerint rendezve · összesen %@";
+"apps.sortSummary" = "Rendezve: %1$@, összesen %2$@";
 "apps.status" = "%d telepítve · %d nem nyílt meg 6 hónapja";
 "apps.uninstallAndClean" = "%@ eltávolítása és tisztítása";
 "cleanup.busyNotice" = "Egy másik művelet még fut. Próbálja újra egy pillanat múlva.";
@@ -466,6 +468,7 @@
 "uninstall.search" = "Alkalmazások keresése";
 "uninstall.selectApp" = "Válasszon egy alkalmazást, hogy lássa, mi kerülne eltávolításra.";
 "uninstall.sharedContainer" = "Megosztva ezekkel is: %@";
+"uninstall.sort.installedAt" = "Telepítés dátuma";
 "uninstall.sort.lastUsed" = "Utolsó használat";
 "uninstall.sort.name" = "Név";
 "uninstall.sort.size" = "Méret";

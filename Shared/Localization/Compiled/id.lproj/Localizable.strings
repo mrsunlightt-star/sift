@@ -8,13 +8,15 @@
 "app.management.title" = "Pengelolaan App";
 "apps.appAndRelated" = "Aplikasi %@, file terkait %@";
 "apps.footer" = "Menampilkan aplikasi di atas 200 MB · %d total";
+"apps.installedOn" = "Dipasang %@";
 "apps.lastOpened" = "Terakhir dibuka %@";
 "apps.listTitle" = "Aplikasi";
 "apps.neverOpened" = "Belum pernah dibuka";
 "apps.reclaimable" = "Dapat dibebaskan";
 "apps.relatedWillRemove" = "File terkait yang akan dihapus";
+"apps.rescan" = "Pindai ulang aplikasi";
 "apps.restoreHint" = "Dapat dipulihkan dari Tempat Sampah sampai Anda mengosongkannya";
-"apps.sortSummary" = "Diurutkan menurut ukuran · %@ total";
+"apps.sortSummary" = "Diurutkan menurut %1$@, total %2$@";
 "apps.status" = "%d terpasang · %d tidak dibuka dalam 6 bulan";
 "apps.uninstallAndClean" = "Hapus dan bersihkan %@";
 "cleanup.busyNotice" = "Operasi lain masih berjalan. Coba lagi sebentar.";
@@ -466,6 +468,7 @@
 "uninstall.search" = "Cari aplikasi";
 "uninstall.selectApp" = "Pilih aplikasi untuk melihat apa yang akan dihapus.";
 "uninstall.sharedContainer" = "Juga dibagikan dengan: %@";
+"uninstall.sort.installedAt" = "Tanggal pemasangan";
 "uninstall.sort.lastUsed" = "Terakhir digunakan";
 "uninstall.sort.name" = "Nama";
 "uninstall.sort.size" = "Ukuran";

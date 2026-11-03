@@ -8,13 +8,15 @@
 "app.management.title" = "Správa aplikací";
 "apps.appAndRelated" = "Aplikace %@, související soubory %@";
 "apps.footer" = "Zobrazeny aplikace nad 200 MB · celkem %d";
+"apps.installedOn" = "Nainstalováno %@";
 "apps.lastOpened" = "Naposledy otevřeno %@";
 "apps.listTitle" = "Aplikace";
 "apps.neverOpened" = "Nikdy neotevřeno";
 "apps.reclaimable" = "Lze uvolnit";
 "apps.relatedWillRemove" = "Související soubory k odstranění";
+"apps.rescan" = "Znovu prohledat aplikace";
 "apps.restoreHint" = "Obnovitelné z Koše, dokud jej nevysypete";
-"apps.sortSummary" = "Seřazeno podle velikosti · celkem %@";
+"apps.sortSummary" = "Seřazeno podle: %1$@, celkem %2$@";
 "apps.status" = "Nainstalováno: %d · neotevřeno 6 měsíců: %d";
 "apps.uninstallAndClean" = "Odinstalovat a vyčistit %@";
 "cleanup.busyNotice" = "Probíhá jiná operace. Zkuste to znovu za chvíli.";
@@ -466,6 +468,7 @@
 "uninstall.search" = "Hledat aplikace";
 "uninstall.selectApp" = "Vyberte aplikaci a uvidíte, co by se odstranilo.";
 "uninstall.sharedContainer" = "Sdíleno také s: %@";
+"uninstall.sort.installedAt" = "Datum instalace";
 "uninstall.sort.lastUsed" = "Naposledy použito";
 "uninstall.sort.name" = "Název";
 "uninstall.sort.size" = "Velikost";

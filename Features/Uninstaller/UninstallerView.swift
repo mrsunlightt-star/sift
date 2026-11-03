@@ -13,7 +13,7 @@ public struct UninstallerView: View {
     @EnvironmentObject private var environment: AppEnvironment
     private let onRequestPurchase: () -> Void
     @State private var search = ""
-    @State private var sort: SortOrder = .size
+    @State private var sort: ApplicationSortOrder = .size
     @State private var selected: InstalledApplication?
     @State private var plan: UninstallPlan?
     @State private var isLoadingPlan = false
@@ -27,21 +27,6 @@ public struct UninstallerView: View {
     @State private var includeReviewFiles = false
     @State private var quitFailure: String?
     @State private var showsAllApps = false
-
-    /// How the application list is ordered (§5.3).
-    enum SortOrder: String, CaseIterable {
-        case name
-        case size
-        case lastUsed
-
-        var titleKey: LocalizationKey {
-            switch self {
-            case .name: .uninstallSortName
-            case .size: .uninstallSortSize
-            case .lastUsed: .uninstallSortLastUsed
-            }
-        }
-    }
 
     /// The list starts with the applications that are worth removing. A 12 MB
     /// helper is not what this page is for, and showing 128 rows of them buries
@@ -150,6 +135,7 @@ public struct UninstallerView: View {
                     Spacer(minLength: SiftMetrics.spacingS)
                     Text(
                         LocalizationKey.appsSortSummary.localized(
+                            sort.titleKey.localized,
                             SiftFormat.bytes(environment.installedApplications.reduce(0) { $0 + $1.sizeInBytes })
                         )
                     )
@@ -160,6 +146,7 @@ public struct UninstallerView: View {
 
                 HStack(spacing: SiftMetrics.spacingM) {
                     searchField
+                    rescanButton
                     sortMenu
                 }
                 .padding(.bottom, SiftMetrics.spacingM)
@@ -220,9 +207,35 @@ public struct UninstallerView: View {
         .siftFieldSurface()
     }
 
+    /// Re-runs discovery, because the list is discovered once and then kept.
+    ///
+    /// `loadApplications()` answers from memory while it holds a list, so an
+    /// application installed — or removed by something other than Sift — while the
+    /// app is open would never appear: the page looked like it had no way to look
+    /// again. Invalidating first is what makes the second call a discovery instead
+    /// of a no-op, and it is the same pair a completed uninstall uses.
+    private var rescanButton: some View {
+        Button {
+            Task { await reloadApplications() }
+        } label: {
+            Image(systemName: "arrow.clockwise")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, SiftMetrics.spacingM)
+                .frame(height: SiftMetrics.fieldHeight)
+                .siftFieldSurface()
+        }
+        .buttonStyle(.plain)
+        .disabled(environment.isLoadingApplications)
+        .help(LocalizationKey.appsRescan.localized)
+        .accessibilityLabel(Text(LocalizationKey.appsRescan.localized))
+        .accessibilityIdentifier("apps.rescan")
+        .fixedSize()
+    }
+
     private var sortMenu: some View {
         Menu {
-            ForEach(SortOrder.allCases, id: \.self) { order in
+            ForEach(ApplicationSortOrder.allCases, id: \.self) { order in
                 Button {
                     sort = order
                 } label: {
@@ -261,7 +274,7 @@ public struct UninstallerView: View {
                     Text(application.name)
                         .font(SiftFont.bodyEmphasis)
                         .lineLimit(1)
-                    Text(secondaryLine(application))
+                    Text(secondaryLine(application, includingInstallDate: sort == .installedAt))
                         .font(SiftFont.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -290,7 +303,10 @@ public struct UninstallerView: View {
         .accessibilityIdentifier("apps.row.\(application.id)")
     }
 
-    private func secondaryLine(_ application: InstalledApplication) -> String {
+    private func secondaryLine(
+        _ application: InstalledApplication,
+        includingInstallDate: Bool = false
+    ) -> String {
         let version = application.version ?? LocalizationKey.commonNotAvailable.localized
         let lastUsed: String
         if let date = application.lastUsedAt {
@@ -298,7 +314,15 @@ public struct UninstallerView: View {
         } else {
             lastUsed = LocalizationKey.appsNeverOpened.localized
         }
-        return "\(version), \(lastUsed)"
+        guard includingInstallDate else { return "\(version), \(lastUsed)" }
+        // The date the list is ordered by is the date the row states, so sorting by
+        // install time shows the install time rather than leaving the order
+        // unexplained. The detail pane always states it, because it is the place a
+        // single application is described.
+        let installed = application.installedAt.map {
+            LocalizationKey.appsInstalledOn.localized(SiftFormat.relativeDate($0))
+        } ?? LocalizationKey.commonNotAvailable.localized
+        return "\(version), \(installed), \(lastUsed)"
     }
 
     private var filteredApplications: [InstalledApplication] {
@@ -313,16 +337,7 @@ public struct UninstallerView: View {
         if !showsAllApps, search.isEmpty {
             matching = matching.filter { $0.sizeInBytes >= visibleSizeThreshold }
         }
-        switch sort {
-        case .name:
-            return matching.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-        case .size:
-            return matching.sorted { $0.sizeInBytes > $1.sizeInBytes }
-        case .lastUsed:
-            return matching.sorted {
-                ($0.lastUsedAt ?? .distantPast) > ($1.lastUsedAt ?? .distantPast)
-            }
-        }
+        return sort.sorted(matching)
     }
 
     private var hiddenApplicationCount: Int {
@@ -411,7 +426,7 @@ public struct UninstallerView: View {
                 Text(application.name)
                     .font(SiftFont.title)
                     .lineLimit(2)
-                Text(secondaryLine(application))
+                Text(secondaryLine(application, includingInstallDate: true))
                     .font(SiftFont.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
@@ -751,14 +766,23 @@ public struct UninstallerView: View {
         }
     }
 
+    /// Discovers the installed applications again, from scratch.
+    ///
+    /// One function for the two places that ask for a fresh list — the control in
+    /// the list header and a completed uninstall — so a refresh cannot mean one
+    /// thing here and another there.
+    private func reloadApplications() async {
+        environment.invalidateApplications()
+        await environment.loadApplications(force: true)
+    }
+
     private func performUninstall() async {
         let result = await environment.confirmUninstall()
         switch result {
         case let .executed(execution):
             outcome = execution.outcome
             outcomeReport = execution.report
-            environment.invalidateApplications()
-            await environment.loadApplications(force: true)
+            await reloadApplications()
             selected = nil
             self.plan = nil
         case .purchaseRequired:

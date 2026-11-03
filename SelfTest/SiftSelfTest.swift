@@ -960,6 +960,7 @@ final class Harness: @unchecked Sendable {
                 version: "1.2.3",
                 sizeInBytes: 4096,
                 lastUsedAt: nil,
+                installedAt: nil,
                 isSystemApplication: false,
                 isRunning: false
             )

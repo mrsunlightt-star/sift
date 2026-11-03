@@ -111,6 +111,7 @@ public struct ApplicationDiscovery: @unchecked Sendable {
                 version: nil,
                 sizeInBytes: measureApplication(url: url),
                 lastUsedAt: lastUsed(url: url),
+                installedAt: installDate(url: url),
                 isSystemApplication: isSystemLocation(url),
                 isRunning: runningPaths.contains(url.standardizedFileURL.resolvingSymlinksInPath().path)
             )
@@ -124,6 +125,7 @@ public struct ApplicationDiscovery: @unchecked Sendable {
             version: bundle.infoDictionary?["CFBundleShortVersionString"] as? String,
             sizeInBytes: measureApplication(url: url),
             lastUsedAt: lastUsed(url: url),
+            installedAt: installDate(url: url),
             isSystemApplication: isSystemLocation(url),
             isRunning: runningPaths.contains(url.standardizedFileURL.resolvingSymlinksInPath().path)
         )
@@ -168,6 +170,19 @@ public struct ApplicationDiscovery: @unchecked Sendable {
 
     private func lastUsed(url: URL) -> Date? {
         (try? url.resourceValues(forKeys: [.contentAccessDateKey]))?.contentAccessDate
+    }
+
+    /// When the application was installed.
+    ///
+    /// The bundle directory's birth time is the installation: a copy into
+    /// `/Applications`, a package payload or a drag from a disk image all create
+    /// the directory then, and an update that replaces the bundle creates a new
+    /// one. The modification date is the fallback for a volume that records no
+    /// birth time — it is the closest honest answer left — and a bundle that
+    /// answers neither reports no date at all rather than 1970.
+    private func installDate(url: URL) -> Date? {
+        let values = try? url.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey])
+        return values?.creationDate ?? values?.contentModificationDate
     }
 
     private func runningBundlePaths() async -> Set<String> {

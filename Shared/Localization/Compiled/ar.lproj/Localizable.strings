@@ -8,13 +8,15 @@
 "app.management.title" = "إدارة التطبيقات";
 "apps.appAndRelated" = "التطبيق %@, ملفات مرتبطة %@";
 "apps.footer" = "عرض التطبيقات فوق 200 ميغابايت · %d إجمالًا";
+"apps.installedOn" = "تم التثبيت في %@";
 "apps.lastOpened" = "آخر فتح %@";
 "apps.listTitle" = "التطبيقات";
 "apps.neverOpened" = "لم يُفتح أبدًا";
 "apps.reclaimable" = "يمكن تحريره";
 "apps.relatedWillRemove" = "ملفات مرتبطة للإزالة";
+"apps.rescan" = "إعادة فحص التطبيقات";
 "apps.restoreHint" = "قابل للاستعادة من المهملات حتى تفرغها";
-"apps.sortSummary" = "مرتّبة حسب الحجم, %@ إجمالًا";
+"apps.sortSummary" = "مرتبة حسب %1$@، الإجمالي %2$@";
 "apps.status" = "%d مثبّتة · %d لم تُفتح منذ 6 أشهر";
 "apps.uninstallAndClean" = "إزالة وتنظيف %@";
 "cleanup.busyNotice" = "لا تزال عملية أخرى قيد التنفيذ. أعد المحاولة بعد قليل.";
@@ -466,6 +468,7 @@
 "uninstall.search" = "البحث عن تطبيقات";
 "uninstall.selectApp" = "اختر تطبيقًا لترى ما سيُزال.";
 "uninstall.sharedContainer" = "مشترك أيضًا مع: %@";
+"uninstall.sort.installedAt" = "تاريخ التثبيت";
 "uninstall.sort.lastUsed" = "آخر استخدام";
 "uninstall.sort.name" = "الاسم";
 "uninstall.sort.size" = "الحجم";

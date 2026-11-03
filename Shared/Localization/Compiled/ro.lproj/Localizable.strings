@@ -8,13 +8,15 @@
 "app.management.title" = "Gestionare aplicații";
 "apps.appAndRelated" = "Aplicație %@, fișiere asociate %@";
 "apps.footer" = "Se afișează aplicațiile peste 200 MB · %d în total";
+"apps.installedOn" = "Instalat la %@";
 "apps.lastOpened" = "Ultima deschidere %@";
 "apps.listTitle" = "Aplicații";
 "apps.neverOpened" = "Niciodată deschisă";
 "apps.reclaimable" = "Poate fi eliberat";
 "apps.relatedWillRemove" = "Fișiere asociate de eliminat";
+"apps.rescan" = "Rescanează aplicațiile";
 "apps.restoreHint" = "Recuperabil din Coș până îl golești";
-"apps.sortSummary" = "Sortate după dimensiune · %@ în total";
+"apps.sortSummary" = "Sortate după %1$@, %2$@ în total";
 "apps.status" = "%d instalate · %d nedeschise în 6 luni";
 "apps.uninstallAndClean" = "Dezinstalează și curăță %@";
 "cleanup.busyNotice" = "Altă operație este încă în curs. Încearcă din nou într-o clipă.";
@@ -466,6 +468,7 @@
 "uninstall.search" = "Caută aplicații";
 "uninstall.selectApp" = "Alege o aplicație pentru a vedea ce s-ar elimina.";
 "uninstall.sharedContainer" = "Partajat și cu: %@";
+"uninstall.sort.installedAt" = "Data instalării";
 "uninstall.sort.lastUsed" = "Ultima utilizare";
 "uninstall.sort.name" = "Nume";
 "uninstall.sort.size" = "Dimensiune";

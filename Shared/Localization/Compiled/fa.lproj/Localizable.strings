@@ -8,13 +8,15 @@
 "app.management.title" = "مدیریت برنامه‌ها";
 "apps.appAndRelated" = "برنامه %@, فایل‌های مرتبط %@";
 "apps.footer" = "نمایش برنامه‌های بالای ۲۰۰ مگابایت · در مجموع %d";
+"apps.installedOn" = "نصب شده در %@";
 "apps.lastOpened" = "آخرین بازشدن %@";
 "apps.listTitle" = "برنامه‌ها";
 "apps.neverOpened" = "هرگز باز نشده";
 "apps.reclaimable" = "قابل آزادسازی";
 "apps.relatedWillRemove" = "فایل‌های مرتبط برای حذف";
+"apps.rescan" = "اسکن دوبارهٔ برنامه‌ها";
 "apps.restoreHint" = "تا خالی کردن سطل بازیافت قابل بازیابی است";
-"apps.sortSummary" = "مرتب بر اساس اندازه, در مجموع %@";
+"apps.sortSummary" = "مرتب‌شده بر اساس %1$@، مجموع %2$@";
 "apps.status" = "%d نصب‌شده · %d شش ماه است باز نشده";
 "apps.uninstallAndClean" = "حذف و پاک‌سازی %@";
 "cleanup.busyNotice" = "عملیات دیگری هنوز در حال اجراست. کمی بعد دوباره تلاش کنید.";
@@ -466,6 +468,7 @@
 "uninstall.search" = "جستجوی برنامه‌ها";
 "uninstall.selectApp" = "برنامه‌ای را انتخاب کنید تا ببینید چه چیزی حذف می‌شود.";
 "uninstall.sharedContainer" = "همچنین مشترک با: %@";
+"uninstall.sort.installedAt" = "تاریخ نصب";
 "uninstall.sort.lastUsed" = "آخرین استفاده";
 "uninstall.sort.name" = "نام";
 "uninstall.sort.size" = "اندازه";

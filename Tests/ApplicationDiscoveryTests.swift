@@ -42,6 +42,7 @@ final class ApplicationDiscoveryTests: XCTestCase, @unchecked Sendable {
             version: "1.0",
             sizeInBytes: 4096,
             lastUsedAt: nil,
+            installedAt: nil,
             isSystemApplication: false,
             isRunning: false
         )
@@ -84,6 +85,44 @@ final class ApplicationDiscoveryTests: XCTestCase, @unchecked Sendable {
         )
         let identifiers = await discovery.installedBundleIdentifiers()
         XCTAssertTrue(identifiers.contains("com.vendor.notes"))
+    }
+
+    /// The Apps page sorts by install date, so discovery has to report one.
+    ///
+    /// The bundle directory's birth time is what an install leaves behind. The
+    /// fixture writes the bundle itself, so the date it must report is the moment
+    /// this test created it — a bundle that reported no date, or the epoch, would
+    /// sort every row to the bottom of an "install date" list.
+    func test_discoveryReportsWhenTheBundleArrived() async {
+        let before = Date()
+        let plist = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+          <key>CFBundleIdentifier</key><string>com.vendor.fresh</string>
+          <key>CFBundleName</key><string>Fresh</string>
+          <key>CFBundleExecutable</key><string>Fresh</string>
+        </dict>
+        </plist>
+        """
+        fixture.writeBytes("Vendor/Fresh.app/Contents/Info.plist", Data(plist.utf8))
+
+        let discovery = ApplicationDiscovery(
+            rules: RuleEngine(rules: RuleEngine.builtInRules, homeDirectory: fixture.url),
+            additionalDirectories: [fixture.url],
+            includeDefaultDirectories: false
+        )
+
+        let applications = await discovery.installedApplications()
+        guard let fresh = applications.first(where: { $0.bundleIdentifier == "com.vendor.fresh" }) else {
+            return XCTFail("the fixture bundle was not discovered")
+        }
+        guard let installedAt = fresh.installedAt else {
+            return XCTFail("an installed bundle must report when it arrived")
+        }
+        XCTAssertGreaterThanOrEqual(installedAt, before.addingTimeInterval(-1))
+        XCTAssertLessThanOrEqual(installedAt, Date().addingTimeInterval(60))
     }
 
     func test_onlyAnIdentifierMatchIsConfirmed() {

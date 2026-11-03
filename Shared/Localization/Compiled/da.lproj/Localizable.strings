@@ -8,13 +8,15 @@
 "app.management.title" = "App-administration";
 "apps.appAndRelated" = "App %@, relaterede filer %@";
 "apps.footer" = "Viser apps over 200 MB · %d i alt";
+"apps.installedOn" = "Installeret %@";
 "apps.lastOpened" = "Senest åbnet %@";
 "apps.listTitle" = "Programmer";
 "apps.neverOpened" = "Aldrig åbnet";
 "apps.reclaimable" = "Kan frigives";
 "apps.relatedWillRemove" = "Relaterede filer, der fjernes";
+"apps.rescan" = "Scan apps igen";
 "apps.restoreHint" = "Kan gendannes fra Papirkurven, indtil du tømmer den";
-"apps.sortSummary" = "Sorteret efter størrelse · %@ i alt";
+"apps.sortSummary" = "Sorteret efter %1$@, %2$@ i alt";
 "apps.status" = "Installeret %d · %d ikke åbnet i 6 måneder";
 "apps.uninstallAndClean" = "Afinstaller og ryd %@";
 "cleanup.busyNotice" = "En anden handling kører stadig. Prøv igen om lidt.";
@@ -466,6 +468,7 @@
 "uninstall.search" = "Søg efter apps";
 "uninstall.selectApp" = "Vælg en app for at se, hvad der ville blive fjernet.";
 "uninstall.sharedContainer" = "Deles også med: %@";
+"uninstall.sort.installedAt" = "Installationsdato";
 "uninstall.sort.lastUsed" = "Senest brugt";
 "uninstall.sort.name" = "Navn";
 "uninstall.sort.size" = "Størrelse";

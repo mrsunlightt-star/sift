@@ -8,13 +8,15 @@
 "app.management.title" = "Управление приложениями";
 "apps.appAndRelated" = "Приложение %@, связанные файлы %@";
 "apps.footer" = "Показаны приложения больше 200 МБ, всего %d";
+"apps.installedOn" = "Установлено: %@";
 "apps.lastOpened" = "Последний запуск: %@";
 "apps.listTitle" = "Приложения";
 "apps.neverOpened" = "Не открывалось";
 "apps.reclaimable" = "Можно освободить";
 "apps.relatedWillRemove" = "Связанные файлы к удалению";
+"apps.rescan" = "Пересканировать приложения";
 "apps.restoreHint" = "Можно восстановить из Корзины до её очистки";
-"apps.sortSummary" = "По размеру, всего %@";
+"apps.sortSummary" = "Сортировка: %1$@, всего %2$@";
 "apps.status" = "Установлено: %d, не открывались 6 месяцев: %d";
 "apps.uninstallAndClean" = "Удалить и очистить %@";
 "cleanup.busyNotice" = "Другая операция ещё выполняется. Повторите чуть позже.";
@@ -466,6 +468,7 @@
 "uninstall.search" = "Поиск приложений";
 "uninstall.selectApp" = "Выберите приложение, чтобы увидеть, что будет удалено.";
 "uninstall.sharedContainer" = "Также используется: %@";
+"uninstall.sort.installedAt" = "Дата установки";
 "uninstall.sort.lastUsed" = "Последнее использование";
 "uninstall.sort.name" = "Имя";
 "uninstall.sort.size" = "Размер";

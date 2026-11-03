@@ -8,13 +8,15 @@
 "app.management.title" = "アプリ管理";
 "apps.appAndRelated" = "アプリ %@，関連ファイル %@";
 "apps.footer" = "200 MB 超のアプリのみ表示，全 %d 件";
+"apps.installedOn" = "インストール：%@";
 "apps.lastOpened" = "最終使用：%@";
 "apps.listTitle" = "アプリ一覧";
 "apps.neverOpened" = "未使用";
 "apps.reclaimable" = "解放できる容量";
 "apps.relatedWillRemove" = "一緒に削除する関連ファイル";
+"apps.rescan" = "アプリを再スキャン";
 "apps.restoreHint" = "ゴミ箱を空にするまで復元できます";
-"apps.sortSummary" = "サイズ順，合計 %@";
+"apps.sortSummary" = "%1$@順、合計 %2$@";
 "apps.status" = "インストール %d 件，6 か月以上未使用 %d 件";
 "apps.uninstallAndClean" = "アンインストールして %@ を整理";
 "cleanup.busyNotice" = "別の操作がまだ実行中です。しばらくしてからもう一度お試しください。";
@@ -466,6 +468,7 @@
 "uninstall.search" = "アプリを検索";
 "uninstall.selectApp" = "アプリを選択すると削除内容を確認できます。";
 "uninstall.sharedContainer" = "次のアプリとも共有されています: %@";
+"uninstall.sort.installedAt" = "インストール日";
 "uninstall.sort.lastUsed" = "最終使用";
 "uninstall.sort.name" = "名前";
 "uninstall.sort.size" = "サイズ";

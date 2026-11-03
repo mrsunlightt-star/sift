@@ -756,6 +756,15 @@ public struct InstalledApplication: Identifiable, Hashable, Sendable {
     public let version: String?
     public let sizeInBytes: Int64
     public let lastUsedAt: Date?
+    /// When the bundle was put on this disk.
+    ///
+    /// The file system's birth time for the bundle directory, which is what an
+    /// install leaves behind: a copy, a package payload or a drag-and-drop all
+    /// create the directory at the moment the application arrives, and an update
+    /// that replaces the bundle in place creates a new one. `nil` when the volume
+    /// records no birth time and no modification date either — a date this build
+    /// could not read is reported as unknown rather than as the epoch.
+    public let installedAt: Date?
     public let isSystemApplication: Bool
     /// True while the app is running, which changes the uninstall guidance.
     public let isRunning: Bool
@@ -767,6 +776,7 @@ public struct InstalledApplication: Identifiable, Hashable, Sendable {
         version: String?,
         sizeInBytes: Int64,
         lastUsedAt: Date?,
+        installedAt: Date?,
         isSystemApplication: Bool,
         isRunning: Bool
     ) {
@@ -777,6 +787,7 @@ public struct InstalledApplication: Identifiable, Hashable, Sendable {
         self.version = version
         self.sizeInBytes = sizeInBytes
         self.lastUsedAt = lastUsedAt
+        self.installedAt = installedAt
         self.isSystemApplication = isSystemApplication
         self.isRunning = isRunning
     }
@@ -786,6 +797,11 @@ public struct InstalledApplication: Identifiable, Hashable, Sendable {
     public var formattedLastUsed: String {
         guard let lastUsedAt else { return LocalizationKey.commonNotAvailable.localized }
         return SiftFormat.relativeDate(lastUsedAt)
+    }
+
+    public var formattedInstalledAt: String {
+        guard let installedAt else { return LocalizationKey.commonNotAvailable.localized }
+        return SiftFormat.relativeDate(installedAt)
     }
 }
 
