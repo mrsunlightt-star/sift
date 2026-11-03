@@ -25,9 +25,26 @@ jobs:
         working-directory: RustCore
         run: cargo clippy --all-targets -- -D warnings
 
+      # RELEASE.md §5.1 makes an audit a release condition: a CVE in a crate the
+      # scanner links is reachable from an app that has no sandbox. The script
+      # owns the two honest-failure paths a bare `cargo audit` would get wrong —
+      # a missing tool, and a database that cannot be fetched — because a check
+      # that could not run must fail the job rather than pass silently.
+      - name: Dependency audit
+        run: ./Scripts/security-audit.sh audit
+
       - name: Tests (unit + FFI contract)
         working-directory: RustCore
         run: cargo test --workspace
+
+      # sift-ffi is the only crate with `unsafe`, so it gets the instrumented
+      # run as well as the plain one: without a sandbox, a memory error there is
+      # user-level read/write over the whole disk (RELEASE.md §5.1). The script
+      # builds into RustCore/target/asan and asserts the test binary really
+      # links the sanitizer runtime, so a flag that silently stops applying
+      # fails here instead of turning into a green run over unchecked code.
+      - name: FFI tests under AddressSanitizer
+        run: ./Scripts/security-audit.sh sanitize
 
       # The spec asks for a performance regression threshold in CI. The benchmark
       # run here is the smoke check; the threshold is applied by comparing the

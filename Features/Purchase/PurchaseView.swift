@@ -30,7 +30,7 @@ public struct PurchaseView: View {
                     value: (isUnlocked
                         ? LocalizationKey.purchaseStatusPurchased
                         : LocalizationKey.purchaseStatusFree).localized,
-                    tint: isUnlocked ? SiftColor.safe : SiftColor.accent
+                    tone: isUnlocked ? .safe : .accent
                 )
             }
 
@@ -122,7 +122,7 @@ public struct PurchaseView: View {
                         .font(SiftFont.sectionTitle)
                 } icon: {
                     Image(systemName: "person.crop.circle")
-                        .foregroundStyle(SiftColor.accent)
+                        .foregroundStyle(SiftColor.accentText)
                 }
                 Text(LocalizationKey.purchasePriceLine.localized)
                     .font(SiftFont.caption)
@@ -197,7 +197,7 @@ public struct PurchaseView: View {
             TierCard(
                 titleKey: .purchaseStatusFree,
                 symbolName: "checkmark.seal",
-                tint: SiftColor.safe,
+                glyph: SiftColor.safeText,
                 items: [
                     .purchaseFreeTierScan,
                     .purchaseFreeTierExplain,
@@ -208,7 +208,7 @@ public struct PurchaseView: View {
             TierCard(
                 titleKey: .purchasePaidTierTitle,
                 symbolName: "lock.open",
-                tint: SiftColor.accent,
+                glyph: SiftColor.accentText,
                 items: [
                     .purchasePaidTierClean,
                     .purchasePaidTierUninstall,
@@ -340,7 +340,10 @@ public struct PurchaseView: View {
 struct TierCard: View {
     let titleKey: LocalizationKey
     let symbolName: String
-    let tint: Color
+    /// Both uses below are `.foregroundStyle` on a small glyph — the card's icon
+    /// and its tick list — so this is a text role and takes a text token; the
+    /// card itself draws no wash of its own.
+    let glyph: Color
     let items: [LocalizationKey]
 
     var body: some View {
@@ -351,13 +354,13 @@ struct TierCard: View {
                         .font(SiftFont.sectionTitle)
                 } icon: {
                     Image(systemName: symbolName)
-                        .foregroundStyle(tint)
+                        .foregroundStyle(glyph)
                 }
                 ForEach(items, id: \.rawValue) { item in
                     HStack(alignment: .top, spacing: SiftMetrics.spacingS) {
                         Image(systemName: "checkmark")
                             .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(tint)
+                            .foregroundStyle(glyph)
                             .padding(.top, 3)
                             .accessibilityHidden(true)
                         Text(item.localized)

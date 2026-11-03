@@ -5,8 +5,12 @@
 	<!--
 	  The direct-sold build is not sandboxed: it needs to scan caches and logs at
 	  paths the user did not pick with a file panel, and the specification keeps a
-	  root helper out of the first version (§10.1). Hardened runtime is on, and
-	  the app is notarised, so the code itself is still verified.
+	  root helper out of the first version (§10.1). Hardened runtime is on in every
+	  configuration (`ENABLE_HARDENED_RUNTIME: YES` in project.yml) so the runtime
+	  protections apply to a development build too; the Developer ID signature and
+	  the notarisation ticket are release steps and are not part of a local build —
+	  `RELEASE.md` lists them, and a build straight out of this checkout is ad-hoc
+	  signed and unnotarised.
 
 	  Nothing here grants extra privilege at runtime: Full Disk Access, when the
 	  user grants it, is a TCC decision made in System Settings.

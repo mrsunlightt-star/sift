@@ -37,7 +37,7 @@ public struct SettingsView: View {
                     value: (environment.entitlement.isUnlocked
                         ? LocalizationKey.purchaseStatusPurchased
                         : LocalizationKey.purchaseStatusFree).localized,
-                    tint: environment.entitlement.isUnlocked ? SiftColor.safe : SiftColor.accent
+                    tone: environment.entitlement.isUnlocked ? .safe : .accent
                 )
             }
 
@@ -375,7 +375,7 @@ public struct SettingsView: View {
                     ForEach(environment.authorizedLocations) { location in
                         HStack(spacing: SiftMetrics.spacingM) {
                             Image(systemName: location.isVolume ? "externaldrive" : "folder")
-                                .foregroundStyle(SiftColor.accent)
+                                .foregroundStyle(SiftColor.accentText)
                                 .accessibilityHidden(true)
                             VStack(alignment: .leading, spacing: 1) {
                                 Text(location.displayName)

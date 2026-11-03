@@ -43,7 +43,7 @@ public struct DashboardView: View {
                 SiftMetricPill(
                     symbolName: state.hasResultSet ? "leaf.fill" : "clock",
                     value: lastScanCaption,
-                    tint: state.hasResultSet ? SiftColor.safe : SiftColor.neutral
+                    tone: state.hasResultSet ? .safe : .neutral
                 )
             }
 
@@ -123,7 +123,7 @@ public struct DashboardView: View {
                         .font(SiftFont.eyebrow)
                         .tracking(0.8)
                         .textCase(.uppercase)
-                        .foregroundStyle(SiftColor.accent)
+                        .foregroundStyle(SiftColor.accentText)
 
                     Spacer(minLength: SiftMetrics.spacingM)
 

@@ -199,10 +199,15 @@ public actor FileOperationService {
 
             let protectionReason = rules.protectionReason(for: path)
             let isApplicationMove = protectionReason.map {
-                Self.permitsApplicationMove($0, intent: intent)
+                Self.permitsApplicationMove($0, intent: intent, url: candidate.url)
             } ?? false
 
             if let reason = protectionReason, !isApplicationMove {
+                if let refusal = Self.applicationMoveRefusal(reason, intent: intent, url: candidate.url) {
+                    logger.notice(
+                        "Refused an application move (code=protectedLocation, guard=\(refusal.rawValue, privacy: .public))"
+                    )
+                }
                 protected.append(candidate)
                 logger.notice(
                     "Refused a protected location (code=protectedLocation, reason=\(String(describing: reason)))"
@@ -458,15 +463,46 @@ public actor FileOperationService {
     /// keyed on the protection *reason* rather than on the path so that a future
     /// entry under `/Applications` — `/Applications/Utilities`, a moved system
     /// app — cannot widen the exception by being spelled the same way.
+    ///
+    /// The reason is necessary and not sufficient. It says *why* the path was
+    /// refused — `/Applications` is a protected prefix — and it says nothing
+    /// about what is at the path: a vendor subfolder, a bundle's own `Contents`,
+    /// a symlink somebody dropped in the folder and Apple's own applications all
+    /// produce the same reason, and a prefix comparison cannot tell them apart.
+    /// Since the exception is the only thing standing between this flow and the
+    /// protection list, the path itself is asked about too, through
+    /// `ApplicationBundleGuard`: a real bundle, directly in `/Applications`, not
+    /// a link, carrying an identifier, and not Apple's.
+    ///
+    /// The check is asked here rather than only where the installed list is
+    /// built, because a UI that only offers bundles is not a boundary: this
+    /// service is the last thing before `trashItem`, and the callers that reach
+    /// it are far from the page that picked the bundle. Both call sites — the
+    /// pre-flight pass and the move itself — ask this one question, so a path
+    /// that was a bundle when the plan was approved and is a link at the move is
+    /// refused at the move.
     static func permitsApplicationMove(
         _ reason: RuleEngine.ProtectionReason,
-        intent: CleanupOperationName
+        intent: CleanupOperationName,
+        url: URL
     ) -> Bool {
         guard intent == .uninstall else { return false }
         if case .systemPath(let prefix) = reason, prefix == "/Applications" {
-            return true
+            return ApplicationBundleGuard.isUninstallable(url)
         }
         return false
+    }
+
+    /// Why an application move was refused, for the log line that says which
+    /// question failed. `nil` when the path is not in the lifted prefix at all.
+    static func applicationMoveRefusal(
+        _ reason: RuleEngine.ProtectionReason,
+        intent: CleanupOperationName,
+        url: URL
+    ) -> ApplicationBundleGuard.Refusal? {
+        guard intent == .uninstall else { return nil }
+        guard case .systemPath(let prefix) = reason, prefix == "/Applications" else { return nil }
+        return ApplicationBundleGuard.refusal(for: url)
     }
 
     private static func refusalForARelocatedPath(_ url: URL) -> (code: ErrorCode, message: String)? {
@@ -585,9 +621,14 @@ public actor FileOperationService {
             // place that decision exists.
             let executionProtection = rules.protectionReason(for: item.url.path)
             let executionApplicationMove = executionProtection.map {
-                Self.permitsApplicationMove($0, intent: operation)
+                Self.permitsApplicationMove($0, intent: operation, url: item.url)
             } ?? false
             if let reason = executionProtection, !executionApplicationMove {
+                if let refusal = Self.applicationMoveRefusal(reason, intent: operation, url: item.url) {
+                    logger.error(
+                        "Blocked an application move at execution time (guard=\(refusal.rawValue, privacy: .public))"
+                    )
+                }
                 logger.error("Blocked a protected path at execution time (reason=\(String(describing: reason)))")
                 results.append(
                     FileOperationResult(

@@ -159,6 +159,7 @@ public struct StorageAnalysisView: View {
             HStack(alignment: .top, spacing: SiftMetrics.spacingXL) {
                 Image(systemName: "chart.bar.xaxis")
                     .font(.system(size: 28, weight: .medium))
+                    // fill-role: the card's illustration glyph, inside its own accent tile
                     .foregroundStyle(SiftColor.accent)
                     .frame(width: 58, height: 58)
                     .background(
@@ -307,7 +308,7 @@ public struct StorageAnalysisView: View {
                 HStack(spacing: SiftMetrics.spacingM) {
                     Text(analysis.formattedUsed)
                         .font(SiftFont.badge)
-                        .foregroundStyle(SiftColor.accent)
+                        .foregroundStyle(SiftColor.accentText)
                     Spacer()
                     Text(analysis.formattedFree)
                         .font(SiftFont.badge)
@@ -364,7 +365,7 @@ public struct StorageAnalysisView: View {
                     .font(SiftFont.eyebrow)
                     .textCase(.uppercase)
                     .tracking(0.8)
-                    .foregroundStyle(SiftColor.accent)
+                    .foregroundStyle(SiftColor.accentText)
                 Text(
                     LocalizationKey.storageCleanableHeading.localized(
                         SiftFormat.bytes(analysis.reclaimableBytes)
@@ -755,7 +756,7 @@ private struct FindingRow: View {
                     .font(SiftFont.monospacedNumber)
                 Text(finding.status.localizedTitle)
                     .font(SiftFont.caption)
-                    .foregroundStyle(finding.status.tint)
+                    .foregroundStyle(finding.status.textColor)
                 Text(remediationKey.localized)
                     .font(SiftFont.badge)
                     .foregroundStyle(.tertiary)
@@ -862,11 +863,14 @@ extension StorageFindingStatus {
         }
     }
 
-    var tint: Color {
+    /// The status word beside a finding's size. It is only ever read as a
+    /// 13 pt caption's foreground, so it is a text role and takes the text
+    /// twins of the risk palette rather than the fills behind them.
+    var textColor: Color {
         switch self {
-        case .cleanable: SiftColor.safe
-        case .rebuildable: SiftColor.accent
-        case .protected: SiftColor.review
+        case .cleanable: SiftColor.safeText
+        case .rebuildable: SiftColor.accentText
+        case .protected: SiftColor.reviewText
         case .unknown: SiftColor.neutral
         }
     }

@@ -374,7 +374,7 @@ struct IconRailView: View {
                 symbolName: destination.symbolName,
                 title: destination.titleKey.localized
             )
-            .foregroundStyle(isSelected ? SiftColor.accent : Color.secondary)
+            .foregroundStyle(isSelected ? SiftColor.accentText : Color.secondary)
         }
         .buttonStyle(SiftPressButtonStyle())
         // The group's slider paints the selection fill, so this entry only
@@ -396,7 +396,7 @@ struct IconRailView: View {
                 symbolName: "lock.open",
                 title: LocalizationKey.purchaseTitle.localized
             )
-            .foregroundStyle(SiftColor.accent)
+            .foregroundStyle(SiftColor.accentText)
         }
         .buttonStyle(SiftPressButtonStyle())
         // Not `isSelected: true`: the call to action used to wear the same
@@ -421,7 +421,7 @@ struct IconRailView: View {
                 symbolName: "person.crop.circle",
                 title: LocalizationKey.navAccount.localized
             )
-            .foregroundStyle(isSelected ? SiftColor.accent : Color.secondary)
+            .foregroundStyle(isSelected ? SiftColor.accentText : Color.secondary)
         }
         .buttonStyle(SiftPressButtonStyle())
         .siftRailItemChrome(isSelected: isSelected, fillsSelection: false)
@@ -594,7 +594,7 @@ struct AppearanceRailMenu: View {
             presented.wrappedValue.toggle()
         } label: {
             SiftRailItemLabel(symbolName: icon, title: selection.titleKey.localized)
-                .foregroundStyle(isPresented ? SiftColor.accent : Color.secondary)
+                .foregroundStyle(isPresented ? SiftColor.accentText : Color.secondary)
         }
         .buttonStyle(SiftPressButtonStyle())
         .siftRailItemChrome(isSelected: isPresented, fillsSelection: false)
@@ -660,7 +660,7 @@ struct AppearanceRailMenu: View {
                     .lineLimit(1)
                 Spacer(minLength: 0)
             }
-            .foregroundStyle(isSelected ? SiftColor.accent : .primary)
+            .foregroundStyle(isSelected ? SiftColor.accentText : .primary)
             .padding(.horizontal, SiftMetrics.spacingS)
             .frame(height: 30)
             .contentShape(Rectangle())

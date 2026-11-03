@@ -423,7 +423,9 @@ public struct SiftIconButton: View {
         Button(action: action) {
             Image(systemName: symbolName)
                 .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(isHovering ? SiftColor.accent : .secondary)
+                // The hovered glyph is read, so it takes the text token: `accent`
+                // is the fill colour and is 2.54:1 on a glass row.
+                .foregroundStyle(isHovering ? SiftColor.accentText : .secondary)
                 .frame(width: 30, height: 30)
                 .background(
                     RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
@@ -662,7 +664,11 @@ public struct SiftCheckbox: View {
             isOn.toggle()
         } label: {
             RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
-                .fill(isOn && isEnabled ? SiftColor.accentDeep : SiftColor.subtleFill)
+                // The theme names `accentFill` + `onAccent` as the selected
+                // toggle's pair; `accentDeep` with a white tick was 3.17:1 in
+                // light mode and, because `accentDeep` is the bright jade in
+                // dark mode, the 2.54:1 case there.
+                .fill(isOn && isEnabled ? SiftColor.accentFill : SiftColor.subtleFill)
                 .overlay {
                     RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
                         .strokeBorder(
@@ -674,7 +680,7 @@ public struct SiftCheckbox: View {
                     if isOn && isEnabled {
                         Image(systemName: "checkmark")
                             .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(SiftColor.onAccent)
                             .transition(
                                 reduceMotion
                                     ? .opacity
@@ -1025,12 +1031,25 @@ public struct NoticeBanner: View {
         case error
         case success
 
-        var tint: Color {
+        /// The banner's surface: a wash and a hairline, which is a fill role.
+        var fill: Color {
             switch self {
-            case .information: SiftColor.accent
-            case .warning: SiftColor.review
-            case .error: SiftColor.danger
-            case .success: SiftColor.safe
+            case .information: return SiftColor.accent
+            case .warning: return SiftColor.review
+            case .error: return SiftColor.danger
+            case .success: return SiftColor.safe
+            }
+        }
+
+        /// The banner's icon: a small glyph the user reads, so it takes the text
+        /// twin of `fill`. On the accent pair that is 2.42:1 against the banner's
+        /// own wash instead of 4.5:1.
+        var glyph: Color {
+            switch self {
+            case .information: return SiftColor.accentText
+            case .warning: return SiftColor.reviewText
+            case .error: return SiftColor.dangerText
+            case .success: return SiftColor.safeText
             }
         }
 
@@ -1071,7 +1090,7 @@ public struct NoticeBanner: View {
     public var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: SiftMetrics.spacingM) {
             Image(systemName: level.symbolName)
-                .foregroundStyle(level.tint)
+                .foregroundStyle(level.glyph)
                 .accessibilityHidden(true)
             Text(message)
                 .font(SiftFont.body)
@@ -1086,11 +1105,11 @@ public struct NoticeBanner: View {
             }
         }
         .padding(SiftMetrics.spacingM)
-        .background(level.tint.opacity(0.10))
+        .background(level.fill.opacity(0.10))
         .clipShape(RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
-                .strokeBorder(level.tint.opacity(0.18), lineWidth: SiftMetrics.hairline)
+                .strokeBorder(level.fill.opacity(0.18), lineWidth: SiftMetrics.hairline)
         }
         .accessibilityElement(children: .contain)
     }
@@ -1182,15 +1201,49 @@ public struct SiftHeroCard<Actions: View>: View {
 }
 
 /// A small labelled value used in the page summary strips.
+///
+/// The pill is two roles at once and used to be painted with one colour: the
+/// wash and hairline are a *fill*, while the 13 pt value and the 10 pt glyph
+/// beside it are text the user reads. On the accent pair that is the difference
+/// between 2.42:1 and 4.54:1, so the pigment is named by `Tone` rather than
+/// passed as a `Color` — a call site cannot hand a fill token to the label.
 public struct SiftMetricPill: View {
+    /// The palette pair a pill is painted with: `fill` for its surface, `glyph`
+    /// for the value and icon.
+    public enum Tone: Sendable {
+        case accent
+        case safe
+        case review
+        case neutral
+
+        var fill: Color {
+            switch self {
+            case .accent: return SiftColor.accent
+            case .safe: return SiftColor.safe
+            case .review: return SiftColor.review
+            case .neutral: return SiftColor.neutral
+            }
+        }
+
+        var glyph: Color {
+            switch self {
+            case .accent: return SiftColor.accentText
+            case .safe: return SiftColor.safeText
+            case .review: return SiftColor.reviewText
+            // `neutral` is already the secondary label colour, i.e. a text role.
+            case .neutral: return SiftColor.neutral
+            }
+        }
+    }
+
     private let symbolName: String
     private let value: String
-    private let tint: Color
+    private let tone: Tone
 
-    public init(symbolName: String, value: String, tint: Color = SiftColor.accent) {
+    public init(symbolName: String, value: String, tone: Tone = .accent) {
         self.symbolName = symbolName
         self.value = value
-        self.tint = tint
+        self.tone = tone
     }
 
     public var body: some View {
@@ -1201,16 +1254,16 @@ public struct SiftMetricPill: View {
                 .font(SiftFont.bodyEmphasis)
                 .monospacedDigit()
         }
-        .foregroundStyle(tint)
+        .foregroundStyle(tone.glyph)
         .padding(.horizontal, SiftMetrics.spacingM)
         .padding(.vertical, 6)
         .background(
             RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS + 2, style: .continuous)
-                .fill(tint.opacity(0.10))
+                .fill(tone.fill.opacity(0.10))
         )
         .overlay {
             RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS + 2, style: .continuous)
-                .strokeBorder(tint.opacity(0.16), lineWidth: SiftMetrics.hairline)
+                .strokeBorder(tone.fill.opacity(0.16), lineWidth: SiftMetrics.hairline)
         }
     }
 }
@@ -1466,7 +1519,7 @@ public struct LanguageMenu: View {
             // and label as the navigation entries above it, so the footer does
             // not introduce a second scale at the bottom of the rail.
             SiftRailItemLabel(symbolName: "globe", title: shortName)
-                .foregroundStyle(isPickerPresented ? SiftColor.accent : Color.secondary)
+                .foregroundStyle(isPickerPresented ? SiftColor.accentText : Color.secondary)
 
         case .sidebar:
             HStack(spacing: SiftMetrics.spacingS) {
@@ -1670,7 +1723,7 @@ private struct LanguagePickerRow: View {
                     .lineLimit(1)
                 Spacer(minLength: 0)
             }
-            .foregroundStyle(isSelected ? SiftColor.accent : .primary)
+            .foregroundStyle(isSelected ? SiftColor.accentText : .primary)
             .padding(.horizontal, SiftMetrics.spacingS)
             .frame(height: 30)
             .contentShape(Rectangle())

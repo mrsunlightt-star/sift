@@ -195,6 +195,15 @@ After changing `project.yml`, install XcodeGen if needed (`brew install
 xcodegen`) and run `xcodegen generate --spec project.yml`. Commit the regenerated
 project.
 
+Adding a source file needs that too, and it is the case that hides: `SiftTests`
+and `SiftUITests` take `sources: path: Tests`, which XcodeGen expands into an
+explicit file list at generation time, so a new test file is compiled by
+`swift test` and by `Scripts/run-tests.sh` but absent from the generated project
+— the Xcode stage then runs fewer tests than the summary line above it, and the
+only symptom is two counts that disagree (measured: 401 methods against a 382-case
+unit target, the gap exactly the new files). Regenerate before committing anything
+that adds a file under `Tests/`, `Features/`, `Core/`, `Shared/` or `App/`.
+
 After changing anything under `Shared/Localization/`, regenerate the catalog and
 its `.lproj` outputs with `python3 Scripts/generate-strings.py`. Never edit
 `Localizable.xcstrings`, `LocalizationKey.swift` or `.lproj` files by hand.

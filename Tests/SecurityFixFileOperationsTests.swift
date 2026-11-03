@@ -394,13 +394,27 @@ final class SecurityFixFileOperationsTests: XCTestCase, @unchecked Sendable {
     /// than through a real `/Applications` fixture this process may not create.
     func test_onlyAnUninstallMayLookPastTheApplicationsPrefix() {
         let applications = RuleEngine.ProtectionReason.systemPath("/Applications")
-        XCTAssertTrue(FileOperationService.permitsApplicationMove(applications, intent: .uninstall))
-        XCTAssertFalse(FileOperationService.permitsApplicationMove(applications, intent: .junkCleanup))
-        XCTAssertFalse(FileOperationService.permitsApplicationMove(applications, intent: .largeFiles))
+        // The path has to be one the guard accepts, or the flow is refused for a
+        // second reason and the predicate under test is masked. `/Applications`
+        // itself is not a bundle, so the predicate test asks the same question the
+        // service asks and states the answer it must get — which is the wiring —
+        // and the bundle-shaped cases are the guarded ones below.
+        let bundle = URL(fileURLWithPath: "/Applications/Example.app")
+        XCTAssertFalse(
+            FileOperationService.permitsApplicationMove(applications, intent: .junkCleanup, url: bundle)
+        )
+        XCTAssertFalse(
+            FileOperationService.permitsApplicationMove(applications, intent: .largeFiles, url: bundle)
+        )
+        XCTAssertEqual(
+            FileOperationService.permitsApplicationMove(applications, intent: .uninstall, url: bundle),
+            ApplicationBundleGuard.isUninstallable(bundle),
+            "under `/Applications` an uninstall is allowed exactly when the guard is"
+        )
 
-        // Nothing else is lifted, for either flow: the exception is keyed on the
-        // reason, so a document, a keychain and a recycle bin stay refused even
-        // when the user asks to uninstall something.
+        // And the reason is necessary but not sufficient: the same bundle-shaped
+        // path under any other protected prefix stays refused, because the
+        // exception is keyed on the reason rather than on the spelling.
         for reason: RuleEngine.ProtectionReason in [
             .userContent("Documents"),
             .secrets("Library/Keychains"),
@@ -409,8 +423,12 @@ final class SecurityFixFileOperationsTests: XCTestCase, @unchecked Sendable {
             .systemPath("/Volumes"),
         ] {
             XCTAssertFalse(
-                FileOperationService.permitsApplicationMove(reason, intent: .uninstall),
+                FileOperationService.permitsApplicationMove(reason, intent: .uninstall, url: bundle),
                 "\(reason) must stay refused for an uninstall"
+            )
+            XCTAssertNil(
+                FileOperationService.applicationMoveRefusal(reason, intent: .uninstall, url: bundle),
+                "\(reason) is not the lifted prefix, so there is no application-move refusal to report"
             )
         }
     }
@@ -426,12 +444,18 @@ final class SecurityFixFileOperationsTests: XCTestCase, @unchecked Sendable {
     /// dry run, so nothing is moved.
     func test_aRealApplicationBundleIsPreflightableForAnUninstallOnly() async {
         let apps = (try? FileManager.default.contentsOfDirectory(atPath: "/Applications")) ?? []
-        guard let bundleName = apps.filter({ $0.hasSuffix(".app") }).sorted().first else {
-            // Nothing to prove on a machine with no applications installed; the
+        let bundles = apps.filter { $0.hasSuffix(".app") }
+            .sorted()
+            .map { URL(fileURLWithPath: "/Applications").appendingPathComponent($0) }
+        // The exemption is for a bundle the guard accepts, so the machine's first
+        // `.app` is not necessarily one: Apple's own applications and anything
+        // that is really a link must be refused, which is the point of the guard.
+        guard let bundle = bundles.first(where: ApplicationBundleGuard.isUninstallable) else {
+            // Nothing to prove on a machine with no third-party applications; the
             // predicate test above still covers the decision.
             return
         }
-        let bundle = URL(fileURLWithPath: "/Applications").appendingPathComponent(bundleName)
+        let bundleName = bundle.lastPathComponent
         let service = makeOperations()
         let candidate = FileOperationService.Candidate(item: item(bundle))
 
@@ -445,6 +469,29 @@ final class SecurityFixFileOperationsTests: XCTestCase, @unchecked Sendable {
         let cleanupVerdict = await service.preflight([candidate], intent: CleanupOperationName.junkCleanup)
         XCTAssertEqual(cleanupVerdict.ready.count, 0, "a cleanup may never move an application")
         XCTAssertEqual(cleanupVerdict.protected.count, 1)
+    }
+
+    /// The exemption is not the prefix; it is the bundle.
+    ///
+    /// Everything else spelled under `/Applications` reaches pre-flight with the
+    /// same protection reason — a folder inside a bundle, a vendor subfolder, a
+    /// path that does not exist — and none of them is an application the user
+    /// picked. Before the guard, `permitsApplicationMove` answered "yes" for all
+    /// of them on an uninstall, because it only ever looked at the reason.
+    func test_onlyABundleIsLiftedFromTheApplicationsPrefix() async {
+        let service = makeOperations()
+        let contents = URL(fileURLWithPath: "/Applications/SiftGuardFixture.app/Contents")
+        let vendorFolder = URL(fileURLWithPath: "/Applications/SiftVendorShelf")
+        let missing = URL(fileURLWithPath: "/Applications/SiftGuardFixture.app")
+
+        for url in [contents, vendorFolder, missing] {
+            let verdict = await service.preflight(
+                [FileOperationService.Candidate(item: item(url))],
+                intent: CleanupOperationName.uninstall
+            )
+            XCTAssertEqual(verdict.ready.count, 0, "\(url.lastPathComponent) is not a bundle to uninstall")
+            XCTAssertEqual(verdict.protected.count, 1, "\(url.path) stays on the protection list")
+        }
     }
 
     /// And the flow really is what pre-flight consults: user content stays

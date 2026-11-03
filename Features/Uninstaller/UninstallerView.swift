@@ -57,7 +57,7 @@ public struct UninstallerView: View {
                 SiftMetricPill(
                     symbolName: "shippingbox",
                     value: LocalizationKey.commonItemCount.counted(environment.installedApplications.count),
-                    tint: SiftColor.accent
+                    tone: .accent
                 )
             }
 
@@ -471,7 +471,7 @@ public struct UninstallerView: View {
                 .font(SiftFont.eyebrow)
                 .textCase(.uppercase)
                 .tracking(0.8)
-                .foregroundStyle(SiftColor.accent)
+                .foregroundStyle(SiftColor.accentText)
 
             Text(plan.formattedTotal(includeReviewFiles: includeReviewFiles))
                 .font(SiftFont.metricLarge)

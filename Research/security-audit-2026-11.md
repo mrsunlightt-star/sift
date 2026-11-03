@@ -127,3 +127,113 @@ VERDICT: every check passed
 生成产物一致性（`generate-strings` / `generate-protection` / `generate-rules` 的
 `--check`）与 `check-explanation-keys.py` 均通过；`cargo fmt --check` 与
 `cargo clippy --all-targets -D warnings` 干净。
+
+## 2026-11-04 复核：外部审查清单的逐条判定
+
+一份外部审查（P0/P1/P2 共 10 条，含一条"正式上线阻塞"清单）逐条对回源码。结论先说：
+**7 条成立，2 条在本文里已经是"已修/已接受"，1 条是旧版本的结论**。其中 CI 那一条比报告
+写的更重——不是"没写"，而是 `RELEASE.md` 与本文都已承诺、`ci.yml` 里都没有。本轮补上三处，
+另有两处只能登记（需要证书、服务端或人工），下面写清依赖，避免下次当新发现再报一遍。
+
+| 外部结论 | 对回源码 | 处置 |
+|---|---|---|
+| P0 Developer ID 签名与公证缺失 | 成立：`RELEASE.md` 自述 ad-hoc，`project.yml:41` `CODE_SIGN_IDENTITY: "-"`；`ENABLE_HARDENED_RUNTIME: YES` 早已在（`project.yml:66`） | 本仓库闭不了（证书 + Apple ID + 干净 Mac）。顺带更正了一处文档假话，见下 |
+| P0 授权验证没接通 | 成立，且是**有意**就这样：`Core/App/AppEnvironment.swift:88` 只认 DEBUG 键 `SIFT-DEV-K7QM-3XPD-8R2V`，其余一律 `licenseServiceUnavailable`；`EntitlementService.activate:404`、`purchase()` 同样 | 需要服务端签发与校验，本仓库闭不了；免费版不执行清理由 invariant 6 兜底 |
+| P1 CI 没有 `cargo audit`、没有 ASan | 成立，且比报告更重：`RELEASE.md:110`（HEAD）与本文残余风险 1 都写了"CI 常开 ASan、audit 失败即红"，`.github/workflows/ci.yml` 里两个都没有 | **本轮补上**：`Scripts/security-audit.sh` + `rust` job 两个步骤 |
+| P1 `/Applications` 卸载豁免过宽 | 成立：`permitsApplicationMove` 只看 reason 与 intent，任何 `/Applications` 子路径在 uninstall 下都被放行 | **本轮补上**：`ApplicationBundleGuard` + 两处调用点 + 3 条测试 |
+| P1 `trashItem` 祖先链接 TOCTOU | 部分不成立：H1 已把两次 `await` 前移、校验与移动之间零挂起点，identity snapshot 与重定位校验都在；残余的"被调用 API 自身跟随祖先链接"已登记为残余风险 3 | 不动作，与本文一致 |
+| P2 对比度不达标（主按钮 3.17、链接 2.54、Review 徽标 3.56） | 部分不成立：`SiftTheme.swift` 早已把 fill/text 两个角色拆开并达标（`accentText` 4.53、`accentFill`+`onAccent` 4.54、`reviewText` 4.51、`safeText` 4.56、`subtleText` 6.13、暗色 `onAccent` 7.04）；真正不达标的是**15 处调用点仍拿 fill 色画文字/字形**，外加 4 个组件把 `tint: Color` 直接当 label 用 | **本轮补上**：调用点改正 + 组件按角色收口 + `DesignSystemRoleTests` 防回退 |
+| P2 大文件职责集中 | 成立 | 报告自己也说别现在做；不动 |
+| P2 34 种语言的真机布局未验 | 成立 | 未动作，需要人工跑 RTL 与长文本 |
+| P1 真实 macOS 环境回归 | 部分：`Scripts/verify.sh` 的 XCUITest 8 条是真跑（本次 8 executed），但"下载后首次启动、升级"确实没有 | 随签发一并做，属 P0 的验收条件 |
+| P2 性能回归阈值未自动化 | 成立：CI 只有 benchmark 冒烟，没有阈值比较 | 未动作，登记 |
+
+### 本轮补上的三处
+
+**一、卸载豁免从"前缀"收紧到"bundle"**（对应上表第 4 条）
+
+`Core/FileOperations/ApplicationBundleGuard.swift` 是新的判定层，`permitsApplicationMove`
+在 `/Applications` 分支里改成返回 `ApplicationBundleGuard.isUninstallable(url)`：后缀必须是
+`.app`、父目录必须**正好**是 `/Applications`、`lstat` 必须是一个真实目录（符号链接与普通文件
+都拒）、`Contents/Info.plist` 必须能解析出 bundle identifier、`com.apple.` 前缀一律拒。拒绝原因
+按 `notAnApplicationBundle → notDirectlyInApplications → notADirectory → missingBundleIdentifier
+→ systemApplication` 的顺序取第一个，preflight 与执行两处都把它写进日志（`guard=<reason>`），
+失败时用户看到的是原因而不是"受保护"。`Info.plist` 用 `PropertyListSerialization` 读，
+不用 `Bundle(url:)`——后者会把一个坏 bundle 变成"看起来有 identifier"。
+
+关键是这个改动**让 reason 变成必要条件而不是充分条件**：以前"用户要卸载"就够了，现在还必须
+是"用户点的那一个 bundle"。测试在 `Tests/ApplicationBundleGuardTests.swift`（17 条）与
+`Tests/SecurityFixFileOperationsTests.swift`（放行=guard 的结论、其他前缀仍拒、
+`/Applications/X.app/Contents` 与 `/Applications/vendor/` 与不存在的 bundle 都保持受保护）。
+
+**二、CI 的两个安全检查，以及"flag 静默失效"的自检**（对应第 3 条）
+
+`Scripts/security-audit.sh`（`audit` / `sanitize` / `--offline`），`rust` job 增加
+`Dependency audit`、`FFI tests under AddressSanitizer` 两步。测量出来两件事，都影响正确性：
+
+- `-C link-arg=-fsanitize=address` 在**这条工具链上是空操作**：`otool -L` 里没有
+  `libclang_rt.asan_*`，测试照样绿。而且 `RustCore/.cargo/config.toml` 的
+  `target.<triple>.rustflags` 优先于 `RUSTFLAGS`，环境变量根本到不了 rustc。
+- 可用配方是 `RUSTC_BOOTSTRAP=1` + `-Zsanitizer=address`，经
+  `--config target.<host>.rustflags=[...]` 传入，并且必须显式 `--target <host>`，否则 cargo
+  连 proc macro 一起插桩，rustc 直接以 `Interceptors are not working ... loaded too late` 退出。
+
+因此脚本在构建后**重读 `otool -L`，没有任何测试二进制链上 ASan 运行时就算失败**——一个静默
+失效的开关，比没有开关更危险，因为它给的是绿的。两条失败路径都实测过：缺 `cargo-audit` 且
+`--offline`、以及旧的 link-arg 构建，都以 exit 1 结束。构建目录是 `RustCore/target/asan`
+（`gitignore` 已覆盖），不会污染 `Bridge/macos-universal/libsift_ffi.a`。
+
+**三、对比度按"角色"而不是"色值"修**（对应第 6 条）
+
+token 本身没问题，问题在用法：`SiftColor.accent`（2.54:1）是**填充色**，被当成文字色用了。
+本轮改了 15 处文字/字形调用点（rail 标签、eyebrow、诊断状态说明、picker 行等），并把三个
+组件的参数形状改了——`SiftMetricPill` 的 `tint: Color` → `tone: Tone`（`fill` 与 `glyph` 分开）、
+`NoticeBanner.Level` 的 `tint` 拆成 `fill`/`glyph`、`TierCard` 的 `tint` → `glyph`，
+`SiftCheckbox` 的勾改成 `accentFill` + `onAccent`（暗色下原本 2.54:1，因为 `accentDeep` 在暗色
+就是 `#00AEEC`）。
+
+剩下的填充/描边/渐变/控件 tint 一律不动，并在两处插画字形上写 `// fill-role: <理由>` 显式
+豁免。`Tests/DesignSystemRoleTests.swift` 扫 `App/`、`Features/` 下所有 `.foregroundStyle(...)`
+（括号配平，所以 `accentText` 不会被当成 `accent`），没有豁免标记就用 fill 色写文字即失败；
+第二条测试要求每条豁免都贴着真正的 fill token 且理由非空，防止它退化成一张空白通行证。
+注入一处违规验证过能被抓到并报出行号。
+
+### 报告判重的两处（本文已有记录，仍然成立）
+
+1. **`trashItem` 自身的语义**（残余风险 3）。校验与移动之间的理论窗口是 API 的语义，不是本
+   项目漏掉的检查；结构性解法是 `openat(O_NOFOLLOW)` + `fstatat` + `renameat` 按 dirfd 移动，
+   但 `trashItem` 的"放回原处"元数据是产品承诺的一部分，换成裸 `renameat` 就要自己写回收站
+   元数据，属于产品决策而不是补丁。维持既有决定：接受并记录。
+2. **超大 bundle 的 500k 条目预算**（上面的"一处已知的测量缺口"）。报告把它当新发现提出，
+   数字对得上：只影响诊断页的体积，不产生候选、不参与删除。
+
+### 本仓库内闭不了的三项
+
+1. **Developer ID 签名与公证**：需要证书、Apple ID、一台没有本仓库任何衍生数据的 Mac。
+   命令级步骤在 `RELEASE.md`（`notarytool submit --wait`、`stapler staple`、`spctl -a -vvv`）。
+2. **授权服务**：需要服务端签发凭证、客户端 Keychain 存取、到期与恢复购买；客户端骨架
+   （`EntitlementService`、14 天离线宽限、每次门禁重算过期）已在，缺的是对端。
+3. **ASan 的首次 CI 跑**：本地绿（18 条 `sift-ffi` 测试），但本机没有 GitHub Actions，
+   `ci.yml` 的这一步尚未在真实 runner 上跑过；第一次会现编 `cargo-audit`（约 3 分钟，无缓存）。
+
+### 一处文档更正
+
+`Config/Sift.entitlements` 的注释原文写"the app is notarised"，而 `RELEASE.md` 自述当前构建是
+ad-hoc 签名——同一棵树里两句话互相矛盾。已改成：hardened runtime 每个配置都开
+（`ENABLE_HARDENED_RUNTIME: YES`），Developer ID 签名与公证是发布步骤，checkout 直出的构建是
+ad-hoc 且未公证。
+
+### 验证（2026-11-04）
+
+`Scripts/verify.sh --quick` 全绿：
+
+```
+Rust 291 · Swift XCTest 401 · self-test 265 · Xcode unit target 401 · XCUITest 8 (ran, 8 executed)
+VERDICT: every check passed
+```
+
+新增的 19 条测试（17 条 guard + 2 条设计系统角色）第一次跑时**只进了 `swift test`，没进 Xcode
+的 unit target**（382 vs 401）。原因是 `project.yml` 里 `SiftTests` 的 `sources: path: Tests`
+是生成期展开的显式文件列表：新增测试文件不会自动进已生成的工程，必须
+`xcodegen generate --spec project.yml`。重新生成后两边都是 401。这条已补进 `AGENTS.md` 的
+"Before committing"，因为它只在"数量对不上"时才可见。

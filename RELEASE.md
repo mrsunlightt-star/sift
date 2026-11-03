@@ -107,16 +107,47 @@ runner 起不来是**间歇**的，不是这台机器的固有缺陷，而且有
 - 跨语言的每一个入口都校验形状：扫描请求与存储分析的根目录走同一个 allowlist
   （`RustCore/crates/sift-ffi/src/lib.rs` 的 `validate_scope`），请求里的尺寸字段在反序列化
   时被 clamp，用户规则文件在读取时拒绝逃逸锚点与禁用目录；
-- CI 为 `sift-ffi` 常开 ASan，`cargo audit` 失败即红。
+- 依赖审计与 ASan 都在 `Scripts/security-audit.sh` 里，CI 的 `rust` 作业（每个 push 与 PR）
+  两步都跑：`cargo audit` 这一步、`sift-ffi` 的 AddressSanitizer 这一步。**`cargo audit`
+  非零退出即整个作业变红**，不是警告。
 
-发布前跑一次：
+本地跑同一份脚本（无参数 = 两项都跑，`--offline` = 不联网）：
 
 ```bash
-cd RustCore && cargo audit                      # 依赖 CVE
-cd RustCore && RUSTFLAGS="-Zsanitizer=address" \
-  cargo +nightly test -p sift-ffi --target aarch64-apple-darwin
+Scripts/security-audit.sh                 # cargo audit + sift-ffi 的 ASan 测试
+Scripts/security-audit.sh audit           # 只跑依赖审计
+Scripts/security-audit.sh sanitize        # 只跑 ASan
+Scripts/security-audit.sh --offline       # 网络不可用：用本地 advisory-db，不装工具
 grep -rn "unsafe" RustCore/crates --include=*.rs | grep -v "sift-ffi"   # 期望：只在测试或注释里
 ```
+
+`audit` 在 `RustCore/` 里跑 `cargo audit`；`cargo-audit` 没装时，非 `--offline` 会先
+`cargo install cargo-audit --locked`，`--offline` 则直接以"工具缺失 + 安装命令"失败。
+
+`sanitize` 跑的是：
+
+```bash
+cd RustCore && RUSTC_BOOTSTRAP=1 CARGO_TARGET_DIR=$PWD/target/asan \
+  ASAN_OPTIONS=detect_leaks=0 cargo test -p sift-ffi --target "$(rustc -vV | sed -n 's/^host: //p')" \
+  --config 'target.<host>.rustflags=["-C","link-arg=-mmacosx-version-min=13.0","-C","link-args=-mmacosx-version-min=13.0","-Zsanitizer=address"]'
+```
+
+三件事是实测出来的，不是写法偏好：
+
+- `RustCore/.cargo/config.toml` 设了 `target.<triple>.rustflags`，cargo 会因此**忽略**
+  `RUSTFLAGS` 环境变量；只在环境里加 `-Zsanitizer=address` 会静默无效，测试照跑，代码一行都没插桩。
+  所以标志走 `--config`，并且要连部署目标那两条一起给（配置里只留其中一条时，另一条会被丢掉）。
+- 只用 `-C link-arg=-fsanitize=address` 在这条工具链上根本不会链接运行时：产出的测试二进制里没有
+  ASan 运行时，测试全绿却什么都没检查。脚本因此构建后回读 `otool -L`，没有 ASan 运行时即判失败。
+- `-Z` 在 stable 上是 nightly-only，本机与 CI 都只有 `rust-toolchain.toml` 钉住的 1.99.1。
+  `RUSTC_BOOTSTRAP=1` 让这条钉住的工具链接受该标志，不安装、也不升级任何工具。
+  `--target <host>` 同样必需：不指定时 cargo 会把 target 的 rustflags 也用到 proc macro 上，
+  rustc 加载被插桩的过程宏时会直接 abort（`Interceptors are not working ... loaded too late`）。
+
+`sanitize` 构建到 `RustCore/target/asan`，不碰 `RustCore/target/<triple>/release`，因此
+`Bridge/macos-universal/libsift_ffi.a`——Swift 侧 `-force_load` 的那个归档——不会被带 sanitizer
+的对象替换。**无法运行的检查不算通过**：工具缺失、advisory 库拉不下来、测试二进制没有链接
+sanitizer 运行时，三者都让脚本以非零退出。
 
 对应的审查记录见 [Research/security-audit-2026-11.md](Research/security-audit-2026-11.md)：那一篇
 列了每条缺陷、修法与**明确接受的残余风险**（纯词法归一不做 `realpath`、`trashItem` 自身跟随

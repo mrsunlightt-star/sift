@@ -490,6 +490,7 @@ public struct ScanView: View {
                 HStack(alignment: .top, spacing: SiftMetrics.spacingXL) {
                     Image(systemName: "viewfinder")
                         .font(.system(size: 30, weight: .medium))
+                        // fill-role: the card's illustration glyph, inside its own accent tile
                         .foregroundStyle(SiftColor.accent)
                         .frame(width: 58, height: 58)
                         .background(
@@ -560,7 +561,7 @@ public struct ScanView: View {
                 HStack(spacing: SiftMetrics.spacingM) {
                     Image(systemName: "folder.badge.questionmark")
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(SiftColor.accent)
+                        .foregroundStyle(SiftColor.accentText)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(LocalizationKey.filesScopeTitle.localized)
                             .font(SiftFont.bodyEmphasis)
@@ -977,7 +978,7 @@ public struct ScanView: View {
                     .font(SiftFont.eyebrow)
                     .textCase(.uppercase)
                     .tracking(0.8)
-                    .foregroundStyle(SiftColor.accent)
+                    .foregroundStyle(SiftColor.accentText)
 
                 Text(cleanup.formattedSelectedBytes)
                     .font(SiftFont.metricLarge)
@@ -1573,7 +1574,7 @@ struct ScanRunningCard: View {
                             .font(SiftFont.eyebrow)
                             .textCase(.uppercase)
                             .tracking(0.8)
-                            .foregroundStyle(SiftColor.accent)
+                            .foregroundStyle(SiftColor.accentText)
                         Text(phase.labelKey.localized)
                             .font(SiftFont.title)
                             .contentTransition(.opacity)
