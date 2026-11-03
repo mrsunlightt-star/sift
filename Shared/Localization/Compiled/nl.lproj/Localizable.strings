@@ -3,6 +3,9 @@
 
 "account.activatedAt" = "Geactiveerd op";
 "account.licenseKey" = "Licentiesleutel";
+"app.management.recheck" = "Opnieuw controleren";
+"app.management.required" = "Sta Sift toe bij App-beheer om apps van andere ontwikkelaars te verplaatsen.";
+"app.management.title" = "App-beheer";
 "apps.appAndRelated" = "App %@, gerelateerde bestanden %@";
 "apps.footer" = "Toont apps boven 200 MB, %d totaal";
 "apps.lastOpened" = "Laatst geopend %@";

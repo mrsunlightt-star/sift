@@ -3,6 +3,9 @@
 
 "account.activatedAt" = "Ημερομηνία ενεργοποίησης";
 "account.licenseKey" = "Κλειδί άδειας";
+"app.management.recheck" = "Έλεγχος ξανά";
+"app.management.required" = "Επιτρέψτε το Sift στη «Διαχείριση εφαρμογών» για να μετακινεί εφαρμογές άλλων προγραμματιστών.";
+"app.management.title" = "Διαχείριση εφαρμογών";
 "apps.appAndRelated" = "Εφαρμογή %@, σχετικά αρχεία %@";
 "apps.footer" = "Εμφάνιση εφαρμογών άνω των 200 MB · %d συνολικά";
 "apps.lastOpened" = "Τελευταίο άνοιγμα %@";

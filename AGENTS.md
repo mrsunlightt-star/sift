@@ -779,6 +779,29 @@ These are product promises, not implementation details. Each has tests behind it
     `test_aRefusedMoveOfAnApplicationBundleAsksForAppManagement`,
     `test_anApplicationBundleIsRecognisedByItsSuffix`.
 
+    The gate is also stated *before* anything is attempted, which is the whole
+    point: a user who finds out from a failed 2 GB batch has already spent the
+    wait. `AppManagementProbe` reads the stored decision through
+    `TCCAccessPreflight` (private TCC framework, `dlopen`ed so a missing symbol
+    degrades to "no answer" rather than a launch failure), macOS has no public
+    query for a privacy decision, and preflight never prompts. The launch check
+    in `AppEnvironment.bootstrap()` publishes it as `appManagement`; the Apps page
+    shows the banner with the pane's own switch and a "Check again" control —
+    App Management is applied when it is granted, unlike Full Disk Access, which
+    macOS reads at launch, so re-checking is honest rather than theatre. The
+    status is three-valued on purpose: only `denied` produces a banner, because a
+    wrong banner on a permission the user already granted is worse than none, and
+    any value this build does not recognise is `unknown`. A real move then
+    overrides the probe in both directions: a refusal carrying
+    `appManagementRequired` records `denied`, a bundle that actually moved
+    records `granted`, so behaviour — the system's own answer to the real
+    question — outranks a framework read that a future macOS may change shape
+    under. Settings states the same row beside the reading permissions. Tests:
+    `test_onlyADenialBecomesABanner`,
+    `test_theProbeAnswersWithinItsDomain`,
+    `test_aMoveTeachesTheStatusAndOutranksTheProbe`,
+    `test_theBundleRefusalOffersAppManagementAndNotFullDiskAccess`.
+
 ## Layout notes
 
 - `Core/` is one library; `Features/` are separate libraries so a change to one

@@ -3,6 +3,9 @@
 
 "account.activatedAt" = "激活时间";
 "account.licenseKey" = "授权码";
+"app.management.recheck" = "重新检查";
+"app.management.required" = "要在“应用管理”中允许 Sift，才能移动其他开发者的应用。";
+"app.management.title" = "应用管理";
 "apps.appAndRelated" = "应用本体 %@，关联文件 %@";
 "apps.footer" = "仅显示超过 200 MB 的应用，共 %d 个";
 "apps.lastOpened" = "上次打开于%@";

@@ -3,6 +3,9 @@
 
 "account.activatedAt" = "啟用時間";
 "account.licenseKey" = "授權碼";
+"app.management.recheck" = "重新檢查";
+"app.management.required" = "要在「應用程式管理」中允許 Sift，才能移動其他開發者的應用程式。";
+"app.management.title" = "應用程式管理";
 "apps.appAndRelated" = "應用程式本體 %@，相關檔案 %@";
 "apps.footer" = "僅顯示超過 200 MB 的應用程式，共 %d 個";
 "apps.lastOpened" = "上次開啟於%@";

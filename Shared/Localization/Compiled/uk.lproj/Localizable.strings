@@ -3,6 +3,9 @@
 
 "account.activatedAt" = "Дата активації";
 "account.licenseKey" = "Ліцензійний ключ";
+"app.management.recheck" = "Перевірити знову";
+"app.management.required" = "Дозвольте Sift у «Керуванні програмами», щоб переміщати програми інших розробників.";
+"app.management.title" = "Керування програмами";
 "apps.appAndRelated" = "Програма %@, пов'язані файли %@";
 "apps.footer" = "Показано програми понад 200 МБ · усього %d";
 "apps.lastOpened" = "Останнє відкриття: %@";

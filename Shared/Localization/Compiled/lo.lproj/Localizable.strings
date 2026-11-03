@@ -3,6 +3,9 @@
 
 "account.activatedAt" = "ວັນທີເປີດໃຊ້ງານ";
 "account.licenseKey" = "ກະແຈໃບອະນຸຍາດ";
+"app.management.recheck" = "ກວດຄືນ";
+"app.management.required" = "ອະນຸຍາດ Sift ໃນການຈັດການແອັບ ເພື່ອຍ້າຍແອັບຂອງນັກພັດທະນາຄົນອື່ນ.";
+"app.management.title" = "ການຈັດການແອັບ";
 "apps.appAndRelated" = "ແອັບ %@, ໄຟລ໌ທີ່ກ່ຽວຂ້ອງ %@";
 "apps.footer" = "ສະແດງແອັບທີ່ໃຫຍ່ກວ່າ 200 MB · ລວມ %d ອັນ";
 "apps.lastOpened" = "ເປີດຄັ້ງສຸດທ້າຍ %@";

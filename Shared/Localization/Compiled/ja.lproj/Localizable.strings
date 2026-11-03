@@ -3,6 +3,9 @@
 
 "account.activatedAt" = "アクティベート日";
 "account.licenseKey" = "ライセンスキー";
+"app.management.recheck" = "再確認";
+"app.management.required" = "他の開発者のアプリを移動するには、「アプリ管理」で Sift を許可します。";
+"app.management.title" = "アプリ管理";
 "apps.appAndRelated" = "アプリ %@，関連ファイル %@";
 "apps.footer" = "200 MB 超のアプリのみ表示，全 %d 件";
 "apps.lastOpened" = "最終使用：%@";

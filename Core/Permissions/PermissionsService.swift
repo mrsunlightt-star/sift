@@ -29,6 +29,9 @@ public actor PermissionsService {
     private let fileManager: FileManager
     private let logger = SiftLog.permissions
     private var cachedReport: (Date, [LocationAccess])?
+    /// What the probe or a real move answered about App Management.
+    private var learnedAppManagement: AppManagementStatus?
+    private let appManagementProbe = AppManagementProbe()
 
     public init(fileManager: FileManager = .default) {
         self.fileManager = fileManager
@@ -110,6 +113,28 @@ public actor PermissionsService {
         } catch {
             return false
         }
+    }
+
+    // MARK: - App Management
+
+    /// The decision that governs moving another developer's application bundle.
+    ///
+    /// Three sources, in this order: what a real move taught this session, the
+    /// stored TCC decision, and `unknown`. Reality outranks the probe because the
+    /// probe reads a private framework's return value — a bundle that moved is
+    /// proof the gate is open, and a refusal naming App Management is proof it is
+    /// shut, whatever the framework said.
+    public func appManagementStatus(forceRefresh: Bool = false) -> AppManagementStatus {
+        if !forceRefresh, let learnedAppManagement { return learnedAppManagement }
+        let probed = appManagementProbe.status()
+        if probed != .unknown { learnedAppManagement = probed }
+        return learnedAppManagement ?? probed
+    }
+
+    /// Records what a move demonstrated, this session.
+    public func recordAppManagement(_ status: AppManagementStatus) {
+        guard status != .unknown else { return }
+        learnedAppManagement = status
     }
 
     /// Opens the Full Disk Access pane so the user can grant access themselves.

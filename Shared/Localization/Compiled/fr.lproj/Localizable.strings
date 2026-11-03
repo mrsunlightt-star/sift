@@ -3,6 +3,9 @@
 
 "account.activatedAt" = "Date d’activation";
 "account.licenseKey" = "Clé de licence";
+"app.management.recheck" = "Vérifier à nouveau";
+"app.management.required" = "Autorisez Sift dans Gestion des apps pour déplacer les applications d’autres développeurs.";
+"app.management.title" = "Gestion des apps";
 "apps.appAndRelated" = "App %@, fichiers associés %@";
 "apps.footer" = "Apps de plus de 200 Mo, %d au total";
 "apps.lastOpened" = "Dernière ouverture : %@";

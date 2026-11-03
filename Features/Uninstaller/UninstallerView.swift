@@ -76,6 +76,13 @@ public struct UninstallerView: View {
                 )
             }
 
+            if environment.appManagement == .denied {
+                appManagementNotice
+                    .padding(.horizontal, SiftMetrics.pagePadding)
+                    .padding(.top, SiftMetrics.pageSpacing)
+                    .frame(maxWidth: SiftMetrics.contentWidthWide, alignment: .leading)
+            }
+
             HStack(alignment: .top, spacing: SiftMetrics.spacingL) {
                 applicationListCard
                     .frame(maxHeight: .infinity)
@@ -87,6 +94,34 @@ public struct UninstallerView: View {
             .padding(.vertical, SiftMetrics.pageSpacing)
             .frame(maxWidth: SiftMetrics.contentWidthWide, alignment: .leading)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        }
+    }
+
+    /// The gate, stated before the user picks an application.
+    ///
+    /// This page is the only place an application bundle is moved, and moving
+    /// one is governed by App Management rather than by a folder permission. The
+    /// page used to find that out from a failed batch; the launch check answers it
+    /// first, and the "Check again" control is there because the switch can be
+    /// turned on without restarting Sift — the grant is applied when it is made,
+    /// unlike Full Disk Access, which macOS reads at launch.
+    private var appManagementNotice: some View {
+        HStack(alignment: .center, spacing: SiftMetrics.spacingM) {
+            NoticeBanner(
+                level: .warning,
+                message: LocalizationKey.appManagementRequired.localized,
+                actionTitle: .permissionOpenSettings,
+                action: { Task { await environment.openAppManagementSettings() } }
+            )
+            Button {
+                Task { await environment.recheckAppManagement() }
+            } label: {
+                Text(LocalizationKey.appManagementRecheck.localized)
+                    .font(SiftFont.caption)
+            }
+            .buttonStyle(SiftLinkButtonStyle())
+            .fixedSize()
+            .accessibilityIdentifier("apps.appManagementRecheck")
         }
     }
 

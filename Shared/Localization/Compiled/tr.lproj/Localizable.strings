@@ -3,6 +3,9 @@
 
 "account.activatedAt" = "Etkinleştirme tarihi";
 "account.licenseKey" = "Lisans anahtarı";
+"app.management.recheck" = "Yeniden denetle";
+"app.management.required" = "Diğer geliştiricilerin uygulamalarını taşımak için Uygulama Yönetimi’nde Sift’e izin verin.";
+"app.management.title" = "Uygulama Yönetimi";
 "apps.appAndRelated" = "Uygulama %@, ilgili dosyalar %@";
 "apps.footer" = "Yalnızca 200 MB üzeri uygulamalar, toplam %d";
 "apps.lastOpened" = "Son açılış %@";

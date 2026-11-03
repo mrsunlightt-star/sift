@@ -10,6 +10,9 @@ import SwiftUI
 public enum LocalizationKey: String, Sendable, CaseIterable {
     case accountActivatedAt = "account.activatedAt"
     case accountLicenseKey = "account.licenseKey"
+    case appManagementRecheck = "app.management.recheck"
+    case appManagementRequired = "app.management.required"
+    case appManagementTitle = "app.management.title"
     case appsAppAndRelated = "apps.appAndRelated"
     case appsFooter = "apps.footer"
     case appsLastOpened = "apps.lastOpened"

@@ -3,6 +3,9 @@
 
 "account.activatedAt" = "Aktiveret den";
 "account.licenseKey" = "Licensnøgle";
+"app.management.recheck" = "Kontroller igen";
+"app.management.required" = "Tillad Sift under App-administration at flytte andre udvikleres apps.";
+"app.management.title" = "App-administration";
 "apps.appAndRelated" = "App %@, relaterede filer %@";
 "apps.footer" = "Viser apps over 200 MB · %d i alt";
 "apps.lastOpened" = "Senest åbnet %@";

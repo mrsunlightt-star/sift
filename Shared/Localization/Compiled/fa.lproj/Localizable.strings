@@ -3,6 +3,9 @@
 
 "account.activatedAt" = "تاریخ فعال‌سازی";
 "account.licenseKey" = "کلید مجوز";
+"app.management.recheck" = "بررسی دوباره";
+"app.management.required" = "برای جابه‌جایی برنامه‌های توسعه‌دهندگان دیگر، به Sift در مدیریت برنامه‌ها اجازه دهید.";
+"app.management.title" = "مدیریت برنامه‌ها";
 "apps.appAndRelated" = "برنامه %@, فایل‌های مرتبط %@";
 "apps.footer" = "نمایش برنامه‌های بالای ۲۰۰ مگابایت · در مجموع %d";
 "apps.lastOpened" = "آخرین بازشدن %@";

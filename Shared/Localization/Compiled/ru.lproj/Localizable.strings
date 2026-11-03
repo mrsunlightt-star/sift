@@ -3,6 +3,9 @@
 
 "account.activatedAt" = "Дата активации";
 "account.licenseKey" = "Лицензионный ключ";
+"app.management.recheck" = "Проверить снова";
+"app.management.required" = "Разрешите Sift в разделе «Управление приложениями», чтобы перемещать приложения других разработчиков.";
+"app.management.title" = "Управление приложениями";
 "apps.appAndRelated" = "Приложение %@, связанные файлы %@";
 "apps.footer" = "Показаны приложения больше 200 МБ, всего %d";
 "apps.lastOpened" = "Последний запуск: %@";

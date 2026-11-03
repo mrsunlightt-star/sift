@@ -3,6 +3,9 @@
 
 "account.activatedAt" = "תאריך ההפעלה";
 "account.licenseKey" = "מפתח רישיון";
+"app.management.recheck" = "בדיקה חוזרת";
+"app.management.required" = "‏אפשרו ל‑Sift בניהול יישומים כדי להעביר יישומים של מפתחים אחרים.";
+"app.management.title" = "ניהול יישומים";
 "apps.appAndRelated" = "אפליקציה %@, קבצים קשורים %@";
 "apps.footer" = "מציג אפליקציות מעל 200 MB · %d בסך הכול";
 "apps.lastOpened" = "נפתח לאחרונה %@";

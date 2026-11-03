@@ -3,6 +3,9 @@
 
 "account.activatedAt" = "Aktiverad den";
 "account.licenseKey" = "Licensnyckel";
+"app.management.recheck" = "Kontrollera igen";
+"app.management.required" = "Tillåt Sift under Apphantering att flytta andra utvecklares appar.";
+"app.management.title" = "Apphantering";
 "apps.appAndRelated" = "App %@, relaterade filer %@";
 "apps.footer" = "Visar appar över 200 MB · %d totalt";
 "apps.lastOpened" = "Senast öppnad %@";

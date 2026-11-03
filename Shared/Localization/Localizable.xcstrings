@@ -421,6 +421,636 @@
         }
       }
     },
+    "app.management.recheck": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check again"
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新检查"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다시 확인"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Проверить снова"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comprobar de nuevo"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再確認"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vérifier à nouveau"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erneut prüfen"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Controlla di nuovo"
+          }
+        },
+        "pt-br": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verificar novamente"
+          }
+        },
+        "zh-hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新檢查"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yeniden denetle"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sprawdź ponownie"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opnieuw controleren"
+          }
+        },
+        "lo": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ກວດຄືນ"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تحقّق مرة أخرى"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "בדיקה חוזרת"
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "بررسی دوباره"
+          }
+        },
+        "bg": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Провери отново"
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zkontrolovat znovu"
+          }
+        },
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kontroller igen"
+          }
+        },
+        "el": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Έλεγχος ξανά"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comprobar de nuevo"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tarkista uudelleen"
+          }
+        },
+        "hu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Újraellenőrzés"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Periksa lagi"
+          }
+        },
+        "ms": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Semak semula"
+          }
+        },
+        "nb": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kontroller på nytt"
+          }
+        },
+        "pt-pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verificar novamente"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verifică din nou"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kontrollera igen"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ตรวจสอบอีกครั้ง"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Перевірити знову"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kiểm tra lại"
+          }
+        }
+      }
+    },
+    "app.management.required": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow Sift in App Management to move other developers' applications."
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "要在“应用管理”中允许 Sift，才能移动其他开发者的应用。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다른 개발자의 앱을 이동하려면 앱 관리에서 Sift를 허용해야 합니다."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Разрешите Sift в разделе «Управление приложениями», чтобы перемещать приложения других разработчиков."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permite Sift en Gestión de apps para mover aplicaciones de otros desarrolladores."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "他の開発者のアプリを移動するには、「アプリ管理」で Sift を許可します。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autorisez Sift dans Gestion des apps pour déplacer les applications d’autres développeurs."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erlauben Sie Sift unter App-Verwaltung, Anwendungen anderer Entwickler zu bewegen."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Consenti Sift in Gestione app per spostare app di altri sviluppatori."
+          }
+        },
+        "pt-br": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permita o Sift em Gestão de Apps para mover apps de outros desenvolvedores."
+          }
+        },
+        "zh-hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "要在「應用程式管理」中允許 Sift，才能移動其他開發者的應用程式。"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diğer geliştiricilerin uygulamalarını taşımak için Uygulama Yönetimi’nde Sift’e izin verin."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zezwól Siftowi w Zarządzaniu aplikacjami na przenoszenie aplikacji innych deweloperów."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sta Sift toe bij App-beheer om apps van andere ontwikkelaars te verplaatsen."
+          }
+        },
+        "lo": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ອະນຸຍາດ Sift ໃນການຈັດການແອັບ ເພື່ອຍ້າຍແອັບຂອງນັກພັດທະນາຄົນອື່ນ."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اسمح لـ Sift في إدارة التطبيقات بنقل تطبيقات مطورين آخرين."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "‏אפשרו ל‑Sift בניהול יישומים כדי להעביר יישומים של מפתחים אחרים."
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "برای جابه‌جایی برنامه‌های توسعه‌دهندگان دیگر، به Sift در مدیریت برنامه‌ها اجازه دهید."
+          }
+        },
+        "bg": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Разрешете на Sift в „Управление на приложения“, за да мести приложения на други разработчици."
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Povolte Siftu ve Správě aplikací přesouvat aplikace jiných vývojářů."
+          }
+        },
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tillad Sift under App-administration at flytte andre udvikleres apps."
+          }
+        },
+        "el": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Επιτρέψτε το Sift στη «Διαχείριση εφαρμογών» για να μετακινεί εφαρμογές άλλων προγραμματιστών."
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permite Sift en Gestión de apps para mover aplicaciones de otros desarrolladores."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Salli Siftille sovellusten hallinnassa muiden kehittäjien sovellusten siirto."
+          }
+        },
+        "hu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Engedélyezze a Siftet az Alkalmazáskezelésben más fejlesztők alkalmazásainak áthelyezéséhez."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Izinkan Sift di Pengelolaan App untuk memindahkan app pengembang lain."
+          }
+        },
+        "ms": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Benarkan Sift dalam Pengurusan App untuk memindahkan apl pembangun lain."
+          }
+        },
+        "nb": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tillat Sift under App-administrasjon å flytte andre utvikleres apper."
+          }
+        },
+        "pt-pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permita o Sift em Gestão de Apps para mover aplicações de outros programadores."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permiteți Sift în Gestionare aplicații pentru a muta aplicații ale altor dezvoltatori."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tillåt Sift under Apphantering att flytta andra utvecklares appar."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "อนุญาต Sift ในการจัดการแอปเพื่อย้ายแอปของผู้พัฒนารายอื่น"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Дозвольте Sift у «Керуванні програмами», щоб переміщати програми інших розробників."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cho phép Sift trong Quản lý ứng dụng để di chuyển ứng dụng của nhà phát triển khác."
+          }
+        }
+      }
+    },
+    "app.management.title": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App Management"
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "应用管理"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "앱 관리"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Управление приложениями"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gestión de apps"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アプリ管理"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gestion des apps"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App-Verwaltung"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gestione app"
+          }
+        },
+        "pt-br": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gestão de Apps"
+          }
+        },
+        "zh-hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "應用程式管理"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uygulama Yönetimi"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zarządzanie aplikacjami"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App-beheer"
+          }
+        },
+        "lo": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ການຈັດການແອັບ"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إدارة التطبيقات"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ניהול יישומים"
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مدیریت برنامه‌ها"
+          }
+        },
+        "bg": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Управление на приложения"
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Správa aplikací"
+          }
+        },
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App-administration"
+          }
+        },
+        "el": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Διαχείριση εφαρμογών"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gestión de apps"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sovellusten hallinta"
+          }
+        },
+        "hu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alkalmazáskezelés"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pengelolaan App"
+          }
+        },
+        "ms": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pengurusan App"
+          }
+        },
+        "nb": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App-administrasjon"
+          }
+        },
+        "pt-pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gestão de Apps"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gestionare aplicații"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apphantering"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "การจัดการแอป"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Керування програмами"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quản lý ứng dụng"
+          }
+        }
+      }
+    },
     "apps.appAndRelated": {
       "comment": null,
       "extractionState": "manual",

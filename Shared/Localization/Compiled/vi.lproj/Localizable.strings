@@ -3,6 +3,9 @@
 
 "account.activatedAt" = "Ngày kích hoạt";
 "account.licenseKey" = "Khóa giấy phép";
+"app.management.recheck" = "Kiểm tra lại";
+"app.management.required" = "Cho phép Sift trong Quản lý ứng dụng để di chuyển ứng dụng của nhà phát triển khác.";
+"app.management.title" = "Quản lý ứng dụng";
 "apps.appAndRelated" = "Ứng dụng %@, tệp liên quan %@";
 "apps.footer" = "Đang hiển thị ứng dụng trên 200 MB · tổng %d";
 "apps.lastOpened" = "Mở lần cuối %@";

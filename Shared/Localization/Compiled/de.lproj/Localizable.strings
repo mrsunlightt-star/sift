@@ -3,6 +3,9 @@
 
 "account.activatedAt" = "Aktiviert am";
 "account.licenseKey" = "Lizenzschlüssel";
+"app.management.recheck" = "Erneut prüfen";
+"app.management.required" = "Erlauben Sie Sift unter App-Verwaltung, Anwendungen anderer Entwickler zu bewegen.";
+"app.management.title" = "App-Verwaltung";
 "apps.appAndRelated" = "App %@, zugehörige Dateien %@";
 "apps.footer" = "Apps über 200 MB, %d gesamt";
 "apps.lastOpened" = "Zuletzt geöffnet: %@";

@@ -3,6 +3,9 @@
 
 "account.activatedAt" = "Activated";
 "account.licenseKey" = "License key";
+"app.management.recheck" = "Check again";
+"app.management.required" = "Allow Sift in App Management to move other developers' applications.";
+"app.management.title" = "App Management";
 "apps.appAndRelated" = "App %@, related files %@";
 "apps.footer" = "Showing apps over 200 MB, %d total";
 "apps.lastOpened" = "Last opened %@";

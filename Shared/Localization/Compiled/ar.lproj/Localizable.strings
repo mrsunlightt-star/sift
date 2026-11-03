@@ -3,6 +3,9 @@
 
 "account.activatedAt" = "تاريخ التنشيط";
 "account.licenseKey" = "مفتاح الترخيص";
+"app.management.recheck" = "تحقّق مرة أخرى";
+"app.management.required" = "اسمح لـ Sift في إدارة التطبيقات بنقل تطبيقات مطورين آخرين.";
+"app.management.title" = "إدارة التطبيقات";
 "apps.appAndRelated" = "التطبيق %@, ملفات مرتبطة %@";
 "apps.footer" = "عرض التطبيقات فوق 200 ميغابايت · %d إجمالًا";
 "apps.lastOpened" = "آخر فتح %@";

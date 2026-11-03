@@ -282,6 +282,51 @@ public struct SettingsView: View {
                 }
                 .accessibilityElement(children: .combine)
             }
+            Divider()
+                .padding(.vertical, SiftMetrics.spacingXS)
+            // Moving another developer's application bundle is a different
+            // switch from reading a protected folder, and the two are confused
+            // easily — the uninstaller's failed row offered Full Disk Access for
+            // exactly this refusal. Stated here, next to the reading
+            // permissions, so "I already granted everything" has an answer.
+            HStack(spacing: SiftMetrics.spacingS) {
+                Image(systemName: environment.appManagement == .denied
+                    ? "exclamationmark.triangle.fill"
+                    : "checkmark.circle.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(environment.appManagement == .denied ? SiftColor.review : SiftColor.safe)
+                    .accessibilityHidden(true)
+                Text(LocalizationKey.appManagementTitle.localized)
+                    .font(SiftFont.caption)
+                Spacer()
+                Text(
+                    environment.appManagement == .granted
+                        ? LocalizationKey.commonDone.localized
+                        : LocalizationKey.commonNotAvailable.localized
+                )
+                .font(SiftFont.caption)
+                .foregroundStyle(.secondary)
+            }
+            .accessibilityElement(children: .combine)
+            HStack(spacing: SiftMetrics.spacingM) {
+                Button {
+                    Task { await environment.openAppManagementSettings() }
+                } label: {
+                    Text(LocalizationKey.permissionOpenSettings.localized)
+                        .font(SiftFont.caption)
+                }
+                .buttonStyle(SiftLinkButtonStyle())
+                .accessibilityIdentifier("settings.appManagementOpen")
+                Button {
+                    Task { await environment.recheckAppManagement() }
+                } label: {
+                    Text(LocalizationKey.appManagementRecheck.localized)
+                        .font(SiftFont.caption)
+                }
+                .buttonStyle(SiftLinkButtonStyle())
+                .accessibilityIdentifier("settings.appManagementRecheck")
+            }
+
             Button {
                 isExplainingPermission = true
             } label: {

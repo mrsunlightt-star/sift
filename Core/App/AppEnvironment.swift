@@ -136,6 +136,12 @@ public final class AppEnvironment: ObservableObject {
     @Published public private(set) var availableVolumes: [VolumeInfo] = []
     /// Cached application list for the uninstaller.
     @Published public private(set) var installedApplications: [InstalledApplication] = []
+    /// Whether macOS will let the uninstaller move another developer's bundle.
+    ///
+    /// Read once at launch and corrected from every real move, so the "allow
+    /// Sift in App Management" banner appears before the user selects an
+    /// application instead of after the batch fails.
+    @Published public private(set) var appManagement: AppManagementStatus = .unknown
     @Published public private(set) var isLoadingApplications = false
     /// The entitlement snapshot.
     @Published public private(set) var entitlement = EntitlementState(channel: .direct, status: .free)
@@ -285,6 +291,7 @@ public final class AppEnvironment: ObservableObject {
         await entitlements.refresh()
         entitlement = await entitlements.current()
         await settings.removeObsoleteRuleFlagIfNeeded()
+        appManagement = await permissions.appManagementStatus(forceRefresh: true)
     }
 
     /// Republishes settings after the user changes something.
@@ -1015,8 +1022,40 @@ public final class AppEnvironment: ObservableObject {
         return await finishUninstall(outcome)
     }
 
+    /// Re-reads the App Management decision after the user changes it.
+    public func recheckAppManagement() async {
+        appManagement = await permissions.appManagementStatus(forceRefresh: true)
+    }
+
+    /// Opens the pane the App Management switch lives in.
+    public func openAppManagementSettings() async {
+        await WorkspaceActions.openAppManagementSettings()
+    }
+
+    /// Turns a finished uninstall into evidence about the gate.
+    ///
+    /// A refusal that names App Management and a bundle that actually moved are
+    /// both stronger than the probe, because they are the system's own answer to
+    /// the real question. Nothing else is read from the batch: a refusal for a
+    /// protected location says nothing about applications.
+    private func learnAppManagement(from outcome: CleanupOutcome) async {
+        if outcome.results.contains(where: { $0.errorCode == ErrorCode.appManagementRequired.rawValue }) {
+            await permissions.recordAppManagement(.denied)
+            appManagement = .denied
+            return
+        }
+        let movedABundle = outcome.results.contains {
+            $0.status == .movedToTrash && FileOperationService.isApplicationBundle($0.sourceURL)
+        }
+        if movedABundle {
+            await permissions.recordAppManagement(.granted)
+            appManagement = .granted
+        }
+    }
+
     /// Stores and reports an uninstall outcome.
     private func finishUninstall(_ outcome: CleanupOutcome) async -> OperationGateResult {
+        await learnAppManagement(from: outcome)
         var report: CleanupReport?
         do {
             // An uninstall has no scan report of its own. Passing the last

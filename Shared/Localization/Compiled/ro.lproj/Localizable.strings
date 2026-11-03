@@ -3,6 +3,9 @@
 
 "account.activatedAt" = "Data activării";
 "account.licenseKey" = "Cheie de licență";
+"app.management.recheck" = "Verifică din nou";
+"app.management.required" = "Permiteți Sift în Gestionare aplicații pentru a muta aplicații ale altor dezvoltatori.";
+"app.management.title" = "Gestionare aplicații";
 "apps.appAndRelated" = "Aplicație %@, fișiere asociate %@";
 "apps.footer" = "Se afișează aplicațiile peste 200 MB · %d în total";
 "apps.lastOpened" = "Ultima deschidere %@";

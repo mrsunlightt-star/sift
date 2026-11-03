@@ -3,6 +3,9 @@
 
 "account.activatedAt" = "활성화 날짜";
 "account.licenseKey" = "라이선스 키";
+"app.management.recheck" = "다시 확인";
+"app.management.required" = "다른 개발자의 앱을 이동하려면 앱 관리에서 Sift를 허용해야 합니다.";
+"app.management.title" = "앱 관리";
 "apps.appAndRelated" = "앱 %@, 관련 파일 %@";
 "apps.footer" = "200MB 초과 앱만 표시, 총 %d개";
 "apps.lastOpened" = "마지막 실행 %@";

@@ -3,6 +3,9 @@
 
 "account.activatedAt" = "Tanggal aktivasi";
 "account.licenseKey" = "Kunci lisensi";
+"app.management.recheck" = "Periksa lagi";
+"app.management.required" = "Izinkan Sift di Pengelolaan App untuk memindahkan app pengembang lain.";
+"app.management.title" = "Pengelolaan App";
 "apps.appAndRelated" = "Aplikasi %@, file terkait %@";
 "apps.footer" = "Menampilkan aplikasi di atas 200 MB · %d total";
 "apps.lastOpened" = "Terakhir dibuka %@";

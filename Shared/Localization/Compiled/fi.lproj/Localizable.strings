@@ -3,6 +3,9 @@
 
 "account.activatedAt" = "Aktivoitu";
 "account.licenseKey" = "Lisenssiavain";
+"app.management.recheck" = "Tarkista uudelleen";
+"app.management.required" = "Salli Siftille sovellusten hallinnassa muiden kehittäjien sovellusten siirto.";
+"app.management.title" = "Sovellusten hallinta";
 "apps.appAndRelated" = "Sovellus %@, liittyvät tiedostot %@";
 "apps.footer" = "Näytetään yli 200 Mt:n sovellukset · %d yhteensä";
 "apps.lastOpened" = "Viimeksi avattu %@";

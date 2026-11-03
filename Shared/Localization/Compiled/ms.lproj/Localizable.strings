@@ -3,6 +3,9 @@
 
 "account.activatedAt" = "Tarikh pengaktifan";
 "account.licenseKey" = "Kunci lesen";
+"app.management.recheck" = "Semak semula";
+"app.management.required" = "Benarkan Sift dalam Pengurusan App untuk memindahkan apl pembangun lain.";
+"app.management.title" = "Pengurusan App";
 "apps.appAndRelated" = "Apl %@, fail berkaitan %@";
 "apps.footer" = "Memaparkan apl melebihi 200 MB · %d jumlah";
 "apps.lastOpened" = "Terakhir dibuka %@";

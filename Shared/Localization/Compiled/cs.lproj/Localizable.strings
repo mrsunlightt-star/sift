@@ -3,6 +3,9 @@
 
 "account.activatedAt" = "Datum aktivace";
 "account.licenseKey" = "Licenční klíč";
+"app.management.recheck" = "Zkontrolovat znovu";
+"app.management.required" = "Povolte Siftu ve Správě aplikací přesouvat aplikace jiných vývojářů.";
+"app.management.title" = "Správa aplikací";
 "apps.appAndRelated" = "Aplikace %@, související soubory %@";
 "apps.footer" = "Zobrazeny aplikace nad 200 MB · celkem %d";
 "apps.lastOpened" = "Naposledy otevřeno %@";

@@ -3,6 +3,9 @@
 
 "account.activatedAt" = "Aktiválás dátuma";
 "account.licenseKey" = "Licenckulcs";
+"app.management.recheck" = "Újraellenőrzés";
+"app.management.required" = "Engedélyezze a Siftet az Alkalmazáskezelésben más fejlesztők alkalmazásainak áthelyezéséhez.";
+"app.management.title" = "Alkalmazáskezelés";
 "apps.appAndRelated" = "Alkalmazás: %@, kapcsolódó fájlok: %@";
 "apps.footer" = "A 200 MB-nál nagyobb alkalmazások láthatók · összesen %d";
 "apps.lastOpened" = "Utoljára megnyitva: %@";
