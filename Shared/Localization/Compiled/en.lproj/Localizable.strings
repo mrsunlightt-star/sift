@@ -10,6 +10,7 @@
 "apps.footer" = "Showing apps over 200 MB, %d total";
 "apps.installedOn" = "Installed %@";
 "apps.lastOpened" = "Last opened %@";
+"apps.lastUsedUnknown" = "No open record";
 "apps.listTitle" = "Applications";
 "apps.neverOpened" = "Never opened";
 "apps.reclaimable" = "Can be released";
@@ -469,8 +470,14 @@
 "uninstall.selectApp" = "Choose an app to see what would be removed.";
 "uninstall.sharedContainer" = "Also shared with: %@";
 "uninstall.sort.installedAt" = "Install date";
+"uninstall.sort.largestFirst" = "Largest first";
 "uninstall.sort.lastUsed" = "Last used";
 "uninstall.sort.name" = "Name";
+"uninstall.sort.nameAscending" = "A → Z";
+"uninstall.sort.nameDescending" = "Z → A";
+"uninstall.sort.newestFirst" = "Newest first";
+"uninstall.sort.oldestFirst" = "Oldest first";
 "uninstall.sort.size" = "Size";
+"uninstall.sort.smallestFirst" = "Smallest first";
 "uninstall.systemApp" = "Cannot be uninstalled";
 "uninstall.systemAppDetail" = "Sift only removes apps you installed yourself.";

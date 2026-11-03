@@ -10,6 +10,7 @@
 "apps.footer" = "Đang hiển thị ứng dụng trên 200 MB · tổng %d";
 "apps.installedOn" = "Đã cài %@";
 "apps.lastOpened" = "Mở lần cuối %@";
+"apps.lastUsedUnknown" = "Không có bản ghi mở";
 "apps.listTitle" = "Ứng dụng";
 "apps.neverOpened" = "Chưa từng mở";
 "apps.reclaimable" = "Có thể giải phóng";
@@ -469,8 +470,14 @@
 "uninstall.selectApp" = "Chọn một ứng dụng để xem những gì sẽ bị gỡ.";
 "uninstall.sharedContainer" = "Chia sẻ với: %@";
 "uninstall.sort.installedAt" = "Ngày cài đặt";
+"uninstall.sort.largestFirst" = "Lớn nhất trước";
 "uninstall.sort.lastUsed" = "Dùng gần đây";
 "uninstall.sort.name" = "Tên";
+"uninstall.sort.nameAscending" = "A → Z";
+"uninstall.sort.nameDescending" = "Z → A";
+"uninstall.sort.newestFirst" = "Mới nhất trước";
+"uninstall.sort.oldestFirst" = "Cũ nhất trước";
 "uninstall.sort.size" = "Kích thước";
+"uninstall.sort.smallestFirst" = "Nhỏ nhất trước";
 "uninstall.systemApp" = "Không thể gỡ cài đặt";
 "uninstall.systemAppDetail" = "Sift chỉ gỡ các ứng dụng do bạn tự cài.";

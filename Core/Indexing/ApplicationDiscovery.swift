@@ -29,6 +29,19 @@ public struct ApplicationDiscovery: @unchecked Sendable {
     /// shared only when a *registered* application answers for the identifier.
     private let appNameForBundleIdentifier: @Sendable (String) -> String?
 
+    /// What the system records about one bundle.
+    ///
+    /// Two dates from one index read: when the item arrived in its folder and when
+    /// macOS last recorded a launch. They are one value rather than two closures
+    /// because `NSMetadataItem(url:)` answers both attributes at the cost of one
+    /// lookup, and because a test that wants to talk about an application's history
+    /// should have to state both halves of it.
+    ///
+    /// Injected so a test can answer it without Spotlight, and so the metadata read
+    /// exists in one place: the uninstaller and any future page that offers "not
+    /// opened since" must ask the same source.
+    private let readRecord: @Sendable (URL) -> SystemRecord
+
     /// Which installed applications declare which app groups.
     ///
     /// A group container is named after its group, so the name it carries belongs
@@ -44,11 +57,13 @@ public struct ApplicationDiscovery: @unchecked Sendable {
         appNameForBundleIdentifier: @escaping @Sendable (String) -> String? = {
             ApplicationDiscovery.installedApplicationName(forBundleIdentifier: $0)
         },
-        readAppGroups: @escaping AppGroupEntitlements.Reader = AppGroupEntitlements.read
+        readAppGroups: @escaping AppGroupEntitlements.Reader = AppGroupEntitlements.read,
+        readRecord: @escaping @Sendable (URL) -> SystemRecord = ApplicationDiscovery.spotlightRecord
     ) {
         self.rules = rules
         self.fileManager = fileManager
         self.appNameForBundleIdentifier = appNameForBundleIdentifier
+        self.readRecord = readRecord
         var directories: [URL] = []
         if includeDefaultDirectories {
             directories = [
@@ -104,18 +119,20 @@ public struct ApplicationDiscovery: @unchecked Sendable {
             // it is still listed but with an empty identifier rather than
             // guessed at.
             let name = url.deletingPathExtension().lastPathComponent
+            let record = readRecord(url)
             return InstalledApplication(
                 url: url,
                 name: name,
                 bundleIdentifier: "",
                 version: nil,
                 sizeInBytes: measureApplication(url: url),
-                lastUsedAt: lastUsed(url: url),
-                installedAt: installDate(url: url),
+                lastUsed: record.lastUsed,
+                installedAt: installDate(url: url, record: record),
                 isSystemApplication: isSystemLocation(url),
                 isRunning: runningPaths.contains(url.standardizedFileURL.resolvingSymlinksInPath().path)
             )
         }
+        let record = readRecord(url)
         return InstalledApplication(
             url: url,
             name: bundle.localizedInfoDictionary?["CFBundleDisplayName"] as? String
@@ -124,8 +141,8 @@ public struct ApplicationDiscovery: @unchecked Sendable {
             bundleIdentifier: identifier,
             version: bundle.infoDictionary?["CFBundleShortVersionString"] as? String,
             sizeInBytes: measureApplication(url: url),
-            lastUsedAt: lastUsed(url: url),
-            installedAt: installDate(url: url),
+            lastUsed: record.lastUsed,
+            installedAt: installDate(url: url, record: record),
             isSystemApplication: isSystemLocation(url),
             isRunning: runningPaths.contains(url.standardizedFileURL.resolvingSymlinksInPath().path)
         )
@@ -168,19 +185,93 @@ public struct ApplicationDiscovery: @unchecked Sendable {
         return bytes
     }
 
-    private func lastUsed(url: URL) -> Date? {
-        (try? url.resourceValues(forKeys: [.contentAccessDateKey]))?.contentAccessDate
+    /// What the system records about one installed bundle, read from the index.
+    ///
+    /// ## The launch record
+    ///
+    /// `kMDItemLastUsedDate` is written by LaunchServices when an application is
+    /// opened, and it is the value Finder's "Last opened" column shows. The bundle
+    /// directory's access time was what this used to read, and it is not a launch
+    /// record at all: opening an application writes to files inside the bundle,
+    /// never to the directory entry, and macOS does not maintain access times on its
+    /// own volumes — so the date stood still at the copy that created the bundle and
+    /// the page reported the install date as the last launch.
+    ///
+    /// The three answers are kept apart because two of them are `nil`-ish facts that
+    /// mean different things:
+    ///
+    /// - `NSMetadataItem(url:)` is `nil` when Spotlight has no record of the bundle
+    ///   — indexing off, an unindexed volume, a bundle installed moments ago. That is
+    ///   `unavailable`;
+    /// - an indexed bundle that carries no launch record answers `kMDItemFSName` and
+    ///   no date, which is `neverOpened`;
+    /// - anything else is the recorded date.
+    ///
+    /// ## The arrival record
+    ///
+    /// `kMDItemDateAdded` is when the item was added to its folder — the "Date
+    /// added" column — and it is a better answer to "when was this installed" than
+    /// the bundle directory's birth time for the one case that matters most: an
+    /// application that updates itself. An in-place update replaces the files inside
+    /// the bundle and leaves the directory's birth time alone, so a self-updating
+    /// browser reported the day of its first install; an update that swaps the whole
+    /// bundle out creates a new directory, so it reported the day the last update
+    /// landed. Neither is "installed on".
+    ///
+    /// It is not a perfect record either, and the two are measured against each
+    /// other rather than assumed to agree: on this machine `Safari.app` reads added
+    /// 2025-07-31 with a bundle born 2025-10-25 (the application arrived with the
+    /// system and the bundle was replaced by a later update), while `CleanMyMac.app`
+    /// reads added 2026-11-01 with a bundle born 2026-10-28 (an update re-added the
+    /// item). The first is the case the change is for; the second is why the arrival
+    /// record is stated as the arrival and not as the bundle's history.
+    ///
+    /// A bundle the index does not hold falls back to its own birth time, which is
+    /// what `installDate(url:record:)` does with `dateAdded == nil`.
+    public struct SystemRecord: Hashable, Sendable {
+        /// The launch macOS recorded, or why it recorded none.
+        public var lastUsed: LastUsedRecord
+        /// When the item was added to its folder, when the index holds that.
+        public var dateAdded: Date?
+
+        public init(lastUsed: LastUsedRecord, dateAdded: Date? = nil) {
+            self.lastUsed = lastUsed
+            self.dateAdded = dateAdded
+        }
+
+        /// Nothing was read: no index record, so neither date is known.
+        public static let unavailable = SystemRecord(lastUsed: .unavailable, dateAdded: nil)
+    }
+
+    /// Reads both records in one index lookup.
+    ///
+    /// `NSMetadataItem` is a synchronous read of the local index (no shell, no query
+    /// loop), which is the same order of cost as the two resource reads it replaces
+    /// and is paid once per bundle during discovery.
+    public static func spotlightRecord(url: URL) -> SystemRecord {
+        guard let item = NSMetadataItem(url: url) else { return .unavailable }
+        let added = item.value(forAttribute: "kMDItemDateAdded") as? Date
+        if let date = item.value(forAttribute: "kMDItemLastUsedDate") as? Date {
+            return SystemRecord(lastUsed: .known(date), dateAdded: added)
+        }
+        // The index holds the bundle but no launch: macOS records a launch when it
+        // happens, so an indexed bundle without one has not been opened.
+        guard item.value(forAttribute: "kMDItemFSName") != nil else {
+            return SystemRecord(lastUsed: .unavailable, dateAdded: added)
+        }
+        return SystemRecord(lastUsed: .neverOpened, dateAdded: added)
     }
 
     /// When the application was installed.
     ///
-    /// The bundle directory's birth time is the installation: a copy into
-    /// `/Applications`, a package payload or a drag from a disk image all create
-    /// the directory then, and an update that replaces the bundle creates a new
-    /// one. The modification date is the fallback for a volume that records no
-    /// birth time — it is the closest honest answer left — and a bundle that
-    /// answers neither reports no date at all rather than 1970.
-    private func installDate(url: URL) -> Date? {
+    /// The index's arrival record first, because it survives both ways a bundle
+    /// changes under an update — see `SystemRecord`. Without one, the bundle
+    /// directory's birth time is the installation: a copy into `/Applications`, a
+    /// package payload or a drag from a disk image all create the directory then.
+    /// The modification date is the last fallback for a volume that records no birth
+    /// time, and a bundle that answers neither reports no date rather than 1970.
+    private func installDate(url: URL, record: SystemRecord) -> Date? {
+        if let added = record.dateAdded { return added }
         let values = try? url.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey])
         return values?.creationDate ?? values?.contentModificationDate
     }

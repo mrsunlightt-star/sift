@@ -10,6 +10,7 @@
 "apps.footer" = "Zobrazeny aplikace nad 200 MB · celkem %d";
 "apps.installedOn" = "Nainstalováno %@";
 "apps.lastOpened" = "Naposledy otevřeno %@";
+"apps.lastUsedUnknown" = "Žádný záznam o otevření";
 "apps.listTitle" = "Aplikace";
 "apps.neverOpened" = "Nikdy neotevřeno";
 "apps.reclaimable" = "Lze uvolnit";
@@ -469,8 +470,14 @@
 "uninstall.selectApp" = "Vyberte aplikaci a uvidíte, co by se odstranilo.";
 "uninstall.sharedContainer" = "Sdíleno také s: %@";
 "uninstall.sort.installedAt" = "Datum instalace";
+"uninstall.sort.largestFirst" = "Od největšího";
 "uninstall.sort.lastUsed" = "Naposledy použito";
 "uninstall.sort.name" = "Název";
+"uninstall.sort.nameAscending" = "A → Z";
+"uninstall.sort.nameDescending" = "Z → A";
+"uninstall.sort.newestFirst" = "Od nejnovějšího";
+"uninstall.sort.oldestFirst" = "Od nejstaršího";
 "uninstall.sort.size" = "Velikost";
+"uninstall.sort.smallestFirst" = "Od nejmenšího";
 "uninstall.systemApp" = "Nelze odinstalovat";
 "uninstall.systemAppDetail" = "Sift odstraňuje pouze aplikace, které jste nainstalovali sami.";

@@ -10,6 +10,7 @@
 "apps.footer" = "Yalnızca 200 MB üzeri uygulamalar, toplam %d";
 "apps.installedOn" = "Kurulma: %@";
 "apps.lastOpened" = "Son açılış %@";
+"apps.lastUsedUnknown" = "Açılma kaydı yok";
 "apps.listTitle" = "Uygulamalar";
 "apps.neverOpened" = "Hiç açılmadı";
 "apps.reclaimable" = "Kazanılabilir";
@@ -469,8 +470,14 @@
 "uninstall.selectApp" = "Neyin kaldırılacağını görmek için bir uygulama seçin.";
 "uninstall.sharedContainer" = "Şunlarla da paylaşılıyor: %@";
 "uninstall.sort.installedAt" = "Kurulum tarihi";
+"uninstall.sort.largestFirst" = "Önce büyük";
 "uninstall.sort.lastUsed" = "Son kullanım";
 "uninstall.sort.name" = "Ad";
+"uninstall.sort.nameAscending" = "A → Z";
+"uninstall.sort.nameDescending" = "Z → A";
+"uninstall.sort.newestFirst" = "Önce en yeni";
+"uninstall.sort.oldestFirst" = "Önce en eski";
 "uninstall.sort.size" = "Boyut";
+"uninstall.sort.smallestFirst" = "Önce küçük";
 "uninstall.systemApp" = "Kaldırılamaz";
 "uninstall.systemAppDetail" = "Sift yalnızca sizin yüklediğiniz uygulamaları kaldırır.";

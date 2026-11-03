@@ -10,6 +10,7 @@
 "apps.footer" = "Pokazano aplikacje ponad 200 MB, łącznie %d";
 "apps.installedOn" = "Zainstalowano %@";
 "apps.lastOpened" = "Ostatnio otwarto %@";
+"apps.lastUsedUnknown" = "Brak zapisu otwarcia";
 "apps.listTitle" = "Aplikacje";
 "apps.neverOpened" = "Nigdy nie otwierano";
 "apps.reclaimable" = "Można odzyskać";
@@ -469,8 +470,14 @@
 "uninstall.selectApp" = "Wybierz aplikację, aby zobaczyć, co zostałoby usunięte.";
 "uninstall.sharedContainer" = "Współdzielone także z: %@";
 "uninstall.sort.installedAt" = "Data instalacji";
+"uninstall.sort.largestFirst" = "Od największego";
 "uninstall.sort.lastUsed" = "Ostatnio używane";
 "uninstall.sort.name" = "Nazwa";
+"uninstall.sort.nameAscending" = "A → Z";
+"uninstall.sort.nameDescending" = "Z → A";
+"uninstall.sort.newestFirst" = "Od najnowszych";
+"uninstall.sort.oldestFirst" = "Od najstarszych";
 "uninstall.sort.size" = "Rozmiar";
+"uninstall.sort.smallestFirst" = "Od najmniejszego";
 "uninstall.systemApp" = "Nie można odinstalować";
 "uninstall.systemAppDetail" = "Sift usuwa tylko aplikacje, które samodzielnie zainstalowałeś.";

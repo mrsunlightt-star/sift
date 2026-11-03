@@ -10,6 +10,7 @@
 "apps.footer" = "แสดงแอปที่ใหญ่กว่า 200 MB · รวม %d";
 "apps.installedOn" = "ติดตั้งเมื่อ %@";
 "apps.lastOpened" = "เปิดล่าสุด %@";
+"apps.lastUsedUnknown" = "ไม่มีบันทึกการเปิด";
 "apps.listTitle" = "แอปพลิเคชัน";
 "apps.neverOpened" = "ไม่เคยเปิด";
 "apps.reclaimable" = "ปลดปล่อยได้";
@@ -469,8 +470,14 @@
 "uninstall.selectApp" = "เลือกแอปเพื่อดูสิ่งที่จะถูกลบ";
 "uninstall.sharedContainer" = "แชร์ร่วมกับ: %@";
 "uninstall.sort.installedAt" = "วันที่ติดตั้ง";
+"uninstall.sort.largestFirst" = "ใหญ่สุดก่อน";
 "uninstall.sort.lastUsed" = "ใช้ล่าสุด";
 "uninstall.sort.name" = "ชื่อ";
+"uninstall.sort.nameAscending" = "A → Z";
+"uninstall.sort.nameDescending" = "Z → A";
+"uninstall.sort.newestFirst" = "ใหม่สุดก่อน";
+"uninstall.sort.oldestFirst" = "เก่าสุดก่อน";
 "uninstall.sort.size" = "ขนาด";
+"uninstall.sort.smallestFirst" = "เล็กสุดก่อน";
 "uninstall.systemApp" = "ถอนการติดตั้งไม่ได้";
 "uninstall.systemAppDetail" = "Sift จะลบเฉพาะแอปที่คุณติดตั้งเองเท่านั้น";

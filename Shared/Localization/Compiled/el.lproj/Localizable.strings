@@ -10,6 +10,7 @@
 "apps.footer" = "Εμφάνιση εφαρμογών άνω των 200 MB · %d συνολικά";
 "apps.installedOn" = "Εγκαταστάθηκε %@";
 "apps.lastOpened" = "Τελευταίο άνοιγμα %@";
+"apps.lastUsedUnknown" = "Δεν υπάρχει αρχείο ανοίγματος";
 "apps.listTitle" = "Εφαρμογές";
 "apps.neverOpened" = "Δεν άνοιξε ποτέ";
 "apps.reclaimable" = "Μπορούν να ελευθερωθούν";
@@ -469,8 +470,14 @@
 "uninstall.selectApp" = "Επιλέξτε μια εφαρμογή για να δείτε τι θα αφαιρεθεί.";
 "uninstall.sharedContainer" = "Κοινόχρηστο επίσης με: %@";
 "uninstall.sort.installedAt" = "Ημερομηνία εγκατάστασης";
+"uninstall.sort.largestFirst" = "Πρώτα τα μεγαλύτερα";
 "uninstall.sort.lastUsed" = "Τελευταία χρήση";
 "uninstall.sort.name" = "Όνομα";
+"uninstall.sort.nameAscending" = "A → Z";
+"uninstall.sort.nameDescending" = "Z → A";
+"uninstall.sort.newestFirst" = "Πρώτα τα νεότερα";
+"uninstall.sort.oldestFirst" = "Πρώτα τα παλαιότερα";
 "uninstall.sort.size" = "Μέγεθος";
+"uninstall.sort.smallestFirst" = "Πρώτα τα μικρότερα";
 "uninstall.systemApp" = "Δεν είναι δυνατή η απεγκατάσταση";
 "uninstall.systemAppDetail" = "Το Sift αφαιρεί μόνο εφαρμογές που εγκαταστήσατε εσείς.";

@@ -13,7 +13,7 @@ public struct UninstallerView: View {
     @EnvironmentObject private var environment: AppEnvironment
     private let onRequestPurchase: () -> Void
     @State private var search = ""
-    @State private var sort: ApplicationSortOrder = .size
+    @State private var sort: ApplicationSortOrder = .largestFirst
     @State private var selected: InstalledApplication?
     @State private var plan: UninstallPlan?
     @State private var isLoadingPlan = false
@@ -118,10 +118,7 @@ public struct UninstallerView: View {
     }
 
     private var staleApplicationCount: Int {
-        let cutoff = Date().addingTimeInterval(-180 * 86_400)
-        return environment.installedApplications.filter {
-            !$0.isSystemApplication && ($0.lastUsedAt ?? .distantPast) < cutoff
-        }.count
+        environment.installedApplications.filter { $0.isUnused() }.count
     }
 
     // MARK: - List
@@ -135,7 +132,7 @@ public struct UninstallerView: View {
                     Spacer(minLength: SiftMetrics.spacingS)
                     Text(
                         LocalizationKey.appsSortSummary.localized(
-                            sort.titleKey.localized,
+                            sort.title,
                             SiftFormat.bytes(environment.installedApplications.reduce(0) { $0 + $1.sizeInBytes })
                         )
                     )
@@ -233,13 +230,29 @@ public struct UninstallerView: View {
         .fixedSize()
     }
 
+    /// The order menu, grouped by attribute with both directions offered.
+    ///
+    /// Eight rows in one flat list read as eight unrelated orders; the divider
+    /// between attributes is what makes "newest first" and "oldest first" a pair
+    /// under "Install date" rather than two menu items that look alike. The
+    /// current row carries a checkmark because a menu whose trigger states the
+    /// order still has to say which of its own rows that is.
     private var sortMenu: some View {
         Menu {
-            ForEach(ApplicationSortOrder.allCases, id: \.self) { order in
-                Button {
-                    sort = order
-                } label: {
-                    Text(order.titleKey.localized)
+            ForEach(ApplicationSortOrder.Axis.allCases, id: \.self) { axis in
+                if axis != ApplicationSortOrder.Axis.allCases.first {
+                    Divider()
+                }
+                ForEach(ApplicationSortOrder.allCases.filter { $0.axis == axis }, id: \.self) { order in
+                    Button {
+                        sort = order
+                    } label: {
+                        if order == sort {
+                            Label(order.title, systemImage: "checkmark")
+                        } else {
+                            Text(order.title)
+                        }
+                    }
                 }
             }
         } label: {
@@ -274,7 +287,7 @@ public struct UninstallerView: View {
                     Text(application.name)
                         .font(SiftFont.bodyEmphasis)
                         .lineLimit(1)
-                    Text(secondaryLine(application, includingInstallDate: sort == .installedAt))
+                    Text(secondaryLine(application))
                         .font(SiftFont.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -303,25 +316,33 @@ public struct UninstallerView: View {
         .accessibilityIdentifier("apps.row.\(application.id)")
     }
 
-    private func secondaryLine(
-        _ application: InstalledApplication,
-        includingInstallDate: Bool = false
-    ) -> String {
+    /// What the row says under the name.
+    ///
+    /// Both dates are always stated, not only the one the list is ordered by. They
+    /// are two different records — the bundle's birth time and the launch
+    /// LaunchServices wrote — and the page showed them as one number because it
+    /// read one record twice. A row that prints both makes the independence
+    /// visible, and it is what lets a person see that an application installed
+    /// four days ago was opened this morning.
+    ///
+    /// The launch record is stated as what it is: a recorded date, "never opened"
+    /// when the system holds the bundle and no launch, and "no open record" when
+    /// the system holds no record of the bundle at all. The last two are not the
+    /// same sentence, because only one of them is a claim about use.
+    private func secondaryLine(_ application: InstalledApplication) -> String {
         let version = application.version ?? LocalizationKey.commonNotAvailable.localized
-        let lastUsed: String
-        if let date = application.lastUsedAt {
-            lastUsed = LocalizationKey.appsLastOpened.localized(SiftFormat.relativeDate(date))
-        } else {
-            lastUsed = LocalizationKey.appsNeverOpened.localized
-        }
-        guard includingInstallDate else { return "\(version), \(lastUsed)" }
-        // The date the list is ordered by is the date the row states, so sorting by
-        // install time shows the install time rather than leaving the order
-        // unexplained. The detail pane always states it, because it is the place a
-        // single application is described.
         let installed = application.installedAt.map {
-            LocalizationKey.appsInstalledOn.localized(SiftFormat.relativeDate($0))
+            LocalizationKey.appsInstalledOn.localized(SiftFormat.day($0))
         } ?? LocalizationKey.commonNotAvailable.localized
+        let lastUsed: String
+        switch application.lastUsed {
+        case let .known(date):
+            lastUsed = LocalizationKey.appsLastOpened.localized(SiftFormat.day(date))
+        case .neverOpened:
+            lastUsed = LocalizationKey.appsNeverOpened.localized
+        case .unavailable:
+            lastUsed = LocalizationKey.appsLastUsedUnknown.localized
+        }
         return "\(version), \(installed), \(lastUsed)"
     }
 
@@ -426,7 +447,7 @@ public struct UninstallerView: View {
                 Text(application.name)
                     .font(SiftFont.title)
                     .lineLimit(2)
-                Text(secondaryLine(application, includingInstallDate: true))
+                Text(secondaryLine(application))
                     .font(SiftFont.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)

@@ -10,6 +10,7 @@
 "apps.footer" = "Показани са приложения над 200 MB · общо %d";
 "apps.installedOn" = "Инсталирано на %@";
 "apps.lastOpened" = "Последно отваряне: %@";
+"apps.lastUsedUnknown" = "Няма запис за отваряне";
 "apps.listTitle" = "Приложения";
 "apps.neverOpened" = "Никога не е отваряно";
 "apps.reclaimable" = "Може да се освободи";
@@ -469,8 +470,14 @@
 "uninstall.selectApp" = "Изберете приложение, за да видите какво ще бъде премахнато.";
 "uninstall.sharedContainer" = "Споделено също с: %@";
 "uninstall.sort.installedAt" = "Дата на инсталиране";
+"uninstall.sort.largestFirst" = "Първо най-големите";
 "uninstall.sort.lastUsed" = "Последно използване";
 "uninstall.sort.name" = "Име";
+"uninstall.sort.nameAscending" = "A → Z";
+"uninstall.sort.nameDescending" = "Z → A";
+"uninstall.sort.newestFirst" = "Първо най-новите";
+"uninstall.sort.oldestFirst" = "Първо най-старите";
 "uninstall.sort.size" = "Размер";
+"uninstall.sort.smallestFirst" = "Първо най-малките";
 "uninstall.systemApp" = "Не може да се деинсталира";
 "uninstall.systemAppDetail" = "Sift премахва само приложения, които вие сте инсталирали.";

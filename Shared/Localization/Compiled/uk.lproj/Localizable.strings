@@ -10,6 +10,7 @@
 "apps.footer" = "Показано програми понад 200 МБ · усього %d";
 "apps.installedOn" = "Встановлено %@";
 "apps.lastOpened" = "Останнє відкриття: %@";
+"apps.lastUsedUnknown" = "Немає запису про відкриття";
 "apps.listTitle" = "Програми";
 "apps.neverOpened" = "Ніколи не відкривано";
 "apps.reclaimable" = "Можна звільнити";
@@ -469,8 +470,14 @@
 "uninstall.selectApp" = "Виберіть програму, щоб побачити, що буде видалено.";
 "uninstall.sharedContainer" = "Спільно з: %@";
 "uninstall.sort.installedAt" = "Дата встановлення";
+"uninstall.sort.largestFirst" = "Спочатку найбільші";
 "uninstall.sort.lastUsed" = "Останнє використання";
 "uninstall.sort.name" = "Назва";
+"uninstall.sort.nameAscending" = "A → Z";
+"uninstall.sort.nameDescending" = "Z → A";
+"uninstall.sort.newestFirst" = "Спочатку найновіші";
+"uninstall.sort.oldestFirst" = "Спочатку найстаріші";
 "uninstall.sort.size" = "Розмір";
+"uninstall.sort.smallestFirst" = "Спочатку найменші";
 "uninstall.systemApp" = "Не можна видалити";
 "uninstall.systemAppDetail" = "Sift видаляє лише програми, які ви встановили самостійно.";

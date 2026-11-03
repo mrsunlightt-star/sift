@@ -10,6 +10,7 @@
 "apps.footer" = "A 200 MB-nál nagyobb alkalmazások láthatók · összesen %d";
 "apps.installedOn" = "Telepítve: %@";
 "apps.lastOpened" = "Utoljára megnyitva: %@";
+"apps.lastUsedUnknown" = "Nincs megnyitási előzmény";
 "apps.listTitle" = "Alkalmazások";
 "apps.neverOpened" = "Soha nem nyitották meg";
 "apps.reclaimable" = "Felszabadítható";
@@ -469,8 +470,14 @@
 "uninstall.selectApp" = "Válasszon egy alkalmazást, hogy lássa, mi kerülne eltávolításra.";
 "uninstall.sharedContainer" = "Megosztva ezekkel is: %@";
 "uninstall.sort.installedAt" = "Telepítés dátuma";
+"uninstall.sort.largestFirst" = "Legnagyobb elöl";
 "uninstall.sort.lastUsed" = "Utolsó használat";
 "uninstall.sort.name" = "Név";
+"uninstall.sort.nameAscending" = "A → Z";
+"uninstall.sort.nameDescending" = "Z → A";
+"uninstall.sort.newestFirst" = "Legújabb elöl";
+"uninstall.sort.oldestFirst" = "Legrégebbi elöl";
 "uninstall.sort.size" = "Méret";
+"uninstall.sort.smallestFirst" = "Legkisebb elöl";
 "uninstall.systemApp" = "Nem távolítható el";
 "uninstall.systemAppDetail" = "A Sift csak az Ön által telepített alkalmazásokat távolítja el.";

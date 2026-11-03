@@ -10,6 +10,7 @@
 "apps.footer" = "Viser apper over 200 MB · %d totalt";
 "apps.installedOn" = "Installert %@";
 "apps.lastOpened" = "Sist åpnet %@";
+"apps.lastUsedUnknown" = "Ingen åpningshistorikk";
 "apps.listTitle" = "Apper";
 "apps.neverOpened" = "Aldri åpnet";
 "apps.reclaimable" = "Kan frigjøres";
@@ -469,8 +470,14 @@
 "uninstall.selectApp" = "Velg en app for å se hva som ville bli fjernet.";
 "uninstall.sharedContainer" = "Deles også med: %@";
 "uninstall.sort.installedAt" = "Installasjonsdato";
+"uninstall.sort.largestFirst" = "Største først";
 "uninstall.sort.lastUsed" = "Sist brukt";
 "uninstall.sort.name" = "Navn";
+"uninstall.sort.nameAscending" = "A → Z";
+"uninstall.sort.nameDescending" = "Z → A";
+"uninstall.sort.newestFirst" = "Nyeste først";
+"uninstall.sort.oldestFirst" = "Eldste først";
 "uninstall.sort.size" = "Størrelse";
+"uninstall.sort.smallestFirst" = "Minste først";
 "uninstall.systemApp" = "Kan ikke avinstalleres";
 "uninstall.systemAppDetail" = "Sift fjerner bare apper du har installert selv.";

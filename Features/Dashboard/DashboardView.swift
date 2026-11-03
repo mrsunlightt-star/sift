@@ -590,10 +590,11 @@ public struct DashboardView: View {
     /// Apps that have not been opened in six months, excluding system apps and
     /// anything the system has never recorded a launch for.
     private var uninstallAdviceCount: Int {
-        let cutoff = Date().addingTimeInterval(-180 * 86_400)
-        return environment.installedApplications.filter { application in
-            !application.isSystemApplication && (application.lastUsedAt ?? .distantPast) < cutoff
-        }.count
+        // One rule for "unused", in the model, so this page and the Apps page
+        // cannot disagree about the same application. It also keeps the count
+        // honest when the launch record could not be read at all: unknown is not
+        // the same as six months untouched.
+        environment.installedApplications.filter { $0.isUnused() }.count
     }
 
     // MARK: - Formatting

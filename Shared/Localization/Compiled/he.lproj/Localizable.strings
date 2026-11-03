@@ -10,6 +10,7 @@
 "apps.footer" = "מציג אפליקציות מעל 200 MB · %d בסך הכול";
 "apps.installedOn" = "הותקן ב־%@";
 "apps.lastOpened" = "נפתח לאחרונה %@";
+"apps.lastUsedUnknown" = "אין רשומת פתיחה";
 "apps.listTitle" = "אפליקציות";
 "apps.neverOpened" = "מעולם לא נפתח";
 "apps.reclaimable" = "ניתן לפינוי";
@@ -469,8 +470,14 @@
 "uninstall.selectApp" = "בחרו אפליקציה כדי לראות מה יוסר.";
 "uninstall.sharedContainer" = "משותף גם עם: %@";
 "uninstall.sort.installedAt" = "תאריך התקנה";
+"uninstall.sort.largestFirst" = "הגדול קודם";
 "uninstall.sort.lastUsed" = "שימוש אחרון";
 "uninstall.sort.name" = "שם";
+"uninstall.sort.nameAscending" = "A → Z";
+"uninstall.sort.nameDescending" = "Z → A";
+"uninstall.sort.newestFirst" = "החדש קודם";
+"uninstall.sort.oldestFirst" = "הישן קודם";
 "uninstall.sort.size" = "גודל";
+"uninstall.sort.smallestFirst" = "הקטן קודם";
 "uninstall.systemApp" = "לא ניתן להסיר";
 "uninstall.systemAppDetail" = "Sift מסיר רק אפליקציות שהתקנתם בעצמכם.";

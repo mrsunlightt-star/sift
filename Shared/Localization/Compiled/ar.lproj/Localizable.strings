@@ -10,6 +10,7 @@
 "apps.footer" = "عرض التطبيقات فوق 200 ميغابايت · %d إجمالًا";
 "apps.installedOn" = "تم التثبيت في %@";
 "apps.lastOpened" = "آخر فتح %@";
+"apps.lastUsedUnknown" = "لا يوجد سجل فتح";
 "apps.listTitle" = "التطبيقات";
 "apps.neverOpened" = "لم يُفتح أبدًا";
 "apps.reclaimable" = "يمكن تحريره";
@@ -469,8 +470,14 @@
 "uninstall.selectApp" = "اختر تطبيقًا لترى ما سيُزال.";
 "uninstall.sharedContainer" = "مشترك أيضًا مع: %@";
 "uninstall.sort.installedAt" = "تاريخ التثبيت";
+"uninstall.sort.largestFirst" = "الأكبر أولًا";
 "uninstall.sort.lastUsed" = "آخر استخدام";
 "uninstall.sort.name" = "الاسم";
+"uninstall.sort.nameAscending" = "A → Z";
+"uninstall.sort.nameDescending" = "Z → A";
+"uninstall.sort.newestFirst" = "الأحدث أولًا";
+"uninstall.sort.oldestFirst" = "الأقدم أولًا";
 "uninstall.sort.size" = "الحجم";
+"uninstall.sort.smallestFirst" = "الأصغر أولًا";
 "uninstall.systemApp" = "لا يمكن إزالته";
 "uninstall.systemAppDetail" = "يزيل Sift التطبيقات التي ثبّتها بنفسك فقط.";

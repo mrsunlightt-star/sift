@@ -10,6 +10,7 @@
 "apps.footer" = "Показаны приложения больше 200 МБ, всего %d";
 "apps.installedOn" = "Установлено: %@";
 "apps.lastOpened" = "Последний запуск: %@";
+"apps.lastUsedUnknown" = "Нет записи об открытии";
 "apps.listTitle" = "Приложения";
 "apps.neverOpened" = "Не открывалось";
 "apps.reclaimable" = "Можно освободить";
@@ -469,8 +470,14 @@
 "uninstall.selectApp" = "Выберите приложение, чтобы увидеть, что будет удалено.";
 "uninstall.sharedContainer" = "Также используется: %@";
 "uninstall.sort.installedAt" = "Дата установки";
+"uninstall.sort.largestFirst" = "Сначала крупные";
 "uninstall.sort.lastUsed" = "Последнее использование";
 "uninstall.sort.name" = "Имя";
+"uninstall.sort.nameAscending" = "A → Z";
+"uninstall.sort.nameDescending" = "Z → A";
+"uninstall.sort.newestFirst" = "Сначала новые";
+"uninstall.sort.oldestFirst" = "Сначала старые";
 "uninstall.sort.size" = "Размер";
+"uninstall.sort.smallestFirst" = "Сначала мелкие";
 "uninstall.systemApp" = "Нельзя удалить";
 "uninstall.systemAppDetail" = "Sift удаляет только приложения, установленные вами.";

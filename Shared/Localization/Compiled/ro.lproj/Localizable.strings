@@ -10,6 +10,7 @@
 "apps.footer" = "Se afișează aplicațiile peste 200 MB · %d în total";
 "apps.installedOn" = "Instalat la %@";
 "apps.lastOpened" = "Ultima deschidere %@";
+"apps.lastUsedUnknown" = "Fără istoric de deschidere";
 "apps.listTitle" = "Aplicații";
 "apps.neverOpened" = "Niciodată deschisă";
 "apps.reclaimable" = "Poate fi eliberat";
@@ -469,8 +470,14 @@
 "uninstall.selectApp" = "Alege o aplicație pentru a vedea ce s-ar elimina.";
 "uninstall.sharedContainer" = "Partajat și cu: %@";
 "uninstall.sort.installedAt" = "Data instalării";
+"uninstall.sort.largestFirst" = "Cele mai mari primele";
 "uninstall.sort.lastUsed" = "Ultima utilizare";
 "uninstall.sort.name" = "Nume";
+"uninstall.sort.nameAscending" = "A → Z";
+"uninstall.sort.nameDescending" = "Z → A";
+"uninstall.sort.newestFirst" = "Cele mai recente primele";
+"uninstall.sort.oldestFirst" = "Cele mai vechi primele";
 "uninstall.sort.size" = "Dimensiune";
+"uninstall.sort.smallestFirst" = "Cele mai mici primele";
 "uninstall.systemApp" = "Nu poate fi dezinstalată";
 "uninstall.systemAppDetail" = "Sift elimină doar aplicațiile pe care le-ai instalat singur.";

@@ -747,6 +747,42 @@ public struct VolumeInfo: Identifiable, Hashable, Sendable {
     public var formattedUsage: String { SiftFormat.percent(usedFraction) }
 }
 
+/// What macOS records about the last time an application was opened.
+///
+/// This used to be the bundle directory's content-access date, and that was a
+/// defect rather than a shortcut. Launching an application does not touch the
+/// bundle directory's access time: the program reads files *inside* the bundle,
+/// and macOS mounts its volumes without access-time updates anyway — so the date
+/// that was stored was the moment the directory itself was last written, i.e. a
+/// copy, an install or an update. A freshly installed application therefore
+/// reported the same "last opened" and "installed" date (both are the copy's
+/// timestamp), and an application opened daily for a year reported that it had
+/// not been opened since it was installed. The two facts have to come from two
+/// different records or the page states one fact twice.
+///
+/// The record LaunchServices writes on a launch is `kMDItemLastUsedDate` in the
+/// Spotlight index — the same value Finder shows in its "Last opened" column.
+/// It is the only public source written when an application actually runs, so it
+/// is what this build reads, and the three answers stay apart:
+public enum LastUsedRecord: Hashable, Sendable {
+    /// macOS recorded this launch.
+    case known(Date)
+    /// Spotlight knows the bundle and holds no launch record for it.
+    case neverOpened
+    /// Spotlight has no record of the bundle at all: indexing is off, the volume
+    /// is not indexed, or the bundle arrived moments ago. Not knowing is not
+    /// evidence that the application never ran, so this is not folded into
+    /// `neverOpened`.
+    case unavailable
+
+    public var date: Date? {
+        switch self {
+        case let .known(date): date
+        case .neverOpened, .unavailable: nil
+        }
+    }
+}
+
 /// An installed application, as discovered for the uninstaller (§5.3).
 public struct InstalledApplication: Identifiable, Hashable, Sendable {
     public let id: String
@@ -755,7 +791,13 @@ public struct InstalledApplication: Identifiable, Hashable, Sendable {
     public let bundleIdentifier: String
     public let version: String?
     public let sizeInBytes: Int64
-    public let lastUsedAt: Date?
+    /// When the application was last opened, as the system recorded it.
+    public let lastUsed: LastUsedRecord
+
+    /// The recorded launch, when there is one. Derived from `lastUsed` so the two
+    /// cannot disagree; a caller that has to say *why* a date is missing reads
+    /// `lastUsed` instead.
+    public var lastUsedAt: Date? { lastUsed.date }
     /// When the bundle was put on this disk.
     ///
     /// The file system's birth time for the bundle directory, which is what an
@@ -775,7 +817,7 @@ public struct InstalledApplication: Identifiable, Hashable, Sendable {
         bundleIdentifier: String,
         version: String?,
         sizeInBytes: Int64,
-        lastUsedAt: Date?,
+        lastUsed: LastUsedRecord,
         installedAt: Date?,
         isSystemApplication: Bool,
         isRunning: Bool
@@ -786,7 +828,7 @@ public struct InstalledApplication: Identifiable, Hashable, Sendable {
         self.bundleIdentifier = bundleIdentifier
         self.version = version
         self.sizeInBytes = sizeInBytes
-        self.lastUsedAt = lastUsedAt
+        self.lastUsed = lastUsed
         self.installedAt = installedAt
         self.isSystemApplication = isSystemApplication
         self.isRunning = isRunning
@@ -794,14 +836,44 @@ public struct InstalledApplication: Identifiable, Hashable, Sendable {
 
     public var formattedSize: String { SiftFormat.bytes(sizeInBytes) }
 
+    /// The launch date with its year, or the reason there is none.
+    ///
+    /// Absolute rather than "3 days ago": the Apps page prints this beside the
+    /// install date and the list is read row against row, so both dates use one
+    /// unit and both carry a year.
     public var formattedLastUsed: String {
-        guard let lastUsedAt else { return LocalizationKey.commonNotAvailable.localized }
-        return SiftFormat.relativeDate(lastUsedAt)
+        switch lastUsed {
+        case let .known(date): SiftFormat.day(date)
+        case .neverOpened: LocalizationKey.appsNeverOpened.localized
+        case .unavailable: LocalizationKey.appsLastUsedUnknown.localized
+        }
     }
 
     public var formattedInstalledAt: String {
         guard let installedAt else { return LocalizationKey.commonNotAvailable.localized }
-        return SiftFormat.relativeDate(installedAt)
+        return SiftFormat.day(installedAt)
+    }
+
+    /// Whether this application counts as "not opened in `thresholdDays`".
+    ///
+    /// The three records answer differently on purpose. A recorded launch is
+    /// compared with the cutoff. An application Spotlight knows and holds no
+    /// launch record for is judged by its install date — an application installed
+    /// last week and not opened yet is not six months unused. An application whose
+    /// launch record could not be read is **not** counted: "unused" is a claim
+    /// about the system's own record, and an absent record is not one. Counting it
+    /// is how the page came to state a number it had no evidence for.
+    public func isUnused(now: Date = Date(), thresholdDays: Double = 180) -> Bool {
+        guard !isSystemApplication else { return false }
+        let cutoff = now.addingTimeInterval(-thresholdDays * 86_400)
+        switch lastUsed {
+        case let .known(date):
+            return date < cutoff
+        case .neverOpened:
+            return (installedAt ?? .distantPast) < cutoff
+        case .unavailable:
+            return false
+        }
     }
 }
 

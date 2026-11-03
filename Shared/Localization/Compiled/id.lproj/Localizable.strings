@@ -10,6 +10,7 @@
 "apps.footer" = "Menampilkan aplikasi di atas 200 MB · %d total";
 "apps.installedOn" = "Dipasang %@";
 "apps.lastOpened" = "Terakhir dibuka %@";
+"apps.lastUsedUnknown" = "Tidak ada catatan pembukaan";
 "apps.listTitle" = "Aplikasi";
 "apps.neverOpened" = "Belum pernah dibuka";
 "apps.reclaimable" = "Dapat dibebaskan";
@@ -469,8 +470,14 @@
 "uninstall.selectApp" = "Pilih aplikasi untuk melihat apa yang akan dihapus.";
 "uninstall.sharedContainer" = "Juga dibagikan dengan: %@";
 "uninstall.sort.installedAt" = "Tanggal pemasangan";
+"uninstall.sort.largestFirst" = "Terbesar dulu";
 "uninstall.sort.lastUsed" = "Terakhir digunakan";
 "uninstall.sort.name" = "Nama";
+"uninstall.sort.nameAscending" = "A → Z";
+"uninstall.sort.nameDescending" = "Z → A";
+"uninstall.sort.newestFirst" = "Terbaru dulu";
+"uninstall.sort.oldestFirst" = "Terlama dulu";
 "uninstall.sort.size" = "Ukuran";
+"uninstall.sort.smallestFirst" = "Terkecil dulu";
 "uninstall.systemApp" = "Tidak dapat dihapus";
 "uninstall.systemAppDetail" = "Sift hanya menghapus aplikasi yang Anda pasang sendiri.";

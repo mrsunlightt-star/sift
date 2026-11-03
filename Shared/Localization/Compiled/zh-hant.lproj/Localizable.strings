@@ -10,6 +10,7 @@
 "apps.footer" = "僅顯示超過 200 MB 的應用程式，共 %d 個";
 "apps.installedOn" = "安裝於%@";
 "apps.lastOpened" = "上次開啟於%@";
+"apps.lastUsedUnknown" = "無開啟記錄";
 "apps.listTitle" = "應用程式列表";
 "apps.neverOpened" = "從未開啟";
 "apps.reclaimable" = "本次可釋放";
@@ -469,8 +470,14 @@
 "uninstall.selectApp" = "選擇一個應用程式以查看將被刪除的內容。";
 "uninstall.sharedContainer" = "也被這些應用程式共用：%@";
 "uninstall.sort.installedAt" = "安裝時間";
+"uninstall.sort.largestFirst" = "從大到小";
 "uninstall.sort.lastUsed" = "最近使用";
 "uninstall.sort.name" = "名稱";
+"uninstall.sort.nameAscending" = "A → Z";
+"uninstall.sort.nameDescending" = "Z → A";
+"uninstall.sort.newestFirst" = "從新到舊";
+"uninstall.sort.oldestFirst" = "從舊到新";
 "uninstall.sort.size" = "佔用空間";
+"uninstall.sort.smallestFirst" = "從小到大";
 "uninstall.systemApp" = "不可解除安裝";
 "uninstall.systemAppDetail" = "Sift 只處理你自己安裝的應用程式。";

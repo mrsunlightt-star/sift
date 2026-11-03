@@ -10,6 +10,7 @@
 "apps.footer" = "نمایش برنامه‌های بالای ۲۰۰ مگابایت · در مجموع %d";
 "apps.installedOn" = "نصب شده در %@";
 "apps.lastOpened" = "آخرین بازشدن %@";
+"apps.lastUsedUnknown" = "بدون سابقهٔ باز شدن";
 "apps.listTitle" = "برنامه‌ها";
 "apps.neverOpened" = "هرگز باز نشده";
 "apps.reclaimable" = "قابل آزادسازی";
@@ -469,8 +470,14 @@
 "uninstall.selectApp" = "برنامه‌ای را انتخاب کنید تا ببینید چه چیزی حذف می‌شود.";
 "uninstall.sharedContainer" = "همچنین مشترک با: %@";
 "uninstall.sort.installedAt" = "تاریخ نصب";
+"uninstall.sort.largestFirst" = "بزرگ‌ترین ابتدا";
 "uninstall.sort.lastUsed" = "آخرین استفاده";
 "uninstall.sort.name" = "نام";
+"uninstall.sort.nameAscending" = "A → Z";
+"uninstall.sort.nameDescending" = "Z → A";
+"uninstall.sort.newestFirst" = "جدیدترین ابتدا";
+"uninstall.sort.oldestFirst" = "قدیمی‌ترین ابتدا";
 "uninstall.sort.size" = "اندازه";
+"uninstall.sort.smallestFirst" = "کوچک‌ترین ابتدا";
 "uninstall.systemApp" = "قابل حذف نیست";
 "uninstall.systemAppDetail" = "Sift فقط برنامه‌هایی را حذف می‌کند که خودتان نصب کرده‌اید.";

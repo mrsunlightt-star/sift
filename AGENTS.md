@@ -827,6 +827,44 @@ These are product promises, not implementation details. Each has tests behind it
     answer — which is the point. Test:
     `test_theOverviewResolvesOneStateForEveryLabel`.
 
+47. **An application carries two dates from two records, and neither is invented.**
+    The Apps page prints an install date and a last-opened date, and it used to
+    print one number twice: `ApplicationDiscovery` read the bundle directory's
+    `.contentAccessDateKey` as the launch, and macOS does not update a directory's
+    access time when an application is opened — the program writes to files inside
+    the bundle, and its volumes maintain no atime — so the launch date stood still
+    at the copy that created the bundle. Measured on the development machine,
+    `DeepSeek Harness.app` was born 2026-10-29 21:47 with an access time of 21:47
+    and a real launch at 2026-11-03 23:23, and every installed bundle agreed. The
+    launch now comes from `kMDItemLastUsedDate` (read with `NSMetadataItem`, the
+    value Finder's "Last opened" column shows) and the install date from
+    `kMDItemDateAdded` (the "Date added" column), which survives both shapes of
+    update — an in-place rewrite and a whole-bundle replacement; the bundle's own
+    birth time stays as the fallback for a bundle the index does not hold.
+    `LastUsedRecord` keeps three answers apart — `.known(Date)`, `.neverOpened`,
+    `.unavailable` — because only two of them are claims about use, and `isUnused`
+    refuses to call an application stale on an absent record: "no record" is not
+    "not opened". Both dates are stated with their year (`SiftFormat.day`), never
+    as "3 days ago", because the rows are read against one another and the
+    relative form drops the year; recency wording stays where recency is the
+    point (a finished scan, a written report). Tests:
+    `test_theLaunchRecordIsReadFromTheSystemAndNotFromTheBundlesFileTimes`,
+    `test_aBundleWithNoIndexRecordIsNotReportedAsNeverOpened`,
+    `test_theInstallDatePrefersTheRecordThatSaysWhenTheItemArrived`,
+    `test_anApplicationUpdatedInPlaceIsStillAsOldAsTheDayItArrived`,
+    `test_theTwoDatesArePrintedWithAYearAndNotAsAgoPhrases`,
+    `test_theLaunchRecordDecidesWhetherAnApplicationCountsAsUnused`.
+
+    Every attribute the page sorts by offers both directions, and a date that could
+    not be read sorts after every date that could, in **both** directions —
+    reversing an order must not present an application with no record as the newest
+    or the oldest. `ApplicationSortOrder.Axis` is what keeps the menu grouped by
+    attribute (`titleKey` × `directionKey`) instead of listing eight unrelated rows.
+    Tests: `test_anUnknownInstallDateSortsAfterEveryKnownOneInBothDirections`,
+    `test_eachAttributeOffersExactlyTwoDirections`,
+    `test_theLastUsedOrderHasBothDirections`,
+    `test_installDateOrderDoesNotReadTheLastUsedDate`.
+
 ## Layout notes
 
 - `Core/` is one library; `Features/` are separate libraries so a change to one

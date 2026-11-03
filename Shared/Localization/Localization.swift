@@ -327,6 +327,24 @@ public enum SiftFormat {
         return formatter.string(from: date)
     }
 
+    /// An absolute date — day, month and **year**, never "3 days ago".
+    ///
+    /// The Apps page prints an install date and a launch date side by side, in a
+    /// list whose rows are read against each other: "installed 4 days ago" next to
+    /// "installed 27 October 2026" is two units in one column, and a relative date
+    /// without a year cannot answer the question the list exists to answer ("did I
+    /// install this before or after the thing above it"). A relative phrase is right
+    /// where the point *is* recency — when a scan finished, when a report was
+    /// written — and wrong where the point is a date, so the two live in different
+    /// functions instead of one that switches granularity as the date ages.
+    public static func day(_ date: Date, locale: Locale = SiftLanguage.current.locale) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = locale
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return formatter.string(from: date)
+    }
+
     /// A full timestamp for report headers and file rows.
     public static func timestamp(_ date: Date, locale: Locale = SiftLanguage.current.locale) -> String {
         let formatter = DateFormatter()

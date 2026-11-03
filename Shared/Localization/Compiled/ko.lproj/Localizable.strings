@@ -10,6 +10,7 @@
 "apps.footer" = "200MB 초과 앱만 표시, 총 %d개";
 "apps.installedOn" = "설치 %@";
 "apps.lastOpened" = "마지막 실행 %@";
+"apps.lastUsedUnknown" = "실행 기록 확인 불가";
 "apps.listTitle" = "앱 목록";
 "apps.neverOpened" = "실행 기록 없음";
 "apps.reclaimable" = "확보 가능";
@@ -469,8 +470,14 @@
 "uninstall.selectApp" = "앱을 선택하면 제거될 항목을 볼 수 있습니다.";
 "uninstall.sharedContainer" = "다음 앱과도 공유됩니다: %@";
 "uninstall.sort.installedAt" = "설치 날짜";
+"uninstall.sort.largestFirst" = "큰 것부터";
 "uninstall.sort.lastUsed" = "최근 사용";
 "uninstall.sort.name" = "이름";
+"uninstall.sort.nameAscending" = "A → Z";
+"uninstall.sort.nameDescending" = "Z → A";
+"uninstall.sort.newestFirst" = "최신순";
+"uninstall.sort.oldestFirst" = "오래된순";
 "uninstall.sort.size" = "크기";
+"uninstall.sort.smallestFirst" = "작은 것부터";
 "uninstall.systemApp" = "제거할 수 없음";
 "uninstall.systemAppDetail" = "Sift는 직접 설치한 앱만 제거합니다.";

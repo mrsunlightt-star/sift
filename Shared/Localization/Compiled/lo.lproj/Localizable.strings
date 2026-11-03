@@ -10,6 +10,7 @@
 "apps.footer" = "ສະແດງແອັບທີ່ໃຫຍ່ກວ່າ 200 MB · ລວມ %d ອັນ";
 "apps.installedOn" = "ຕິດຕັ້ງ %@";
 "apps.lastOpened" = "ເປີດຄັ້ງສຸດທ້າຍ %@";
+"apps.lastUsedUnknown" = "ບໍ່ມີບັນທຶກການເປີດ";
 "apps.listTitle" = "ແອັບພລິເຄຊັນ";
 "apps.neverOpened" = "ບໍ່ເຄີຍເປີດ";
 "apps.reclaimable" = "ສາມາດສ້າງຄືນ";
@@ -469,8 +470,14 @@
 "uninstall.selectApp" = "ເລືອກແອັບເພື່ອເບິ່ງວ່າຈະມີຫຍັງຖືກລຶບ.";
 "uninstall.sharedContainer" = "ແບ່ງປັນກັບ: %@";
 "uninstall.sort.installedAt" = "ວັນຕິດຕັ້ງ";
+"uninstall.sort.largestFirst" = "ໃຫຍ່ກ່ອນ";
 "uninstall.sort.lastUsed" = "ໃຊ້ຫຼ້າສຸດ";
 "uninstall.sort.name" = "ຊື່";
+"uninstall.sort.nameAscending" = "A → Z";
+"uninstall.sort.nameDescending" = "Z → A";
+"uninstall.sort.newestFirst" = "ໃໝ່ກ່ອນ";
+"uninstall.sort.oldestFirst" = "ເກົ່າກ່ອນ";
 "uninstall.sort.size" = "ຂະໜາດ";
+"uninstall.sort.smallestFirst" = "ນ້ອຍກ່ອນ";
 "uninstall.systemApp" = "ຖອນການຕິດຕັ້ງບໍ່ໄດ້";
 "uninstall.systemAppDetail" = "Sift ຈັດການສະເພາະແອັບທີ່ທ່ານຕິດຕັ້ງເອງ.";

@@ -10,6 +10,7 @@
 "apps.footer" = "Visar appar över 200 MB · %d totalt";
 "apps.installedOn" = "Installerad %@";
 "apps.lastOpened" = "Senast öppnad %@";
+"apps.lastUsedUnknown" = "Ingen öppningshistorik";
 "apps.listTitle" = "Program";
 "apps.neverOpened" = "Aldrig öppnad";
 "apps.reclaimable" = "Kan frigöras";
@@ -469,8 +470,14 @@
 "uninstall.selectApp" = "Välj en app för att se vad som skulle tas bort.";
 "uninstall.sharedContainer" = "Delas även med: %@";
 "uninstall.sort.installedAt" = "Installationsdatum";
+"uninstall.sort.largestFirst" = "Störst först";
 "uninstall.sort.lastUsed" = "Senast använd";
 "uninstall.sort.name" = "Namn";
+"uninstall.sort.nameAscending" = "A → Z";
+"uninstall.sort.nameDescending" = "Z → A";
+"uninstall.sort.newestFirst" = "Nyast först";
+"uninstall.sort.oldestFirst" = "Äldst först";
 "uninstall.sort.size" = "Storlek";
+"uninstall.sort.smallestFirst" = "Minst först";
 "uninstall.systemApp" = "Kan inte avinstalleras";
 "uninstall.systemAppDetail" = "Sift tar bara bort appar som du själv har installerat.";

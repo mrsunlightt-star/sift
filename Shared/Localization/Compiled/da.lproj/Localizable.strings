@@ -10,6 +10,7 @@
 "apps.footer" = "Viser apps over 200 MB · %d i alt";
 "apps.installedOn" = "Installeret %@";
 "apps.lastOpened" = "Senest åbnet %@";
+"apps.lastUsedUnknown" = "Ingen åbningshistorik";
 "apps.listTitle" = "Programmer";
 "apps.neverOpened" = "Aldrig åbnet";
 "apps.reclaimable" = "Kan frigives";
@@ -469,8 +470,14 @@
 "uninstall.selectApp" = "Vælg en app for at se, hvad der ville blive fjernet.";
 "uninstall.sharedContainer" = "Deles også med: %@";
 "uninstall.sort.installedAt" = "Installationsdato";
+"uninstall.sort.largestFirst" = "Største først";
 "uninstall.sort.lastUsed" = "Senest brugt";
 "uninstall.sort.name" = "Navn";
+"uninstall.sort.nameAscending" = "A → Z";
+"uninstall.sort.nameDescending" = "Z → A";
+"uninstall.sort.newestFirst" = "Nyeste først";
+"uninstall.sort.oldestFirst" = "Ældste først";
 "uninstall.sort.size" = "Størrelse";
+"uninstall.sort.smallestFirst" = "Mindste først";
 "uninstall.systemApp" = "Kan ikke afinstalleres";
 "uninstall.systemAppDetail" = "Sift fjerner kun apps, du selv har installeret.";

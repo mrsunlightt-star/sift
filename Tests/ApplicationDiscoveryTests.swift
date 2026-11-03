@@ -41,7 +41,7 @@ final class ApplicationDiscoveryTests: XCTestCase, @unchecked Sendable {
             bundleIdentifier: identifier,
             version: "1.0",
             sizeInBytes: 4096,
-            lastUsedAt: nil,
+            lastUsed: .unavailable,
             installedAt: nil,
             isSystemApplication: false,
             isRunning: false
@@ -123,6 +123,145 @@ final class ApplicationDiscoveryTests: XCTestCase, @unchecked Sendable {
         }
         XCTAssertGreaterThanOrEqual(installedAt, before.addingTimeInterval(-1))
         XCTAssertLessThanOrEqual(installedAt, Date().addingTimeInterval(60))
+    }
+
+    private let freshBundlePlist = """
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+      <key>CFBundleIdentifier</key><string>com.vendor.launch</string>
+      <key>CFBundleName</key><string>Launch</string>
+      <key>CFBundleExecutable</key><string>Launch</string>
+    </dict>
+    </plist>
+    """
+
+    /// The launch record and the install date are two different facts.
+    ///
+    /// They used to be read from one object — the bundle directory's birth time and
+    /// its access time — and macOS does not update a directory's access time when an
+    /// application is launched (the program writes to files *inside* the bundle, and
+    /// the volume is mounted without access-time updates). So the page reported the
+    /// copy's timestamp twice: an application installed four days ago and opened
+    /// this morning said "installed four days ago, last opened four days ago", and
+    /// an application opened daily for a year said it had not been opened since it
+    /// was installed. The launch is now the record LaunchServices writes, read from
+    /// the Spotlight index, and this test pins that the two answers come from two
+    /// sources.
+    func test_theLaunchRecordIsReadFromTheSystemAndNotFromTheBundlesFileTimes() async {
+        fixture.writeBytes("Vendor/Launch.app/Contents/Info.plist", Data(freshBundlePlist.utf8))
+        let launch = Date(timeIntervalSince1970: 1_800_000_000)
+
+        let discovery = ApplicationDiscovery(
+            rules: RuleEngine(rules: RuleEngine.builtInRules, homeDirectory: fixture.url),
+            additionalDirectories: [fixture.url],
+            includeDefaultDirectories: false,
+            readRecord: { _ in ApplicationDiscovery.SystemRecord(lastUsed: .known(launch)) }
+        )
+
+        let applications = await discovery.installedApplications()
+        guard let application = applications.first(where: { $0.bundleIdentifier == "com.vendor.launch" }) else {
+            return XCTFail("the fixture bundle was not discovered")
+        }
+        XCTAssertEqual(application.lastUsed, .known(launch))
+        XCTAssertEqual(application.lastUsedAt, launch)
+        XCTAssertNotEqual(
+            application.installedAt,
+            application.lastUsedAt,
+            "the install date is the bundle's own history, not the launch record"
+        )
+    }
+
+    /// A bundle the index holds no record of is not a bundle that never ran.
+    ///
+    /// The two missing answers are kept apart because only one of them is a claim
+    /// about use: "never opened" is a statement about the system's record, and an
+    /// unindexed volume, indexing turned off or a bundle installed seconds ago
+    /// gives no record to make it from.
+    func test_aBundleWithNoIndexRecordIsNotReportedAsNeverOpened() async {
+        fixture.writeBytes("Vendor/Launch.app/Contents/Info.plist", Data(freshBundlePlist.utf8))
+
+        func discovery(_ record: LastUsedRecord) -> ApplicationDiscovery {
+            ApplicationDiscovery(
+                rules: RuleEngine(rules: RuleEngine.builtInRules, homeDirectory: fixture.url),
+                additionalDirectories: [fixture.url],
+                includeDefaultDirectories: false,
+                readRecord: { _ in ApplicationDiscovery.SystemRecord(lastUsed: record) }
+            )
+        }
+
+        let unknown = await discovery(.unavailable).installedApplications()
+            .first { $0.bundleIdentifier == "com.vendor.launch" }
+        XCTAssertEqual(unknown?.lastUsed, .unavailable)
+        XCTAssertNil(unknown?.lastUsedAt)
+        XCTAssertEqual(unknown?.formattedLastUsed, LocalizationKey.appsLastUsedUnknown.localized)
+
+        let never = await discovery(.neverOpened).installedApplications()
+            .first { $0.bundleIdentifier == "com.vendor.launch" }
+        XCTAssertEqual(never?.lastUsed, .neverOpened)
+        XCTAssertEqual(never?.formattedLastUsed, LocalizationKey.appsNeverOpened.localized)
+        XCTAssertNotEqual(unknown?.formattedLastUsed, never?.formattedLastUsed)
+    }
+
+    /// The install date comes from the record that survives an update.
+    ///
+    /// The bundle directory's birth time was the install date, and it answers the
+    /// wrong question for the one case users ask about: an application that updates
+    /// itself. This test gives the record an arrival date the bundle itself does not
+    /// carry — the bundle was written by the fixture, so it was born moments ago —
+    /// and the reported install date has to be the arrival, not the birth.
+    func test_theInstallDatePrefersTheRecordThatSaysWhenTheItemArrived() async {
+        fixture.writeBytes("Vendor/Launch.app/Contents/Info.plist", Data(freshBundlePlist.utf8))
+        let arrived = Date(timeIntervalSince1970: 1_700_000_000)
+
+        let discovery = ApplicationDiscovery(
+            rules: RuleEngine(rules: RuleEngine.builtInRules, homeDirectory: fixture.url),
+            additionalDirectories: [fixture.url],
+            includeDefaultDirectories: false,
+            readRecord: { _ in ApplicationDiscovery.SystemRecord(lastUsed: .unavailable, dateAdded: arrived) }
+        )
+
+        let applications = await discovery.installedApplications()
+        guard let application = applications.first(where: { $0.bundleIdentifier == "com.vendor.launch" }) else {
+            return XCTFail("the fixture bundle was not discovered")
+        }
+        XCTAssertEqual(
+            application.installedAt,
+            arrived,
+            "the arrival record must outrank the birth time of the directory an update replaced"
+        )
+        XCTAssertEqual(application.installedAt, arrived)
+    }
+
+    /// An application that updated itself yesterday is not a new installation.
+    ///
+    /// This is the shape that made the two dates look like one field: an in-place
+    /// update rewrites the bundle's contents, and a store update swaps the whole
+    /// bundle, so the birth time is "the last time anything touched it" while the
+    /// arrival record still says when the user actually installed it. The order the
+    /// Apps page offers ("install date, newest first") has to rank by the second.
+    func test_anApplicationUpdatedInPlaceIsStillAsOldAsTheDayItArrived() async {
+        fixture.writeBytes("Vendor/Launch.app/Contents/Info.plist", Data(freshBundlePlist.utf8))
+        let arrived = Date(timeIntervalSinceNow: -400 * 86_400)
+
+        let discovery = ApplicationDiscovery(
+            rules: RuleEngine(rules: RuleEngine.builtInRules, homeDirectory: fixture.url),
+            additionalDirectories: [fixture.url],
+            includeDefaultDirectories: false,
+            readRecord: { _ in ApplicationDiscovery.SystemRecord(lastUsed: .neverOpened, dateAdded: arrived) }
+        )
+
+        let applications = await discovery.installedApplications()
+        guard let application = applications.first(where: { $0.bundleIdentifier == "com.vendor.launch" }) else {
+            return XCTFail("the fixture bundle was not discovered")
+        }
+        XCTAssertEqual(application.installedAt, arrived)
+        XCTAssertNotEqual(application.installedAt, application.lastUsedAt)
+        XCTAssertTrue(
+            application.isUnused(now: Date(), thresholdDays: 180),
+            "an application installed 400 days ago and never opened is unused, however new its bundle is"
+        )
     }
 
     func test_onlyAnIdentifierMatchIsConfirmed() {

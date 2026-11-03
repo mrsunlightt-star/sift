@@ -10,6 +10,7 @@
 "apps.footer" = "200 MB 超のアプリのみ表示，全 %d 件";
 "apps.installedOn" = "インストール：%@";
 "apps.lastOpened" = "最終使用：%@";
+"apps.lastUsedUnknown" = "開いた記録なし";
 "apps.listTitle" = "アプリ一覧";
 "apps.neverOpened" = "未使用";
 "apps.reclaimable" = "解放できる容量";
@@ -469,8 +470,14 @@
 "uninstall.selectApp" = "アプリを選択すると削除内容を確認できます。";
 "uninstall.sharedContainer" = "次のアプリとも共有されています: %@";
 "uninstall.sort.installedAt" = "インストール日";
+"uninstall.sort.largestFirst" = "大きい順";
 "uninstall.sort.lastUsed" = "最終使用";
 "uninstall.sort.name" = "名前";
+"uninstall.sort.nameAscending" = "A → Z";
+"uninstall.sort.nameDescending" = "Z → A";
+"uninstall.sort.newestFirst" = "新しい順";
+"uninstall.sort.oldestFirst" = "古い順";
 "uninstall.sort.size" = "サイズ";
+"uninstall.sort.smallestFirst" = "小さい順";
 "uninstall.systemApp" = "アンインストールできません";
 "uninstall.systemAppDetail" = "Sift はご自身でインストールしたアプリのみ削除します。";

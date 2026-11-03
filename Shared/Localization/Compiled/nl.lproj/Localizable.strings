@@ -10,6 +10,7 @@
 "apps.footer" = "Toont apps boven 200 MB, %d totaal";
 "apps.installedOn" = "Geïnstalleerd op %@";
 "apps.lastOpened" = "Laatst geopend %@";
+"apps.lastUsedUnknown" = "Geen openingsrecord";
 "apps.listTitle" = "Apps";
 "apps.neverOpened" = "Nooit geopend";
 "apps.reclaimable" = "Vrij te maken";
@@ -469,8 +470,14 @@
 "uninstall.selectApp" = "Kies een app om te zien wat er verwijderd zou worden.";
 "uninstall.sharedContainer" = "Ook gedeeld met: %@";
 "uninstall.sort.installedAt" = "Installatiedatum";
+"uninstall.sort.largestFirst" = "Grootste eerst";
 "uninstall.sort.lastUsed" = "Laatst gebruikt";
 "uninstall.sort.name" = "Naam";
+"uninstall.sort.nameAscending" = "A → Z";
+"uninstall.sort.nameDescending" = "Z → A";
+"uninstall.sort.newestFirst" = "Nieuwste eerst";
+"uninstall.sort.oldestFirst" = "Oudste eerst";
 "uninstall.sort.size" = "Grootte";
+"uninstall.sort.smallestFirst" = "Kleinste eerst";
 "uninstall.systemApp" = "Kan niet worden verwijderd";
 "uninstall.systemAppDetail" = "Sift verwijdert alleen apps die je zelf hebt geïnstalleerd.";

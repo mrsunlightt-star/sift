@@ -959,7 +959,7 @@ final class Harness: @unchecked Sendable {
                 bundleIdentifier: identifier,
                 version: "1.2.3",
                 sizeInBytes: 4096,
-                lastUsedAt: nil,
+                lastUsed: .unavailable,
                 installedAt: nil,
                 isSystemApplication: false,
                 isRunning: false
