@@ -227,6 +227,7 @@
 "overview.moreItems" = "עוד %d פריטים קטנים, %@ בסך הכול";
 "overview.noCleanup" = "עדיין אין ניקוי";
 "overview.noResults" = "הריצו סריקה כדי לראות מה אפשר לפנות בבטחה.";
+"overview.purpose" = "מצב ה-Mac והפעולות הזמינות";
 "overview.ready" = "מוכן לסריקה";
 "overview.reclaimable.breakdown" = "%@ בטוח, %@ דורש את אישורכם";
 "overview.reclaimable.meta" = "%d קטגוריות, %d פריטים";
@@ -237,6 +238,7 @@
 "overview.selectedSummary" = "נבחרו %d, %@";
 "overview.showAll" = "הצג הכול";
 "overview.status" = "%@";
+"overview.suggestionsNote" = "מבוסס על הסריקה האחרונה; בדיקת הבטיחות רצה שוב לפני העברת קובץ.";
 "overview.viewProgress" = "הצגת התקדמות הסריקה";
 "overview.viewResults" = "הצגת תוצאות";
 "permission.askTitle" = "לאפשר ל-Sift לקרוא קצת יותר?";
@@ -313,6 +315,7 @@
 "scan.filter.old" = "ישנים";
 "scan.firstRun.review" = "ניקוי ראשון: פתחו את הרשימה לפני האישור.";
 "scan.firstRun.scope" = "Sift קורא מטמונים, יומנים ומתקינים במיקומים האלה:";
+"scan.header.ready" = "%d פריטים · %@ ניתנים לפינוי";
 "scan.headerStatus" = "תוצאות מ-%@ · %d פריטים";
 "scan.hiddenSelected" = "%d פריטים שנבחרו אינם מוצגים כאן";
 "scan.nothingFound" = "אין מה לנקות";

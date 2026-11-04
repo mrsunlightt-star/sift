@@ -227,6 +227,7 @@
 "overview.moreItems" = "%d kisebb elem, összesen %@";
 "overview.noCleanup" = "Még nincs tisztítás";
 "overview.noResults" = "Indítson vizsgálatot, hogy lássa, mi szabadítható fel biztonságosan.";
+"overview.purpose" = "Mac állapota és elérhető műveletek";
 "overview.ready" = "Vizsgálatra kész";
 "overview.reclaimable.breakdown" = "%@ biztonságos, %@ az Ön megerősítését igényli";
 "overview.reclaimable.meta" = "%d kategória, %d elem";
@@ -237,6 +238,7 @@
 "overview.selectedSummary" = "%d kijelölve, %@";
 "overview.showAll" = "Összes megjelenítése";
 "overview.status" = "%@";
+"overview.suggestionsNote" = "A legutóbbi vizsgálat alapján; mozgatás előtt a biztonsági ellenőrzés újra lefut.";
 "overview.viewProgress" = "Vizsgálat folyamatának megtekintése";
 "overview.viewResults" = "Vizsgálati eredmények megtekintése";
 "permission.askTitle" = "Hagyja, hogy a Sift egy kicsit többet lásson?";
@@ -313,6 +315,7 @@
 "scan.filter.old" = "Régi";
 "scan.firstRun.review" = "Első tisztítás: a megerősítés előtt nyissa ki a listát.";
 "scan.firstRun.scope" = "A Sift gyorsítótárakat, naplókat és telepítőket olvas ezeken a helyeken:";
+"scan.header.ready" = "%d elem · %@ felszabadítható";
 "scan.headerStatus" = "Eredmények: %@ · %d elem";
 "scan.hiddenSelected" = "%d kijelölt elem nem jelenik meg itt";
 "scan.nothingFound" = "Nincs tisztítanivaló";

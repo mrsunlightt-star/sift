@@ -227,6 +227,7 @@
 "overview.moreItems" = "%d عناصر أصغر, %@ إجمالًا";
 "overview.noCleanup" = "لا تنظيف بعد";
 "overview.noResults" = "شغّل فحصًا لترى ما يمكن تحريره بأمان.";
+"overview.purpose" = "حالة Mac والإجراءات المتاحة";
 "overview.ready" = "جاهز للفحص";
 "overview.reclaimable.breakdown" = "%@ آمن و %@ يتطلب تأكيدك";
 "overview.reclaimable.meta" = "%d فئات, %d عناصر";
@@ -237,6 +238,7 @@
 "overview.selectedSummary" = "تم تحديد %d, %@";
 "overview.showAll" = "عرض الكل";
 "overview.status" = "%@";
+"overview.suggestionsNote" = "استنادًا إلى أحدث فحص؛ يُعاد التحقق من السلامة قبل نقل أي ملف.";
 "overview.viewProgress" = "عرض تقدم الفحص";
 "overview.viewResults" = "عرض النتائج";
 "permission.askTitle" = "هل تسمح لـ Sift بالقراءة أكثر قليلًا؟";
@@ -313,6 +315,7 @@
 "scan.filter.old" = "قديمة";
 "scan.firstRun.review" = "أول عملية تنظيف: وسّع القائمة قبل التأكيد.";
 "scan.firstRun.scope" = "يقرأ Sift الذاكرة المؤقتة والسجلات وبرامج التثبيت في هذه المواقع:";
+"scan.header.ready" = "%d عناصر · يمكن تحرير %@";
 "scan.headerStatus" = "نتائج من %@ · %d عناصر";
 "scan.hiddenSelected" = "%d من العناصر المحددة غير معروضة هنا";
 "scan.nothingFound" = "لا شيء للتنظيف";

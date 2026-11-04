@@ -227,6 +227,7 @@
 "overview.moreItems" = "Menší položky: %d, celkem %@";
 "overview.noCleanup" = "Zatím žádné čištění";
 "overview.noResults" = "Spusťte skenování a uvidíte, co lze bezpečně uvolnit.";
+"overview.purpose" = "Stav Macu a dostupné akce";
 "overview.ready" = "Připraveno ke skenování";
 "overview.reclaimable.breakdown" = "%@ je bezpečné, %@ vyžaduje vaše potvrzení";
 "overview.reclaimable.meta" = "Kategorie: %d, položky: %d";
@@ -237,6 +238,7 @@
 "overview.selectedSummary" = "Vybráno: %d, %@";
 "overview.showAll" = "Zobrazit vše";
 "overview.status" = "%@";
+"overview.suggestionsNote" = "Na základě posledního skenování; před přesunem se bezpečnostní kontrola spouští znovu.";
 "overview.viewProgress" = "Zobrazit průběh skenování";
 "overview.viewResults" = "Zobrazit výsledky skenování";
 "permission.askTitle" = "Nechat Sift nahlédnout o něco víc?";
@@ -313,6 +315,7 @@
 "scan.filter.old" = "Staré";
 "scan.firstRun.review" = "První čištění: před potvrzením rozbalte seznam.";
 "scan.firstRun.scope" = "Sift čte mezipaměti, protokoly a instalátory na těchto místech:";
+"scan.header.ready" = "%d položek · %@ k uvolnění";
 "scan.headerStatus" = "Výsledky z %@ · %d položek";
 "scan.hiddenSelected" = "%d vybraných položek se zde nezobrazuje";
 "scan.nothingFound" = "Není co čistit";

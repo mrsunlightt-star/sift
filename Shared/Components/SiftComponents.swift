@@ -200,6 +200,7 @@ public struct SiftCanvasBackground: View {
 public struct SiftPageHeader<Trailing: View>: View {
     private let title: String
     private let status: String?
+    private let subtitle: String?
     private let trailing: Trailing
 
     public init(
@@ -207,10 +208,20 @@ public struct SiftPageHeader<Trailing: View>: View {
         /// Shown only when it says something the title does not. An empty string
         /// is the same as no status.
         status: String? = nil,
+        /// One sentence under the title saying what the page is for, or what the
+        /// page currently holds. `05 §6` makes the title the anchor and lets a
+        /// page state a status; the visual studies put the page's own sentence in
+        /// that position, below the title rather than above it, which is where a
+        /// reading order expects it.
+        ///
+        /// Not `lineLimit(1)` like the status: a sentence in a long translation
+        /// must be allowed to wrap instead of being cut to an ellipsis.
+        subtitle: String? = nil,
         @ViewBuilder trailing: () -> Trailing
     ) {
         self.title = title
         self.status = status
+        self.subtitle = subtitle
         self.trailing = trailing()
     }
 
@@ -235,6 +246,12 @@ public struct SiftPageHeader<Trailing: View>: View {
                         // The page's one heading. VoiceOver's rotor and the
                         // window's reading order both need it to say so.
                         .accessibilityAddTraits(.isHeader)
+                    if let subtitle, !subtitle.isEmpty {
+                        Text(subtitle)
+                            .font(SiftFont.secondaryHeading)
+                            .foregroundStyle(SiftColor.secondaryText)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
                 Spacer(minLength: SiftMetrics.spacingL)
                 trailing
@@ -249,8 +266,8 @@ public struct SiftPageHeader<Trailing: View>: View {
 }
 
 extension SiftPageHeader where Trailing == EmptyView {
-    public init(title: String, status: String? = nil) {
-        self.init(title: title, status: status) { EmptyView() }
+    public init(title: String, status: String? = nil, subtitle: String? = nil) {
+        self.init(title: title, status: status, subtitle: subtitle) { EmptyView() }
     }
 }
 
@@ -712,9 +729,22 @@ public struct SiftFilterChip: View {
         self.action = action
     }
 
+    /// A selected scope is a solid `actionFill` pill with `onActionFill` text —
+    /// the shape the visual studies show, and the one state on this row that must
+    /// be unmistakable at a glance: it decides which subset of the result set the
+    /// list below is describing.
+    ///
+    /// The pair measures 5.16:1 in the light appearance and 7.13:1 in the dark
+    /// one, so the label is carried by the fill and not merely by colour
+    /// difference against the neighbours (`01 §Accessibility`: a state is never
+    /// distinguished by hue alone — the fill is a shape difference too).
     private var fillColor: Color {
-        if isSelected { return SiftColor.selectedWash }
+        if isSelected { return SiftColor.actionFill }
         return isHovering ? SiftColor.rowHoverFill : SiftColor.controlFill
+    }
+
+    private var foregroundColor: Color {
+        isSelected ? SiftColor.onActionFill : SiftColor.mainText
     }
 
     public var body: some View {
@@ -728,10 +758,15 @@ public struct SiftFilterChip: View {
                         // A quieter second line of text, not the title's colour
                         // at an opacity: 70 % of a green is not a text token and
                         // measures under 4.5:1 on the wash.
-                        .foregroundStyle(SiftColor.secondaryText)
+                        //
+                        // On the selected pill the detail keeps the label's own
+                        // foreground rather than a dimmed copy of it: `onActionFill`
+                        // at 85 % over the fill measures 3.67:1, and the size
+                        // difference already ranks it below the title.
+                        .foregroundStyle(isSelected ? SiftColor.onActionFill : SiftColor.secondaryText)
                 }
             }
-            .foregroundStyle(isSelected ? SiftColor.actionGreen : SiftColor.mainText)
+            .foregroundStyle(foregroundColor)
             .padding(.horizontal, SiftMetrics.spacingM)
             .frame(minHeight: SiftMetrics.chipHeight)
             .background {
@@ -741,7 +776,9 @@ public struct SiftFilterChip: View {
             .overlay {
                 RoundedRectangle(cornerRadius: SiftMetrics.controlCornerRadius, style: .continuous)
                     .strokeBorder(
-                        isSelected ? SiftColor.selectedBorder : SiftColor.divider,
+                        // A filled pill needs no border; the outline exists on the
+                        // unselected chips to give a controlFill surface an edge.
+                        isSelected ? Color.clear : SiftColor.divider,
                         lineWidth: SiftMetrics.panelBorderWidth
                     )
             }

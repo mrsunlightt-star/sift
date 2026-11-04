@@ -227,6 +227,7 @@
 "overview.moreItems" = "%d รายการที่เล็กกว่า, รวม %@";
 "overview.noCleanup" = "ยังไม่มีการทำความสะอาด";
 "overview.noResults" = "รันการสแกนเพื่อดูว่าปลดปล่อยอะไรได้อย่างปลอดภัย";
+"overview.purpose" = "สถานะ Mac และการดำเนินการที่ทำได้";
 "overview.ready" = "พร้อมสแกน";
 "overview.reclaimable.breakdown" = "%@ ปลอดภัย %@ ต้องได้รับการยืนยันจากคุณ";
 "overview.reclaimable.meta" = "%d หมวดหมู่, %d รายการ";
@@ -237,6 +238,7 @@
 "overview.selectedSummary" = "เลือกแล้ว %d รายการ, %@";
 "overview.showAll" = "แสดงทั้งหมด";
 "overview.status" = "%@";
+"overview.suggestionsNote" = "อิงจากการสแกนล่าสุด และจะตรวจความปลอดภัยอีกครั้งก่อนย้ายไฟล์";
 "overview.viewProgress" = "ดูความคืบหน้าการสแกน";
 "overview.viewResults" = "ดูผลการสแกน";
 "permission.askTitle" = "ให้ Sift อ่านเพิ่มอีกนิดไหม";
@@ -313,6 +315,7 @@
 "scan.filter.old" = "เก่า";
 "scan.firstRun.review" = "การทำความสะอาดครั้งแรก: เปิดรายการก่อนยืนยัน";
 "scan.firstRun.scope" = "Sift อ่านแคช บันทึก และไฟล์ติดตั้งในตำแหน่งเหล่านี้";
+"scan.header.ready" = "%d รายการ · คืนพื้นที่ได้ %@";
 "scan.headerStatus" = "ผลลัพธ์จาก %@ · %d รายการ";
 "scan.hiddenSelected" = "มี %d รายการที่เลือกไว้ไม่แสดงที่นี่";
 "scan.nothingFound" = "ไม่มีอะไรให้ล้าง";

@@ -47461,6 +47461,216 @@
         }
       }
     },
+    "overview.purpose": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac status and available actions"
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 状态与可执行操作"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 상태와 가능한 작업"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Состояние Mac и доступные действия"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estado del Mac y acciones disponibles"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac の状態と実行できる操作"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "État du Mac et actions disponibles"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac-Status und mögliche Aktionen"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stato del Mac e azioni disponibili"
+          }
+        },
+        "pt-br": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estado do Mac e ações disponíveis"
+          }
+        },
+        "zh-hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 狀態與可執行操作"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac durumu ve yapılabilir işlemler"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stan Maca i dostępne działania"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac-status en beschikbare acties"
+          }
+        },
+        "lo": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ສະຖານະ Mac ແລະ ການດຳເນີນການທີ່ເຮັດໄດ້"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حالة Mac والإجراءات المتاحة"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "מצב ה-Mac והפעולות הזמינות"
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "وضعیت Mac و اقدام‌های ممکن"
+          }
+        },
+        "bg": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Състояние на Mac и налични действия"
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stav Macu a dostupné akce"
+          }
+        },
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac-status og mulige handlinger"
+          }
+        },
+        "el": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Κατάσταση Mac και διαθέσιμες ενέργειες"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estado del Mac y acciones disponibles"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Macin tila ja käytettävissä olevat toimet"
+          }
+        },
+        "hu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac állapota és elérhető műveletek"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Status Mac dan tindakan yang tersedia"
+          }
+        },
+        "ms": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Status Mac dan tindakan tersedia"
+          }
+        },
+        "nb": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac-status og tilgjengelige handlinger"
+          }
+        },
+        "pt-pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estado do Mac e ações disponíveis"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Starea Mac-ului și acțiuni disponibile"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac-status och tillgängliga åtgärder"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "สถานะ Mac และการดำเนินการที่ทำได้"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Стан Mac і доступні дії"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trạng thái Mac và thao tác khả dụng"
+          }
+        }
+      }
+    },
     "overview.ready": {
       "comment": null,
       "extractionState": "manual",
@@ -49557,6 +49767,216 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@"
+          }
+        }
+      }
+    },
+    "overview.suggestionsNote": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Based on the most recent scan; the safety check runs again before anything moves."
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "建议基于最近一次扫描结果；文件移动前仍会执行安全预检。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "가장 최근 스캔 결과를 바탕으로 하며, 파일을 옮기기 전에 안전 검사를 다시 실행합니다."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "По результатам последнего сканирования; перед перемещением файлов проверка безопасности выполняется снова."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Según el análisis más reciente; la comprobación de seguridad se repite antes de mover nada."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最新のスキャン結果に基づきます。ファイルを移動する前に安全確認を再実行します。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "D’après l’analyse la plus récente ; le contrôle de sécurité est relancé avant tout déplacement."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf Basis des letzten Scans; vor dem Verschieben läuft die Sicherheitsprüfung erneut."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In base all’ultima scansione; il controllo di sicurezza viene rieseguito prima di spostare qualcosa."
+          }
+        },
+        "pt-br": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Com base na verificação mais recente; a checagem de segurança é refeita antes de mover qualquer item."
+          }
+        },
+        "zh-hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "建議依最近一次掃描結果；檔案移動前仍會執行安全預檢。"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En son taramaya dayanır; bir şey taşınmadan önce güvenlik denetimi yeniden çalışır."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Na podstawie ostatniego skanowania; przed przeniesieniem plików kontrola bezpieczeństwa jest powtarzana."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gebaseerd op de meest recente scan; de veiligheidscontrole draait opnieuw voordat er iets verplaatst wordt."
+          }
+        },
+        "lo": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ອີງໃສ່ການສະແກນລ່າສຸດ; ການກວດຄວາມປອດໄພຈະເຮັດຄືນກ່ອນຍ້າຍໄຟລ໌."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "استنادًا إلى أحدث فحص؛ يُعاد التحقق من السلامة قبل نقل أي ملف."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "מבוסס על הסריקה האחרונה; בדיקת הבטיחות רצה שוב לפני העברת קובץ."
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "بر پایهٔ آخرین اسکن؛ پیش از جابه‌جایی هر فایل، بررسی ایمنی دوباره اجرا می‌شود."
+          }
+        },
+        "bg": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Въз основа на последното сканиране; проверката за безопасност се изпълнява отново преди преместване."
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Na základě posledního skenování; před přesunem se bezpečnostní kontrola spouští znovu."
+          }
+        },
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Baseret på den seneste scanning; sikkerhedstjekket kører igen, før noget flyttes."
+          }
+        },
+        "el": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Βάσει της τελευταίας σάρωσης· ο έλεγχος ασφαλείας εκτελείται ξανά πριν μετακινηθεί οτιδήποτε."
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Según el análisis más reciente; la comprobación de seguridad se repite antes de mover algo."
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Perustuu viimeisimpään skannaukseen; turvatarkistus tehdään uudelleen ennen siirtoa."
+          }
+        },
+        "hu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A legutóbbi vizsgálat alapján; mozgatás előtt a biztonsági ellenőrzés újra lefut."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Berdasarkan pemindaian terakhir; pemeriksaan keamanan dijalankan ulang sebelum memindahkan apa pun."
+          }
+        },
+        "ms": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Berdasarkan imbasan terakhir; semakan keselamatan dijalankan semula sebelum memindahkan apa-apa."
+          }
+        },
+        "nb": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Basert på den siste skanningen; sikkerhetskontrollen kjøres på nytt før noe flyttes."
+          }
+        },
+        "pt-pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Com base na verificação mais recente; a verificação de segurança é repetida antes de mover algo."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pe baza celei mai recente scanări; verificarea de siguranță rulează din nou înainte de mutare."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Baserat på den senaste skanningen; säkerhetskontrollen körs igen innan något flyttas."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "อิงจากการสแกนล่าสุด และจะตรวจความปลอดภัยอีกครั้งก่อนย้ายไฟล์"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "За результатами останнього сканування; перед переміщенням перевірка безпеки виконується знову."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dựa trên lần quét gần nhất; kiểm tra an toàn chạy lại trước khi di chuyển tệp."
           }
         }
       }
@@ -65517,6 +65937,216 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sift đọc bộ nhớ đệm, nhật ký và bộ cài ở những vị trí sau:"
+          }
+        }
+      }
+    },
+    "scan.header.ready": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d items · %@ can be reclaimed"
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "发现 %d 个项目 · 可处理空间 %@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d개 항목 · %@ 정리 가능"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Объектов: %d · можно освободить %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d elementos · %@ recuperables"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d 項目 · %@ を解放できます"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d éléments · %@ récupérables"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d Objekte · %@ lassen sich freigeben"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d elementi · %@ liberabili"
+          }
+        },
+        "pt-br": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d itens · %@ recuperáveis"
+          }
+        },
+        "zh-hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "共 %d 個項目 · 可釋放 %@"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d öğe · %@ geri kazanılabilir"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d elementów · %@ do odzyskania"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d items · %@ vrij te maken"
+          }
+        },
+        "lo": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d ລາຍການ · ຄືນໄດ້ %@"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d عناصر · يمكن تحرير %@"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d פריטים · %@ ניתנים לפינוי"
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d مورد · %@ قابل آزادسازی"
+          }
+        },
+        "bg": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d елемента · %@ за освобождаване"
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d položek · %@ k uvolnění"
+          }
+        },
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d elementer · %@ kan frigøres"
+          }
+        },
+        "el": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d στοιχεία · %@ προς ελευθέρωση"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d elementos · %@ recuperables"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d kohdetta · %@ vapautettavissa"
+          }
+        },
+        "hu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d elem · %@ felszabadítható"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d item · %@ dapat dikosongkan"
+          }
+        },
+        "ms": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d item · %@ boleh dikosongkan"
+          }
+        },
+        "nb": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d elementer · %@ kan frigjøres"
+          }
+        },
+        "pt-pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d itens · %@ recuperáveis"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d elemente · %@ recuperabile"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d objekt · %@ kan frigöras"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d รายการ · คืนพื้นที่ได้ %@"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d елементів · можна звільнити %@"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d mục · có thể giải phóng %@"
           }
         }
       }

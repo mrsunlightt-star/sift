@@ -227,6 +227,7 @@
 "overview.moreItems" = "%d kleinere Einträge, %@ gesamt";
 "overview.noCleanup" = "Noch keine Bereinigung";
 "overview.noResults" = "Starten Sie einen Scan, um zu sehen, was sicher freigegeben werden kann.";
+"overview.purpose" = "Mac-Status und mögliche Aktionen";
 "overview.ready" = "Bereit zum Scannen";
 "overview.reclaimable.breakdown" = "%@ sind sicher, %@ brauchen Ihre Bestätigung";
 "overview.reclaimable.meta" = "%d Kategorien, %d Einträge";
@@ -237,6 +238,7 @@
 "overview.selectedSummary" = "%d ausgewählt, %@";
 "overview.showAll" = "Alle anzeigen";
 "overview.status" = "%@";
+"overview.suggestionsNote" = "Auf Basis des letzten Scans; vor dem Verschieben läuft die Sicherheitsprüfung erneut.";
 "overview.viewProgress" = "Scan-Fortschritt ansehen";
 "overview.viewResults" = "Scan-Ergebnisse";
 "permission.askTitle" = "Sift etwas mehr lesen lassen?";
@@ -313,6 +315,7 @@
 "scan.filter.old" = "Alte";
 "scan.firstRun.review" = "Erste Bereinigung: Klappen Sie die Liste vor dem Bestätigen auf.";
 "scan.firstRun.scope" = "Sift liest Caches, Protokolle und Installer an diesen Orten:";
+"scan.header.ready" = "%d Objekte · %@ lassen sich freigeben";
 "scan.headerStatus" = "Ergebnisse vom %@ · %d Objekte";
 "scan.hiddenSelected" = "%d ausgewählte Objekte werden hier nicht angezeigt";
 "scan.nothingFound" = "Nichts zu bereinigen";

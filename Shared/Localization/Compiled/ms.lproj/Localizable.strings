@@ -227,6 +227,7 @@
 "overview.moreItems" = "%d item lebih kecil, %@ jumlah";
 "overview.noCleanup" = "Belum ada pembersihan";
 "overview.noResults" = "Jalankan imbasan untuk melihat apa yang boleh dilepaskan dengan selamat.";
+"overview.purpose" = "Status Mac dan tindakan tersedia";
 "overview.ready" = "Sedia untuk diimbas";
 "overview.reclaimable.breakdown" = "%@ selamat, %@ memerlukan pengesahan anda";
 "overview.reclaimable.meta" = "%d kategori, %d item";
@@ -237,6 +238,7 @@
 "overview.selectedSummary" = "%d dipilih, %@";
 "overview.showAll" = "Tunjukkan semua";
 "overview.status" = "%@";
+"overview.suggestionsNote" = "Berdasarkan imbasan terakhir; semakan keselamatan dijalankan semula sebelum memindahkan apa-apa.";
 "overview.viewProgress" = "Lihat kemajuan imbasan";
 "overview.viewResults" = "Lihat hasil imbasan";
 "permission.askTitle" = "Benarkan Sift membaca sedikit lagi?";
@@ -313,6 +315,7 @@
 "scan.filter.old" = "Lama";
 "scan.firstRun.review" = "Pembersihan pertama: buka senarai sebelum mengesahkan.";
 "scan.firstRun.scope" = "Sift membaca cache, log dan pemasang di lokasi ini:";
+"scan.header.ready" = "%d item · %@ boleh dikosongkan";
 "scan.headerStatus" = "Hasil daripada %@ · %d item";
 "scan.hiddenSelected" = "%d item dipilih tidak dipaparkan di sini";
 "scan.nothingFound" = "Tiada apa-apa untuk dibersihkan";

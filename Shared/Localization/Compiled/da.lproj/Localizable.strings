@@ -227,6 +227,7 @@
 "overview.moreItems" = "%d mindre elementer, %@ i alt";
 "overview.noCleanup" = "Ingen oprydning endnu";
 "overview.noResults" = "Kør en scanning for at se, hvad der kan frigives sikkert.";
+"overview.purpose" = "Mac-status og mulige handlinger";
 "overview.ready" = "Klar til scanning";
 "overview.reclaimable.breakdown" = "%@ er sikkert, %@ kræver din bekræftelse";
 "overview.reclaimable.meta" = "%d kategorier, %d elementer";
@@ -237,6 +238,7 @@
 "overview.selectedSummary" = "%d valgt, %@";
 "overview.showAll" = "Vis alle";
 "overview.status" = "%@";
+"overview.suggestionsNote" = "Baseret på den seneste scanning; sikkerhedstjekket kører igen, før noget flyttes.";
 "overview.viewProgress" = "Se scanningsfremdrift";
 "overview.viewResults" = "Se scanningsresultater";
 "permission.askTitle" = "Skal Sift må se lidt mere?";
@@ -313,6 +315,7 @@
 "scan.filter.old" = "Gamle";
 "scan.firstRun.review" = "Første oprydning: åbn listen, før du bekræfter.";
 "scan.firstRun.scope" = "Sift læser caches, logfiler og installationsprogrammer på disse placeringer:";
+"scan.header.ready" = "%d elementer · %@ kan frigøres";
 "scan.headerStatus" = "Resultater fra %@ · %d elementer";
 "scan.hiddenSelected" = "%d valgte elementer vises ikke her";
 "scan.nothingFound" = "Intet at rydde op";

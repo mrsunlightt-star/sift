@@ -227,6 +227,7 @@
 "overview.moreItems" = "Мелких элементов: %d, всего %@";
 "overview.noCleanup" = "Очисток ещё не было";
 "overview.noResults" = "Запустите сканирование, чтобы увидеть, сколько можно безопасно освободить.";
+"overview.purpose" = "Состояние Mac и доступные действия";
 "overview.ready" = "Готово к сканированию";
 "overview.reclaimable.breakdown" = "Из них %@ безопасно, %@ требует подтверждения";
 "overview.reclaimable.meta" = "Категорий: %d, элементов: %d";
@@ -237,6 +238,7 @@
 "overview.selectedSummary" = "Выбрано: %d, %@";
 "overview.showAll" = "Показать все";
 "overview.status" = "%@";
+"overview.suggestionsNote" = "По результатам последнего сканирования; перед перемещением файлов проверка безопасности выполняется снова.";
 "overview.viewProgress" = "Открыть ход сканирования";
 "overview.viewResults" = "Открыть результаты";
 "permission.askTitle" = "Разрешить Sift читать немного больше?";
@@ -313,6 +315,7 @@
 "scan.filter.old" = "Старые";
 "scan.firstRun.review" = "Первая очистка: раскройте список перед подтверждением.";
 "scan.firstRun.scope" = "Sift читает кэши, журналы и установщики в этих местах:";
+"scan.header.ready" = "Объектов: %d · можно освободить %@";
 "scan.headerStatus" = "Результаты на %@ · объектов: %d";
 "scan.hiddenSelected" = "Выбранные объекты (%d) здесь не показаны";
 "scan.nothingFound" = "Нечего очищать";

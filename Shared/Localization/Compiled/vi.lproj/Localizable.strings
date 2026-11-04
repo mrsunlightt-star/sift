@@ -227,6 +227,7 @@
 "overview.moreItems" = "%d mục nhỏ hơn, tổng %@";
 "overview.noCleanup" = "Chưa dọn dẹp lần nào";
 "overview.noResults" = "Chạy quét để xem có thể giải phóng an toàn những gì.";
+"overview.purpose" = "Trạng thái Mac và thao tác khả dụng";
 "overview.ready" = "Sẵn sàng quét";
 "overview.reclaimable.breakdown" = "%@ an toàn, %@ cần bạn xác nhận";
 "overview.reclaimable.meta" = "%d danh mục, %d mục";
@@ -237,6 +238,7 @@
 "overview.selectedSummary" = "Đã chọn %d, %@";
 "overview.showAll" = "Hiện tất cả";
 "overview.status" = "%@";
+"overview.suggestionsNote" = "Dựa trên lần quét gần nhất; kiểm tra an toàn chạy lại trước khi di chuyển tệp.";
 "overview.viewProgress" = "Xem tiến trình quét";
 "overview.viewResults" = "Xem kết quả quét";
 "permission.askTitle" = "Cho Sift đọc thêm một chút?";
@@ -313,6 +315,7 @@
 "scan.filter.old" = "Cũ";
 "scan.firstRun.review" = "Lần dọn dẹp đầu tiên: mở danh sách trước khi xác nhận.";
 "scan.firstRun.scope" = "Sift đọc bộ nhớ đệm, nhật ký và bộ cài ở những vị trí sau:";
+"scan.header.ready" = "%d mục · có thể giải phóng %@";
 "scan.headerStatus" = "Kết quả từ %@ · %d mục";
 "scan.hiddenSelected" = "%d mục đã chọn không hiển thị ở đây";
 "scan.nothingFound" = "Không có gì cần dọn";

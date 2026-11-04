@@ -227,6 +227,7 @@
 "overview.moreItems" = "%d менших елементів, усього %@";
 "overview.noCleanup" = "Очищень ще не було";
 "overview.noResults" = "Запустіть сканування, щоб побачити, що можна безпечно звільнити.";
+"overview.purpose" = "Стан Mac і доступні дії";
 "overview.ready" = "Готово до сканування";
 "overview.reclaimable.breakdown" = "%@ безпечно, %@ потребує вашого підтвердження";
 "overview.reclaimable.meta" = "%d категорій, %d елементів";
@@ -237,6 +238,7 @@
 "overview.selectedSummary" = "Вибрано: %d, %@";
 "overview.showAll" = "Показати все";
 "overview.status" = "%@";
+"overview.suggestionsNote" = "За результатами останнього сканування; перед переміщенням перевірка безпеки виконується знову.";
 "overview.viewProgress" = "Переглянути поступ сканування";
 "overview.viewResults" = "Переглянути результати сканування";
 "permission.askTitle" = "Дозволити Sift читати трохи більше?";
@@ -313,6 +315,7 @@
 "scan.filter.old" = "Старі";
 "scan.firstRun.review" = "Перше очищення: розгорніть список перед підтвердженням.";
 "scan.firstRun.scope" = "Sift читає кеші, журнали й інсталятори в цих місцях:";
+"scan.header.ready" = "%d елементів · можна звільнити %@";
 "scan.headerStatus" = "Результати від %@ · %d елементів";
 "scan.hiddenSelected" = "%d вибраних елементів тут не показано";
 "scan.nothingFound" = "Нічого очищати";

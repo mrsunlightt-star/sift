@@ -227,6 +227,7 @@
 "overview.moreItems" = "Jeszcze %d mniejszych elementów, łącznie %@";
 "overview.noCleanup" = "Jeszcze nie było czyszczenia";
 "overview.noResults" = "Uruchom skanowanie, aby zobaczyć, co można bezpiecznie odzyskać.";
+"overview.purpose" = "Stan Maca i dostępne działania";
 "overview.ready" = "Gotowe do skanowania";
 "overview.reclaimable.breakdown" = "%@ jest bezpieczne, %@ wymaga potwierdzenia";
 "overview.reclaimable.meta" = "%d kategorie, %d elementów";
@@ -237,6 +238,7 @@
 "overview.selectedSummary" = "Wybrano: %d, %@";
 "overview.showAll" = "Pokaż wszystko";
 "overview.status" = "%@";
+"overview.suggestionsNote" = "Na podstawie ostatniego skanowania; przed przeniesieniem plików kontrola bezpieczeństwa jest powtarzana.";
 "overview.viewProgress" = "Pokaż postęp skanowania";
 "overview.viewResults" = "Zobacz wyniki";
 "permission.askTitle" = "Pozwolić Siftowi czytać nieco więcej?";
@@ -313,6 +315,7 @@
 "scan.filter.old" = "Stare";
 "scan.firstRun.review" = "Pierwsze czyszczenie: rozwiń listę przed potwierdzeniem.";
 "scan.firstRun.scope" = "Sift czyta pamięci podręczne, dzienniki i instalatory w tych lokalizacjach:";
+"scan.header.ready" = "%d elementów · %@ do odzyskania";
 "scan.headerStatus" = "Wyniki z %@ · %d elementów";
 "scan.hiddenSelected" = "%d zaznaczonych elementów nie jest tu pokazanych";
 "scan.nothingFound" = "Nic do wyczyszczenia";

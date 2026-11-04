@@ -227,6 +227,7 @@
 "overview.moreItems" = "%d mindre objekt, %@ totalt";
 "overview.noCleanup" = "Ingen rensning än";
 "overview.noResults" = "Kör en skanning för att se vad som säkert kan frigöras.";
+"overview.purpose" = "Mac-status och tillgängliga åtgärder";
 "overview.ready" = "Redo att skanna";
 "overview.reclaimable.breakdown" = "%@ är säkert, %@ behöver din bekräftelse";
 "overview.reclaimable.meta" = "%d kategorier, %d objekt";
@@ -237,6 +238,7 @@
 "overview.selectedSummary" = "%d markerade, %@";
 "overview.showAll" = "Visa alla";
 "overview.status" = "%@";
+"overview.suggestionsNote" = "Baserat på den senaste skanningen; säkerhetskontrollen körs igen innan något flyttas.";
 "overview.viewProgress" = "Visa skanningsförlopp";
 "overview.viewResults" = "Visa skanningsresultat";
 "permission.askTitle" = "Låt Sift läsa lite mer?";
@@ -313,6 +315,7 @@
 "scan.filter.old" = "Gamla";
 "scan.firstRun.review" = "Första rensningen: öppna listan innan du bekräftar.";
 "scan.firstRun.scope" = "Sift läser cacher, loggar och installationsprogram på de här platserna:";
+"scan.header.ready" = "%d objekt · %@ kan frigöras";
 "scan.headerStatus" = "Resultat från %@ · %d objekt";
 "scan.hiddenSelected" = "%d markerade objekt visas inte här";
 "scan.nothingFound" = "Inget att rensa";

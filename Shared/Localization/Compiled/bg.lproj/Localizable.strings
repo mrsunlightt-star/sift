@@ -227,6 +227,7 @@
 "overview.moreItems" = "%d по-малки елемента, общо %@";
 "overview.noCleanup" = "Все още няма почистване";
 "overview.noResults" = "Стартирайте сканиране, за да видите какво може да се освободи безопасно.";
+"overview.purpose" = "Състояние на Mac и налични действия";
 "overview.ready" = "Готово за сканиране";
 "overview.reclaimable.breakdown" = "%@ е безопасно, %@ изисква вашето потвърждение";
 "overview.reclaimable.meta" = "%d категории, %d елемента";
@@ -237,6 +238,7 @@
 "overview.selectedSummary" = "Избрани: %d, %@";
 "overview.showAll" = "Покажете всички";
 "overview.status" = "%@";
+"overview.suggestionsNote" = "Въз основа на последното сканиране; проверката за безопасност се изпълнява отново преди преместване.";
 "overview.viewProgress" = "Вижте напредъка на сканирането";
 "overview.viewResults" = "Вижте резултатите от сканирането";
 "permission.askTitle" = "Да позволи ли на Sift да прочете още малко?";
@@ -313,6 +315,7 @@
 "scan.filter.old" = "Стари";
 "scan.firstRun.review" = "Първо почистване: разгънете списъка преди да потвърдите.";
 "scan.firstRun.scope" = "Sift чете кешове, журнали и инсталатори в тези места:";
+"scan.header.ready" = "%d елемента · %@ за освобождаване";
 "scan.headerStatus" = "Резултати от %@ · %d елемента";
 "scan.hiddenSelected" = "%d избрани елемента не се показват тук";
 "scan.nothingFound" = "Няма какво да се почисти";

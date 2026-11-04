@@ -142,6 +142,44 @@ final class LocalizationTests: XCTestCase, @unchecked Sendable {
         XCTAssertTrue(grouped.contains("1") && grouped.contains("234"))
     }
 
+    /// A day with a clock time, because "Today" cannot tell two runs apart.
+    ///
+    /// The overview's facts band states when the last scan finished. A run at
+    /// 09:42 and a run at 14:10 are the same word in a relative date and two
+    /// different result sets, so the formatter that feeds that cell carries both
+    /// halves — and the join is the same in every language, because the two parts
+    /// are already localised on their own.
+    func test_aRelativeDayCarriesItsClockTime() {
+        let today = Date()
+        let value = SiftFormat.relativeDateTime(today)
+        XCTAssertTrue(value.hasPrefix(SiftFormat.relativeDate(today)), value)
+        XCTAssertTrue(value.contains(SiftFormat.time(today)), value)
+        XCTAssertTrue(value.contains("·"), value)
+
+        let older = Calendar.current.date(byAdding: .day, value: -3, to: today) ?? today
+        let olderValue = SiftFormat.relativeDateTime(older, now: today)
+        XCTAssertTrue(olderValue.hasPrefix(SiftFormat.relativeDate(older, now: today)), olderValue)
+        XCTAssertTrue(olderValue.contains(SiftFormat.time(older)), olderValue)
+    }
+
+    /// The two sentences the visual studies added, in both appearances of the
+    /// fact they state: a scan summary counts what it found, and the suggestion
+    /// list says its rows describe a *previous* run.
+    func test_theStudySentencesResolveTheirArguments() {
+        let summary = SiftFormat.bytes(9_430_000_000)
+        let ready = LocalizationKey.scanHeaderReady.localized(62, summary)
+        XCTAssertTrue(ready.contains("62"), ready)
+        XCTAssertTrue(ready.contains(summary), ready)
+        XCTAssertFalse(ready.contains("%d") || ready.contains("%@"), ready)
+
+        for key in [LocalizationKey.overviewPurpose, .overviewSuggestionsNote] {
+            let value = key.localized
+            XCTAssertFalse(value.isEmpty)
+            // A sentence, not a key: an unresolved lookup returns the raw key.
+            XCTAssertNotEqual(value, key.rawValue, "unresolved: \(key.rawValue)")
+        }
+    }
+
     func test_currencyFormattingUsesTheGivenCode() {
         let price = SiftFormat.price(4.99, currencyCode: "EUR", locale: Locale(identifier: "fr_FR"))
         XCTAssertFalse(price.isEmpty)

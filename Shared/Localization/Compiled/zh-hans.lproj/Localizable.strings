@@ -227,6 +227,7 @@
 "overview.moreItems" = "还有 %d 项较小内容，合计 %@";
 "overview.noCleanup" = "还没有清理记录";
 "overview.noResults" = "扫描后，这里会显示可以安全释放的空间。";
+"overview.purpose" = "Mac 状态与可执行操作";
 "overview.ready" = "准备就绪";
 "overview.reclaimable.breakdown" = "其中 %@ 为安全项，%@ 需要你确认后清理";
 "overview.reclaimable.meta" = "%d 类，%d 项";
@@ -237,6 +238,7 @@
 "overview.selectedSummary" = "已选 %d 项，%@";
 "overview.showAll" = "展开全部";
 "overview.status" = "%@";
+"overview.suggestionsNote" = "建议基于最近一次扫描结果；文件移动前仍会执行安全预检。";
 "overview.viewProgress" = "查看扫描进度";
 "overview.viewResults" = "查看扫描结果";
 "permission.askTitle" = "让 Sift 看得更全一些？";
@@ -313,6 +315,7 @@
 "scan.filter.old" = "旧文件";
 "scan.firstRun.review" = "第一次清理：确认前建议展开清单看一眼。";
 "scan.firstRun.scope" = "Sift 会读取这些位置的缓存、日志与安装包：";
+"scan.header.ready" = "发现 %d 个项目 · 可处理空间 %@";
 "scan.headerStatus" = "结果来自 %@ · 共 %d 项";
 "scan.hiddenSelected" = "有 %d 项已选中但未显示在此列表";
 "scan.nothingFound" = "没有可清理项目";

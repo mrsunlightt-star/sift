@@ -227,6 +227,7 @@
 "overview.moreItems" = "%d smaller items, %@ in total";
 "overview.noCleanup" = "No cleanup yet";
 "overview.noResults" = "Run a scan to see what can be safely released.";
+"overview.purpose" = "Mac status and available actions";
 "overview.ready" = "Ready to scan";
 "overview.reclaimable.breakdown" = "%@ is safe, %@ needs your confirmation";
 "overview.reclaimable.meta" = "%d categories, %d items";
@@ -237,6 +238,7 @@
 "overview.selectedSummary" = "%d selected, %@";
 "overview.showAll" = "Show all";
 "overview.status" = "%@";
+"overview.suggestionsNote" = "Based on the most recent scan; the safety check runs again before anything moves.";
 "overview.viewProgress" = "View scan progress";
 "overview.viewResults" = "View scan results";
 "permission.askTitle" = "Let Sift read a little more?";
@@ -313,6 +315,7 @@
 "scan.filter.old" = "Old";
 "scan.firstRun.review" = "First cleanup: expand the list before you confirm.";
 "scan.firstRun.scope" = "Sift reads caches, logs and installers in these locations:";
+"scan.header.ready" = "%d items · %@ can be reclaimed";
 "scan.headerStatus" = "Results from %@ · %d items";
 "scan.hiddenSelected" = "%d selected items are not shown here";
 "scan.nothingFound" = "Nothing to clean up";

@@ -227,6 +227,7 @@
 "overview.moreItems" = "%d pienempää kohdetta, %@ yhteensä";
 "overview.noCleanup" = "Ei vielä siivousta";
 "overview.noResults" = "Suorita skannaus, niin näet, mitä voidaan vapauttaa turvallisesti.";
+"overview.purpose" = "Macin tila ja käytettävissä olevat toimet";
 "overview.ready" = "Valmis skannaamaan";
 "overview.reclaimable.breakdown" = "%@ on turvallista, %@ vaatii vahvistuksesi";
 "overview.reclaimable.meta" = "%d kategoriaa, %d kohdetta";
@@ -237,6 +238,7 @@
 "overview.selectedSummary" = "%d valittu, %@";
 "overview.showAll" = "Näytä kaikki";
 "overview.status" = "%@";
+"overview.suggestionsNote" = "Perustuu viimeisimpään skannaukseen; turvatarkistus tehdään uudelleen ennen siirtoa.";
 "overview.viewProgress" = "Näytä skannauksen edistyminen";
 "overview.viewResults" = "Näytä skannaustulokset";
 "permission.askTitle" = "Saako Sift katsoa hieman enemmän?";
@@ -313,6 +315,7 @@
 "scan.filter.old" = "Vanhat";
 "scan.firstRun.review" = "Ensimmäinen siivous: avaa luettelo ennen vahvistusta.";
 "scan.firstRun.scope" = "Sift lukee välimuisteja, lokeja ja asennusohjelmia näistä sijainneista:";
+"scan.header.ready" = "%d kohdetta · %@ vapautettavissa";
 "scan.headerStatus" = "Tulokset: %@ · %d kohdetta";
 "scan.hiddenSelected" = "%d valittua kohdetta ei näytetä tässä";
 "scan.nothingFound" = "Ei siivottavaa";

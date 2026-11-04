@@ -227,6 +227,7 @@
 "overview.moreItems" = "Nog %d kleinere items, totaal %@";
 "overview.noCleanup" = "Nog geen opruiming";
 "overview.noResults" = "Voer een scan uit om te zien wat er veilig vrijgemaakt kan worden.";
+"overview.purpose" = "Mac-status en beschikbare acties";
 "overview.ready" = "Klaar om te scannen";
 "overview.reclaimable.breakdown" = "%@ is veilig, %@ vraagt om jouw bevestiging";
 "overview.reclaimable.meta" = "%d categorieën, %d items";
@@ -237,6 +238,7 @@
 "overview.selectedSummary" = "%d geselecteerd, %@";
 "overview.showAll" = "Alles tonen";
 "overview.status" = "%@";
+"overview.suggestionsNote" = "Gebaseerd op de meest recente scan; de veiligheidscontrole draait opnieuw voordat er iets verplaatst wordt.";
 "overview.viewProgress" = "Scanvoortgang bekijken";
 "overview.viewResults" = "Bekijk resultaten";
 "permission.askTitle" = "Sift iets meer laten lezen?";
@@ -313,6 +315,7 @@
 "scan.filter.old" = "Oude";
 "scan.firstRun.review" = "Eerste opschoning: open de lijst voordat je bevestigt.";
 "scan.firstRun.scope" = "Sift leest caches, logbestanden en installatieprogramma’s op deze locaties:";
+"scan.header.ready" = "%d items · %@ vrij te maken";
 "scan.headerStatus" = "Resultaten van %@ · %d items";
 "scan.hiddenSelected" = "%d geselecteerde items worden hier niet getoond";
 "scan.nothingFound" = "Niets op te ruimen";

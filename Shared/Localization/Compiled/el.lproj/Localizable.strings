@@ -227,6 +227,7 @@
 "overview.moreItems" = "%d μικρότερα στοιχεία, %@ συνολικά";
 "overview.noCleanup" = "Δεν έχει γίνει καθαρισμός ακόμη";
 "overview.noResults" = "Εκτελέστε μια σάρωση για να δείτε τι μπορεί να ελευθερωθεί με ασφάλεια.";
+"overview.purpose" = "Κατάσταση Mac και διαθέσιμες ενέργειες";
 "overview.ready" = "Έτοιμο για σάρωση";
 "overview.reclaimable.breakdown" = "%@ είναι ασφαλή, %@ χρειάζονται την επιβεβαίωσή σας";
 "overview.reclaimable.meta" = "%d κατηγορίες, %d στοιχεία";
@@ -237,6 +238,7 @@
 "overview.selectedSummary" = "%d επιλεγμένα, %@";
 "overview.showAll" = "Εμφάνιση όλων";
 "overview.status" = "%@";
+"overview.suggestionsNote" = "Βάσει της τελευταίας σάρωσης· ο έλεγχος ασφαλείας εκτελείται ξανά πριν μετακινηθεί οτιδήποτε.";
 "overview.viewProgress" = "Προβολή προόδου σάρωσης";
 "overview.viewResults" = "Προβολή αποτελεσμάτων σάρωσης";
 "permission.askTitle" = "Να επιτρέψουμε στο Sift να δει λίγο περισσότερα;";
@@ -313,6 +315,7 @@
 "scan.filter.old" = "Παλιά";
 "scan.firstRun.review" = "Πρώτος καθαρισμός: ανοίξτε τη λίστα πριν επιβεβαιώσετε.";
 "scan.firstRun.scope" = "Το Sift διαβάζει cache, αρχεία καταγραφής και προγράμματα εγκατάστασης σε αυτές τις τοποθεσίες:";
+"scan.header.ready" = "%d στοιχεία · %@ προς ελευθέρωση";
 "scan.headerStatus" = "Αποτελέσματα από %@ · %d στοιχεία";
 "scan.hiddenSelected" = "%d επιλεγμένα στοιχεία δεν εμφανίζονται εδώ";
 "scan.nothingFound" = "Δεν υπάρχει τίποτα για καθαρισμό";

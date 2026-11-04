@@ -227,6 +227,7 @@
 "overview.moreItems" = "%d elemente mai mici, %@ în total";
 "overview.noCleanup" = "Încă nicio curățare";
 "overview.noResults" = "Rulează o scanare pentru a vedea ce poate fi eliberat în siguranță.";
+"overview.purpose" = "Starea Mac-ului și acțiuni disponibile";
 "overview.ready" = "Gata de scanare";
 "overview.reclaimable.breakdown" = "%@ este sigur, %@ necesită confirmarea ta";
 "overview.reclaimable.meta" = "%d categorii, %d elemente";
@@ -237,6 +238,7 @@
 "overview.selectedSummary" = "%d selectate, %@";
 "overview.showAll" = "Arată tot";
 "overview.status" = "%@";
+"overview.suggestionsNote" = "Pe baza celei mai recente scanări; verificarea de siguranță rulează din nou înainte de mutare.";
 "overview.viewProgress" = "Vezi progresul scanării";
 "overview.viewResults" = "Vezi rezultatele scanării";
 "permission.askTitle" = "Lași Sift să citească puțin mai mult?";
@@ -313,6 +315,7 @@
 "scan.filter.old" = "Vechi";
 "scan.firstRun.review" = "Prima curățare: deschide lista înainte de a confirma.";
 "scan.firstRun.scope" = "Sift citește cache-uri, jurnale și instalatoare în aceste locații:";
+"scan.header.ready" = "%d elemente · %@ recuperabile";
 "scan.headerStatus" = "Rezultate din %@ · %d elemente";
 "scan.hiddenSelected" = "%d elemente selectate nu sunt afișate aici";
 "scan.nothingFound" = "Nimic de curățat";

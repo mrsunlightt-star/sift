@@ -227,6 +227,7 @@
 "overview.moreItems" = "小さい項目 %d 件，合計 %@";
 "overview.noCleanup" = "クリーンアップ履歴なし";
 "overview.noResults" = "スキャンすると、安全に解放できる容量が表示されます。";
+"overview.purpose" = "Mac の状態と実行できる操作";
 "overview.ready" = "スキャンの準備完了";
 "overview.reclaimable.breakdown" = "うち %@ は安全、%@ は確認後に削除できます";
 "overview.reclaimable.meta" = "%d カテゴリ，%d 項目";
@@ -237,6 +238,7 @@
 "overview.selectedSummary" = "%d 件選択，%@";
 "overview.showAll" = "すべて表示";
 "overview.status" = "%@";
+"overview.suggestionsNote" = "最新のスキャン結果に基づきます。ファイルを移動する前に安全確認を再実行します。";
 "overview.viewProgress" = "スキャンの進行状況を見る";
 "overview.viewResults" = "スキャン結果を見る";
 "permission.askTitle" = "Sift にもう少し読み取りを許可しますか？";
@@ -313,6 +315,7 @@
 "scan.filter.old" = "古いファイル";
 "scan.firstRun.review" = "初めてのクリーンアップです。確認前に一覧を開いてください。";
 "scan.firstRun.scope" = "Sift は次の場所のキャッシュ、ログ、インストーラを読み取ります：";
+"scan.header.ready" = "%d 項目 · %@ を解放できます";
 "scan.headerStatus" = "%@ の結果 · %d 項目";
 "scan.hiddenSelected" = "選択した %d 件はこの一覧に表示されていません";
 "scan.nothingFound" = "削除する項目はありません";

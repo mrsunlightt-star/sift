@@ -227,6 +227,7 @@
 "overview.moreItems" = "%d küçük öğe daha, toplam %@";
 "overview.noCleanup" = "Henüz temizlik yok";
 "overview.noResults" = "Güvenle kazanabileceklerinizi görmek için tarama yapın.";
+"overview.purpose" = "Mac durumu ve yapılabilir işlemler";
 "overview.ready" = "Taramaya hazır";
 "overview.reclaimable.breakdown" = "%@ güvenli, %@ onayınızı gerektiriyor";
 "overview.reclaimable.meta" = "%d kategori, %d öğe";
@@ -237,6 +238,7 @@
 "overview.selectedSummary" = "%d seçildi, %@";
 "overview.showAll" = "Tümünü göster";
 "overview.status" = "%@";
+"overview.suggestionsNote" = "En son taramaya dayanır; bir şey taşınmadan önce güvenlik denetimi yeniden çalışır.";
 "overview.viewProgress" = "Tarama ilerlemesini gör";
 "overview.viewResults" = "Sonuçları gör";
 "permission.askTitle" = "Sift biraz daha okusun mu?";
@@ -313,6 +315,7 @@
 "scan.filter.old" = "Eskiler";
 "scan.firstRun.review" = "İlk temizlik: onaylamadan önce listeyi açın.";
 "scan.firstRun.scope" = "Sift bu konumlardaki önbellekleri, günlükleri ve yükleyicileri okur:";
+"scan.header.ready" = "%d öğe · %@ geri kazanılabilir";
 "scan.headerStatus" = "%@ tarihli sonuçlar · %d öğe";
 "scan.hiddenSelected" = "Seçili %d öğe burada gösterilmiyor";
 "scan.nothingFound" = "Temizlenecek bir şey yok";

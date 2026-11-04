@@ -227,6 +227,7 @@
 "overview.moreItems" = "%d مورد کوچک‌تر دیگر, در مجموع %@";
 "overview.noCleanup" = "هنوز پاک‌سازی نبوده";
 "overview.noResults" = "اسکنی اجرا کنید تا ببینید چه چیزهایی می‌توانند با اطمینان آزاد شوند.";
+"overview.purpose" = "وضعیت Mac و اقدام‌های ممکن";
 "overview.ready" = "آمادهٔ اسکن";
 "overview.reclaimable.breakdown" = "%@ امن است، %@ نیاز به تأیید شما دارد";
 "overview.reclaimable.meta" = "%d دسته, %d مورد";
@@ -237,6 +238,7 @@
 "overview.selectedSummary" = "%d مورد انتخاب شد, %@";
 "overview.showAll" = "نمایش همه";
 "overview.status" = "%@";
+"overview.suggestionsNote" = "بر پایهٔ آخرین اسکن؛ پیش از جابه‌جایی هر فایل، بررسی ایمنی دوباره اجرا می‌شود.";
 "overview.viewProgress" = "دیدن پیشرفت اسکن";
 "overview.viewResults" = "دیدن نتایج اسکن";
 "permission.askTitle" = "اجازه می‌دهید Sift کمی بیشتر بخواند؟";
@@ -313,6 +315,7 @@
 "scan.filter.old" = "قدیمی";
 "scan.firstRun.review" = "نخستین پاکسازی: پیش از تأیید فهرست را باز کنید.";
 "scan.firstRun.scope" = "Sift حافظه‌های نهانی، گزارش‌ها و نصب‌کننده‌ها را در این مکان‌ها می‌خواند:";
+"scan.header.ready" = "%d مورد · %@ قابل آزادسازی";
 "scan.headerStatus" = "نتایج از %@ · %d مورد";
 "scan.hiddenSelected" = "%d مورد انتخاب‌شده اینجا نشان داده نمی‌شود";
 "scan.nothingFound" = "چیزی برای پاک‌سازی نیست";

@@ -227,6 +227,7 @@
 "overview.moreItems" = "Altri %d elementi minori, %@ in totale";
 "overview.noCleanup" = "Ancora nessuna pulizia";
 "overview.noResults" = "Esegui una scansione per vedere cosa puoi liberare in sicurezza.";
+"overview.purpose" = "Stato del Mac e azioni disponibili";
 "overview.ready" = "Pronto per la scansione";
 "overview.reclaimable.breakdown" = "%@ è sicuro, %@ richiede la tua conferma";
 "overview.reclaimable.meta" = "%d categorie, %d elementi";
@@ -237,6 +238,7 @@
 "overview.selectedSummary" = "%d selezionati, %@";
 "overview.showAll" = "Mostra tutto";
 "overview.status" = "%@";
+"overview.suggestionsNote" = "In base all’ultima scansione; il controllo di sicurezza viene rieseguito prima di spostare qualcosa.";
 "overview.viewProgress" = "Vedi l’avanzamento";
 "overview.viewResults" = "Vedi i risultati";
 "permission.askTitle" = "Lasciare che Sift legga qualcosa in più?";
@@ -313,6 +315,7 @@
 "scan.filter.old" = "Datati";
 "scan.firstRun.review" = "Prima pulizia: apri l'elenco prima di confermare.";
 "scan.firstRun.scope" = "Sift legge cache, log e installer in queste posizioni:";
+"scan.header.ready" = "%d elementi · %@ liberabili";
 "scan.headerStatus" = "Risultati del %@ · %d elementi";
 "scan.hiddenSelected" = "%d elementi selezionati non sono mostrati qui";
 "scan.nothingFound" = "Niente da pulire";

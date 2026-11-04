@@ -153,6 +153,19 @@ otherwise a silent skip. The summary line states what executed —
 unreadable counts as zero, because an answer that was not given is not an
 execution.
 
+**A runner that never started is recorded as a failed test, so the log decides
+before the count does.** Measured on 2026-11-04: an attempt whose log holds only
+`The test runner failed to initialize for UI testing. (Underlying Error: Timed out
+while enabling automation mode.)` writes `totalTestCount 1, failedTests 1` into
+its result bundle — Xcode 16.4 reports the runner's own failure as one failed
+test. The stage used to read the count first and print `FAILED (UI target: 1
+test(s) failed)`, which is wrong twice: no test case ran, and the line sends you
+looking for a test that does not exist. It now asks `runner_did_not_start` first
+and, when the log matches, reports the failure as the runner's own and falls
+through to the did-not-run path. The reverse order was the shipped defect; the
+distinguishing evidence is the log string, not the count, because a runner that
+never initialised cannot have executed a case to fail.
+
 The zero-execution path is exercised on purpose rather than trusted:
 `SIFT_UI_ONLY=SiftUITests/test_doesNotExist Scripts/verify.sh --quick` points the
 attempt at a test that does not exist. `xcodebuild` exits **0** for that run and

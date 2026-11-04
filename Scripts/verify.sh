@@ -322,7 +322,17 @@ if xcode_available; then
     read -r ui_passed ui_skipped ui_failed <<<"$(xcresult_counts "${UI_ATTEMPT_BUNDLE}")"
     ui_executed=$(( ui_passed + ui_skipped ))
 
-    if (( ui_failed > 0 )); then
+    # A runner that never initialised is recorded by Xcode 16.4 as *one failed
+    # test* (measured 2026-11-04: `totalTestCount 1, failedTests 1` over a log
+    # whose only content is "Timed out while enabling automation mode"), so the
+    # failure count cannot be read before the log. A bundle that reports a
+    # failure while the log matches one of the did-not-start shapes is the runner
+    # reporting itself, not a test case: no case ran, and calling that a failed
+    # test is the same mistake as calling zero cases a pass.
+    if (( ui_failed > 0 )) && runner_did_not_start "${UI_ATTEMPT_LOG}"; then
+      echo "  … UI target attempt ${attempt}: the runner did not start; the bundle's"
+      echo "    ${ui_failed} failure(s) are the runner's own — no test case ran"
+    elif (( ui_failed > 0 )); then
       UI_STATE="failed"
       echo "  → FAILED (UI target: ${ui_failed} test(s) failed; see ${UI_ATTEMPT_LOG})"
       FAILED=1

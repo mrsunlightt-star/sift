@@ -45,7 +45,10 @@ public struct DashboardView: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            SiftPageHeader(title: LocalizationKey.navDashboard.localized, status: statusLine)
+            SiftPageHeader(
+                title: LocalizationKey.navDashboard.localized,
+                subtitle: LocalizationKey.overviewPurpose.localized
+            )
 
             ScrollView {
                 VStack(alignment: .leading, spacing: SiftMetrics.spacingXXL) {
@@ -100,13 +103,12 @@ public struct DashboardView: View {
 
     // MARK: - Header
 
-    private var statusLine: String {
-        let date = Date().formatted(
-            .dateTime.year().month().day().weekday(.wide)
-                .locale(environment.preferences.language.locale)
-        )
-        return LocalizationKey.overviewStatus.localized(date)
-    }
+    // The date stood above the title until the visual studies settled the
+    // question: `05 §6` lets a page state a status only when it says something
+    // the title does not, and a page whose facts band already carries
+    // "Last scan — Today · 09:42" was printing the same day twice, once as a
+    // status and once as a fact. The header now says what the page *is*, and the
+    // date lives where its number does.
 
     // MARK: - What happened to the last run
 
@@ -260,22 +262,36 @@ public struct DashboardView: View {
                 titleKey: action.titleKey,
                 symbolName: action.symbolName
             ) {
-                guard action.startsAScan else {
-                    onOpenScan()
-                    return
-                }
                 // Starting a scan is also the navigation: the scan page is where
                 // the run's progress lives, so the hero hands the user straight to
-                // it instead of offering a second button to click.
+                // it instead of offering a second button to click. The other two
+                // states of this button ("View scan progress", "View results")
+                // only navigate, which is why the press always opens the page.
                 onOpenScan()
-                Task { await environment.runScan(.everything) }
+                if action.startsAScan {
+                    Task { await environment.runScan(.everything) }
+                }
             }
             .accessibilityIdentifier("dashboard.primaryAction")
 
             if overviewState.offersResultsPage {
-                SiftSecondaryButton(titleKey: .overviewViewResults) {
+                // A text link, not a second filled control: the studies put one
+                // solid button on this page, and a page that offers two equally
+                // weighted buttons has no primary action at all.
+                Button {
                     onOpenScan()
+                } label: {
+                    HStack(spacing: SiftMetrics.spacingXS) {
+                        Text(LocalizationKey.overviewViewResults.localized)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 9, weight: .semibold))
+                            .accessibilityHidden(true)
+                    }
+                    .font(SiftFont.secondaryHeading)
                 }
+                .buttonStyle(SiftLinkButtonStyle())
+                .padding(.horizontal, SiftMetrics.spacingXS)
+                .accessibilityIdentifier("dashboard.viewResults")
             }
 
             Spacer(minLength: SiftMetrics.spacingS)
@@ -331,119 +347,143 @@ public struct DashboardView: View {
 
     // MARK: - Supporting facts
 
-    /// Operational facts, as one plain list.
+    /// Operational facts as a two-column band.
     ///
-    /// Each of these used to be a card of its own, which made the disk's ring and
-    /// the last cleanup look like answers to the page's question. They are
-    /// context: label on the left, value on the right, one hairline between.
+    /// The visual studies settled this shape: a label above its value, two pairs
+    /// per row, one vertical hairline between the columns and one horizontal
+    /// hairline between the rows. The label-left / value-right form this replaced
+    /// read as a settings table — five rows of the same rhythm, in which the disk
+    /// figure and the last cleanup looked like entries rather than the two
+    /// measurements they are.
+    ///
+    /// Every cell still comes from the same resolved state as the rest of the
+    /// page, so a run in flight and a run that never happened cannot be described
+    /// two different ways on one screen.
     private var factsSection: some View {
         SiftSection {
             VStack(spacing: 0) {
-                factRow(
-                    title: LocalizationKey.dashboardScanCompleted.localized,
-                    value: lastScanValue
-                )
-
-                SiftHairline()
-                diskFact
-                SiftHairline()
-
-                if overviewState.hasResultSet {
-                    factRow(
-                        title: LocalizationKey.scanResults.localized,
-                        value: LocalizationKey.overviewReclaimableMeta.localized(
-                            scan.categoryTotals.count,
-                            scan.report?.itemCount ?? 0
-                        )
+                HStack(alignment: .top, spacing: 0) {
+                    factCell(
+                        title: LocalizationKey.dashboardScanCompleted.localized,
+                        value: lastScanValue
                     )
-                    SiftHairline()
-                }
 
-                factRow(
-                    title: LocalizationKey.overviewLastCleanupTitle.localized,
-                    value: lastOutcome?.formattedReleased
-                        ?? LocalizationKey.overviewNoCleanup.localized,
-                    detail: lastOutcome.map {
-                        LocalizationKey.overviewLastCleanupMeta.localized(
-                            SiftFormat.relativeDate($0.finishedAt),
-                            $0.movedCount
+                    columnRule
+
+                    factCell(
+                        title: LocalizationKey.overviewLastCleanupTitle.localized,
+                        value: lastOutcome?.formattedReleased
+                            ?? LocalizationKey.overviewNoCleanup.localized,
+                        detail: lastOutcome.map {
+                            LocalizationKey.overviewLastCleanupMeta.localized(
+                                SiftFormat.relativeDate($0.finishedAt),
+                                $0.movedCount
+                            )
+                        }
+                    )
+                }
+                .padding(.vertical, SiftMetrics.spacingL)
+
+                SiftHairline()
+
+                HStack(alignment: .top, spacing: 0) {
+                    diskCell
+
+                    if overviewState.hasResultSet {
+                        columnRule
+
+                        factCell(
+                            title: LocalizationKey.scanResults.localized,
+                            value: LocalizationKey.overviewReclaimableMeta.localized(
+                                scan.categoryTotals.count,
+                                scan.report?.itemCount ?? 0
+                            )
                         )
                     }
-                )
+                }
+                .padding(.vertical, SiftMetrics.spacingL)
 
                 localOnlyLine
-                    .padding(.top, SiftMetrics.spacingM)
+                    .padding(.top, SiftMetrics.spacingS)
             }
         }
     }
 
-    private func factRow(title: String, value: String, detail: String? = nil) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: SiftMetrics.spacingL) {
+    /// One cell of the band: label, value, optional second line.
+    ///
+    /// The label is supporting copy and the value is the measurement, which is the
+    /// one place on this page where the smaller size is the more important line —
+    /// it is a label, not an assertion.
+    private func factCell(title: String, value: String, detail: String? = nil) -> some View {
+        VStack(alignment: .leading, spacing: SiftMetrics.spacingXS) {
             Text(title)
-                .font(SiftFont.body)
+                .font(SiftFont.supporting)
                 .foregroundStyle(SiftColor.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Spacer(minLength: SiftMetrics.spacingM)
+            Text(value)
+                .font(SiftFont.sectionHeading)
+                .monospacedDigit()
+                .foregroundStyle(SiftColor.mainText)
+                .fixedSize(horizontal: false, vertical: true)
 
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(value)
-                    .font(SiftFont.secondaryHeading)
-                    .monospacedDigit()
-                    .foregroundStyle(SiftColor.mainText)
-                    .lineLimit(1)
-                if let detail {
-                    Text(detail)
-                        .font(SiftFont.supporting)
-                        .foregroundStyle(SiftColor.quietText)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.trailing)
-                }
+            if let detail {
+                Text(detail)
+                    .font(SiftFont.supporting)
+                    .foregroundStyle(SiftColor.quietText)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(.vertical, SiftMetrics.spacingM)
-        .frame(minHeight: SiftMetrics.rowHeight, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
     }
 
-    /// The disk figure, or a placeholder until the volume has been read.
+    /// The band's vertical rule. Drawn only between two cells that both exist, so
+    /// a page with no result set does not end a row with a line and nothing after
+    /// it.
+    private var columnRule: some View {
+        Rectangle()
+            .fill(SiftColor.divider)
+            .frame(width: SiftMetrics.panelBorderWidth)
+            .frame(maxHeight: .infinity)
+            .padding(.vertical, SiftMetrics.spacingXS)
+            .padding(.horizontal, SiftMetrics.spacingL)
+            .accessibilityHidden(true)
+    }
+
+    /// The disk figure, or a skeleton until the volume has been read.
     ///
     /// A bar at zero said "no disk used"; a spinner claims a measurement is
     /// running. The volume list is filled by `refreshVolumes()` on appear, so the
-    /// honest thing to draw in the meantime is a skeleton.
-    private var diskFact: some View {
+    /// honest thing to draw in the meantime is a placeholder of the value's own
+    /// height.
+    private var diskCell: some View {
         let volume = rootVolume
-        return HStack(alignment: .firstTextBaseline, spacing: SiftMetrics.spacingL) {
+        return VStack(alignment: .leading, spacing: SiftMetrics.spacingXS) {
             Text(LocalizationKey.dashboardDiskUsed.localized)
-                .font(SiftFont.body)
+                .font(SiftFont.supporting)
                 .foregroundStyle(SiftColor.secondaryText)
 
-            Spacer(minLength: SiftMetrics.spacingM)
-
             if let volume {
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(volume.formattedUsage)
-                        .font(SiftFont.secondaryHeading)
-                        .monospacedDigit()
-                        .foregroundStyle(SiftColor.mainText)
-                    Text(
-                        LocalizationKey.overviewDiskUsageDetail.localized(
-                            volume.formattedFree,
-                            volume.formattedTotal
-                        )
+                Text(volume.formattedUsage)
+                    .font(SiftFont.sectionHeading)
+                    .monospacedDigit()
+                    .foregroundStyle(SiftColor.mainText)
+                Text(
+                    LocalizationKey.overviewDiskUsageDetail.localized(
+                        volume.formattedFree,
+                        volume.formattedTotal
                     )
-                    .font(SiftFont.supporting)
-                    .foregroundStyle(SiftColor.quietText)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.trailing)
-                }
+                )
+                .font(SiftFont.supporting)
+                .foregroundStyle(SiftColor.quietText)
+                .fixedSize(horizontal: false, vertical: true)
             } else {
                 SiftSkeletonRow()
                     .frame(width: 150)
             }
         }
-        .padding(.vertical, SiftMetrics.spacingM)
-        .frame(minHeight: SiftMetrics.rowHeight, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
     }
 
@@ -456,14 +496,18 @@ public struct DashboardView: View {
     /// "Not scanned yet" when no run has ever finished. Recency wording is right
     /// here — a scan's age is the point — unlike the two application dates, which
     /// are read against one another and carry their year (invariant 47).
+    ///
+    /// The clock time travels with the day (`Today · 09:42`): a user who has just
+    /// scanned needs to know whether that result set is the run they are looking
+    /// at, and "Today" alone cannot answer a second run on the same day.
     private var lastScanValue: String {
         if let report = scan.report {
-            return SiftFormat.relativeDate(report.finishedAt ?? report.startedAt)
+            return SiftFormat.relativeDateTime(report.finishedAt ?? report.startedAt)
         }
         guard let stored = RecentHistory.lastScanDate() else {
             return LocalizationKey.dashboardNeverScanned.localized
         }
-        return SiftFormat.relativeDate(stored)
+        return SiftFormat.relativeDateTime(stored)
     }
 
     // MARK: - Recommendations
@@ -485,6 +529,10 @@ public struct DashboardView: View {
 
                     Spacer(minLength: SiftMetrics.spacingS)
 
+                    // Only the count here. The hero above already carries the one
+                    // "View scan results" link this page needs; two identical
+                    // labels 400 pt apart are two controls for one destination,
+                    // and the second one makes the first look like it did nothing.
                     Text(
                         LocalizationKey.overviewSelectedSummary.localized(
                             cleanup.selectedCount,
@@ -493,15 +541,7 @@ public struct DashboardView: View {
                     )
                     .font(SiftFont.supporting)
                     .foregroundStyle(SiftColor.secondaryText)
-
-                    Button {
-                        onOpenScan()
-                    } label: {
-                        Text(LocalizationKey.overviewViewResults.localized)
-                            .font(SiftFont.supporting)
-                    }
-                    .buttonStyle(SiftLinkButtonStyle())
-                    .accessibilityIdentifier("dashboard.viewResults")
+                    .accessibilityIdentifier("dashboard.selectedSummary")
                 }
                 .padding(.bottom, SiftMetrics.spacingS)
 
@@ -537,6 +577,17 @@ public struct DashboardView: View {
                     }
                     .padding(.top, SiftMetrics.spacingM)
                 }
+
+                // What the rows are and what happens next, in one sentence: a
+                // recommendation is a claim about a *previous* run, and the
+                // safety check happens again at the moment of the move. Stating
+                // both is what stops "suggested" from reading as "already
+                // judged safe".
+                Text(LocalizationKey.overviewSuggestionsNote.localized)
+                    .font(SiftFont.supporting)
+                    .foregroundStyle(SiftColor.quietText)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, SiftMetrics.spacingM)
             }
         }
     }

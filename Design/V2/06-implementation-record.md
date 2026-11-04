@@ -190,3 +190,94 @@ type ladder; they are not a substitute for the checklist in `01` §Accessibility
 - **Legacy aliases** (`accent`, `baseGlass`, `glassBorder`, `SiftGlassCard` as a
   card) are still referenced by a few call sites and can be deleted once the
   repo-wide search is empty. `05` §10 step 5 is that step.
+
+## 9. Second pass — the studies were redrawn
+
+On 2026-11-04 the `design/sift-v2-ui` branch was force-pushed with a second
+revision of the three vector studies and a progress note of its own. The written
+specification did not move (`01`–`05` are byte-identical to this branch), so what
+followed was a **visual** reconciliation: the code already agreed with the words,
+and five places where it disagreed with the pictures were settled in the pictures'
+favour because the pictures were the more specific statement of the same intent.
+
+What came across, and why each one is a real improvement rather than a restyle:
+
+1. **A subtitle slot in the page header.** `SiftPageHeader` gained
+   `subtitle: String?` under the title. The overview had been printing today's
+   date above its own title while its facts band printed "Last scan — Today ·
+   06:55" — the same day, twice, in two formats. The header now says what the page
+   *is* (`Mac status and available actions`), and a date lives where its number
+   does. The scan page uses the same slot for `96 items · 2.68 GB can be
+   reclaimed`, because `05 §6` allows a status only when it says something the
+   title does not, and "some locations could not be read" already owns the status
+   line.
+2. **The facts band.** Five label-left/value-right rows read as a settings table;
+   the studies draw two columns of label-above-value with a vertical hairline
+   between and one horizontal rule between the pairs. The same five facts now sit
+   in a 2 × 2 band (`Last scan` / `Last cleanup`, `Disk used` / `Results`), and the
+   vertical rule is drawn only where two cells exist, so a page with no result set
+   does not end a row with a line and nothing after it.
+3. **The clock time with the day.** `Today` cannot tell a 09:42 run from a 14:10
+   one, and the result set behind the number is exactly that distinction.
+   `SiftFormat.relativeDateTime` composes the existing localised relative day with
+   `SiftFormat.time`, so `Today · 09:42` needs no new date vocabulary in any of the
+   34 languages.
+4. **One filled button per page.** The studies give the overview a solid primary
+   plus a text link; the code had a primary plus a bordered secondary, and the
+   scan page had a filled `Rescan` in the header competing with the filled
+   `Move to Trash` in the inspector. `View scan results` is now a
+   `SiftLinkButtonStyle` link with a chevron, `Rescan` is a ghost button, and the
+   second copy of `View scan results` that sat in the suggestions header was
+   deleted — two identical labels 400 pt apart are two controls for one
+   destination.
+5. **The selected filter chip is a solid pill.** `SiftFilterChip`'s selected state
+   was a pale wash with green text; the studies make it `actionFill` with
+   `onActionFill` text, which measures 5.16:1 light and 7.13:1 dark. The fill is
+   also a shape difference, which is what `01` §Accessibility asks for when a
+   state must not rest on hue alone.
+
+Two sentences came with the drawings and are now in all 34 languages
+(`Scripts/generate-strings.py` is still the only source): `overview.purpose`
+(what the overview is for), `overview.suggestionsNote` (recommendations describe a
+*previous* run, and the safety check runs again before anything moves) and
+`scan.header.ready` (the counts-and-bytes line). The catalog went from 483 to 486
+keys.
+
+Deliberate deviations from this revision, recorded rather than silently ignored:
+
+- **No all-caps page eyebrow.** The redrawn studies still carry `SIFT / OVERVIEW`
+  above the title; `01` §Typography retires all-caps eyebrow labels with wide
+  tracking by default, and a written rule outranks a drawing. The 12 pt semibold
+  rank line stays.
+- **No coloured dot on the group headers.** The drawings mark `Safe to clean` /
+  `Needs your confirmation` / `Protected` with a small dot. The list already
+  carries a word-based `RiskBadge` on every row and a word in every group header;
+  a dot would be the only risk signal that is colour-only.
+- **The running-scan card keeps its outline.** A scan in progress is a distinct
+  task with its own ring, phase and cancel action, which is the case `05` §4 keeps
+  a surface for. Flattening it would leave a 4-step progress ring floating in the
+  page.
+- **`/var` and `~/.Trash` rows in the skipped-locations card still explain
+  themselves in place**; the studies do not draw that card at all.
+
+Verification for this pass: `swift build` green; `swift test` **411 tests, 0
+failures** (two new: `test_aRelativeDayCarriesItsClockTime`,
+`test_theStudySentencesResolveTheirArguments`); `Scripts/verify.sh` Rust 291,
+Swift XCTest 411, self-test 265, Xcode unit target 411, app bundle signed. The
+first full run of the pass was green end to end including
+`XCUITest 8 (ran, 8 executed)`; the later runs on the same machine reported the UI
+target as `did not run`, which is the intermittent automation grant
+`AGENTS.md` describes — every other stage stayed green, and the UI target is
+re-run when the machine can run it.
+
+That run also taught the gate a shape it had been mis-reading: a bundle for an
+attempt whose log holds only "Timed out while enabling automation mode" records
+`totalTestCount 1, failedTests 1`, because Xcode 16.4 counts the runner's own
+failure as a failed test. The stage read the count first and printed
+`FAILED (UI target: 1 test(s) failed)` for a run in which no case executed, which
+sends a reader looking for a test that does not exist. It now asks the log first
+(`runner_did_not_start`) and reports the failure as the runner's, then falls
+through to the did-not-run path. `AGENTS.md` records the measurement.
+
+Screenshots replaced from the running app: `overview-light-1280.png`,
+`scan-results-light-1280.png`, `overview-dark.png`, `scan-results-dark.png`.

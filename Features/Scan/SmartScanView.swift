@@ -83,7 +83,11 @@ public struct ScanView: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            SiftPageHeader(title: LocalizationKey.navScan.localized, status: headerStatus) {
+            SiftPageHeader(
+                title: LocalizationKey.navScan.localized,
+                status: headerStatus,
+                subtitle: headerSubtitle
+            ) {
                 headerAction
             }
 
@@ -234,31 +238,39 @@ public struct ScanView: View {
             let step = isPreparing ? 1 : (scan.phase.step ?? 1)
             return LocalizationKey.scanRunningStatus.localized(step, ScanPhase.stepCount)
         }
-        if scan.hasStoppedResults, let report = scan.report {
-            return LocalizationKey.scanHeaderStatus.localized(
-                SiftFormat.relativeDate(report.finishedAt ?? report.startedAt),
-                report.itemCount
-            ) + " · " + LocalizationKey.scanPhaseCancelled.localized
+        if scan.hasStoppedResults {
+            return LocalizationKey.scanPhaseCancelled.localized
         }
         if scan.phase == .cancelled || scan.phase == .failed {
             return scan.phase.labelKey.localized
         }
-        if let report = scan.report {
-            let status = LocalizationKey.scanHeaderStatus.localized(
-                SiftFormat.relativeDate(report.finishedAt ?? report.startedAt),
-                report.itemCount
-            )
-            guard scan.phase == .partial else { return status }
+        if scan.report != nil {
+            guard scan.phase == .partial else { return "" }
             // "Some locations could not be read" is about permissions and says
             // nothing about a run that was cut short to keep the app responsive.
-            let suffix = scan.skippedLocations.isEmpty
+            return scan.skippedLocations.isEmpty
                 ? LocalizationKey.scanPartialBudget.localized
                 : LocalizationKey.scanPhasePartial.localized
-            return status + " · " + suffix
         }
         // The page name is already the title, so the status states only the
         // rest: "Scan, nothing scanned yet" said the same thing twice.
         return LocalizationKey.scanPhaseIdle.localized
+    }
+
+    /// What the page currently holds, as one sentence under the title: the
+    /// studies put the count and the reclaimable size there rather than above the
+    /// title, and `05 §6` wants a status only when it says something the title
+    /// does not — so the date, which the overview's facts band already states down
+    /// to the minute, is not repeated here.
+    ///
+    /// Both numbers are the settled run's own totals, never the selection's: this
+    /// line must keep describing the scan after the user starts ticking rows.
+    private var headerSubtitle: String? {
+        guard let report = scan.report, !isBusy, !scan.hasStoppedResults else { return nil }
+        return LocalizationKey.scanHeaderReady.localized(
+            report.itemCount,
+            SiftFormat.bytes(scan.reclaimableBytes)
+        )
     }
 
     @ViewBuilder
@@ -287,10 +299,15 @@ public struct ScanView: View {
             }
             .padding(.horizontal, SiftMetrics.spacingM)
         } else if hasActionableResults {
-            SiftPrimaryButton(titleKey: .scanRescan, symbolName: "arrow.clockwise") {
+            // A ghost button, not a second filled one: the page's filled control
+            // is "Move to Trash" in the selection column, and two equally
+            // weighted buttons leave the page without a primary action (`05 §7`).
+            // Rescanning is a repeat of what the page already did.
+            SiftSecondaryButton(titleKey: .scanRescan, symbolName: "arrow.clockwise") {
                 Task { await environment.runScan(.everything) }
             }
             .keyboardShortcut("r", modifiers: .command)
+            .accessibilityIdentifier("scan.rescan")
         }
     }
 

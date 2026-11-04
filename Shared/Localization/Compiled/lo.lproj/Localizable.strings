@@ -227,6 +227,7 @@
 "overview.moreItems" = "ຍັງມີ %d ລາຍການຂະໜາດນ້ອຍ, ລວມ %@";
 "overview.noCleanup" = "ຍັງບໍ່ມີການລ້າງ";
 "overview.noResults" = "ສະແກນກ່ອນ ເພື່ອເຫັນວ່າສາມາດສ້າງພື້ນທີ່ໄດ້ປອດໄພປານໃດ.";
+"overview.purpose" = "ສະຖານະ Mac ແລະ ການດຳເນີນການທີ່ເຮັດໄດ້";
 "overview.ready" = "ພ້ອມສະແກນແລ້ວ";
 "overview.reclaimable.breakdown" = "%@ ປອດໄພ, %@ ຕ້ອງທ່ານຢືນຢັນ";
 "overview.reclaimable.meta" = "%d ປະເພດ, %d ລາຍການ";
@@ -237,6 +238,7 @@
 "overview.selectedSummary" = "ເລືອກແລ້ວ %d ລາຍການ, %@";
 "overview.showAll" = "ສະແດງທັງໝົດ";
 "overview.status" = "%@";
+"overview.suggestionsNote" = "ອີງໃສ່ການສະແກນລ່າສຸດ; ການກວດຄວາມປອດໄພຈະເຮັດຄືນກ່ອນຍ້າຍໄຟລ໌.";
 "overview.viewProgress" = "ເບິ່ງຄວາມຄືບໜ້າການສະແກນ";
 "overview.viewResults" = "ເບິ່ງຜົນການສະແກນ";
 "permission.askTitle" = "ໃຫ້ Sift ອ່ານເພີ່ມອີກໜ້ອຍໜຶ່ງບໍ?";
@@ -313,6 +315,7 @@
 "scan.filter.old" = "ເກົ່າ";
 "scan.firstRun.review" = "ການລຶບລ້າງຄັ້ງທຳອິດ: ເປີດລາຍການກ່ອນຢືນຢັນ.";
 "scan.firstRun.scope" = "Sift ອ່ານແຄຊ໌, ໄຟລ໌ບັນທຶກ ແລະ ໂປຣແກຣມຕິດຕັ້ງໃນຕຳແໜ່ງເຫຼົ່ານີ້:";
+"scan.header.ready" = "%d ລາຍການ · ຄືນໄດ້ %@";
 "scan.headerStatus" = "ຜົນການຈາກ %@ · %d ລາຍການ";
 "scan.hiddenSelected" = "%d ລາຍການທີ່ເລືອກໄວ້ບໍ່ໄດ້ສະແດງຢູ່ນີ້";
 "scan.nothingFound" = "ບໍ່ມີຫຍັງຕ້ອງລ້າງ";

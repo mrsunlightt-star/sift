@@ -327,6 +327,25 @@ public enum SiftFormat {
         return formatter.string(from: date)
     }
 
+    /// A clock time on its own: `09:42`.
+    ///
+    /// Used where a relative day is already stated and the hour is what tells two
+    /// runs of the same day apart — the overview's facts band says `Today · 09:42`
+    /// rather than making the user open the report to find out whether the run
+    /// happened before or after the thing they just did.
+    public static func time(_ date: Date, locale: Locale = SiftLanguage.current.locale) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = locale
+        formatter.dateStyle = .none
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
+
+    /// A relative day with the clock time attached: `Today · 09:42`.
+    public static func relativeDateTime(_ date: Date, now: Date = Date(), locale: Locale = SiftLanguage.current.locale) -> String {
+        relativeDate(date, now: now, locale: locale) + " · " + time(date, locale: locale)
+    }
+
     /// An absolute date — day, month and **year**, never "3 days ago".
     ///
     /// The Apps page prints an install date and a launch date side by side, in a
