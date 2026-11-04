@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""Draws the Sift app icon.
+"""Builds the Sift app icon from the owner's drawing.
 
-The mark matches the design mockups: a white four-point sparkle on the brand
-blue, on a rounded square. Everything is drawn with plain geometry so the icon
-is reproducible from source rather than a binary nobody can edit.
+`Resources/IconSource/app-icon.png` is the master: the gold star on the brand
+green, drawn by the owner of this repository. It is a full-bleed square, so this
+script only applies the geometry macOS expects — a rounded square inset on a
+1024 canvas — and then re-samples that single master into every size the asset
+catalog and the `.icns` need. Nothing is redrawn here: changing the picture means
+replacing the master, not editing this file.
 
 Outputs:
   Resources/Assets.xcassets/AppIcon.appiconset/*.png   (Xcode asset catalog)
@@ -19,88 +22,53 @@ import tempfile
 from PIL import Image, ImageDraw
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
+SOURCE_PATH = REPO_ROOT / "Resources" / "IconSource" / "app-icon.png"
 ASSET_DIR = REPO_ROOT / "Resources" / "Assets.xcassets" / "AppIcon.appiconset"
 ICNS_PATH = REPO_ROOT / "Resources" / "AppIcon.icns"
 
 CANVAS = 1024
 # macOS draws an app icon inside a rounded square with roughly a 22% margin on a
-# 1024 canvas, so the artwork keeps that proportion.
+# 1024 canvas, so the artwork keeps that proportion. The source is square and
+# full-bleed, which is what makes the margin this script's job rather than the
+# drawing's.
 INSET = 100
 CORNER = 230
 
-TOP_COLOR = (56, 118, 255)
-BOTTOM_COLOR = (24, 74, 214)
-
-
-def lerp(a: int, b: int, t: float) -> int:
-    return int(round(a + (b - a) * t))
-
-
-def gradient(size: int) -> Image.Image:
-    image = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(image)
-    for y in range(size):
-        t = y / max(size - 1, 1)
-        color = (
-            lerp(TOP_COLOR[0], BOTTOM_COLOR[0], t),
-            lerp(TOP_COLOR[1], BOTTOM_COLOR[1], t),
-            lerp(TOP_COLOR[2], BOTTOM_COLOR[2], t),
-            255,
-        )
-        draw.line([(0, y), (size, y)], fill=color)
-    return image
-
-
-def sparkle(draw: ImageDraw.ImageDraw, cx: float, cy: float, radius: float, waist: float, fill) -> None:
-    """Draws a four-point star.
-
-    `radius` is the tip distance from the centre and `waist` the half-width of the
-    concave curve between two tips. A small waist gives the sharp sparkle the
-    mockups use.
-    """
-    points = []
-    for index in range(8):
-        angle = index * 45.0
-        distance = radius if index % 2 == 0 else waist
-        from math import cos, radians, sin
-
-        points.append(
-            (
-                cx + distance * cos(radians(angle - 90)),
-                cy + distance * sin(radians(angle - 90)),
-            )
-        )
-    # Smooth the concave part with quadratic curves through the waist points.
-    draw.polygon(points, fill=fill)
-
 
 def render(size: int) -> Image.Image:
+    """Returns one icon at `size` pixels, scaled from the master."""
     scale = size / CANVAS
-    canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
 
-    # Rounded-square background.
-    background = gradient(size)
-    mask = Image.new("L", (size, size), 0)
+    # The master is 500 px, so the largest slot always needs upsampling: Lanczos
+    # keeps the star's straight edges straight, and the hatching inside it is the
+    # reason nearest or bilinear would look wrong. Converted to RGBA first,
+    # because `paste` with a mask needs an alpha channel to weigh against.
+    master = Image.open(SOURCE_PATH).convert("RGBA")
+
+    inset = int(round(INSET * scale))
+    tile = size - inset * 2
+    art = master.resize((tile, tile), Image.LANCZOS)
+
+    # The radius is a canvas measurement, like the inset: the tile is always the
+    # same picture at a different scale, so the corners of a 16 pt icon and a
+    # 1024 pt one describe the same curve.
+    mask = Image.new("L", (tile, tile), 0)
     ImageDraw.Draw(mask).rounded_rectangle(
-        [(INSET * scale), (INSET * scale), (size - INSET * scale), (size - INSET * scale)],
+        [(0, 0), (tile - 1, tile - 1)],
         radius=CORNER * scale,
         fill=255,
     )
-    canvas.paste(background, (0, 0), mask)
 
-    draw = ImageDraw.Draw(canvas)
-    white = (255, 255, 255, 255)
-
-    # The large sparkle, slightly above and left of centre, with two small ones
-    # for the "sifting" motion.
-    sparkle(draw, 500 * scale, 430 * scale, 250 * scale, 58 * scale, white)
-    sparkle(draw, 690 * scale, 665 * scale, 105 * scale, 26 * scale, white)
-    sparkle(draw, 330 * scale, 690 * scale, 62 * scale, 16 * scale, white)
-
+    canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    canvas.paste(art, (inset, inset), mask)
     return canvas
 
 
 def main() -> int:
+    if not SOURCE_PATH.exists():
+        print(f"missing master: {SOURCE_PATH.relative_to(REPO_ROOT)}")
+        return 1
+
     ASSET_DIR.mkdir(parents=True, exist_ok=True)
     ICNS_PATH.parent.mkdir(parents=True, exist_ok=True)
 

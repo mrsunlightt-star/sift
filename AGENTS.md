@@ -246,6 +246,17 @@ missing from the copies. Never edit either generated file by hand: the Rust test
 must be a key `Shared/Localization/Localizable.xcstrings` carries, and must have no
 format placeholder, because a row renders its explanation with no arguments.
 
+The app icon is one drawing and one generator. `Resources/IconSource/app-icon.png`
+is the master — the owner's artwork, not something this repository draws — and
+`python3 Scripts/generate-icon.py` applies the macOS geometry to it and writes
+every size the asset catalog and `Resources/AppIcon.icns` need. Replacing the
+icon means replacing that PNG and re-running the script, never editing the
+generated `AppIcon.appiconset` by hand. The SwiftPM bundle is assembled by
+`Scripts/build-app.sh`, which must also declare `CFBundleIconFile`: until
+2026-11-04 it copied the `.icns` into `Resources` without naming it in the
+`Info.plist` it writes, so every local build showed the generic application icon
+in the Dock, Finder and About window while the file sat there unused.
+
 ## Before committing
 
 ```bash
