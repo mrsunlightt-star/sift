@@ -263,12 +263,19 @@ Deliberate deviations from this revision, recorded rather than silently ignored:
 Verification for this pass: `swift build` green; `swift test` **411 tests, 0
 failures** (two new: `test_aRelativeDayCarriesItsClockTime`,
 `test_theStudySentencesResolveTheirArguments`); `Scripts/verify.sh` Rust 291,
-Swift XCTest 411, self-test 265, Xcode unit target 411, app bundle signed. The
-first full run of the pass was green end to end including
-`XCUITest 8 (ran, 8 executed)`; the later runs on the same machine reported the UI
-target as `did not run`, which is the intermittent automation grant
-`AGENTS.md` describes — every other stage stayed green, and the UI target is
-re-run when the machine can run it.
+Swift XCTest 411, self-test 265, Xcode unit target 411, app bundle signed, and
+`XCUITest 8 (ran, 8 executed): 7 passed, 1 skipped`.
+
+The UI target took three attempts to get there, and the shape of the miss is
+worth recording because it is what `AGENTS.md` calls intermittent: while the
+automation grant was stale — a Mac that had been idle for hours, with the window
+server unwilling to enable automation mode — every attempt stopped before the
+first case (`8 did not run`), twice as a five-minute hang. Killing the per-user
+`testmanagerd`, bringing the display up and re-running with a person at the
+keyboard executed all eight on the first attempt. `test_cleanupAsksForAPurchase`
+skipped itself with its own reason (`the machine produced no preselectable items,
+so the clean action was not reachable`), which is the test refusing to claim it
+checked the paywall rather than the paywall not being there.
 
 That run also taught the gate a shape it had been mis-reading: a bundle for an
 attempt whose log holds only "Timed out while enabling automation mode" records
