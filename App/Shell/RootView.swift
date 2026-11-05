@@ -186,7 +186,10 @@ private struct ShellPresentationHost: View {
             )
             .padding(SiftMetrics.spacingXL)
         }
-        .frame(width: 780, height: 660)
+        // Keep the result sheet inside the supported minimum window
+        // height. The report itself already scrolls, so reducing the sheet
+        // does not hide failure rows or recovery actions.
+        .frame(width: 760, height: 560)
     }
 }
 
