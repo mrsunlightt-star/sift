@@ -62,17 +62,36 @@ public struct UninstallerView: View {
                     .frame(maxWidth: SiftMetrics.contentWidthWide, alignment: .leading)
             }
 
-            HStack(alignment: .top, spacing: SiftMetrics.spacingL) {
-                applicationListCard
-                    .frame(maxHeight: .infinity)
-                detailPane
-                    .frame(width: SiftMetrics.summaryColumnWidth)
-                    .frame(maxHeight: .infinity)
+            GeometryReader { geometry in
+                Group {
+                    if geometry.size.width >= 900 {
+                        HStack(alignment: .top, spacing: SiftMetrics.spacingL) {
+                            applicationListCard
+                                .frame(maxHeight: .infinity)
+                            detailPane(isCompact: false)
+                                .frame(width: SiftMetrics.summaryColumnWidth)
+                                .frame(maxHeight: .infinity)
+                        }
+                    } else {
+                        // At the minimum supported window width, keeping a
+                        // fixed inspector beside the list makes both panes
+                        // cramped. Stack them and let the page scroll instead.
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: SiftMetrics.pageSpacing) {
+                                applicationListCard
+                                    .frame(height: 292)
+                                detailPane(isCompact: true)
+                                    .frame(minHeight: 360)
+                            }
+                            .padding(.bottom, SiftMetrics.spacingXL)
+                        }
+                    }
+                }
+                .padding(.horizontal, SiftMetrics.pagePadding)
+                .padding(.vertical, SiftMetrics.pageSpacing)
+                .frame(maxWidth: SiftMetrics.contentWidthWide, alignment: .leading)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
-            .padding(.horizontal, SiftMetrics.pagePadding)
-            .padding(.vertical, SiftMetrics.pageSpacing)
-            .frame(maxWidth: SiftMetrics.contentWidthWide, alignment: .leading)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
     }
 
@@ -345,7 +364,7 @@ public struct UninstallerView: View {
     // MARK: - Detail
 
     @ViewBuilder
-    private var detailPane: some View {
+    private func detailPane(isCompact: Bool) -> some View {
         Group {
             if let application = selected {
                 VStack(alignment: .leading, spacing: SiftMetrics.spacingL) {
@@ -400,11 +419,13 @@ public struct UninstallerView: View {
                 .frame(maxHeight: .infinity)
             }
         }
-        .padding(.leading, SiftMetrics.spacingL)
+        .padding(.leading, isCompact ? 0 : SiftMetrics.spacingL)
         .overlay(alignment: .leading) {
-            Rectangle()
-                .fill(SiftColor.glassBorder)
-                .frame(width: 1)
+            if !isCompact {
+                Rectangle()
+                    .fill(SiftColor.glassBorder)
+                    .frame(width: 1)
+            }
         }
     }
 
