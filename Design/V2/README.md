@@ -1,7 +1,7 @@
 # Sift V2 — UI / Visual Design
 
-> Status: design direction and page specification  
-> Branch: `design/sift-v2-ui`  
+> Status: design direction and page specification
+> Branch: `design/sift-v2-ui`
 > Scope: macOS application UI only; no changes to scanner, file-operation, entitlement, permission, or cleanup-safety behavior.
 
 ## Design decision
@@ -24,6 +24,7 @@ The icon colors are brand identifiers, not colors to spread indiscriminately acr
 4. [04 — Implementation and acceptance plan](04-implementation-plan.md)
 5. [05 — Component-level implementation specification](05-component-specifications.md)
 6. [06 — Implementation progress](06-implementation-progress.md)
+7. [07 — Follow-up audit and completion gates](07-follow-up-audit.md)
 
 ## Visual explorations
 
@@ -69,3 +70,4 @@ The SVGs below are repository-ready vector redraws of the agreed visual directio
 
 - 2026-11-03: V2 direction established from the user-provided app icon and the preference for pure white over cool gray-white.
 - 2026-11-03: Scan workflow and all page specifications expanded; visual studies added.
+- 2026-11-05: Added a follow-up audit documenting branch divergence, remaining runtime acceptance, and the safety-preserving completion gate.
