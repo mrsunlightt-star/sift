@@ -49,29 +49,41 @@ public struct CleanupConfirmationView: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: SiftMetrics.spacingL) {
-            header
-            locations
-            itemList
-            recoverability
-            counts
-            if !preferences.hasCompletedCleanup {
-                NoticeBanner(level: .information, titleKey: .scanFirstRunReview)
+        VStack(spacing: 0) {
+            // Keep the decision controls visible while long item lists and
+            // expanded disclosures scroll independently above them.
+            ScrollView {
+                VStack(alignment: .leading, spacing: SiftMetrics.spacingL) {
+                    header
+                    locations
+                    itemList
+                    recoverability
+                    counts
+                    if !preferences.hasCompletedCleanup {
+                        NoticeBanner(level: .information, titleKey: .scanFirstRunReview)
+                    }
+                    if cleanup.approvedIncludesItemsNeedingReview {
+                        NoticeBanner(
+                            level: .warning,
+                            message: LocalizationKey.cleanupConfirmReviewCount.localized(reviewCount)
+                        )
+                    }
+                }
+                .padding(SiftMetrics.spacingXL)
             }
-            if cleanup.approvedIncludesItemsNeedingReview {
-                NoticeBanner(
-                    level: .warning,
-                    message: LocalizationKey.cleanupConfirmReviewCount.localized(reviewCount)
-                )
-            }
+            .frame(maxHeight: 440)
+
             Divider()
+
             footer
+                .padding(.horizontal, SiftMetrics.spacingXL)
+                .padding(.vertical, SiftMetrics.spacingL)
         }
-        .padding(SiftMetrics.spacingXL)
         // 640 pt: the widest sheet in the product, because this is the one that
-        // shows paths. The host no longer adds its own padding on top (the two
-        // used to disagree by 8 pt and clip the trailing edge).
+        // shows paths. The content scrolls rather than pushing the decision
+        // buttons below the visible sheet when the approved list is long.
         .frame(width: 640)
+        .frame(maxHeight: 560)
     }
 
     private var reviewCount: Int {
