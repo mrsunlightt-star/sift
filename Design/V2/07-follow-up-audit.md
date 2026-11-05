@@ -81,7 +81,26 @@ Test:
 
 Review purchase/paywall, account/license, permission notices, confirmation, execution, result, retry, undo, and empty states against the V2 component rules. Keep native sheets and distinct warnings where they communicate a real boundary; remove decorative glass/card repetition only where it does not weaken comprehension.
 
-## 5. Verification status
+## 5. P1 implementation pass — 2026-11-05
+
+The following source changes have been committed to this branch:
+
+- `Features/Uninstaller/UninstallerView.swift`: the Apps page now switches from a side-by-side list/inspector to a vertically stacked, scrollable layout when the available content width is below 900 pt. The list keeps a bounded working height and the inspector follows it; the compact inspector drops the vertical divider and its extra leading inset. The wide two-pane layout remains unchanged.
+- `Features/JunkCleanup/CleanupConfirmationView.swift`: the approved-item details now scroll independently above a persistent footer. Cancel and Move to Trash remain visible when the item list or disclosures become long.
+- `App/Shell/RootView.swift`: the cleanup result sheet was reduced from 780 × 660 pt to 760 × 560 pt. The result content already scrolls, so the smaller sheet keeps the failure/recovery content accessible while better fitting the minimum supported window height.
+
+These are layout-only changes. They do not alter scan selection, preflight, uninstall preparation, file movement, entitlements, or recovery logic.
+
+### Still required for P1 acceptance
+
+- Verify the Apps page at 960 × 640, 1024 × 768, 1280 × 820, and a wide window.
+- Verify that the compact Apps list and inspector both remain usable with long localized names and the permission notice visible.
+- Verify cleanup confirmation with a few rows and with hundreds of approved rows; ensure the footer remains visible and the item list scrolls.
+- Verify cleanup result sheet on the minimum supported window, including long failure lists, retry, undo, Trash, and report export.
+- Capture scan lifecycle screenshots: first run, preparing, scanning, indexing, ready, partial, cancelled, failed, empty filter, paging, and incomplete permissions.
+- Run the repository verification scripts and XCUITest on macOS. No runtime test is claimed in this pass.
+
+## 6. Verification status
 
 As of this audit:
 
@@ -92,7 +111,7 @@ As of this audit:
 
 Run the repository's current `Scripts/verify.sh --quick` and full verification workflow after mainline reconciliation. Record the actual test counts and whether the XCUITest cases executed; a runner that never starts is not a passing UI test. Capture screenshots from the built app in both appearances and at the minimum supported window size.
 
-## 6. Completion definition
+## 7. Completion definition
 
 The V2 UI pass is complete only when:
 
