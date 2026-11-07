@@ -201,6 +201,9 @@ codesign --force --options runtime \
   --requirements '=designated => identifier "com.siftmac.cleaner"' \
   --sign - "${APP_DIR}" 2>&1 | grep -v "replacing existing signature" || true
 codesign --verify --deep --strict "${APP_DIR}" && echo "    signature verified"
+echo "    note: ad-hoc build; the designated requirement binds the identifier only, so"
+echo "    the Keychain and TCC grants this build earns are machine-local. A release"
+echo "    build signs with a Developer ID, whose requirement anchors the certificate."
 
 if [[ "${INSTALL}" == "1" ]]; then
   DESTINATION="/Applications/Sift.app"

@@ -69,12 +69,16 @@ run_audit() {
   if ! command -v cargo-audit >/dev/null 2>&1; then
     if [[ "${OFFLINE}" == "1" ]]; then
       echo "error: cargo-audit is not installed, and --offline forbids installing it." >&2
-      echo "       Install it with: cargo install cargo-audit --locked" >&2
+      echo "       Install it with: cargo install cargo-audit --version ${AUDIT_VERSION} --locked" >&2
       return 1
     fi
-    echo "==> cargo-audit is not installed; installing it"
-    if ! cargo install cargo-audit --locked; then
-      echo "error: cargo install cargo-audit --locked failed, so no audit ran." >&2
+    echo "==> cargo-audit is not installed; installing the pinned version"
+    # The audit gate installs its own auditor, so the version is pinned: a new
+    # release of the tool is a change to what this check means, and it arrives
+    # by an explicit edit here, not by whatever crates.io serves next.
+    local AUDIT_VERSION="0.22.2"
+    if ! cargo install cargo-audit --version "${AUDIT_VERSION}" --locked; then
+      echo "error: cargo install cargo-audit --version ${AUDIT_VERSION} --locked failed, so no audit ran." >&2
       return 1
     fi
     if ! command -v cargo-audit >/dev/null 2>&1; then

@@ -90,6 +90,15 @@ fi
 
 [[ -e /Applications/Xcode.app ]] && fail "/Applications/Xcode.app already exists; move it aside first"
 
+# The archive's path says where it came from; the signature says who built it.
+# This script accepts any .xip the caller names, so the check is what stands
+# between a replaced toolchain and `sudo xcode-select` pointing the whole
+# machine's builds at it.
+echo "==> verifying Apple's signature on the expanded bundle"
+if ! codesign --verify --deep --strict -R="anchor=apple" "${APP}"; then
+  fail "the expanded bundle is not signed by Apple; refusing to install it"
+fi
+
 echo "==> moving into /Applications"
 mv "${APP}" /Applications/Xcode.app
 

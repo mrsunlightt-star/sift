@@ -61,6 +61,15 @@ actor RustScannerEngine: ScannerEngine {
     /// only the file it would have removed itself is gone.
     private static func prepareIndexDirectory(_ directory: URL) {
         let fileManager = FileManager.default
+        // The directory this product creates must still be the one its path
+        // spells. `Application Support/Sift` re-pointed by a restore would have
+        // the sweep — and the engine's own writes after it — act inside the
+        // link target. A refused preparation leaves whatever is there for the
+        // next launch, the same way a sweep that cannot remove a leftover does.
+        guard OwnedLocationRemoval.ancestorsSpellTheLocation(directory.path) else {
+            SiftLog.scan.error("Index preparation refused: an ancestor is a symbolic link")
+            return
+        }
         try? fileManager.createDirectory(
             at: directory,
             withIntermediateDirectories: true,
@@ -78,9 +87,14 @@ actor RustScannerEngine: ScannerEngine {
             // Every entry here was written by this product — the directory is the
             // app's own `Index` folder — so a leftover is removed under its own
             // name rather than by matching a `.sqlite` suffix. A path this sweep
-            // cannot remove (a permission error, a volume that went away) is left
-            // for the next launch instead of failing the one.
-            try? fileManager.removeItem(at: entry)
+            // cannot remove (a permission error, a volume that went away, an
+            // ancestor re-pointed since the check above) is left for the next
+            // launch instead of failing the one.
+            do {
+                try OwnedLocationRemoval.remove(at: entry)
+            } catch {
+                SiftLog.scan.notice("The index sweep left one entry in place")
+            }
         }
     }
 
@@ -90,7 +104,15 @@ actor RustScannerEngine: ScannerEngine {
     /// `.sqlite` file leaves a copy of every scanned path behind.
     fileprivate static func removeIndexArtifacts(at url: URL) {
         for suffix in ["", "-wal", "-shm"] {
-            try? FileManager.default.removeItem(at: URL(fileURLWithPath: url.path + suffix))
+            do {
+                try OwnedLocationRemoval.remove(at: URL(fileURLWithPath: url.path + suffix))
+            } catch {
+                // A refusal or a failure leaves the file behind rather than
+                // following a re-pointed ancestor: a stale `-wal` on this
+                // machine's own disk is recoverable, a deletion under a link
+                // target is not.
+                SiftLog.scan.notice("One index artifact was left in place")
+            }
         }
     }
 

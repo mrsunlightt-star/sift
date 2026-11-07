@@ -57,6 +57,49 @@ final class SettingsTests: XCTestCase, @unchecked Sendable {
         XCTAssertEqual(reloaded.textScale, .large)
     }
 
+    /// Clearing the history refuses a support directory that a link re-pointed,
+    /// and the real tree behind the link is untouched.
+    ///
+    /// The removal goes through `OwnedLocationRemoval` for the same reason the
+    /// reports do: `removeItem` follows a link in any ancestor, and the history
+    /// sits below the app's own directory, so clearing it through a re-pointed
+    /// path would delete under the link target instead.
+    func test_clearingHistoryRefusesARepointedSupportDirectory() async throws {
+        let base = FileManager.default.temporaryDirectory
+            .appendingPathComponent("sift-settings-history-\(UUID().uuidString)", isDirectory: true)
+        let real = base.appendingPathComponent("real-store", isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: real.appendingPathComponent("History"),
+            withIntermediateDirectories: true
+        )
+        let historyFile = real.appendingPathComponent("History").appendingPathComponent("entry.json")
+        try Data(repeating: 0x41, count: 8).write(to: historyFile)
+        let link = base.appendingPathComponent("link-store", isDirectory: true)
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: real)
+        defer { try? FileManager.default.removeItem(at: base) }
+
+        let defaults = ScratchPreferences.open("settings")
+        let throughLink = SettingsStore(
+            preferences: StringPreferences(defaults: defaults),
+            supportDirectory: link
+        )
+        await throughLink.clearHistory()
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: historyFile.path),
+            "the history behind the link is untouched"
+        )
+
+        let direct = SettingsStore(
+            preferences: StringPreferences(defaults: defaults),
+            supportDirectory: real
+        )
+        await direct.clearHistory()
+        XCTAssertFalse(
+            FileManager.default.fileExists(atPath: real.appendingPathComponent("History").path),
+            "the history the path spells is cleared"
+        )
+    }
+
     /// The type scale is a stored preference, and its three steps are the only
     /// values the theme accepts.
     ///

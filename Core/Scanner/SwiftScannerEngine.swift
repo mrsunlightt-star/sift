@@ -600,6 +600,13 @@ final class LiveNameBox: @unchecked Sendable {
     /// may hold a week-old and a year-old log, and only the stale one counts.
     /// `oldest` receives the *oldest* surviving file's modification time, which
     /// is what the Rust core reports for the row.
+    ///
+    /// The measurement stops at a mount point the way `FileWalker.measure` does:
+    /// a volume mounted inside a rule directory belongs to another disk, and
+    /// reading across the boundary would count a tree the user never
+    /// authorised. Without the check the bytes also cannot match the
+    /// whole-directory measurement, so the directory would be silently dropped
+    /// from the candidates.
     private func measureMatching(
         url: URL,
         days: Int,
@@ -609,6 +616,7 @@ final class LiveNameBox: @unchecked Sendable {
         var bytes: Int64 = 0
         var files = 0
         var stack = [url]
+        let rootDevice = FileWalker.device(of: url)
         while let directory = stack.popLast() {
             if cancelledSync { return (bytes, files) }
             guard let contents = try? FileManager.default.contentsOfDirectory(
@@ -621,6 +629,7 @@ final class LiveNameBox: @unchecked Sendable {
                     .isDirectoryKey, .isSymbolicLinkKey, .totalFileAllocatedSizeKey, .contentModificationDateKey,
                 ])
                 if values?.isSymbolicLink == true { continue }
+                if let rootDevice, FileWalker.device(of: child) != rootDevice { continue }
                 if rules.protectionReason(for: child.path) != nil { continue }
                 if rules.isInExcludedLocation(child.path) { continue }
                 if skipPaths.contains(where: { RuleEngine.isPrefix($0, child.path) }) { continue }

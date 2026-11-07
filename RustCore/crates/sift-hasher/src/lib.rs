@@ -30,20 +30,19 @@ const HASH_BUFFER_BYTES: usize = 256 * 1024;
 
 /// Co-operative cancellation flag shared with the scanner.
 ///
-/// Cloning copies the current flag state rather than sharing it, so the engine
-/// keeps exactly one token per session and passes that same token to workers.
-#[derive(Debug, Default)]
-pub struct CancelToken(std::sync::atomic::AtomicBool);
-
-impl Clone for CancelToken {
-    fn clone(&self) -> Self {
-        Self(std::sync::atomic::AtomicBool::new(self.is_cancelled()))
-    }
-}
+/// Clones share the same flag: `a.clone()` followed by `a.cancel()` cancels the
+/// clone too, which is what a type named "token" that derives `Clone` suggests.
+/// The engine still keeps exactly one token per session and passes it by
+/// reference to workers; sharing is the safe default should a caller ever
+/// reach for `Clone`.
+#[derive(Debug, Default, Clone)]
+pub struct CancelToken(std::sync::Arc<std::sync::atomic::AtomicBool>);
 
 impl CancelToken {
     pub fn new() -> Self {
-        Self(std::sync::atomic::AtomicBool::new(false))
+        Self(std::sync::Arc::new(std::sync::atomic::AtomicBool::new(
+            false,
+        )))
     }
 
     pub fn cancel(&self) {
@@ -293,6 +292,18 @@ mod tests {
             hash_file(&a, &cancel).unwrap(),
             hash_file(&b, &cancel).unwrap()
         );
+    }
+
+    #[test]
+    fn a_clone_shares_the_flag_with_its_original() {
+        // The flag crossed from a copied snapshot to a shared handle: a cancel
+        // through either half reaches both, which is what any caller reaching
+        // for `Clone` on a token expects.
+        let token = CancelToken::new();
+        let clone = token.clone();
+        assert!(!clone.is_cancelled());
+        token.cancel();
+        assert!(clone.is_cancelled(), "a clone must see the cancellation");
     }
 
     #[test]

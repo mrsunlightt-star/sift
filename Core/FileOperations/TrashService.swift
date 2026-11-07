@@ -268,8 +268,12 @@ public actor TrashService {
                 removedCount += 1
                 removedBytes += entry.bytes
             } catch {
-                let message = (error as NSError).localizedDescription
-                failures.append(.init(url: target, message: message))
+                // The message a row shows is the product's own sentence, never
+                // the raw system error text: Foundation's description carries
+                // the entry's name, and the code table already decides what the
+                // user reads.
+                let code = FileOperationService.classify(error, at: target)
+                failures.append(.init(url: target, message: code.localizedTitle.localized))
                 logger.error("Could not empty a Trash entry")
             }
         }

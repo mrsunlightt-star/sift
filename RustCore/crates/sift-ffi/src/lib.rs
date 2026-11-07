@@ -1161,8 +1161,9 @@ pub unsafe extern "C" fn sift_scan_skipped_json(handle: *mut SiftScanHandle) -> 
 ///
 /// The analyse call is blocking, so the UI runs it on a background thread and
 /// calls [`sift_storage_cancel`] from the thread that owns the cancel button.
-/// The token is an atomic flag; cloning it would copy the value rather than
-/// share it, which is why the pointer is passed through.
+/// The token crosses the boundary as a pointer rather than a value because the
+/// C ABI cannot share an inner flag; on the Rust side `CancelToken` clones
+/// share theirs.
 pub struct SiftStorageCancel {
     token: CancelToken,
 }
@@ -2209,6 +2210,81 @@ mod tests {
             }
             for member in members.iter_mut() {
                 sift_duplicate_member_free(member);
+            }
+            sift_scan_free(handle);
+            sift_engine_free(engine);
+            sift_string_free(error.code);
+            sift_string_free(error.message);
+        }
+    }
+
+    #[test]
+    fn a_crafted_empty_root_list_cannot_wander_outside_the_allowlist() {
+        // `duplicates.roots` is part of the request document, and the gate
+        // judges `request.roots` only. A request that declared no roots used
+        // to skip the containment test for the duplicate roots altogether,
+        // walking any tree the protection list happens not to cover; the scope
+        // allowlist now applies to every duplicate root, whatever the root
+        // list says.
+        let home_tree = sift_scanner_core::walker::fixtures::TempTree::new("ffi-dups-gated");
+        home_tree.file_with("Downloads/inside-one.bin", b"same payload twice");
+        home_tree.file_with("Downloads/inside-two.bin", b"same payload twice");
+        let outside_tree = sift_scanner_core::walker::fixtures::TempTree::new("ffi-dups-outside");
+        outside_tree.file_with("payload/outside-one.bin", b"same payload twice");
+        outside_tree.file_with("payload/outside-two.bin", b"same payload twice");
+
+        let mut request: serde_json::Value = serde_json::from_str(&scan_request_json(
+            "dups-gated",
+            &home_tree.root.to_string_lossy(),
+        ))
+        .unwrap();
+        request["roots"] = serde_json::json!([]);
+        request["includeDuplicates"] = serde_json::json!(true);
+        request["duplicates"]["minSizeBytes"] = serde_json::json!(1);
+        request["duplicates"]["roots"] = serde_json::json!([
+            home_tree.root.to_string_lossy(),
+            outside_tree.root.to_string_lossy()
+        ]);
+
+        let engine = sift_engine_new();
+        let mut error = result_ok();
+        let handle = unsafe { sift_scan_start(engine, string(&request.to_string()), &mut error) };
+        assert!(!handle.is_null());
+
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+        while unsafe { !sift_scan_is_finished(handle) } && std::time::Instant::now() < deadline {
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        let mut events = vec![empty_event(); 32];
+        loop {
+            let written = unsafe { sift_scan_poll_events(handle, 32, events.as_mut_ptr()) };
+            if written == 0 {
+                break;
+            }
+            for event in events.iter_mut().take(written as usize) {
+                unsafe { sift_event_free_items(event) };
+            }
+        }
+
+        let mut groups = [SiftDuplicateGroup {
+            version: 0,
+            group_id: 0,
+            digest: SiftString::EMPTY,
+            size_bytes: 0,
+            member_count: 0,
+            reclaimable_bytes: 0,
+        }; 8];
+        let written =
+            unsafe { sift_scan_page_duplicate_groups(handle, 0, 8, groups.as_mut_ptr(), 8) };
+        assert_eq!(
+            written, 1,
+            "only the root inside the home survives the gate"
+        );
+        assert_eq!(groups[0].member_count, 2);
+
+        unsafe {
+            for group in groups.iter_mut() {
+                sift_duplicate_group_free(group);
             }
             sift_scan_free(handle);
             sift_engine_free(engine);

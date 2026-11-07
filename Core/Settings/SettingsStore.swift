@@ -240,10 +240,22 @@ public actor SettingsStore {
     /// by `AppEnvironment.clearHistory()`, which is the one path the settings
     /// page calls. Saved reports are a separate document the user may want to
     /// keep and are deleted by `ReportService.deleteAllReports()`.
+    ///
+    /// The removal goes through `OwnedLocationRemoval` for the same reason the
+    /// reports do: `removeItem` follows a link in any ancestor, and the
+    /// history sits below the app's own directory, so a re-pointed
+    /// `Application Support/Sift` would turn this into a deletion under the
+    /// link target. A refusal or a failure is logged, never reported as a
+    /// success.
     public func clearHistory() {
         let historyDirectory = supportDirectory.appendingPathComponent("History", isDirectory: true)
-        try? FileManager.default.removeItem(at: historyDirectory)
-        logger.notice("Scan history cleared")
+        guard FileManager.default.fileExists(atPath: historyDirectory.path) else { return }
+        do {
+            try OwnedLocationRemoval.remove(at: historyDirectory)
+            logger.notice("Scan history cleared")
+        } catch {
+            logger.error("Clearing the scan history was refused or failed")
+        }
     }
 
     // MARK: - Persistence

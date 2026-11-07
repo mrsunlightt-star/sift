@@ -274,13 +274,63 @@ final class SecurityFixFileOperationsTests: XCTestCase, @unchecked Sendable {
             try OwnedLocationRemoval.remove(at: support.appendingPathComponent("Reports"))
             XCTFail("a symbolic link in the parent must be refused")
         } catch let refusal as OwnedLocationRemoval.Refusal {
-            XCTAssertEqual(refusal, .parentIsSymbolicLink)
+            XCTAssertEqual(refusal, .ancestorIsSymbolicLink)
         } catch {
             XCTFail("the refusal is reported as its own error, not as a system one")
         }
         XCTAssertTrue(
             FileManager.default.fileExists(atPath: foreignFile.path),
             "the tree the link points at is untouched"
+        )
+    }
+
+    /// A link one level above the entry's own parent is refused too.
+    ///
+    /// The history and the engine index sit below the app's own directory: with
+    /// `Application Support/Sift` re-pointed, the entry's parent
+    /// (`…/Sift/Index`) reads as an ordinary directory whether or not `…/Sift`
+    /// is a link — the shape an immediate-parent check lets through.
+    func test_ownedLocationRemovalRefusesASymbolicLinkAboveTheParent() throws {
+        let support = fixture.directory("Application Support/Sift")
+        let index = fixture.directory("Application Support/Sift/Index")
+        let entry = index.appendingPathComponent("session.sqlite")
+        try Data(repeating: 0x43, count: 16).write(to: entry)
+
+        let foreign = fixture.directory("foreign-tree/Index")
+        let foreignFile = foreign.appendingPathComponent("user.sqlite")
+        try Data(repeating: 0x44, count: 16).write(to: foreignFile)
+
+        // The real store is moved aside rather than deleted, so the entry it
+        // held keeps existing under its own name while `Sift` becomes a link
+        // to a foreign tree.
+        try FileManager.default.moveItem(
+            at: support,
+            to: fixture.url.appendingPathComponent("Application Support/Sift-real")
+        )
+        try FileManager.default.createSymbolicLink(
+            at: support,
+            withDestinationURL: fixture.url.appendingPathComponent("foreign-tree")
+        )
+
+        do {
+            try OwnedLocationRemoval.remove(
+                at: support.appendingPathComponent("Index").appendingPathComponent("session.sqlite")
+            )
+            XCTFail("a link above the entry's parent must be refused")
+        } catch let refusal as OwnedLocationRemoval.Refusal {
+            XCTAssertEqual(refusal, .ancestorIsSymbolicLink)
+        } catch {
+            XCTFail("the refusal is reported as its own error, not as a system one")
+        }
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: foreignFile.path),
+            "the tree the link points at is untouched"
+        )
+        XCTAssertTrue(
+            FileManager.default.fileExists(
+                atPath: fixture.url.appendingPathComponent("Application Support/Sift-real/Index/session.sqlite").path
+            ),
+            "the entry behind the link chain is untouched"
         )
     }
 

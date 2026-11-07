@@ -179,8 +179,15 @@ impl ScanHandle {
                 }
                 progress_emitted = true;
             }
-            let event = queue.remove(index).expect("index is in bounds");
-            out.push(event);
+            // The loop condition bounds `index`, so `None` is not reachable
+            // today; skipping instead of unwinding keeps this FFI-facing
+            // function panic-free even if a refactor ever breaks that
+            // invariant. An event dropped is better than an unwind from a
+            // thread Swift calls directly.
+            match queue.remove(index) {
+                Some(event) => out.push(event),
+                None => continue,
+            }
         }
 
         EventBatch {
@@ -757,10 +764,25 @@ fn run_scan(handle: &Arc<ScanHandle>, request: &ScanRequest) {
         handle.publish_progress();
 
         // Duplicate candidates are cleanup candidates, so the roots are limited
-        // to the ones the caller allowed to be cleaned.
+        // to the ones the caller allowed to be cleaned. The scope allowlist is
+        // applied to every root first: `duplicate_roots` honours the request's
+        // own `duplicates.roots` list, the gate above judges only
+        // `request.roots`, and a request that declared no roots used to skip
+        // the containment test altogether — a crafted caller could name any
+        // tree the protection list happens not to cover and walk it, hashing
+        // its paths and contents into the index.
+        let home_text = home.to_string_lossy().to_string();
         let roots: Vec<PathBuf> = scanners::duplicate_roots(request, &home)
             .into_iter()
             .filter(|root| {
+                let path = root.to_string_lossy();
+                let inside_home = path == home_text || path.starts_with(&format!("{home_text}/"));
+                let inside_volumes = path.starts_with("/Volumes/");
+                let system_logs = path == "/Library/Logs" || path.starts_with("/Library/Logs/");
+                let user_temp = is_user_session_temp_root(&path);
+                if !(inside_home || inside_volumes || system_logs || user_temp) {
+                    return false;
+                }
                 request.roots.is_empty()
                     || request.roots.iter().any(|candidate| {
                         candidate.is_cleanable && root.starts_with(&candidate.path)

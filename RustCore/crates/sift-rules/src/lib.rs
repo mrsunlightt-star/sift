@@ -414,6 +414,15 @@ pub const RELATIVE_PATH_WILDCARD: &str = "*";
 /// a partial, unpredictable set.
 pub const MAX_RULE_ROOTS: usize = 4096;
 
+/// The largest rule document, in bytes, that [`RuleSet::from_json`] will parse.
+///
+/// The shipped table is a few kilobytes and a hand-written overlay is smaller
+/// still; the cap exists so an absurd document cannot occupy memory in two
+/// copies — the request string and the parsed value — before validation runs.
+/// It bounds width only; depth is bounded separately by serde_json's recursion
+/// limit, which holds because this crate does not enable `unbounded_depth`.
+pub const MAX_RULE_JSON_BYTES: usize = 1024 * 1024;
+
 /// True when a `relativePath` uses only the wildcard this build understands.
 pub fn relative_path_glob_is_valid(path: &str) -> bool {
     let components: Vec<&str> = path
@@ -770,6 +779,8 @@ pub const DEFAULT_PACKAGE_EXTENSIONS: &[&str] = &[
 pub enum RuleError {
     #[error("rule set JSON could not be parsed: {0}")]
     Parse(String),
+    #[error("rule set is {size} bytes, this build accepts at most {max}")]
+    TooLarge { size: usize, max: usize },
     #[error("unsupported rule schema version {found}, this build understands {expected}")]
     UnsupportedVersion { found: u32, expected: u32 },
     #[error("rule `{0}` has an empty id")]
@@ -797,7 +808,21 @@ impl RuleSet {
     ///
     /// The rules are *additive*: callers merge them with [`default_rules`], and
     /// [`is_protected_path`] still has the final say on every candidate path.
+    ///
+    /// Depth is bounded by serde_json's own recursion limit, which holds
+    /// because this crate does not enable its `unbounded_depth` feature — keep
+    /// it that way, or a deeply nested document becomes a stack overflow.
+    /// Width is bounded by [`MAX_RULE_JSON_BYTES`] below: the shipped table is
+    /// a few kilobytes and a hand-written one is smaller still, so the cap
+    /// exists so an absurd document cannot occupy memory in two copies (the
+    /// request string and the parsed value) before validation runs.
     pub fn from_json(json: &str) -> Result<Self, RuleError> {
+        if json.len() > MAX_RULE_JSON_BYTES {
+            return Err(RuleError::TooLarge {
+                size: json.len(),
+                max: MAX_RULE_JSON_BYTES,
+            });
+        }
         let parsed: RuleSet =
             serde_json::from_str(json).map_err(|e| RuleError::Parse(e.to_string()))?;
         if parsed.schema_version != RULE_SCHEMA_VERSION {
@@ -3022,6 +3047,22 @@ mod tests {
         ));
         let aged = one_rule_json("Caches", r#","matchSpec":"anyFile","minAgeDays":30"#);
         assert!(RuleSet::from_json(&aged).is_ok());
+    }
+
+    #[test]
+    fn a_document_past_the_size_cap_is_refused_before_it_is_parsed() {
+        // The cap bounds width before serde_json sees the bytes, so the refusal
+        // names the size rather than a parse failure deep inside a document
+        // this product would never ship.
+        let mut document = format!(r#"{{"schemaVersion":{RULE_SCHEMA_VERSION},"rules":[]}}"#);
+        document.push_str(&" ".repeat(MAX_RULE_JSON_BYTES));
+        assert!(matches!(
+            RuleSet::from_json(&document),
+            Err(RuleError::TooLarge { .. })
+        ));
+        // The same document inside the cap parses.
+        let within = format!(r#"{{"schemaVersion":{RULE_SCHEMA_VERSION},"rules":[]}}"#);
+        assert!(RuleSet::from_json(&within).is_ok());
     }
 
     #[test]
