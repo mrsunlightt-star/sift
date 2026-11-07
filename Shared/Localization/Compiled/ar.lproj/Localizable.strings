@@ -20,6 +20,7 @@
 "apps.relatedWillRemove" = "ملفات مرتبطة للإزالة";
 "apps.rescan" = "إعادة فحص التطبيقات";
 "apps.restoreHint" = "قابل للاستعادة من المهملات حتى تفرغها";
+"apps.scope.installed" = "المثبَّتة";
 "apps.sortSummary" = "مرتبة حسب %1$@، الإجمالي %2$@";
 "apps.status" = "%d مثبّتة · %d لم تُفتح منذ 6 أشهر";
 "apps.uninstallAndClean" = "إزالة وتنظيف %@";
@@ -299,6 +300,9 @@
 "report.status.moved" = "نُقل إلى المهملات";
 "report.status.skipped" = "تخطي";
 "report.title" = "تقرير التنظيف";
+"residue.intro.detail" = "يتحقق من المجلدات التي تحفظ فيها التطبيقات بياناتها ويعرض ما لا ينتمي إلى أي تطبيق مثبَّت.";
+"residue.locations" = "المواقع: %d";
+"residue.scan.action" = "البحث عن البقايا";
 "risk.protected.detail" = "لن يزله Sift. يُعرض للإعلام فقط.";
 "risk.protected.short" = "محمي";
 "risk.review.detail" = "يمكن إزالته عادةً، لكن من الأفضل التأكيد.";

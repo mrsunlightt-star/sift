@@ -20,6 +20,7 @@
 "apps.relatedWillRemove" = "Zugehörige Dateien zum Entfernen";
 "apps.rescan" = "Apps erneut suchen";
 "apps.restoreHint" = "Bis zum Leeren des Papierkorbs wiederherstellbar";
+"apps.scope.installed" = "Installiert";
 "apps.sortSummary" = "Nach %1$@, %2$@ gesamt";
 "apps.status" = "%d installiert, %d seit 6 Monaten nicht geöffnet";
 "apps.uninstallAndClean" = "Deinstallieren und %@ bereinigen";
@@ -299,6 +300,9 @@
 "report.status.moved" = "In den Papierkorb verschoben";
 "report.status.skipped" = "Übersprungen";
 "report.title" = "Bereinigungsbericht";
+"residue.intro.detail" = "Prüft die Ordner, in denen Apps ihre Daten ablegen, und listet auf, was zu keiner installierten App gehört.";
+"residue.locations" = "Speicherorte: %d";
+"residue.scan.action" = "Reste prüfen";
 "risk.protected.detail" = "Sift entfernt das nicht. Nur zur Information.";
 "risk.protected.short" = "Geschützt";
 "risk.review.detail" = "Meist unbedenklich, aber bitte bestätigen.";

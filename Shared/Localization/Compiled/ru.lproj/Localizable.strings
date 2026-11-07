@@ -20,6 +20,7 @@
 "apps.relatedWillRemove" = "Связанные файлы к удалению";
 "apps.rescan" = "Пересканировать приложения";
 "apps.restoreHint" = "Можно восстановить из Корзины до её очистки";
+"apps.scope.installed" = "Установленные";
 "apps.sortSummary" = "Сортировка: %1$@, всего %2$@";
 "apps.status" = "Установлено: %d, не открывались 6 месяцев: %d";
 "apps.uninstallAndClean" = "Удалить и очистить %@";
@@ -299,6 +300,9 @@
 "report.status.moved" = "Перемещено в Корзину";
 "report.status.skipped" = "Пропущено";
 "report.title" = "Отчёт об очистке";
+"residue.intro.detail" = "Проверяет папки, где приложения хранят данные, и показывает то, что не принадлежит ни одному установленному приложению.";
+"residue.locations" = "Расположений: %d";
+"residue.scan.action" = "Проверить остатки";
 "risk.protected.detail" = "Sift это не удаляет. Показано только для информации.";
 "risk.protected.short" = "Защищено";
 "risk.review.detail" = "Обычно можно удалить, но лучше подтвердить.";

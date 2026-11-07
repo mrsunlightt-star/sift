@@ -1631,6 +1631,18 @@ pub fn scan_application_residue(
             Category::ApplicationResidue,
             Risk::Review,
         ),
+        // WebKit's per-application store, named after the bundle identifier the
+        // same way `Caches` is. It outlives the application: nothing removes it
+        // on uninstall, and a browser's local storage is not small.
+        ("Library/WebKit", Category::ApplicationResidue, Risk::Review),
+        // A sandboxed application's scripts live in a directory named after its
+        // bundle identifier. The directory survives an uninstall, and the app that
+        // could have run the scripts is the only thing that could have used them.
+        (
+            "Library/Application Scripts",
+            Category::ApplicationResidue,
+            Risk::Review,
+        ),
     ];
 
     for (relative, category, risk) in residue_locations {
@@ -1855,26 +1867,44 @@ pub fn scan_application_residue(
         }
     }
 
-    // Preference files are matched on the full `<bundle-id>.plist` name.
-    for prefix in ["Library/Preferences", "Library/HTTPStorages"] {
+    // Single files named after an application, in the directories macOS keeps
+    // them. Each entry is the directory, the suffixes the name may carry, the
+    // sentence the row shows, and the note the detail view carries.
+    //
+    // `LaunchAgents` is the one that outlives an uninstall loudly: a plist there
+    // asks launchd to start a program that no longer exists, so every login
+    // records a failure the user never connected to the application they removed.
+    // It is `review` rather than `safe` because removing one changes what starts
+    // at login, and the name alone cannot say whether a still-installed helper
+    // reads it.
+    let file_locations: &[(&str, &[&str], &str, &str, &str)] = &[
+        (
+            "Library/Preferences",
+            &[".plist"],
+            "cleanup.explanation.residuePreferences",
+            "Preference file without an installed matching application.",
+            "app-residue-preferences",
+        ),
+        (
+            "Library/HTTPStorages",
+            &[".plist", ".binarycookies"],
+            "cleanup.explanation.residueWebStorage",
+            "Web storage for an application that is no longer installed.",
+            "app-residue-preferences",
+        ),
+        (
+            "Library/LaunchAgents",
+            &[".plist"],
+            "cleanup.explanation.residue",
+            "Launch agent for an application that is no longer installed.",
+            "app-residue-launch-agents",
+        ),
+    ];
+    for (prefix, suffixes, explanation_key, note, rule_id) in file_locations {
         let directory = context.home_dir.join(prefix);
         if !directory.is_dir() {
             continue;
         }
-        // One loop over both directories, but not one sentence: a preference file
-        // and a web-storage file are different things to the user deciding
-        // whether to remove them.
-        let (explanation_key, note) = if prefix.ends_with("HTTPStorages") {
-            (
-                "cleanup.explanation.residueWebStorage",
-                "Web storage for an application that is no longer installed.",
-            )
-        } else {
-            (
-                "cleanup.explanation.residuePreferences",
-                "Preference file without an installed matching application.",
-            )
-        };
         let mut options =
             with_scan_budget(WalkOptions::new(context.home_dir.clone(), WalkMode::Files))
                 .with_max_depth(1);
@@ -1889,9 +1919,9 @@ pub fn scan_application_residue(
         combined.truncated |= report.truncated;
         for entry in &report.entries {
             let name = entry.display_name();
-            let stem = name
-                .strip_suffix(".plist")
-                .or_else(|| name.strip_suffix(".binarycookies"))
+            let stem = suffixes
+                .iter()
+                .find_map(|suffix| name.strip_suffix(*suffix))
                 .unwrap_or(&name);
             // The never-clean list applies here as well: a preference file of
             // an excluded system service is not residue. The Swift engine
@@ -1919,7 +1949,7 @@ pub fn scan_application_residue(
                 modified_secs: entry.modified_secs,
                 created_secs: entry.created_secs,
                 explanation_key: explanation_key.to_string(),
-                rule_id: "app-residue-preferences".to_string(),
+                rule_id: rule_id.to_string(),
                 bundle_id: Some(stem.to_string()),
                 is_directory: false,
                 selected_by_default: false,
@@ -3854,6 +3884,71 @@ mod tests {
             .collect();
         assert!(!names.contains(&"com.apple.bird.plist"), "{names:?}");
         assert!(names.contains(&"com.gone.app.plist"), "{names:?}");
+    }
+
+    /// A launch agent is residue, and it is the residue that keeps acting after
+    /// the application is gone.
+    ///
+    /// It is read from `~/Library/LaunchAgents`, which the scanner did not visit
+    /// before: a plist there asks launchd to start a program that no longer
+    /// exists, so every login records a failure the user cannot connect to the
+    /// application they removed. The suffix is stripped and the stem is matched
+    /// exactly like a preference file's, and a launch agent written by something
+    /// still installed is not residue.
+    #[test]
+    fn a_launch_agent_of_an_uninstalled_application_is_residue() {
+        let harness = Harness::new("residue-launch-agent");
+        harness
+            .tree
+            .file("Library/LaunchAgents/com.gone.app.plist", 512);
+        harness
+            .tree
+            .file("Library/LaunchAgents/com.installed.app.plist", 512);
+        harness
+            .tree
+            .file("Library/LaunchAgents/com.apple.something.plist", 512);
+        let mut request = harness.request.clone();
+        request.installed_bundle_ids = vec!["com.installed.app".to_string()];
+
+        let cancel = CancelToken::new();
+        let mut files = |_: u64, _: u64| {};
+        let mut path = |_: &Path| {};
+        let mut context = ScanContext {
+            request: &request,
+            home_dir: harness.tree.root.clone(),
+            rules: effective_rules(None).unwrap(),
+            progress: ProgressSink {
+                on_files: &mut files,
+                on_current_path: &mut path,
+                reporter: None,
+            },
+        };
+        let (candidates, _) = scan_application_residue(&mut context, &cancel);
+        let names: Vec<&str> = candidates
+            .iter()
+            .map(|candidate| candidate.display_name.as_str())
+            .collect();
+        assert!(
+            names.contains(&"com.gone.app.plist"),
+            "the launch agent of a removed application is residue: {names:?}"
+        );
+        assert!(
+            !names.contains(&"com.installed.app.plist"),
+            "an installed application's launch agent is live: {names:?}"
+        );
+        assert!(
+            !names.contains(&"com.apple.something.plist"),
+            "the reserved namespace is never residue: {names:?}"
+        );
+        let launch_agent = candidates
+            .iter()
+            .find(|candidate| candidate.display_name == "com.gone.app.plist")
+            .expect("the row exists");
+        assert_eq!(
+            launch_agent.bundle_id.as_deref(),
+            Some("com.gone.app"),
+            "the suffix is stripped, so the row names the application"
+        );
     }
 
     /// A name that continues an installed identifier is that application's data.

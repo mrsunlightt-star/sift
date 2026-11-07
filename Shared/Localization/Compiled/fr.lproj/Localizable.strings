@@ -20,6 +20,7 @@
 "apps.relatedWillRemove" = "Fichiers associés à supprimer";
 "apps.rescan" = "Rescanner les applications";
 "apps.restoreHint" = "Récupérable depuis la corbeille";
+"apps.scope.installed" = "Installées";
 "apps.sortSummary" = "Trié par %1$@, %2$@ au total";
 "apps.status" = "%d installées, %d non ouvertes depuis 6 mois";
 "apps.uninstallAndClean" = "Désinstaller et nettoyer %@";
@@ -299,6 +300,9 @@
 "report.status.moved" = "Déplacé vers la corbeille";
 "report.status.skipped" = "Ignoré";
 "report.title" = "Rapport de nettoyage";
+"residue.intro.detail" = "Vérifie les dossiers où les apps stockent leurs données et liste ce qu’aucune app installée ne revendique.";
+"residue.locations" = "Emplacements : %d";
+"residue.scan.action" = "Rechercher des résidus";
 "risk.protected.detail" = "Sift ne le supprimera pas. Affiché à titre informatif.";
 "risk.protected.short" = "Protégé";
 "risk.review.detail" = "Généralement supprimable, mais à confirmer.";

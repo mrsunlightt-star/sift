@@ -54,17 +54,38 @@ public enum ScanIntent: Sendable, Hashable {
     case junk
     /// One file-cleanup view (§5.5).
     case files(FileCleanupMode)
+    /// What applications that are no longer installed left behind.
+    ///
+    /// Its own intent rather than a category filter over `.junk`, because the
+    /// question is different and so is the cost: the leftovers view answers it by
+    /// reading seven known locations one level deep, while a junk scan walks the
+    /// home tree and then hashes duplicates. The rows that question produces are
+    /// the same `applicationResidue` / `groupContainerResidue` categories a full
+    /// scan finds — one strategy, two callers.
+    case residue
 
     /// Whether the scan hashes duplicates — the expensive stage, asked for only by
     /// the views that show duplicates.
     public var includesDuplicates: Bool {
         switch self {
         case .everything, .files(.duplicates): true
-        case .junk, .files: false
+        case .junk, .files, .residue: false
+        }
+    }
+
+    /// Which strategies the engines run for this intent.
+    public var scope: ScanScope {
+        switch self {
+        case .residue: .residue
+        case .everything, .junk, .files: .full
         }
     }
 
     /// The category the page loads into the cleanup set first.
+    ///
+    /// `nil` for residue: the run produces two categories and the page shows both,
+    /// so pinning the first page to one of them would hide half the answer until
+    /// something asked for the other.
     public var category: CleanupCategory? {
         if case let .files(mode) = self { return mode.categories.first }
         return nil
@@ -73,10 +94,14 @@ public enum ScanIntent: Sendable, Hashable {
     /// Whether that first page is preselected.
     ///
     /// File cleanup presents its items for review rather than as a ready-to-clean
-    /// set, which is the one place the selection differs (§5.5).
+    /// set, which is the one place the selection differs (§5.5). Residue is the
+    /// same: every row is `review`, and what a directory contains is a judgement
+    /// the user makes, not one the scanner makes for them.
     public var preselectsItems: Bool {
-        if case .files = self { return false }
-        return true
+        switch self {
+        case .files, .residue: false
+        case .everything, .junk: true
+        }
     }
 }
 

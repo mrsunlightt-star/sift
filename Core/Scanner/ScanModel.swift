@@ -12,6 +12,13 @@ import Shared
 public final class ScanModel: ObservableObject {
     /// The current phase, driving the whole scan page.
     @Published public private(set) var phase: ScanPhase = .idle
+    /// Which strategies the run behind this model performed.
+    ///
+    /// Set when a scan starts and left alone afterwards. One model serves both
+    /// the scan page and the leftovers view, so a page that shows only one kind
+    /// of result has to be able to tell whether the contents it is looking at
+    /// came from the run it asked for.
+    @Published public private(set) var scope: ScanScope = .full
     @Published public private(set) var progress = ScanProgress()
     /// True while a stop is in flight, so the button can say so and refuse a
     /// second press instead of silently doing nothing.
@@ -167,6 +174,12 @@ public final class ScanModel: ObservableObject {
     public func start(_ request: ScanRequest) async {
         await cancel()
         reset()
+        // Which run this model holds. A page that shows one kind of result reads
+        // this before it treats the model's contents as its own: the scan page and
+        // the leftovers page share one model, and a full scan's category totals
+        // under the leftovers heading would describe a run the user did not start
+        // there.
+        scope = request.scope
 
         generation &+= 1
         let run = generation
@@ -352,6 +365,10 @@ public final class ScanModel: ObservableObject {
 
     public func reset() {
         phase = .idle
+        // A cleared model describes no run, so it must not keep claiming one: a
+        // page that reads `scope` to decide whether the contents are its own
+        // would otherwise still see the previous run's answer.
+        scope = .full
         progress = ScanProgress()
         recentItems = []
         liveCategoryTotals = []

@@ -821,6 +821,12 @@ private final class RustScanSession: ScanSession, @unchecked Sendable {
 private struct RustScanRequest: Encodable {
     let sessionId: String
     let homeDir: String
+    /// Which strategies the core runs, `full` or `residue`.
+    ///
+    /// The core's field defaults to `full`, so a build of this app against an
+    /// older core would still scan everything rather than fail; sending it
+    /// explicitly is what makes the narrowed run reach the walk at all.
+    let scope: String
     let roots: [Root]
     let largeFileThresholdBytes: UInt64
     let oldFileThresholdDays: UInt32
@@ -864,6 +870,7 @@ private struct RustScanRequest: Encodable {
     init(request: ScanRequest, sessionID: String, indexPath: String) {
         self.sessionId = sessionID
         self.homeDir = request.homeDirectory.path
+        self.scope = request.scope.rawValue
         self.roots = request.roots.map { root in
             Root(
                 path: root.url.path,

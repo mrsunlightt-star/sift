@@ -20,6 +20,7 @@
 "apps.relatedWillRemove" = "Пов'язані файли до видалення";
 "apps.rescan" = "Пересканувати програми";
 "apps.restoreHint" = "Можна відновити з Кошика, доки не спорожнено його";
+"apps.scope.installed" = "Встановлені";
 "apps.sortSummary" = "Сортовано за %1$@, усього %2$@";
 "apps.status" = "Встановлено: %d · не відкривано 6 місяців: %d";
 "apps.uninstallAndClean" = "Видалити й очистити %@";
@@ -299,6 +300,9 @@
 "report.status.moved" = "Переміщено в Кошик";
 "report.status.skipped" = "Пропущено";
 "report.title" = "Звіт про очищення";
+"residue.intro.detail" = "Перевіряє теку, де програми зберігають дані, і показує те, що не належить жодній установленій програмі.";
+"residue.locations" = "Розташувань: %d";
+"residue.scan.action" = "Перевірити залишки";
 "risk.protected.detail" = "Sift не видалить це. Показано лише для інформації.";
 "risk.protected.short" = "Захищено";
 "risk.review.detail" = "Зазвичай безпечно видаляти, але варто підтвердити.";

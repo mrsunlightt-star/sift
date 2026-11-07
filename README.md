@@ -209,6 +209,8 @@ Swift（245 项自检 + 219 个 XCTest）：
 12. **确认偏好真正生效。** 关闭确认后直接执行，但内容仍然进入废纸篓、结果页仍然显示；默认开启。
 13. **XCTest 与自检并存。** 只装 Command Line Tools 的机器无法运行 XCTest，`Scripts/run-tests.sh` 用内置 runner 真正执行全部 219 个测试（在主 actor 上、不阻塞主线程），`swift test` 与 `xcodebuild` 在装了 Xcode 的环境运行同一批文件。UI 测试只有 `xcodebuild` 能跑，`Scripts/verify.sh` 与 CI 都会执行它们。
 14. **多语言两种产物。** `.xcstrings` 是权威来源（Xcode 编译），同时生成 `.lproj/Localizable.strings`，使没有 `xcstringstool` 的构建也能正确显示八种语言。
+15. **残留检查是一个扫描范围，不是一个筛选器。** `ScanScope.residue` 让引擎只跑残留策略：七个 `~/Library` 位置各读一层，不做规则遍历、不做大文件/旧文件、不算重复。残留页因此几秒出结果，而不是等一次全盘扫描。两套引擎都按同一个 scope 执行，`EngineAgreementTests` 用同一份夹具比对它们的行。
+16. **残留按应用聚合，按标识符归属。** 扫描的交付单位是一个位置（一行 = 一个要移动的目录），用户的决策单位是一个应用。`ResidueGrouping` 用每行已经携带的 `relatedBundleID` 聚合，并用与引擎相同的边界规则把 `com.foo.app.helper` 并回 `com.foo.app`——只认在 `.` 或 `-` 处结束的前缀，`com.example.appleby` 绝不会被 `com.example.app` 认领。显示名是标识符最后一段的读法（`com.microsoft.Word` 读作 `Word`），不是对应用身份的猜测，完整标识符始终显示在旁边。
 
 ---
 
@@ -272,6 +274,13 @@ Swift（245 项自检 + 219 个 XCTest）：
 - **`~/Library/Application Support` 只按「已卸载」判定残留。** 规则表里没有 `app-residue-*`
   规则：规则只能匹配名称形状或年龄，无法知道应用是否还装着，此前会让该目录下**每一个**子目录都
   成为「应用残留」候选（含 `Google`、`Editor` 这类仍在使用的应用数据）。
+- **残留检查覆盖 `~/Library` 下的十个位置，不含系统级目录。** 目录：`Application Support`、
+  `Caches`、`Containers`、`Logs`、`Saved Application State`、`Group Containers`、`WebKit`、
+  `Application Scripts`；文件：`Preferences/<bundle-id>.plist`、`HTTPStorages/<bundle-id>.plist`、
+  `LaunchAgents/<bundle-id>.plist`。`~/Library/LaunchAgents` 是后加的一项，也是「删不干净」最会
+  持续报错的一种：残留的 plist 让 launchd 每次登录都尝试启动一个已不存在的程序。`/Library/LaunchDaemons`、
+  `/Library/LaunchAgents`、`/Library/Preferences` 在硬保护前缀里（`PROTECTED_PREFIXES`），
+  系统级残留仍旧碰不到——要处理它需要提权，属于独立立项。
 - **`Scripts/verify.sh` 需要 Xcode 16 才能跑 UI 测试。** 只装 Command Line Tools 时，Xcode 阶段
   会跳过并明确打印「skipped」，其余阶段照常执行。
 - **XCUITest 的 `Debug/Sift` 路径问题已修在工具链里。** `xcodebuild build-for-testing`

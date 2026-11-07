@@ -20,6 +20,7 @@
 "apps.relatedWillRemove" = "فایل‌های مرتبط برای حذف";
 "apps.rescan" = "اسکن دوبارهٔ برنامه‌ها";
 "apps.restoreHint" = "تا خالی کردن سطل بازیافت قابل بازیابی است";
+"apps.scope.installed" = "نصب‌شده";
 "apps.sortSummary" = "مرتب‌شده بر اساس %1$@، مجموع %2$@";
 "apps.status" = "%d نصب‌شده · %d شش ماه است باز نشده";
 "apps.uninstallAndClean" = "حذف و پاک‌سازی %@";
@@ -299,6 +300,9 @@
 "report.status.moved" = "به سطل بازیافت منتقل شد";
 "report.status.skipped" = "رد شده";
 "report.title" = "گزارش پاک‌سازی";
+"residue.intro.detail" = "پوشه‌هایی را که برنامه‌ها داده‌هایشان را در آن نگه می‌دارند بررسی می‌کند و آنچه به هیچ برنامه نصب‌شده‌ای تعلق ندارد فهرست می‌کند.";
+"residue.locations" = "مکان‌ها: %d";
+"residue.scan.action" = "بررسی باقی‌مانده‌ها";
 "risk.protected.detail" = "Sift این را حذف نمی‌کند. فقط برای اطلاع نمایش داده می‌شود.";
 "risk.protected.short" = "محافظت‌شده";
 "risk.review.detail" = "معمولاً قابل حذف است، اما بهتر است تأیید کنید.";

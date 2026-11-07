@@ -26,6 +26,30 @@ final class ScanIntentTests: XCTestCase, @unchecked Sendable {
         XCTAssertEqual(ScanIntent.files(.duplicates).category, .duplicateFiles)
     }
 
+    /// The leftovers view runs one strategy, and the intent is what says so.
+    ///
+    /// The scope is a statement about the whole run rather than a display
+    /// filter: the engines do not produce the rows the other strategies would
+    /// have found, which is what makes the check take seconds instead of a full
+    /// walk. A regression that left `residue` on `full` would still pass every
+    /// test about categories, so it is pinned separately.
+    func test_theLeftoversIntentNarrowsTheRunToTheResidueStrategy() {
+        XCTAssertEqual(ScanIntent.residue.scope, .residue)
+        XCTAssertEqual(ScanIntent.everything.scope, .full)
+        XCTAssertEqual(ScanIntent.junk.scope, .full)
+        XCTAssertEqual(ScanIntent.files(.duplicates).scope, .full)
+
+        XCTAssertFalse(ScanIntent.residue.includesDuplicates)
+        XCTAssertNil(
+            ScanIntent.residue.category,
+            "a residue run produces two categories; pinning the page to one hides the other"
+        )
+        XCTAssertFalse(
+            ScanIntent.residue.preselectsItems,
+            "every residue row is review; nothing is preselected"
+        )
+    }
+
     func test_fileCleanupDoesNotPreselectWhatItLoads() {
         // File cleanup presents items for review; the junk page presents a set
         // that is ready to clean (§5.2, §5.5).

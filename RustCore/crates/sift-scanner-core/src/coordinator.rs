@@ -15,7 +15,7 @@ use crate::scanners::ProgressReporter;
 use crate::scanners::{self, Candidate, ProgressSink, ScanContext};
 use crate::types::{
     CategoryTotal, EngineError, Event, EventBatch, PhaseName, ScanItemSummary, ScanProgress,
-    ScanRequest, ScanSummary, SkippedLocation,
+    ScanRequest, ScanScope, ScanSummary, SkippedLocation,
 };
 use crate::walker;
 use sift_file_index::{FileIndex, ItemRecord, ScanSort};
@@ -629,6 +629,12 @@ fn run_scan(handle: &Arc<ScanHandle>, request: &ScanRequest) {
     // found are real, so they are kept; the run is not complete, so the summary
     // reports `partial` rather than presenting a truncated list as the result.
     let mut truncated = false;
+    // One strategy instead of four. See `ScanScope`: the leftovers page asks
+    // only what remains of applications that are gone, and walking the home tree
+    // for rules, thresholds and hashes is work whose results that page cannot
+    // show. The residue strategy itself below is unconditional — it *is* the run
+    // this scope names.
+    let residue_only = request.scope == ScanScope::Residue;
 
     {
         let state = Arc::clone(&handle.state);
@@ -674,26 +680,33 @@ fn run_scan(handle: &Arc<ScanHandle>, request: &ScanRequest) {
         };
 
         // 1. Rule-driven cleanup candidates.
-        let (candidates, report) = scanners::scan_rules(&mut context, cancel);
-        record_skips(handle, &report.skips, &mut skipped);
-        truncated |= report.truncated;
-        if report.cancelled || cancel.is_cancelled() {
-            finish_cancelled(handle);
-            return;
+        //
+        // Not part of a residue-only run. The rules answer "is this a cache, a
+        // log, an old installer", which is a different question from "does
+        // anything still own this directory", and the page that asks the second
+        // one has no category to put the first one's rows in.
+        if !residue_only {
+            let (candidates, report) = scanners::scan_rules(&mut context, cancel);
+            record_skips(handle, &report.skips, &mut skipped);
+            truncated |= report.truncated;
+            if report.cancelled || cancel.is_cancelled() {
+                finish_cancelled(handle);
+                return;
+            }
+            if let Err(error) = persist_candidates(
+                handle,
+                candidates,
+                &batch_size,
+                &mut pending_batch,
+                &mut merged,
+            ) {
+                handle.state.set_phase(PhaseName::Failed);
+                handle.push_failed(error.code().as_str(), &error.user_message());
+                return;
+            }
+            handle.push_batch(std::mem::take(&mut pending_batch));
+            publish_if_due(handle);
         }
-        if let Err(error) = persist_candidates(
-            handle,
-            candidates,
-            &batch_size,
-            &mut pending_batch,
-            &mut merged,
-        ) {
-            handle.state.set_phase(PhaseName::Failed);
-            handle.push_failed(error.code().as_str(), &error.user_message());
-            return;
-        }
-        handle.push_batch(std::mem::take(&mut pending_batch));
-        publish_if_due(handle);
 
         // 2. Application residue, matched strictly by bundle identifier.
         if !cancel.is_cancelled() {
@@ -716,7 +729,11 @@ fn run_scan(handle: &Arc<ScanHandle>, request: &ScanRequest) {
         }
 
         // 3. Large and old files, only inside the roots the caller supplied.
-        if !cancel.is_cancelled() {
+        //
+        // Skipped in a residue-only run for the same reason as the rule scan:
+        // a directory can be both a large file and a leftover, and the page that
+        // asked for leftovers has no row for the first answer.
+        if !residue_only && !cancel.is_cancelled() {
             let (large, report) = scanners::scan_large_files(
                 &mut context,
                 cancel,
@@ -756,7 +773,10 @@ fn run_scan(handle: &Arc<ScanHandle>, request: &ScanRequest) {
 
     // 4. Duplicate detection.
     let mut duplicate_report = scanners::DuplicateReport::default();
-    if request.include_duplicates && !cancel.is_cancelled() {
+    // `residue_only` is checked as well as the request's own flag: the scope is
+    // the caller's statement about the whole run, and a request that set both
+    // meant the narrower one.
+    if request.include_duplicates && !residue_only && !cancel.is_cancelled() {
         handle.state.set_phase(PhaseName::Indexing);
         handle.push(Event::PhaseChanged {
             phase: PhaseName::Indexing.as_str().to_string(),
@@ -1338,6 +1358,66 @@ mod tests {
 
         let rest = handle.page_results(5, 50, "size", None).unwrap();
         assert_eq!(rest.len(), 7);
+    }
+
+    /// A residue-only run answers one question and reports one category.
+    ///
+    /// The fixture holds one live cache (owned by an installed application, so
+    /// the rule scan offers it as `applicationCache`) and one cache whose
+    /// application is gone. A full run reports both categories; a residue run
+    /// reports only the second, which is the whole point of the scope: the page
+    /// that asks "what is left over" has no row for a live application's cache,
+    /// and walking the tree to find it is the seconds the scope exists to save.
+    #[test]
+    fn a_residue_only_run_reports_residue_and_nothing_else() {
+        let fixture = Fixture::new("residue-scope");
+        fixture
+            .tree
+            .file("Library/Caches/com.installed.app/blob.bin", 4096);
+        fixture
+            .tree
+            .file("Library/Caches/com.gone.app/blob.bin", 8192);
+
+        let full = {
+            let engine = StdArc::new(Engine::new());
+            let mut request = fixture.request("scope-full");
+            request.installed_bundle_ids = vec!["com.installed.app".to_string()];
+            let handle = engine.start_scan(request).unwrap();
+            wait_for_completion(&handle);
+            handle.page_results(0, 50, "size", None).unwrap()
+        };
+        let full_categories: Vec<&str> = full.iter().map(|row| row.category.as_str()).collect();
+        assert!(
+            full_categories.contains(&"applicationCache"),
+            "the live cache is a rule candidate in a full run: {full_categories:?}"
+        );
+        assert!(
+            full_categories.contains(&"applicationResidue"),
+            "the orphaned cache is residue in a full run: {full_categories:?}"
+        );
+
+        let residue = {
+            let engine = StdArc::new(Engine::new());
+            let mut request = fixture.request("scope-residue");
+            request.installed_bundle_ids = vec!["com.installed.app".to_string()];
+            request.scope = ScanScope::Residue;
+            let handle = engine.start_scan(request).unwrap();
+            wait_for_completion(&handle);
+            handle.page_results(0, 50, "size", None).unwrap()
+        };
+        let residue_categories: Vec<&str> =
+            residue.iter().map(|row| row.category.as_str()).collect();
+        assert_eq!(
+            residue_categories,
+            vec!["applicationResidue"],
+            "a residue-only run must not carry the rule scan's rows"
+        );
+        assert_eq!(residue.len(), 1);
+        assert!(
+            residue[0].path.ends_with("Library/Caches/com.gone.app"),
+            "and the row it keeps is the orphan: {}",
+            residue[0].path
+        );
     }
 
     #[test]

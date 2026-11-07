@@ -210,44 +210,52 @@ actor SwiftScanSession: ScanSession {
         let startedAt = Date()
         setPhase(.preparing)
 
+        // A residue-only run performs the residue strategy and nothing else.
+        // See `ScanScope`: the leftovers page asks what remains of applications
+        // that are gone, and the rule scan, the threshold scans and the hashing
+        // stage answer questions that page has no row for.
+        let residueOnly = request.scope == .residue
+
         // Rule-driven categories.
         setPhase(.scanning)
-        for rule in rules.rules {
-            if cancelled { break }
-            // A rule that lives inside a dot-directory is out of scope when
-            // hidden entries are: the setting decides what a scan may see, and
-            // the walkers only skip hidden *entries*, never a rule's own path.
-            if skipsHiddenEntries, Self.ruleHasHiddenComponent(rule) { continue }
-            // One rule can apply under several roots when it names an authorised
-            // anchor, so each is scanned rather than only the first.
-            for root in rules.resolvedRoots(for: rule) {
+        if !residueOnly {
+            for rule in rules.rules {
                 if cancelled { break }
-                // A rule root is refused before it is opened, which is what the
-                // Rust core does in `scan_one_rule`. A user rule with
-                // `relativePath: "Documents"` was walked: every child became a
-                // skip record carrying its full path, so the report held a list
-                // of the user's Documents — the one thing invariant 7 forbids —
-                // and the tree was read for nothing. `isCleanupContainer` asks a
-                // different question (whether one item would be a whole tree);
-                // this one is protection, and it is asked of the shared list
-                // rather than restated here.
-                guard directoryExists(root),
-                      isAuthorised(root),
-                      rules.protectionReason(for: root.path) == nil
-                else { continue }
-                scanRule(rule, root: root)
+                // A rule that lives inside a dot-directory is out of scope when
+                // hidden entries are: the setting decides what a scan may see, and
+                // the walkers only skip hidden *entries*, never a rule's own path.
+                if skipsHiddenEntries, Self.ruleHasHiddenComponent(rule) { continue }
+                // One rule can apply under several roots when it names an authorised
+                // anchor, so each is scanned rather than only the first.
+                for root in rules.resolvedRoots(for: rule) {
+                    if cancelled { break }
+                    // A rule root is refused before it is opened, which is what the
+                    // Rust core does in `scan_one_rule`. A user rule with
+                    // `relativePath: "Documents"` was walked: every child became a
+                    // skip record carrying its full path, so the report held a list
+                    // of the user's Documents — the one thing invariant 7 forbids —
+                    // and the tree was read for nothing. `isCleanupContainer` asks a
+                    // different question (whether one item would be a whole tree);
+                    // this one is protection, and it is asked of the shared list
+                    // rather than restated here.
+                    guard directoryExists(root),
+                          isAuthorised(root),
+                          rules.protectionReason(for: root.path) == nil
+                    else { continue }
+                    scanRule(rule, root: root)
+                }
             }
         }
 
         if !cancelled { scanApplicationResidue() }
-        if !cancelled { scanThresholdFiles() }
+        if !residueOnly, !cancelled { scanThresholdFiles() }
 
         if cancelled {
             finishCancelled(startedAt: startedAt)
             return
         }
 
-        if request.includeDuplicates {
+        if request.includeDuplicates, !residueOnly {
             setPhase(.indexing)
             scanDuplicates()
         }
@@ -704,6 +712,12 @@ final class LiveNameBox: @unchecked Sendable {
             ("Library/Containers", .applicationResidue, .review),
             ("Library/Logs", .applicationResidue, .safe),
             ("Library/Saved Application State", .applicationResidue, .review),
+            // WebKit's per-application store, and a sandboxed application's
+            // scripts. Both are directories named after the bundle identifier,
+            // both survive an uninstall, and neither was read before: the same
+            // two entries exist in the Rust scanner.
+            ("Library/WebKit", .applicationResidue, .review),
+            ("Library/Application Scripts", .applicationResidue, .review),
         ]
         let rule = RuleEngine.Rule(
             id: "app-residue",
@@ -832,15 +846,34 @@ final class LiveNameBox: @unchecked Sendable {
             }
         }
 
-        // Preference and web-storage files, matched on the full `<bundle-id>.plist`
-        // (or `<bundle-id>.binarycookies`) name. One loop over both directories, but
-        // not one sentence: a preference file and a web store are different things
-        // to the user deciding whether to remove them.
-        for (relative, explanationKey) in [
-            ("Library/Preferences", "cleanup.explanation.residuePreferences"),
-            ("Library/HTTPStorages", "cleanup.explanation.residueWebStorage"),
-        ] {
-            let directory = home.appendingPathComponent(relative)
+        // Single files named after an application, in the directories macOS
+        // keeps them. `LaunchAgents` is the one that outlives an uninstall
+        // loudly: a plist there asks launchd to start a program that no longer
+        // exists, so every login records a failure the user never connected to
+        // the application they removed. The Rust scanner reads the same three
+        // directories with the same suffixes.
+        let fileLocations: [(relative: String, suffixes: [String], explanationKey: String, ruleID: String)] = [
+            (
+                "Library/Preferences",
+                [".plist"],
+                "cleanup.explanation.residuePreferences",
+                "app-residue-preferences"
+            ),
+            (
+                "Library/HTTPStorages",
+                [".plist", ".binarycookies"],
+                "cleanup.explanation.residueWebStorage",
+                "app-residue-preferences"
+            ),
+            (
+                "Library/LaunchAgents",
+                [".plist"],
+                "cleanup.explanation.residue",
+                "app-residue-launch-agents"
+            ),
+        ]
+        for location in fileLocations {
+            let directory = home.appendingPathComponent(location.relative)
             guard directoryExists(directory) else { continue }
             let report = FileWalker.walk(
                 root: directory,
@@ -851,9 +884,9 @@ final class LiveNameBox: @unchecked Sendable {
             )
             for entry in report.entries where !entry.isDirectory {
                 let name = entry.displayName
-                let stem = name.hasSuffix(".plist")
-                    ? String(name.dropLast(6))
-                    : (name.hasSuffix(".binarycookies") ? String(name.dropLast(14)) : name)
+                let stem = location.suffixes
+                    .first { name.hasSuffix($0) }
+                    .map { String(name.dropLast($0.count)) } ?? name
                 if rules.isExcludedBundleName(stem) { continue }
                 guard rules.looksLikeBundleIdentifier(stem) else { continue }
                 if RuleEngine.isSystemReservedBundleName(stem) { continue }
@@ -868,8 +901,8 @@ final class LiveNameBox: @unchecked Sendable {
                         risk: .review,
                         sizeInBytes: entry.sizeBytes ?? 0,
                         fileCount: 1,
-                        explanationKey: explanationKey,
-                        sourceRuleID: "app-residue-preferences",
+                        explanationKey: location.explanationKey,
+                        sourceRuleID: location.ruleID,
                         relatedBundleID: stem,
                         modifiedAt: entry.modifiedAt,
                         isDirectory: false

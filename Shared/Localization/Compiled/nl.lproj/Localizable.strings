@@ -20,6 +20,7 @@
 "apps.relatedWillRemove" = "Gerelateerde bestanden om te verwijderen";
 "apps.rescan" = "Apps opnieuw scannen";
 "apps.restoreHint" = "Terug te zetten uit de Prullenbak totdat je die leegt";
+"apps.scope.installed" = "Geïnstalleerd";
 "apps.sortSummary" = "Op %1$@ gesorteerd, totaal %2$@";
 "apps.status" = "%d geïnstalleerd, %d niet geopend in 6 maanden";
 "apps.uninstallAndClean" = "Verwijderen en %@ opschonen";
@@ -299,6 +300,9 @@
 "report.status.moved" = "Naar de Prullenbak verplaatst";
 "report.status.skipped" = "Overgeslagen";
 "report.title" = "Opschoonrapport";
+"residue.intro.detail" = "Controleert de mappen waarin apps hun gegevens bewaren en toont wat geen enkele geïnstalleerde app gebruikt.";
+"residue.locations" = "Locaties: %d";
+"residue.scan.action" = "Resten controleren";
 "risk.protected.detail" = "Sift verwijdert dit niet. Alleen ter informatie getoond.";
 "risk.protected.short" = "Beschermd";
 "risk.review.detail" = "Meestal veilig te verwijderen, maar bevestig het beter.";

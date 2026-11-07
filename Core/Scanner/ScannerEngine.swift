@@ -19,6 +19,22 @@ public enum ScannerEngineKind: String, Sendable, CaseIterable {
     }
 }
 
+/// Which strategies one scan performs.
+///
+/// The scan page runs everything. The Apps page's leftovers view asks one
+/// question — what remains of applications that are no longer installed — and
+/// answering it by walking the whole home tree made that question cost as much
+/// as a full scan. `residue` narrows the run to the residue strategy: the rule
+/// scan, the two threshold scans and the duplicate pipeline are skipped.
+///
+/// Both engines read this from the request, so the two produce the same rows for
+/// the same scope. The Rust core's `ScanScope` is the same type on the other side
+/// of the FFI, spelled `full` / `residue`.
+public enum ScanScope: String, Sendable, CaseIterable {
+    case full
+    case residue
+}
+
 /// What a scan should look for.
 public struct ScanRequest: Sendable {
     /// The home directory the rules are anchored to.
@@ -27,6 +43,14 @@ public struct ScanRequest: Sendable {
     /// restored backup) must resolve rules against that tree, not against the
     /// process user's home.
     public var homeDirectory: URL
+    /// Which strategies this run performs.
+    ///
+    /// Defaults to `full`, which is what every page but the leftovers view wants.
+    /// A narrowed scope is the caller's statement about the whole run rather than
+    /// a filter over its results: the engines do not produce the rows the other
+    /// strategies would have found, so the page cannot accidentally show a
+    /// category its run never asked for.
+    public var scope: ScanScope
     /// Directories the scan may visit, resolved from the user's settings.
     public var roots: [ScanRoot]
     /// Large-file threshold in bytes (§5.4 default: 1 GB).
@@ -109,6 +133,7 @@ public struct ScanRequest: Sendable {
 
     public init(
         homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser,
+        scope: ScanScope = .full,
         roots: [ScanRoot],
         largeFileThresholdBytes: Int64 = ScanDefaults.largeFileThresholdBytes,
         oldFileThresholdDays: Int = ScanDefaults.oldFileThresholdDays,
@@ -127,6 +152,7 @@ public struct ScanRequest: Sendable {
         extraRulesJSON: String? = nil
     ) {
         self.homeDirectory = homeDirectory
+        self.scope = scope
         self.roots = roots
         self.largeFileThresholdBytes = largeFileThresholdBytes
         self.oldFileThresholdDays = oldFileThresholdDays

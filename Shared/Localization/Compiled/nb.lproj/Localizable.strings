@@ -20,6 +20,7 @@
 "apps.relatedWillRemove" = "Tilknyttede filer som fjernes";
 "apps.rescan" = "Skann apper på nytt";
 "apps.restoreHint" = "Kan gjenopprettes fra Papirkurven til du tømmer den";
+"apps.scope.installed" = "Installerte";
 "apps.sortSummary" = "Sortert etter %1$@, %2$@ totalt";
 "apps.status" = "Installert %d · %d ikke åpnet på 6 måneder";
 "apps.uninstallAndClean" = "Avinstaller og rydd %@";
@@ -299,6 +300,9 @@
 "report.status.moved" = "Flyttet til Papirkurven";
 "report.status.skipped" = "Hoppet over";
 "report.title" = "Oppryddingsrapport";
+"residue.intro.detail" = "Sjekker mappene der apper lagrer data, og viser det ingen installert app eier.";
+"residue.locations" = "Plasseringer: %d";
+"residue.scan.action" = "Se etter rester";
 "risk.protected.detail" = "Sift fjerner ikke dette. Det vises bare som informasjon.";
 "risk.protected.short" = "Beskyttet";
 "risk.review.detail" = "Vanligvis trygt å fjerne, men du bør bekrefte.";

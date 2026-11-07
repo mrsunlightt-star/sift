@@ -20,6 +20,7 @@
 "apps.relatedWillRemove" = "함께 삭제할 관련 파일";
 "apps.rescan" = "앱 다시 검사";
 "apps.restoreHint" = "휴지통을 비우기 전까지 복구 가능";
+"apps.scope.installed" = "설치됨";
 "apps.sortSummary" = "%1$@순, 총 %2$@";
 "apps.status" = "설치 %d개, 6개월 이상 미실행 %d개";
 "apps.uninstallAndClean" = "제거하고 %@ 정리";
@@ -299,6 +300,9 @@
 "report.status.moved" = "휴지통으로 이동됨";
 "report.status.skipped" = "건너뜀";
 "report.title" = "정리 보고서";
+"residue.intro.detail" = "앱이 데이터를 저장하는 폴더를 확인하고, 설치된 앱이 사용하지 않는 항목을 나열합니다.";
+"residue.locations" = "위치 %d곳";
+"residue.scan.action" = "잔여 파일 확인";
 "risk.protected.detail" = "Sift는 이 항목을 삭제하지 않습니다. 정보 제공용입니다.";
 "risk.protected.short" = "보호됨";
 "risk.review.detail" = "보통 삭제해도 안전하지만 확인이 필요합니다.";

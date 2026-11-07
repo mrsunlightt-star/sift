@@ -3,6 +3,31 @@ import Core
 import Shared
 import SwiftUI
 
+/// The two subjects the Apps page shows.
+///
+/// An application that is installed and one that was removed are not two
+/// features: they are two answers to "what is on this Mac", and the residue is
+/// what the first answer leaves behind. Keeping them in one page means the second
+/// answer is one click from the first, and neither needs its own navigation entry.
+enum AppsScope: String, CaseIterable, Identifiable {
+    case installed
+    case leftovers
+
+    var id: String { rawValue }
+
+    /// The chip label.
+    ///
+    /// The leftovers scope reuses the category's own name — "App leftovers" is
+    /// already a reviewed translation in every language, and a second word for the
+    /// same rows would describe them differently in the two places they appear.
+    var titleKey: LocalizationKey {
+        switch self {
+        case .installed: .appsScopeInstalled
+        case .leftovers: .cleanupCategoryApplicationResidue
+        }
+    }
+}
+
 /// The uninstaller (§5.3), presented as the Apps page.
 ///
 /// Left: the installed applications, with search, scopes and sorting. Right: an
@@ -32,6 +57,10 @@ public struct UninstallerView: View {
     @State private var outcomeReport: CleanupReport?
     @State private var includeReviewFiles = false
     @State private var quitFailure: String?
+    /// Which subject the page is showing. Installed first: removing an
+    /// application is what the page is named for, and leftovers are the follow-up
+    /// question.
+    @State private var scope: AppsScope = .installed
 
     /// The list starts with the applications that are worth removing. A 12 MB
     /// helper is not what this page is for, and showing 128 rows of them buries
@@ -72,6 +101,22 @@ public struct UninstallerView: View {
                 )
             }
 
+            subjectBar
+
+            if scope == .leftovers {
+                ResidueView(onRequestPurchase: onRequestPurchase)
+            } else {
+                installedContent
+            }
+        }
+    }
+
+    /// The applications that are here.
+    ///
+    /// Everything the page did before the leftovers scope existed, unchanged: the
+    /// list, the inspector and the one action that removes a bundle.
+    private var installedContent: some View {
+        VStack(spacing: 0) {
             if environment.appManagement == .denied {
                 appManagementNotice
                     .padding(.horizontal, SiftMetrics.pagePadding)
@@ -94,6 +139,35 @@ public struct UninstallerView: View {
             .frame(maxWidth: SiftMetrics.contentWidthWide, alignment: .leading)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
+    }
+
+    /// The page's two subjects: what is installed, and what was left behind.
+    ///
+    /// One page rather than a fifth navigation entry — an application that is
+    /// here and an application that is gone are the same subject, and the person
+    /// looking for one often wants the other. The first chip carries the count the
+    /// page already knows, so the inventory is stated before it is opened.
+    private var subjectBar: some View {
+        HStack(spacing: SiftMetrics.spacingS) {
+            ForEach(AppsScope.allCases) { candidate in
+                SiftFilterChip(
+                    title: candidate.titleKey.localized,
+                    detail: candidate == .installed
+                        ? LocalizationKey.commonItemCount.counted(
+                            environment.installedApplications.count
+                        )
+                        : nil,
+                    isSelected: scope == candidate
+                ) {
+                    scope = candidate
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, SiftMetrics.pagePadding)
+        .padding(.vertical, SiftMetrics.spacingM)
+        .frame(maxWidth: SiftMetrics.contentWidthWide, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// The gate, stated before the user picks an application.

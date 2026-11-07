@@ -20,6 +20,7 @@
 "apps.relatedWillRemove" = "ໄຟລ໌ທີ່ກ່ຽວຂ້ອງທີ່ຈະລຶບ";
 "apps.rescan" = "ສະແກນແອັບຄືນໃໝ່";
 "apps.restoreHint" = "ກູ້ຄືນຈາກຖັງຂີ້ເຫຍື້ອໄດ້ ຈົນກວ່າຈະລ້າງຖັງ";
+"apps.scope.installed" = "ຕິດຕັ້ງແລ້ວ";
 "apps.sortSummary" = "ຮຽງຕາມ %1$@, ລວມ %2$@";
 "apps.status" = "ຕິດຕັ້ງ %d · %d ອັນບໍ່ໄດ້ເປີດ 6 ເດືອນ";
 "apps.uninstallAndClean" = "ຖອນການຕິດຕັ້ງ ແລະ ລ້າງ %@";
@@ -299,6 +300,9 @@
 "report.status.moved" = "ຍ້າຍໄປຖັງຂີ້ເຫຍື້ອແລ້ວ";
 "report.status.skipped" = "ຂ້າມແລ້ວ";
 "report.title" = "ລາຍງານການລ້າງ";
+"residue.intro.detail" = "ກວດເບິ່ງໂຟນເດີທີ່ແອັບເກັບຂໍ້ມູນ ແລະ ສະແດງສິ່ງທີ່ບໍ່ມີແອັບທີ່ຕິດຕັ້ງແລ້ວເປັນເຈົ້າຂອງ.";
+"residue.locations" = "ຕຳແໜ່ງ: %d";
+"residue.scan.action" = "ກວດຫາສິ່ງຕົກຄ້າງ";
 "risk.protected.detail" = "Sift ຈະບໍ່ລຶບສິ່ງນີ້ ສະແດງເພື່ອຂໍ້ມູນເທົ່ານັ້ນ.";
 "risk.protected.short" = "ປ້ອງກັນໄວ້";
 "risk.review.detail" = "ໂດຍທົ່ວໄປລຶບໄດ້ ແຕ່ຄວນຢືນຢັນກ່ອນ.";

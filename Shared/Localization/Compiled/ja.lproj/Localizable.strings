@@ -20,6 +20,7 @@
 "apps.relatedWillRemove" = "一緒に削除する関連ファイル";
 "apps.rescan" = "アプリを再スキャン";
 "apps.restoreHint" = "ゴミ箱を空にするまで復元できます";
+"apps.scope.installed" = "インストール済み";
 "apps.sortSummary" = "%1$@順、合計 %2$@";
 "apps.status" = "インストール %d 件，6 か月以上未使用 %d 件";
 "apps.uninstallAndClean" = "アンインストールして %@ を整理";
@@ -299,6 +300,9 @@
 "report.status.moved" = "ゴミ箱へ移動済み";
 "report.status.skipped" = "スキップ";
 "report.title" = "クリーンアップレポート";
+"residue.intro.detail" = "アプリがデータを保存するフォルダを調べ、インストール済みのアプリに属さない項目を一覧します。";
+"residue.locations" = "場所：%d";
+"residue.scan.action" = "残留物を確認";
 "risk.protected.detail" = "Sift は削除しません。情報としてのみ表示します。";
 "risk.protected.short" = "保護";
 "risk.review.detail" = "通常は削除できますが、確認をおすすめします。";

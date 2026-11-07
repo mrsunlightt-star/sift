@@ -20,6 +20,7 @@
 "apps.relatedWillRemove" = "Relaterade filer som tas bort";
 "apps.rescan" = "Skanna appar igen";
 "apps.restoreHint" = "Kan återställas från Papperskorgen tills du tömmer den";
+"apps.scope.installed" = "Installerade";
 "apps.sortSummary" = "Sorterat efter %1$@, %2$@ totalt";
 "apps.status" = "Installerade %d · %d inte öppnade på 6 månader";
 "apps.uninstallAndClean" = "Avinstallera och rensa %@";
@@ -299,6 +300,9 @@
 "report.status.moved" = "Flyttade till Papperskorgen";
 "report.status.skipped" = "Överhoppade";
 "report.title" = "Rensningsrapport";
+"residue.intro.detail" = "Granskar mapparna där appar sparar data och listar det som ingen installerad app äger.";
+"residue.locations" = "Platser: %d";
+"residue.scan.action" = "Sök efter rester";
 "risk.protected.detail" = "Sift tar inte bort detta. Det visas endast som information.";
 "risk.protected.short" = "Skyddad";
 "risk.review.detail" = "Oftast säkert att ta bort, men du bör bekräfta.";

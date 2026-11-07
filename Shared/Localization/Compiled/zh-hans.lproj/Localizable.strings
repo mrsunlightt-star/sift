@@ -20,6 +20,7 @@
 "apps.relatedWillRemove" = "将一并删除的关联文件";
 "apps.rescan" = "重新扫描应用";
 "apps.restoreHint" = "清空废纸篓前可恢复";
+"apps.scope.installed" = "已安装";
 "apps.sortSummary" = "按%1$@排序，共 %2$@";
 "apps.status" = "已安装 %d 个，%d 个超过 6 个月未打开";
 "apps.uninstallAndClean" = "卸载并清理 %@";
@@ -299,6 +300,9 @@
 "report.status.moved" = "已移入废纸篓";
 "report.status.skipped" = "已跳过";
 "report.title" = "清理报告";
+"residue.intro.detail" = "检查应用存放数据的几个固定位置，列出不属于任何已安装应用的内容。";
+"residue.locations" = "位置：%d";
+"residue.scan.action" = "检查残留";
 "risk.protected.detail" = "Sift 不会删除此处内容，仅作说明。";
 "risk.protected.short" = "受保护";
 "risk.review.detail" = "通常可以删除，但建议你确认。";

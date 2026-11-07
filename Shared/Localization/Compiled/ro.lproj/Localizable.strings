@@ -20,6 +20,7 @@
 "apps.relatedWillRemove" = "Fișiere asociate de eliminat";
 "apps.rescan" = "Rescanează aplicațiile";
 "apps.restoreHint" = "Recuperabil din Coș până îl golești";
+"apps.scope.installed" = "Instalate";
 "apps.sortSummary" = "Sortate după %1$@, %2$@ în total";
 "apps.status" = "%d instalate · %d nedeschise în 6 luni";
 "apps.uninstallAndClean" = "Dezinstalează și curăță %@";
@@ -299,6 +300,9 @@
 "report.status.moved" = "Mutat în Coș";
 "report.status.skipped" = "Ignorat";
 "report.title" = "Raport de curățare";
+"residue.intro.detail" = "Verifică folderele în care aplicațiile își păstrează datele și afișează ce nu aparține niciunei aplicații instalate.";
+"residue.locations" = "Locații: %d";
+"residue.scan.action" = "Verifică resturile";
 "risk.protected.detail" = "Sift nu va elimina acest element. Este afișat doar pentru informare.";
 "risk.protected.short" = "Protejat";
 "risk.review.detail" = "De obicei poate fi eliminat în siguranță, dar ar trebui să confirmi.";

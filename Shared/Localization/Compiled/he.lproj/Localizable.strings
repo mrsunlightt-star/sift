@@ -20,6 +20,7 @@
 "apps.relatedWillRemove" = "קבצים קשורים להסרה";
 "apps.rescan" = "סרוק אפליקציות מחדש";
 "apps.restoreHint" = "ניתן לשחזר מפח האשפה עד שתרוקנו אותו";
+"apps.scope.installed" = "מותקנות";
 "apps.sortSummary" = "ממוין לפי %1$@, סה״כ %2$@";
 "apps.status" = "%d מותקנות · %d לא נפתחו 6 חודשים";
 "apps.uninstallAndClean" = "הסרה וניקוי של %@";
@@ -299,6 +300,9 @@
 "report.status.moved" = "הועבר אל פח האשפה";
 "report.status.skipped" = "דולג";
 "report.title" = "דוח ניקוי";
+"residue.intro.detail" = "בודק את התיקיות שבהן אפליקציות שומרות נתונים ומציג מה שאינו שייך לאף אפליקציה מותקנת.";
+"residue.locations" = "מיקומים: %d";
+"residue.scan.action" = "בדיקת שאריות";
 "risk.protected.detail" = "Sift לא יסיר זאת. מוצג למידע בלבד.";
 "risk.protected.short" = "מוגן";
 "risk.review.detail" = "בדרך כלל אפשר להסיר, אבל עדיף לאשר.";

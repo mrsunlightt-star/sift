@@ -20,6 +20,7 @@
 "apps.relatedWillRemove" = "Related files to remove";
 "apps.rescan" = "Rescan applications";
 "apps.restoreHint" = "Recoverable from the Trash until you empty it";
+"apps.scope.installed" = "Installed";
 "apps.sortSummary" = "Sorted by %1$@, %2$@ in total";
 "apps.status" = "Installed %d, %d not opened in 6 months";
 "apps.uninstallAndClean" = "Uninstall and clean %@";
@@ -299,6 +300,9 @@
 "report.status.moved" = "Moved to Trash";
 "report.status.skipped" = "Skipped";
 "report.title" = "Cleanup report";
+"residue.intro.detail" = "Checks the folders apps keep their data in and lists what no installed app claims.";
+"residue.locations" = "Locations: %d";
+"residue.scan.action" = "Check for leftovers";
 "risk.protected.detail" = "Sift will not remove this. It is shown for information only.";
 "risk.protected.short" = "Protected";
 "risk.review.detail" = "Usually safe to remove, but you should confirm.";

@@ -20,6 +20,7 @@
 "apps.relatedWillRemove" = "File terkait yang akan dihapus";
 "apps.rescan" = "Pindai ulang aplikasi";
 "apps.restoreHint" = "Dapat dipulihkan dari Tempat Sampah sampai Anda mengosongkannya";
+"apps.scope.installed" = "Terpasang";
 "apps.sortSummary" = "Diurutkan menurut %1$@, total %2$@";
 "apps.status" = "%d terpasang · %d tidak dibuka dalam 6 bulan";
 "apps.uninstallAndClean" = "Hapus dan bersihkan %@";
@@ -299,6 +300,9 @@
 "report.status.moved" = "Dipindahkan ke Tempat Sampah";
 "report.status.skipped" = "Dilewati";
 "report.title" = "Laporan pembersihan";
+"residue.intro.detail" = "Memeriksa folder tempat app menyimpan data dan menampilkan apa pun yang tidak dimiliki app terpasang.";
+"residue.locations" = "Lokasi: %d";
+"residue.scan.action" = "Periksa sisa";
 "risk.protected.detail" = "Sift tidak akan menghapusnya. Ini hanya ditampilkan sebagai informasi.";
 "risk.protected.short" = "Dilindungi";
 "risk.review.detail" = "Biasanya aman dihapus, tetapi sebaiknya Anda konfirmasi.";

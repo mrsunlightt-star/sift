@@ -20,6 +20,7 @@
 "apps.relatedWillRemove" = "Eltávolítandó kapcsolódó fájlok";
 "apps.rescan" = "Alkalmazások újraszkennelése";
 "apps.restoreHint" = "A Kukából visszaállítható, amíg ki nem üríti";
+"apps.scope.installed" = "Telepített";
 "apps.sortSummary" = "Rendezve: %1$@, összesen %2$@";
 "apps.status" = "%d telepítve · %d nem nyílt meg 6 hónapja";
 "apps.uninstallAndClean" = "%@ eltávolítása és tisztítása";
@@ -299,6 +300,9 @@
 "report.status.moved" = "Kukába helyezve";
 "report.status.skipped" = "Kihagyva";
 "report.title" = "Tisztítási jelentés";
+"residue.intro.detail" = "Átnézi azokat a mappákat, ahol az alkalmazások az adataikat tárolják, és felsorolja, ami egyetlen telepített alkalmazáshoz sem tartozik.";
+"residue.locations" = "Helyek: %d";
+"residue.scan.action" = "Maradványok keresése";
 "risk.protected.detail" = "A Sift nem távolítja el. Csak tájékoztatásul jelenik meg.";
 "risk.protected.short" = "Védett";
 "risk.review.detail" = "Általában biztonságosan eltávolítható, de erősítse meg.";

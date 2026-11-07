@@ -20,6 +20,7 @@
 "apps.relatedWillRemove" = "Související soubory k odstranění";
 "apps.rescan" = "Znovu prohledat aplikace";
 "apps.restoreHint" = "Obnovitelné z Koše, dokud jej nevysypete";
+"apps.scope.installed" = "Nainstalované";
 "apps.sortSummary" = "Seřazeno podle: %1$@, celkem %2$@";
 "apps.status" = "Nainstalováno: %d · neotevřeno 6 měsíců: %d";
 "apps.uninstallAndClean" = "Odinstalovat a vyčistit %@";
@@ -299,6 +300,9 @@
 "report.status.moved" = "Přesunuto do Koše";
 "report.status.skipped" = "Přeskočeno";
 "report.title" = "Zpráva o čištění";
+"residue.intro.detail" = "Zkontroluje složky, ve kterých aplikace ukládají data, a vypíše, co nepatří žádné nainstalované aplikaci.";
+"residue.locations" = "Umístění: %d";
+"residue.scan.action" = "Zkontrolovat zbytky";
 "risk.protected.detail" = "Sift toto neodstraní. Zobrazuje se pouze pro informaci.";
 "risk.protected.short" = "Chráněné";
 "risk.review.detail" = "Obvykle je bezpečné odstranit, ale měli byste to potvrdit.";

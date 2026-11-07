@@ -20,6 +20,7 @@
 "apps.relatedWillRemove" = "Pliki powiązane do usunięcia";
 "apps.rescan" = "Skanuj aplikacje ponownie";
 "apps.restoreHint" = "Do przywrócenia z Kosza do jego opróżnienia";
+"apps.scope.installed" = "Zainstalowane";
 "apps.sortSummary" = "Sortowane według: %1$@, łącznie %2$@";
 "apps.status" = "Zainstalowane: %d, %d nieotwierane od 6 miesięcy";
 "apps.uninstallAndClean" = "Odinstaluj i wyczyść %@";
@@ -299,6 +300,9 @@
 "report.status.moved" = "Przeniesiono do Kosza";
 "report.status.skipped" = "Pominięto";
 "report.title" = "Raport czyszczenia";
+"residue.intro.detail" = "Sprawdza foldery, w których aplikacje trzymają dane, i pokazuje to, czego nie używa żadna zainstalowana aplikacja.";
+"residue.locations" = "Lokalizacje: %d";
+"residue.scan.action" = "Sprawdź pozostałości";
 "risk.protected.detail" = "Sift tego nie usunie. Pokazane wyłącznie informacyjnie.";
 "risk.protected.short" = "Chronione";
 "risk.review.detail" = "Zwykle można usunąć, ale lepiej potwierdzić.";

@@ -1332,6 +1332,17 @@ STRINGS: dict[str, list[str]] = {
     "apps.filter.large": ["Large", "大应用", "큰 앱", "Большие", "Grandes", "大容量", "Grosses", "Groß"],
     "apps.filter.unused": ["Unused", "未使用", "미사용", "Неиспользуемые", "Sin usar", "未使用", "Inutilisées", "Ungenutzt"],
     "apps.noMatches": ["No applications match this search.", "没有与此搜索匹配的应用程序。", "이 검색과 일치하는 앱이 없습니다.", "Нет приложений, соответствующих этому запросу.", "Ninguna aplicación coincide con esta búsqueda.", "この検索に一致するアプリはありません。", "Aucune application ne correspond à cette recherche.", "Keine App entspricht dieser Suche."],
+
+    # --- Application leftovers ---------------------------------------------
+    # The Apps page has two scopes: the applications that are here, and what
+    # the ones that are gone left behind. The second scope reuses the existing
+    # residue category name as its title, so only the first needs a new word.
+    "apps.scope.installed": ["Installed", "已安装", "설치됨", "Установленные", "Instaladas", "インストール済み", "Installées", "Installiert"],
+    "residue.intro.detail": ["Checks the folders apps keep their data in and lists what no installed app claims.", "检查应用存放数据的几个固定位置，列出不属于任何已安装应用的内容。", "앱이 데이터를 저장하는 폴더를 확인하고, 설치된 앱이 사용하지 않는 항목을 나열합니다.", "Проверяет папки, где приложения хранят данные, и показывает то, что не принадлежит ни одному установленному приложению.", "Revisa las carpetas donde las apps guardan sus datos y muestra lo que ninguna app instalada reclama.", "アプリがデータを保存するフォルダを調べ、インストール済みのアプリに属さない項目を一覧します。", "Vérifie les dossiers où les apps stockent leurs données et liste ce qu’aucune app installée ne revendique.", "Prüft die Ordner, in denen Apps ihre Daten ablegen, und listet auf, was zu keiner installierten App gehört."],
+    "residue.scan.action": ["Check for leftovers", "检查残留", "잔여 파일 확인", "Проверить остатки", "Buscar restos", "残留物を確認", "Rechercher des résidus", "Reste prüfen"],
+    # `Locations: %d` rather than a counted noun: this string has no plural
+    # sibling key, and "1 locations" is not a sentence.
+    "residue.locations": ["Locations: %d", "位置：%d", "위치 %d곳", "Расположений: %d", "Ubicaciones: %d", "場所：%d", "Emplacements : %d", "Speicherorte: %d"],
 }
 
 # Languages added with the 2.0 expansion. They are appended to every row in
@@ -2039,6 +2050,12 @@ STRINGS_EXPANSION: dict[str, list[str]] = {
     "apps.filter.large": ["Grandi", "Grandes", "大型", "Büyük", "Duże", "Groot"],
     "apps.filter.unused": ["Non usate", "Não usados", "未使用", "Kullanılmıyor", "Nieużywane", "Ongebruikt"],
     "apps.noMatches": ["Nessuna applicazione corrisponde a questa ricerca.", "Nenhum aplicativo corresponde a esta pesquisa.", "沒有符合此搜尋的應用程式。", "Bu aramayla eşleşen uygulama yok.", "Żadna aplikacja nie pasuje do tego wyszukiwania.", "Geen apps komen overeen met deze zoekopdracht."],
+
+    # --- Application leftovers ---------------------------------------------
+    "apps.scope.installed": ["Installate", "Instalados", "已安裝", "Yüklü", "Zainstalowane", "Geïnstalleerd"],
+    "residue.intro.detail": ["Controlla le cartelle in cui le app salvano i dati e mostra ciò che nessuna app installata rivendica.", "Verifica as pastas onde os apps guardam dados e lista o que nenhum app instalado reivindica.", "檢查應用程式存放資料的資料夾，列出沒有任何已安裝應用程式認領的內容。", "Uygulamaların verilerini tuttuğu klasörleri denetler ve yüklü hiçbir uygulamanın sahiplenmediği öğeleri listeler.", "Sprawdza foldery, w których aplikacje trzymają dane, i pokazuje to, czego nie używa żadna zainstalowana aplikacja.", "Controleert de mappen waarin apps hun gegevens bewaren en toont wat geen enkele geïnstalleerde app gebruikt."],
+    "residue.scan.action": ["Cerca residui", "Verificar restos", "檢查殘留", "Artıkları denetle", "Sprawdź pozostałości", "Resten controleren"],
+    "residue.locations": ["Posizioni: %d", "Locais: %d", "位置：%d", "Konum: %d", "Lokalizacje: %d", "Locaties: %d"],
 }
 
 # The two tables are one catalogue: the v1 columns stay first and the expansion
@@ -2668,6 +2685,12 @@ STRINGS_EXPANSION_2: dict[str, list[str]] = {
     "apps.filter.large": ["ໃຫຍ່", "كبيرة", "גדולות", "بزرگ"],
     "apps.filter.unused": ["ບໍ່ໄດ້ໃຊ້", "غير مستخدمة", "לא בשימוש", "استفاده‌نشده"],
     "apps.noMatches": ["ບໍ່ມີແອັບໃດກົງກັບການຄົ້ນຫານີ້.", "لا توجد تطبيقات تطابق هذا البحث.", "אין יישומים התואמים לחיפוש הזה.", "هیچ برنامه‌ای با این جستجو مطابقت ندارد."],
+
+    # --- Application leftovers ---------------------------------------------
+    "apps.scope.installed": ["ຕິດຕັ້ງແລ້ວ", "المثبَّتة", "מותקנות", "نصب‌شده"],
+    "residue.intro.detail": ["ກວດເບິ່ງໂຟນເດີທີ່ແອັບເກັບຂໍ້ມູນ ແລະ ສະແດງສິ່ງທີ່ບໍ່ມີແອັບທີ່ຕິດຕັ້ງແລ້ວເປັນເຈົ້າຂອງ.", "يتحقق من المجلدات التي تحفظ فيها التطبيقات بياناتها ويعرض ما لا ينتمي إلى أي تطبيق مثبَّت.", "בודק את התיקיות שבהן אפליקציות שומרות נתונים ומציג מה שאינו שייך לאף אפליקציה מותקנת.", "پوشه‌هایی را که برنامه‌ها داده‌هایشان را در آن نگه می‌دارند بررسی می‌کند و آنچه به هیچ برنامه نصب‌شده‌ای تعلق ندارد فهرست می‌کند."],
+    "residue.scan.action": ["ກວດຫາສິ່ງຕົກຄ້າງ", "البحث عن البقايا", "בדיקת שאריות", "بررسی باقی‌مانده‌ها"],
+    "residue.locations": ["ຕຳແໜ່ງ: %d", "المواقع: %d", "מיקומים: %d", "مکان‌ها: %d"],
 }
 
 LANGUAGES = LANGUAGES + EXPANSION_2_LANGUAGES
@@ -3202,6 +3225,12 @@ STRINGS_EXPANSION_3: dict[str, list[str]] = {
     "apps.filter.large": ["Големи", "Velké", "Store", "Μεγάλες", "Grandes", "Suuret", "Nagyok", "Besar", "Besar", "Store", "Grandes", "Mari", "Stora", "ใหญ่", "Великі", "Lớn"],
     "apps.filter.unused": ["Неизползвани", "Nepoužité", "Ubrugte", "Αχρησιμοποίητες", "Sin usar", "Käyttämättömät", "Nem használt", "Tidak dipakai", "Tidak digunakan", "Ubrukte", "Não usadas", "Neutilizate", "Oanvända", "ไม่ได้ใช้", "Невикористовувані", "Không dùng"],
     "apps.noMatches": ["Няма приложения, отговарящи на това търсене.", "Žádné aplikace neodpovídají tomuto hledání.", "Ingen apps matcher denne søgning.", "Καμία εφαρμογή δεν ταιριάζει με αυτήν την αναζήτηση.", "Ninguna aplicación coincide con esta búsqueda.", "Mikään sovellus ei vastaa tätä hakua.", "Egyetlen alkalmazás sem felel meg a keresésnek.", "Tidak ada aplikasi yang cocok dengan pencarian ini.", "Tiada aplikasi sepadan dengan carian ini.", "Ingen apper samsvarer med dette søket.", "Nenhuma aplicação corresponde a esta pesquisa.", "Nicio aplicație nu corespunde acestei căutări.", "Inga appar matchar den här sökningen.", "ไม่มีแอปที่ตรงกับการค้นหานี้", "Жодна програма не відповідає цьому пошуку.", "Không có ứng dụng nào khớp với tìm kiếm này."],
+
+    # --- Application leftovers ---------------------------------------------
+    "apps.scope.installed": ["Инсталирани", "Nainstalované", "Installerede", "Εγκατεστημένες", "Instaladas", "Asennetut", "Telepített", "Terpasang", "Dipasang", "Installerte", "Instaladas", "Instalate", "Installerade", "ติดตั้งแล้ว", "Встановлені", "Đã cài đặt"],
+    "residue.intro.detail": ["Проверява папките, в които приложенията пазят данни, и показва какво не принадлежи на никое инсталирано приложение.", "Zkontroluje složky, ve kterých aplikace ukládají data, a vypíše, co nepatří žádné nainstalované aplikaci.", "Tjekker mapperne, hvor apps gemmer data, og viser det, som ingen installeret app ejer.", "Ελέγχει τους φακέλους όπου οι εφαρμογές αποθηκεύουν δεδομένα και εμφανίζει ό,τι δεν ανήκει σε καμία εγκατεστημένη εφαρμογή.", "Revisa las carpetas donde las apps guardan sus datos y muestra lo que ninguna app instalada reclama.", "Tarkistaa kansiot, joissa sovellukset säilyttävät tietojaan, ja luettelee ne, jotka eivät kuulu millekään asennetulle sovellukselle.", "Átnézi azokat a mappákat, ahol az alkalmazások az adataikat tárolják, és felsorolja, ami egyetlen telepített alkalmazáshoz sem tartozik.", "Memeriksa folder tempat app menyimpan data dan menampilkan apa pun yang tidak dimiliki app terpasang.", "Menyemak folder tempat apl menyimpan data dan menyenaraikan perkara yang tidak dimiliki oleh apl dipasang.", "Sjekker mappene der apper lagrer data, og viser det ingen installert app eier.", "Verifica as pastas onde as apps guardam dados e lista o que nenhuma app instalada reclama.", "Verifică folderele în care aplicațiile își păstrează datele și afișează ce nu aparține niciunei aplicații instalate.", "Granskar mapparna där appar sparar data och listar det som ingen installerad app äger.", "ตรวจสอบโฟลเดอร์ที่แอปเก็บข้อมูล และแสดงสิ่งที่ไม่มีแอปที่ติดตั้งแล้วเป็นเจ้าของ", "Перевіряє теку, де програми зберігають дані, і показує те, що не належить жодній установленій програмі.", "Kiểm tra các thư mục nơi ứng dụng lưu dữ liệu và liệt kê những gì không thuộc ứng dụng nào đã cài."],
+    "residue.scan.action": ["Проверка за остатъци", "Zkontrolovat zbytky", "Tjek for rester", "Έλεγχος υπολειμμάτων", "Buscar restos", "Tarkista jäänteet", "Maradványok keresése", "Periksa sisa", "Semak sisa", "Se etter rester", "Verificar restos", "Verifică resturile", "Sök efter rester", "ตรวจหาสิ่งตกค้าง", "Перевірити залишки", "Kiểm tra phần còn lại"],
+    "residue.locations": ["Местоположения: %d", "Umístění: %d", "Placeringer: %d", "Τοποθεσίες: %d", "Ubicaciones: %d", "Sijainnit: %d", "Helyek: %d", "Lokasi: %d", "Lokasi: %d", "Plasseringer: %d", "Localizações: %d", "Locații: %d", "Platser: %d", "ตำแหน่ง: %d", "Розташувань: %d", "Vị trí: %d"],
 }
 
 LANGUAGES = LANGUAGES + EXPANSION_3_LANGUAGES

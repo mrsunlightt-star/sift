@@ -20,6 +20,7 @@
 "apps.relatedWillRemove" = "Tệp liên quan sẽ xóa";
 "apps.rescan" = "Quét lại ứng dụng";
 "apps.restoreHint" = "Có thể khôi phục từ Thùng rác cho đến khi làm trống";
+"apps.scope.installed" = "Đã cài đặt";
 "apps.sortSummary" = "Sắp xếp theo %1$@, tổng %2$@";
 "apps.status" = "Đã cài %d · %d ứng dụng không mở trong 6 tháng";
 "apps.uninstallAndClean" = "Gỡ cài đặt và dọn %@";
@@ -299,6 +300,9 @@
 "report.status.moved" = "Đã chuyển vào Thùng rác";
 "report.status.skipped" = "Đã bỏ qua";
 "report.title" = "Báo cáo dọn dẹp";
+"residue.intro.detail" = "Kiểm tra các thư mục nơi ứng dụng lưu dữ liệu và liệt kê những gì không thuộc ứng dụng nào đã cài.";
+"residue.locations" = "Vị trí: %d";
+"residue.scan.action" = "Kiểm tra phần còn lại";
 "risk.protected.detail" = "Sift sẽ không xóa mục này. Mục chỉ được hiển thị để tham khảo.";
 "risk.protected.short" = "Được bảo vệ";
 "risk.review.detail" = "Thường an toàn để xóa nhưng bạn nên xác nhận.";

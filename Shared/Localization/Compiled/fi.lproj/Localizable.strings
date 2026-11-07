@@ -20,6 +20,7 @@
 "apps.relatedWillRemove" = "Poistettavat liittyvät tiedostot";
 "apps.rescan" = "Skannaa sovellukset uudelleen";
 "apps.restoreHint" = "Palautettavissa Roskakorista, kunnes tyhjennät sen";
+"apps.scope.installed" = "Asennetut";
 "apps.sortSummary" = "Lajiteltu: %1$@, yhteensä %2$@";
 "apps.status" = "Asennettu %d · %d ei avattu 6 kuukauteen";
 "apps.uninstallAndClean" = "Poista asennus ja siivoa %@";
@@ -299,6 +300,9 @@
 "report.status.moved" = "Siirretty Roskakoriin";
 "report.status.skipped" = "Ohitettu";
 "report.title" = "Siivousraportti";
+"residue.intro.detail" = "Tarkistaa kansiot, joissa sovellukset säilyttävät tietojaan, ja luettelee ne, jotka eivät kuulu millekään asennetulle sovellukselle.";
+"residue.locations" = "Sijainnit: %d";
+"residue.scan.action" = "Tarkista jäänteet";
 "risk.protected.detail" = "Sift ei poista tätä. Se näytetään vain tiedoksi.";
 "risk.protected.short" = "Suojattu";
 "risk.review.detail" = "Yleensä turvallista poistaa, mutta vahvista.";

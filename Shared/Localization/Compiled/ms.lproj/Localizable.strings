@@ -20,6 +20,7 @@
 "apps.relatedWillRemove" = "Fail berkaitan untuk dibuang";
 "apps.rescan" = "Imbas semula aplikasi";
 "apps.restoreHint" = "Boleh dipulihkan daripada Tong Sampah sehingga anda mengosongkannya";
+"apps.scope.installed" = "Dipasang";
 "apps.sortSummary" = "Disusun mengikut %1$@, jumlah %2$@";
 "apps.status" = "%d dipasang · %d tidak dibuka dalam 6 bulan";
 "apps.uninstallAndClean" = "Nyahpasang dan bersihkan %@";
@@ -299,6 +300,9 @@
 "report.status.moved" = "Dialihkan ke Tong Sampah";
 "report.status.skipped" = "Dilangkau";
 "report.title" = "Laporan pembersihan";
+"residue.intro.detail" = "Menyemak folder tempat apl menyimpan data dan menyenaraikan perkara yang tidak dimiliki oleh apl dipasang.";
+"residue.locations" = "Lokasi: %d";
+"residue.scan.action" = "Semak sisa";
 "risk.protected.detail" = "Sift tidak akan membuangnya. Ia dipaparkan untuk maklumat sahaja.";
 "risk.protected.short" = "Dilindungi";
 "risk.review.detail" = "Biasanya selamat untuk dibuang, tetapi anda harus mengesahkannya.";

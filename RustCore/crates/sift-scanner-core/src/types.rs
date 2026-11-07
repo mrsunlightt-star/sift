@@ -157,11 +157,39 @@ impl Default for DuplicateOptions {
     }
 }
 
+/// Which strategies one run performs.
+///
+/// The scan page runs all of them. The Apps page's leftovers view asks one
+/// question — what is left of applications that are no longer installed — and
+/// answering it by walking the whole home tree made that question cost as much
+/// as a full scan. `Residue` narrows the run to the residue strategy: the rule
+/// scan, the two threshold scans and the duplicate pipeline are skipped.
+///
+/// A scope rather than a set of independent flags because the strategies are not
+/// independent: a residue-only run that still hashed duplicates would publish
+/// duplicate groups for a page that has no place to show them, and one that still
+/// ran the rule scan would spend the same seconds the scope exists to save.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub enum ScanScope {
+    /// Everything the product can find.
+    #[default]
+    Full,
+    /// Application residue only: seven known locations, one level deep.
+    Residue,
+}
+
 /// Everything one scan needs to know.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ScanRequest {
     pub session_id: String,
+    /// Which strategies this run performs.
+    ///
+    /// Defaults to `Full` so a caller that never sends the field keeps the
+    /// behaviour it had.
+    #[serde(default)]
+    pub scope: ScanScope,
     /// Home directory, used for rule anchoring and protection checks.
     pub home_dir: String,
     pub roots: Vec<ScanRoot>,
@@ -280,6 +308,7 @@ impl Default for ScanRequest {
     fn default() -> Self {
         Self {
             session_id: String::new(),
+            scope: ScanScope::Full,
             home_dir: String::new(),
             roots: Vec::new(),
             large_file_threshold_bytes: 1024 * 1024 * 1024,
@@ -643,6 +672,18 @@ mod tests {
         assert_eq!(request.old_file_threshold_days, 180);
         assert_eq!(request.duplicates.max_full_hashes, 200_000);
         assert_eq!(request.duplicates.min_size_bytes, 4096);
+    }
+
+    /// A request that names no scope is a full scan: the field exists for the
+    /// caller that wants less, so the default keeps everything an older caller
+    /// ever got.
+    #[test]
+    fn the_scope_is_full_unless_the_request_narrows_it() {
+        assert_eq!(decode(json!({})).scope, ScanScope::Full);
+        assert_eq!(
+            decode(json!({"scope": "residue"})).scope,
+            ScanScope::Residue
+        );
     }
 
     /// The installed set's completeness travels under the struct's camelCase

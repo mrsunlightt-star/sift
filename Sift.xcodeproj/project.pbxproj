@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		04C71CC6529DCC1694C27ACB /* ResidueGroupingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 263A2A210F217E7BA54A01EF /* ResidueGroupingTests.swift */; };
 		0BB18247C5D1F3E94CFA44F9 /* TrashServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A045F6963A1C9FFF44A6F796 /* TrashServiceTests.swift */; };
 		103ADE22AFD37A4F25261AC2 /* ApplicationBundleGuardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0525763FF0016FBDFEDBE84E /* ApplicationBundleGuardTests.swift */; };
 		115520CF099E64BA79F95959 /* RuleEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFDDF3FC5E599ECDA179E3C2 /* RuleEngineTests.swift */; };
@@ -104,6 +105,7 @@
 		15DE6B50FB255824D3331803 /* empty-id.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "empty-id.json"; sourceTree = "<group>"; };
 		1E2B9E5E4B1505261B7DEF84 /* ScratchPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScratchPreferences.swift; sourceTree = "<group>"; };
 		25D15581DD98914F5D5FD7B6 /* V2PaletteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2PaletteTests.swift; sourceTree = "<group>"; };
+		263A2A210F217E7BA54A01EF /* ResidueGroupingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResidueGroupingTests.swift; sourceTree = "<group>"; };
 		2BABAC6463107DCD060C7D75 /* recursive-wildcard.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "recursive-wildcard.json"; sourceTree = "<group>"; };
 		2DC2E08B2B47C11D05A9AC50 /* leading-wildcard.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "leading-wildcard.json"; sourceTree = "<group>"; };
 		33A58974592343CB20A27334 /* container-of-every-application.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "container-of-every-application.json"; sourceTree = "<group>"; };
@@ -227,6 +229,7 @@
 				5A53233BFDB3533EB2FC2B43 /* ProtectionTests.swift */,
 				8369A7E538B720EC1DED083B /* ReportAccuracyTests.swift */,
 				B76040A89C350DEF2D138342 /* ReportTests.swift */,
+				263A2A210F217E7BA54A01EF /* ResidueGroupingTests.swift */,
 				813B553C2D1D21CA7208F769 /* RuleCoverageTests.swift */,
 				0683D4EA2D01B2F1EF5F6ACA /* RuleDraftTests.swift */,
 				CFDDF3FC5E599ECDA179E3C2 /* RuleEngineTests.swift */,
@@ -551,6 +554,7 @@
 				E43D72ECE1F5E29E11433C1F /* ProtectionTests.swift in Sources */,
 				CC38A73315221188C9BA4226 /* ReportAccuracyTests.swift in Sources */,
 				BD35790072644C70DD574F74 /* ReportTests.swift in Sources */,
+				04C71CC6529DCC1694C27ACB /* ResidueGroupingTests.swift in Sources */,
 				9EC07A46A33437F71837BE06 /* RuleCoverageTests.swift in Sources */,
 				47458255FF55473C436364E4 /* RuleDraftTests.swift in Sources */,
 				115520CF099E64BA79F95959 /* RuleEngineTests.swift in Sources */,

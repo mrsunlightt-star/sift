@@ -518,13 +518,17 @@ public final class AppEnvironment: ObservableObject {
     /// and then only through the bookmark that records that grant (§10.1). Sift
     /// never enumerates mount points and decides for itself that they look
     /// interesting.
-    public func makeScanRequest(includeDuplicates: Bool = true) async -> ScanRequest {
+    public func makeScanRequest(
+        includeDuplicates: Bool = true,
+        scope: ScanScope = .full
+    ) async -> ScanRequest {
         let current = await settings.current()
         let authorizedURLs = restoredAuthorizedURLs
         return await makeScanRequest(
             settings: current,
             authorizedURLs: authorizedURLs,
             includeDuplicates: includeDuplicates,
+            scope: scope,
             extraRulesJSON: rules.userRulesJSON
         )
     }
@@ -539,6 +543,7 @@ public final class AppEnvironment: ObservableObject {
         settings current: AppSettings,
         authorizedURLs: [URL],
         includeDuplicates: Bool,
+        scope: ScanScope = .full,
         extraRulesJSON: String?
     ) async -> ScanRequest {
         let home = FileManager.default.homeDirectoryForCurrentUser
@@ -625,6 +630,7 @@ public final class AppEnvironment: ObservableObject {
         duplicateRoots.append(contentsOf: authorizedURLs.map(\.path))
         return ScanRequest(
             homeDirectory: home,
+            scope: scope,
             roots: roots,
             largeFileThresholdBytes: current.largeFileThresholdBytes,
             oldFileThresholdDays: current.oldFileThresholdDays,
@@ -755,6 +761,7 @@ public final class AppEnvironment: ObservableObject {
             settings: settingsSnapshot,
             authorizedURLs: authorizedURLs,
             includeDuplicates: intent.includesDuplicates,
+            scope: intent.scope,
             extraRulesJSON: runRules.userRulesJSON
         )
         guard isCurrentScanRun(run) else { return }
@@ -846,7 +853,7 @@ public final class AppEnvironment: ObservableObject {
         switch operation {
         case .uninstall: .uninstallApplications
         case .largeFiles, .oldFiles, .duplicateFiles: .cleanFiles
-        case .smartScan, .junkCleanup: .cleanJunk
+        case .smartScan, .junkCleanup, .residue: .cleanJunk
         }
     }
 

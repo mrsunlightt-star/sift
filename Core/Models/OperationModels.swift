@@ -256,6 +256,13 @@ public enum CleanupOperationName: String, Codable, Sendable, CaseIterable {
     case largeFiles
     case oldFiles
     case duplicateFiles
+    /// A cleanup started from the leftovers view.
+    ///
+    /// Its own name rather than `junkCleanup`: the report is the record of what
+    /// ran, and the run behind this one was the residue strategy alone, asked from
+    /// the Apps page. A row that said "junk cleanup" would describe a scan of the
+    /// whole home directory that never happened.
+    case residue
 
     public var titleKey: LocalizationKey {
         switch self {
@@ -265,6 +272,7 @@ public enum CleanupOperationName: String, Codable, Sendable, CaseIterable {
         case .largeFiles: .filesModeLarge
         case .oldFiles: .filesModeOld
         case .duplicateFiles: .filesModeDuplicates
+        case .residue: .cleanupCategoryApplicationResidue
         }
     }
 }

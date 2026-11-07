@@ -91,7 +91,9 @@ public struct ScanView: View {
                 headerAction
             }
 
-            if hasActionableResults {
+            if holdsResidueRun {
+                residueScopeNotice
+            } else if hasActionableResults {
                 filterBar
                 workArea
             } else if showsStoppedCard {
@@ -136,6 +138,42 @@ public struct ScanView: View {
     /// of the list is what tells the user the run did not finish.
     private var hasActionableResults: Bool {
         scan.hasResults || scan.hasStoppedResults
+    }
+
+    /// True when the model holds a run this page did not start.
+    ///
+    /// The Apps page's leftovers view runs the residue strategy on the same
+    /// model, so opening the scan page afterwards shows that run's rows: two
+    /// categories, no caches, no logs. Rendering them through the ordinary
+    /// result list would say this Mac has almost nothing to clean, which is a
+    /// question that run never asked. The page states what it is looking at and
+    /// offers the full scan instead.
+    private var holdsResidueRun: Bool {
+        scan.scope == .residue && (scan.hasResults || scan.hasStoppedResults)
+    }
+
+    private var residueScopeNotice: some View {
+        ScrollView {
+            VStack(spacing: SiftMetrics.spacingL) {
+                SiftEmptyState(
+                    symbolName: "questionmark.folder",
+                    titleKey: .cleanupCategoryApplicationResidue,
+                    detailKey: .residueIntroDetail
+                )
+                SiftPrimaryButton(
+                    titleKey: .dashboardStartScan,
+                    symbolName: "viewfinder",
+                    isEnabled: !isBusy
+                ) {
+                    Task { await environment.runScan(.everything) }
+                }
+                .accessibilityIdentifier("scan.start")
+            }
+            .padding(.horizontal, SiftMetrics.pagePadding)
+            .padding(.vertical, SiftMetrics.pageSpacing)
+            .frame(maxWidth: SiftMetrics.contentWidthWide, alignment: .center)
+            .frame(maxWidth: .infinity, alignment: .top)
+        }
     }
 
     /// True when the run ended without a result but did find something.

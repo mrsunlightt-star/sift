@@ -20,6 +20,7 @@
 "apps.relatedWillRemove" = "ไฟล์ที่เกี่ยวข้องที่จะลบ";
 "apps.rescan" = "สแกนแอปใหม่";
 "apps.restoreHint" = "กู้คืนได้จากถังขยะจนกว่าจะล้างถังขยะ";
+"apps.scope.installed" = "ติดตั้งแล้ว";
 "apps.sortSummary" = "เรียงตาม %1$@ รวม %2$@";
 "apps.status" = "ติดตั้ง %d · %d แอปที่ไม่ได้เปิดใน 6 เดือน";
 "apps.uninstallAndClean" = "ถอนการติดตั้งและล้าง %@";
@@ -299,6 +300,9 @@
 "report.status.moved" = "ย้ายไปที่ถังขยะแล้ว";
 "report.status.skipped" = "ข้ามไป";
 "report.title" = "รายงานการทำความสะอาด";
+"residue.intro.detail" = "ตรวจสอบโฟลเดอร์ที่แอปเก็บข้อมูล และแสดงสิ่งที่ไม่มีแอปที่ติดตั้งแล้วเป็นเจ้าของ";
+"residue.locations" = "ตำแหน่ง: %d";
+"residue.scan.action" = "ตรวจหาสิ่งตกค้าง";
 "risk.protected.detail" = "Sift จะไม่ลบรายการนี้ แสดงไว้เพื่อเป็นข้อมูลเท่านั้น";
 "risk.protected.short" = "ป้องกันอยู่";
 "risk.review.detail" = "โดยปกติลบได้อย่างปลอดภัย แต่คุณควรยืนยัน";

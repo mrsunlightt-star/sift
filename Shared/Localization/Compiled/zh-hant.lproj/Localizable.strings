@@ -20,6 +20,7 @@
 "apps.relatedWillRemove" = "將一併刪除的相關檔案";
 "apps.rescan" = "重新掃描應用程式";
 "apps.restoreHint" = "清空垃圾桶前可還原";
+"apps.scope.installed" = "已安裝";
 "apps.sortSummary" = "按%1$@排序，共 %2$@";
 "apps.status" = "已安裝 %d 個，%d 個超過 6 個月未開啟";
 "apps.uninstallAndClean" = "解除安裝並清理 %@";
@@ -299,6 +300,9 @@
 "report.status.moved" = "已移入垃圾桶";
 "report.status.skipped" = "已略過";
 "report.title" = "清理報告";
+"residue.intro.detail" = "檢查應用程式存放資料的資料夾，列出沒有任何已安裝應用程式認領的內容。";
+"residue.locations" = "位置：%d";
+"residue.scan.action" = "檢查殘留";
 "risk.protected.detail" = "Sift 不會刪除此內容，僅作說明。";
 "risk.protected.short" = "受保護";
 "risk.review.detail" = "通常可以刪除，但建議你確認。";

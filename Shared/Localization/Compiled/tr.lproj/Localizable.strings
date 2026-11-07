@@ -20,6 +20,7 @@
 "apps.relatedWillRemove" = "Kaldırılacak ilgili dosyalar";
 "apps.rescan" = "Uygulamaları yeniden tara";
 "apps.restoreHint" = "Çöp Sepeti’ni boşaltana kadar geri alınabilir";
+"apps.scope.installed" = "Yüklü";
 "apps.sortSummary" = "%1$@ ölçütüne göre, toplam %2$@";
 "apps.status" = "%d yüklü, %d altı 6 aydır açılmadı";
 "apps.uninstallAndClean" = "Kaldır ve %@ temizle";
@@ -299,6 +300,9 @@
 "report.status.moved" = "Çöp Sepeti’ne taşındı";
 "report.status.skipped" = "Atlandı";
 "report.title" = "Temizlik raporu";
+"residue.intro.detail" = "Uygulamaların verilerini tuttuğu klasörleri denetler ve yüklü hiçbir uygulamanın sahiplenmediği öğeleri listeler.";
+"residue.locations" = "Konum: %d";
+"residue.scan.action" = "Artıkları denetle";
 "risk.protected.detail" = "Sift bunu kaldırmaz. Yalnızca bilgi amaçlı gösterilir.";
 "risk.protected.short" = "Korumalı";
 "risk.review.detail" = "Genellikle kaldırılabilir, ancak onaylamanız iyi olur.";
