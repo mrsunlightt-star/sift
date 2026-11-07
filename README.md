@@ -275,12 +275,14 @@ Swift（245 项自检 + 219 个 XCTest）：
   规则：规则只能匹配名称形状或年龄，无法知道应用是否还装着，此前会让该目录下**每一个**子目录都
   成为「应用残留」候选（含 `Google`、`Editor` 这类仍在使用的应用数据）。
 - **残留检查覆盖 `~/Library` 下的十个位置，不含系统级目录。** 目录：`Application Support`、
-  `Caches`、`Containers`、`Logs`、`Saved Application State`、`Group Containers`、`WebKit`、
-  `Application Scripts`；文件：`Preferences/<bundle-id>.plist`、`HTTPStorages/<bundle-id>.plist`、
-  `LaunchAgents/<bundle-id>.plist`。`~/Library/LaunchAgents` 是后加的一项，也是「删不干净」最会
-  持续报错的一种：残留的 plist 让 launchd 每次登录都尝试启动一个已不存在的程序。`/Library/LaunchDaemons`、
-  `/Library/LaunchAgents`、`/Library/Preferences` 在硬保护前缀里（`PROTECTED_PREFIXES`），
-  系统级残留仍旧碰不到——要处理它需要提权，属于独立立项。
+  `Caches`、`Containers`、`Logs`、`Saved Application State`、`Group Containers`、`WebKit`；
+  文件：`Preferences/<bundle-id>.plist`、`HTTPStorages/<bundle-id>.plist`、
+  `LaunchAgents/<bundle-id>.plist`。`WebKit` 与 `LaunchAgents` 是后加的两项，后者是「删不干净」
+  最会持续报错的一种：残留的 plist 让 launchd 每次登录都尝试启动一个已不存在的程序。
+  `~/Library/Application Scripts` 刻意不在列表里——开发机上它有 766 个目录、其中 539 个没有
+  已安装标识符认领，逐个测量会把秒级的检查拖成分钟级，而产出的列表无法使用。
+  `/Library/LaunchDaemons`、`/Library/LaunchAgents`、`/Library/Preferences` 在硬保护前缀里
+  （`PROTECTED_PREFIXES`），系统级残留仍旧碰不到——要处理它需要提权，属于独立立项。
 - **`Scripts/verify.sh` 需要 Xcode 16 才能跑 UI 测试。** 只装 Command Line Tools 时，Xcode 阶段
   会跳过并明确打印「skipped」，其余阶段照常执行。
 - **XCUITest 的 `Debug/Sift` 路径问题已修在工具链里。** `xcodebuild build-for-testing`

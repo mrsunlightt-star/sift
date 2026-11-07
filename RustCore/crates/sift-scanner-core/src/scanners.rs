@@ -1635,14 +1635,6 @@ pub fn scan_application_residue(
         // same way `Caches` is. It outlives the application: nothing removes it
         // on uninstall, and a browser's local storage is not small.
         ("Library/WebKit", Category::ApplicationResidue, Risk::Review),
-        // A sandboxed application's scripts live in a directory named after its
-        // bundle identifier. The directory survives an uninstall, and the app that
-        // could have run the scripts is the only thing that could have used them.
-        (
-            "Library/Application Scripts",
-            Category::ApplicationResidue,
-            Risk::Review,
-        ),
     ];
 
     for (relative, category, risk) in residue_locations {

@@ -570,6 +570,13 @@ public struct ApplicationDiscovery: @unchecked Sendable {
             "Library/Preferences",
             "Library/HTTPStorages",
             "Library/Group Containers",
+            // The two added with the leftovers view. Without them a name that
+            // belongs to an application living outside the five searched
+            // directories — an input method in `~/Library/Input Methods`, a
+            // stand-alone updater — resolves to nothing and its live data reads
+            // as a leftover.
+            "Library/WebKit",
+            "Library/LaunchAgents",
         ]
         var installed = Set<String>()
         for relative in locations {

@@ -246,10 +246,10 @@ final class EngineAgreementTests: XCTestCase, @unchecked Sendable {
         fixture.write("Library/Saved Application State/com.gone.app/savedState/data.bin", bytes: 4096)
         fixture.write("Library/Preferences/com.gone.app.plist", bytes: 512)
         fixture.write("Library/Preferences/com.installed.app.plist", bytes: 512)
-        // The three locations added with the leftovers view. A launch agent and a
+        // The two locations added with the leftovers view. A launch agent and a
         // WebKit store are named after the bundle identifier exactly as the
         // preference and cache directories are, and both survive an uninstall;
-        // the Rust core and the reference engine read the same three directories
+        // the Rust core and the reference engine read the same two directories
         // and the same suffixes, so a disagreement here would be a row only one
         // of them finds.
         fixture.write("Library/LaunchAgents/com.gone.app.plist", bytes: 512)
@@ -257,8 +257,6 @@ final class EngineAgreementTests: XCTestCase, @unchecked Sendable {
         fixture.write("Library/LaunchAgents/com.apple.something.plist", bytes: 512)
         fixture.write("Library/WebKit/com.gone.app/blob.bin", bytes: 4096)
         fixture.write("Library/WebKit/com.installed.app/blob.bin", bytes: 4096)
-        fixture.write("Library/Application Scripts/com.gone.app/script.sh", bytes: 256)
-        fixture.write("Library/Application Scripts/com.installed.app/script.sh", bytes: 256)
         // Residue attribution. A name that continues an installed identifier is
         // that application's data — the measured case is WorkBuddy's 689 MB
         // `com.tencent.workbuddy.mac.BundleMigration` cache, offered as residue

@@ -712,12 +712,17 @@ final class LiveNameBox: @unchecked Sendable {
             ("Library/Containers", .applicationResidue, .review),
             ("Library/Logs", .applicationResidue, .safe),
             ("Library/Saved Application State", .applicationResidue, .review),
-            // WebKit's per-application store, and a sandboxed application's
-            // scripts. Both are directories named after the bundle identifier,
-            // both survive an uninstall, and neither was read before: the same
-            // two entries exist in the Rust scanner.
+            // WebKit's per-application store. Named after the bundle identifier,
+            // and it survives an uninstall — nothing removes it on the way out.
+            //
+            // `~/Library/Application Scripts` is deliberately not here. It is
+            // named the same way, but a stock Mac holds hundreds of them (766 on
+            // the development machine, 539 of which no installed identifier
+            // claims), and measuring every candidate turns the check from seconds
+            // into minutes while the list it produces is unusable. A directory
+            // that cannot be told apart from a helper's live store is not a
+            // leftover this page may offer.
             ("Library/WebKit", .applicationResidue, .review),
-            ("Library/Application Scripts", .applicationResidue, .review),
         ]
         let rule = RuleEngine.Rule(
             id: "app-residue",
