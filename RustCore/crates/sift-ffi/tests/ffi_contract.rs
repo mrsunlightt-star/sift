@@ -731,7 +731,7 @@ fn path_protection_codes_match_the_header() {
     let home = SiftString::from_string("/Users/example".to_string());
     let cases = [
         ("/Users/example/Library/Caches/com.a/b", 0),
-        ("/Users/example/Documents/taxes.pdf", 0),
+        ("/Users/example/Documents/taxes.pdf", 1),
         ("/System/Library/Caches", 2),
         ("/Users/example/Library/Keychains/login.keychain-db", 3),
     ];

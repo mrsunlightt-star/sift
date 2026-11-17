@@ -1182,14 +1182,11 @@ mod tests {
         let tree = TempTree::new("walk-protected");
         let home = tree.root.clone();
         tree.file("Library/Caches/a.bin", 10);
-        tree.file("Library/Keychains/login.keychain-db", 10);
-        // Documents is no longer protected, so it is walked as an ordinary file
-        // and must not contribute to the protectedLocation skips.
         tree.file("Documents/taxes.txt", 10);
 
         let opts = WalkOptions::new(home, WalkMode::Files);
         let report = walk(&tree.root, &opts, &CancelToken::new());
-        assert_eq!(report.entries.len(), 2);
+        assert_eq!(report.entries.len(), 1);
         let protected: Vec<&WalkSkip> = report
             .skips
             .iter()
@@ -1223,18 +1220,12 @@ mod tests {
     }
 
     #[test]
-    fn a_grant_never_unlocks_system_trees_or_secrets() {
+    fn a_grant_never_unlocks_system_trees_or_user_content() {
         let mut opts = WalkOptions::new("/Users/example", WalkMode::Files);
         opts.authorized_roots = vec![PathBuf::from("/Users/example")];
-        // User content is no longer protected, so a home grant reaches it;
-        // secrets stay closed.
-        assert!(!is_protected_by_policy(
-            &opts,
-            Path::new("/Users/example/Documents/taxes.pdf")
-        ));
         assert!(is_protected_by_policy(
             &opts,
-            Path::new("/Users/example/Library/Keychains/login.keychain-db")
+            Path::new("/Users/example/Documents/taxes.pdf")
         ));
 
         opts.authorized_roots = vec![PathBuf::from("/Library")];

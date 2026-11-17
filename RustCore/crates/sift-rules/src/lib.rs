@@ -642,16 +642,16 @@ pub fn running_app_owns_path(path: &str, tokens: &[String]) -> bool {
 
 /// Paths that are never scanned or cleaned, matched as `~/<child>` prefixes of
 /// the user's home directory. Compiled in: a rule file cannot remove them.
-///
-/// Deliberately empty as of the owner's product decision: the eight user-content
-/// directories (Documents, Desktop, Movies, Music, Pictures, Projects, Developer,
-/// Public) are no longer protected from scanning or cleaning. This array is kept
-/// as the single shared source so the generated Swift list stays in lockstep.
-/// `HOME_CHILDREN_PROTECTION_DISABLED` must be set true for an empty list to be
-/// legitimate; the generator refuses an empty array without it, so this cannot
-/// become empty by accident.
-pub const HOME_CHILDREN_PROTECTION_DISABLED: bool = true;
-pub const PROTECTED_HOME_CHILDREN: &[&str] = &[];
+pub const PROTECTED_HOME_CHILDREN: &[&str] = &[
+    "Documents",
+    "Desktop",
+    "Movies",
+    "Music",
+    "Pictures",
+    "Projects",
+    "Developer",
+    "Public",
+];
 
 /// Absolute path prefixes that are never scanned or cleaned.
 ///
@@ -2083,31 +2083,27 @@ mod tests {
     const HOME: &str = "/Users/example";
 
     #[test]
-    fn user_content_home_children_are_scan_targets() {
-        // Owner's product decision: the eight user-content directories are no
-        // longer protected. This is the Rust half of the shared opt-out.
-        assert!(HOME_CHILDREN_PROTECTION_DISABLED);
-        assert!(PROTECTED_HOME_CHILDREN.is_empty());
-        for child in [
-            "Documents",
-            "Desktop",
-            "Movies",
-            "Music",
-            "Pictures",
-            "Projects",
-            "Developer",
-            "Public",
-        ] {
+    fn protected_home_children_are_rejected() {
+        for child in PROTECTED_HOME_CHILDREN {
             let path = format!("{HOME}/{child}/report.pdf");
-            assert!(!is_protected_path(HOME, &path), "{path} should be scannable");
+            assert!(is_protected_path(HOME, &path), "{path} should be protected");
         }
     }
 
     #[test]
+    fn protected_home_directory_itself_is_rejected() {
+        assert!(is_protected_path(HOME, &format!("{HOME}/Documents")));
+    }
+
+    #[test]
     fn similar_prefixes_are_not_treated_as_protected() {
-        // Component-wise matching still holds for the prefixes that remain.
+        // `~/Documents-old` must not be swept up by the `~/Documents` rule.
+        assert!(!is_protected_path(
+            HOME,
+            &format!("{HOME}/Documents-old/a.txt")
+        ));
+        // `/Systematic` is not `/System`.
         assert!(!is_protected_path(HOME, "/Systematic/a.txt"));
-        assert!(!is_protected_path(HOME, "/usr-local/bin/tool"));
     }
 
     #[test]
@@ -2231,13 +2227,13 @@ mod tests {
 
     #[test]
     fn path_traversal_is_normalised_before_comparison() {
-        // `/Users/example/Downloads/../Library/Keychains/x` normalises into the
-        // still-protected keychain directory.
-        let sneaky = format!("{HOME}/Downloads/../Library/Keychains/login.keychain-db");
+        // `/Users/example/Downloads/../Documents/secret.txt` normalises into the
+        // protected Documents directory.
+        let sneaky = format!("{HOME}/Downloads/../Documents/secret.txt");
         assert!(is_protected_path(HOME, &sneaky));
         assert_eq!(
             normalize_path(&sneaky),
-            format!("{HOME}/Library/Keychains/login.keychain-db")
+            format!("{HOME}/Documents/secret.txt")
         );
     }
 
@@ -2248,6 +2244,8 @@ mod tests {
         // protected name in another case must still be refused, or the whole
         // protection list is one lower-case letter away from being bypassed.
         for path in [
+            format!("{HOME}/documents/taxes.pdf"),
+            format!("{HOME}/DESKTOP/notes.txt"),
             format!("{HOME}/library/keychains/login.keychain-db"),
             format!("{HOME}/library/mobile documents/com~apple~x/f"),
             format!("{HOME}/library/mail/inbox"),
@@ -2913,8 +2911,12 @@ mod tests {
             }
         }
 
-        // And a grant never unlocks secrets. User content is no longer
-        // protected, so only the keychain carries this assertion now.
+        // And a grant never unlocks user content or secrets.
+        assert!(is_protected_path_authorized(
+            home,
+            "/Users/example/Documents/taxes.pdf",
+            &make(&["/Users/example"])
+        ));
         assert!(is_protected_path_authorized(
             home,
             "/Users/example/Library/Keychains/login.keychain-db",

@@ -316,9 +316,7 @@ final class FileOperationTests: XCTestCase, @unchecked Sendable {
     }
 
     func test_preflightRefusesProtectedContent() async {
-        // Documents is a scan target now; the keychain remains protected and
-        // carries this invariant.
-        let file = fixture.write("Library/Keychains/login.keychain-db", bytes: 4096)
+        let file = fixture.write("Documents/taxes.pdf", bytes: 4096)
         let verdict = await makeService().preflight([FileOperationService.Candidate(item: item(file))])
         XCTAssertTrue(verdict.ready.isEmpty)
         XCTAssertEqual(verdict.protected.count, 1)
@@ -404,7 +402,7 @@ final class FileOperationTests: XCTestCase, @unchecked Sendable {
     func test_executionTimeRecheckBlocksAProtectedPath() async {
         // A plan assembled by another caller must still be refused: the check
         // exists twice on purpose (§13.3).
-        let file = fixture.write("Library/Keychains/login.keychain-db", bytes: 4096)
+        let file = fixture.write("Documents/taxes.pdf", bytes: 4096)
         let approved = item(file)
         let identity = FileIdentitySnapshot.of(path: file.path)
         XCTAssertNotNil(identity)
@@ -439,11 +437,11 @@ final class FileOperationTests: XCTestCase, @unchecked Sendable {
         let verdict = await service.preflight([
             FileOperationService.Candidate(item: item(cache, size: 4096)),
             FileOperationService.Candidate(item: item(
-                fixture.write("Library/Keychains/login.keychain-db", bytes: 8192),
+                fixture.write("Documents/taxes.pdf", bytes: 8192),
                 size: 8192
             )),
         ])
-        XCTAssertEqual(verdict.ready.count, 1, "the protected secret never enters the plan")
+        XCTAssertEqual(verdict.ready.count, 1, "the protected document never enters the plan")
         let plan = verdict.makeApprovedPlan(operation: .junkCleanup)
         XCTAssertNotNil(plan)
         let outcome = await service.execute(plan!)
@@ -534,7 +532,7 @@ final class FileOperationTests: XCTestCase, @unchecked Sendable {
 
     /// A protected item pre-flight refused carries the reason the row shows.
     func test_aProtectedRefusalIsReportedWithItsReason() async {
-        let document = fixture.write("Library/Keychains/login.keychain-db", bytes: 8192)
+        let document = fixture.write("Documents/taxes.pdf", bytes: 8192)
         let verdict = await makeService().preflight([FileOperationService.Candidate(item: item(document))])
 
         XCTAssertTrue(verdict.ready.isEmpty)

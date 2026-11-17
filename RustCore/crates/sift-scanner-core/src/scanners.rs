@@ -4970,9 +4970,9 @@ mod tests {
             .iter()
             .map(|p| p.file_name().unwrap().to_string_lossy().to_string())
             .collect();
-        // By the owner's product decision Desktop and Documents are no longer
-        // protected, so the default duplicate search covers all three folders.
-        assert_eq!(names, vec!["Downloads", "Desktop", "Documents"]);
+        // Desktop and Documents are on the protection list, so the fallback
+        // must not enter them even when the caller named no roots.
+        assert_eq!(names, vec!["Downloads"]);
     }
 
     #[test]

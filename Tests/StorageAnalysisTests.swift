@@ -114,18 +114,16 @@ final class StorageAnalysisTests: XCTestCase, @unchecked Sendable {
         XCTAssertEqual(analysis.scannedByteCount, 4096)
     }
 
-    /// User content is in scope; only genuinely protected content is out of
-    /// scope rather than reported as a read failure.
+    /// Protected user content is deliberately out of scope, not unreadable.
     func test_protectedContentDoesNotMakeTheMeasurementLookIncomplete() async throws {
         fixture.write("Documents/taxes.pdf", bytes: 4096)
         fixture.write("Library/Caches/com.example.app/blob.bin", bytes: 4096)
-        fixture.write("Library/Keychains/login.keychain-db", bytes: 4096)
 
         let analysis = try await makeAnalyzer().analyze(
             roots: [ScanRoot(url: fixture.url, anchor: .home)]
         )
 
-        XCTAssertEqual(analysis.scannedFileCount, 2)
+        XCTAssertEqual(analysis.scannedFileCount, 1)
         XCTAssertEqual(analysis.skippedCount, 0, "a protected folder is not a read failure")
     }
 

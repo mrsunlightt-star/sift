@@ -1677,8 +1677,7 @@ mod tests {
             let documents = string("/Users/example/Documents/taxes.pdf");
             assert_eq!(
                 sift_path_protection_authorized(home, documents, grants),
-                SIFT_PATH_SCANNABLE,
-                "user content is no longer protected"
+                SIFT_PATH_USER_CONTENT
             );
             let keychain = string("/Users/example/Library/Keychains/login.keychain-db");
             assert_eq!(
@@ -1877,10 +1876,10 @@ mod tests {
             let keychain = string("/Users/example/Library/Keychains/login.keychain-db");
             let cache = string("/Users/example/Library/Caches/com.a/b");
 
-            assert_eq!(sift_path_protection(home, documents), SIFT_PATH_SCANNABLE);
-            assert_eq!(sift_path_protection(home, system), SIFT_PATH_SYSTEM);
-            assert_eq!(sift_path_protection(home, keychain), SIFT_PATH_SECRETS);
-            assert_eq!(sift_path_protection(home, cache), SIFT_PATH_SCANNABLE);
+            assert_eq!(sift_path_protection(home, documents), 1);
+            assert_eq!(sift_path_protection(home, system), 2);
+            assert_eq!(sift_path_protection(home, keychain), 3);
+            assert_eq!(sift_path_protection(home, cache), 0);
 
             for value in [home, documents, system, keychain, cache] {
                 sift_string_free(value);
@@ -1889,15 +1888,13 @@ mod tests {
     }
 
     #[test]
-    fn a_case_variant_is_classified_correctly() {
+    fn a_case_variant_is_classified_as_protected() {
         unsafe {
             let home = string("/Users/example");
             let documents = string("/Users/example/documents/a.txt");
             let keychain = string("/Users/example/LIBRARY/KEYCHAINS/login.keychain-db");
-            // Case folding still applies: the lower-case keychain path is the
-            // protected one. Documents is a scan target regardless of case.
-            assert_eq!(sift_path_protection(home, documents), SIFT_PATH_SCANNABLE);
-            assert_eq!(sift_path_protection(home, keychain), SIFT_PATH_SECRETS);
+            assert_eq!(sift_path_protection(home, documents), 1);
+            assert_eq!(sift_path_protection(home, keychain), 3);
             sift_string_free(home);
             sift_string_free(documents);
             sift_string_free(keychain);

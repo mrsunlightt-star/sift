@@ -12,14 +12,10 @@ final class ProtectionTests: XCTestCase, @unchecked Sendable {
     private let home = URL(fileURLWithPath: "/Users/example")
     private lazy var engine = RuleEngine(rules: RuleEngine.builtInRules, homeDirectory: home)
 
-    func test_userContentFoldersAreNoLongerProtected() {
-        // The owner's product decision: user-content directories are scan
-        // targets. They are still NOT matched by any built-in cleanup rule, so
-        // this only opens them to the size / large-file / duplicate scans.
-        for child in ["Documents", "Desktop", "Movies", "Music", "Pictures", "Projects", "Developer", "Public"] {
+    func test_userContentFoldersAreProtected() {
+        for child in ["Documents", "Desktop", "Movies", "Music", "Pictures", "Projects", "Developer"] {
             let path = "/Users/example/\(child)/file.txt"
-            XCTAssertTrue(engine.isAllowed(path), "\(child) must be scannable")
-            XCTAssertTrue(engine.canAuthorize(url: URL(fileURLWithPath: "/Users/example/\(child)")))
+            XCTAssertNotNil(engine.protectionReason(for: path), "\(child) must be protected")
         }
     }
 
@@ -192,16 +188,8 @@ final class ProtectionTests: XCTestCase, @unchecked Sendable {
     }
 
     func test_pathTraversalIsResolvedBeforeTheCheck() {
-        // A traversal into a still-protected library secret must resolve.
-        let sneaky = "/Users/example/Downloads/../Library/Keychains/login.keychain-db"
+        let sneaky = "/Users/example/Downloads/../Documents/secret.txt"
         XCTAssertNotNil(engine.protectionReason(for: sneaky))
-    }
-
-    func test_traversalIntoUserContentIsAllowed() {
-        // Documents is no longer protected, so the same traversal that used to
-        // be refused now resolves to an allowed path.
-        let path = "/Users/example/Downloads/../Documents/report.txt"
-        XCTAssertTrue(engine.isAllowed(path))
     }
 
     func test_aCaseVariantCannotReachAProtectedLocation() {
@@ -209,6 +197,8 @@ final class ProtectionTests: XCTestCase, @unchecked Sendable {
         // and `~/library/keychains` is the real keychain directory. A rule file
         // that spells the protection list in another case must not bypass it.
         for path in [
+            "/Users/example/documents/taxes.pdf",
+            "/Users/example/DESKTOP/notes.txt",
             "/Users/example/library/keychains/login.keychain-db",
             "/Users/example/library/mail/inbox",
             "/Users/example/library/mobile documents/com~apple~x/f",
@@ -340,9 +330,7 @@ final class ProtectionTests: XCTestCase, @unchecked Sendable {
     func test_riskIsTheMostCautiousMatchingRule() {
         XCTAssertEqual(engine.risk(for: "/Users/example/Library/Caches/com.example.app"), .safe)
         XCTAssertEqual(engine.risk(for: "/Users/example/Downloads/thing.dmg"), .review)
-        // Documents is no longer protected, but no rule targets it either — it
-        // no rule claims it either — it stays `review`, never pre-selected.
-        XCTAssertEqual(engine.risk(for: "/Users/example/Documents/taxes.pdf"), .review)
+        XCTAssertEqual(engine.risk(for: "/Users/example/Documents/taxes.pdf"), .protected)
     }
 
     func test_theRecycleBinIsProtectedAtAnyDepth() {
@@ -450,38 +438,10 @@ final class ProtectionTests: XCTestCase, @unchecked Sendable {
     func test_userRuleFileCannotUnprotectAPath() {
         let fixture = TemporaryDirectory(tag: "rules")
         let ruleFile = fixture.url.appendingPathComponent("CleaningRules.json")
-        // A rule that tries to claim a still-protected secret as safe. Documents
-        // is no longer protected by product decision, so the Keychain — which
-        // stays protected — carries the invariant this test is about.
+        // A rule that tries to claim Documents and mark it safe.
         let overlay = """
         {"schemaVersion":1,"rules":[
-          {"id":"evil","category":"applicationCache","risk":"safe","root":"homeLibrary",
-           "relativePath":"Keychains","matchSpec":"directory",
-           "explanationKey":"cleanup.explanation.cache"}
-        ]}
-        """
-        try? overlay.data(using: .utf8)?.write(to: ruleFile)
-
-        let engine = RuleEngine(homeDirectory: home, userRuleURL: ruleFile)
-        XCTAssertNotNil(
-            engine.protectionReason(for: "/Users/example/Library/Keychains/login.keychain-db"),
-            "the protection list must win over a rule file"
-        )
-        XCTAssertEqual(
-            engine.risk(for: "/Users/example/Library/Keychains"),
-            .protected,
-            "a rule cannot downgrade a protected path"
-        )
-    }
-
-    func test_aUserRuleCanNowClaimUserContent() {
-        // Owner's product decision: Documents is a scan target, so a rule file
-        // that names it is no longer refused by the protection list.
-        let fixture = TemporaryDirectory(tag: "rules")
-        let ruleFile = fixture.url.appendingPathComponent("CleaningRules.json")
-        let overlay = """
-        {"schemaVersion":1,"rules":[
-          {"id":"docs","category":"applicationCache","risk":"review","root":"home",
+          {"id":"evil","category":"applicationCache","risk":"safe","root":"home",
            "relativePath":"Documents","matchSpec":"directory",
            "explanationKey":"cleanup.explanation.cache"}
         ]}
@@ -489,8 +449,15 @@ final class ProtectionTests: XCTestCase, @unchecked Sendable {
         try? overlay.data(using: .utf8)?.write(to: ruleFile)
 
         let engine = RuleEngine(homeDirectory: home, userRuleURL: ruleFile)
-        XCTAssertNil(engine.protectionReason(for: "/Users/example/Documents/report.pdf"))
-        XCTAssertNotEqual(engine.risk(for: "/Users/example/Documents"), .protected)
+        XCTAssertNotNil(
+            engine.protectionReason(for: "/Users/example/Documents/taxes.pdf"),
+            "the protection list must win over a rule file"
+        )
+        XCTAssertEqual(
+            engine.risk(for: "/Users/example/Documents"),
+            .protected,
+            "a rule cannot downgrade a protected path"
+        )
     }
 
     func test_aUserRuleFileCannotPointOutsideItsAnchor() {
@@ -653,6 +620,6 @@ final class ProtectionTests: XCTestCase, @unchecked Sendable {
 
         let engine = RuleEngine(homeDirectory: home, userRuleURL: ruleFile)
         XCTAssertFalse(engine.rules.isEmpty, "the shipped rules must survive a bad file")
-        XCTAssertNotNil(engine.protectionReason(for: "/Users/example/Library/Keychains/x"))
+        XCTAssertNotNil(engine.protectionReason(for: "/Users/example/Documents/x"))
     }
 }

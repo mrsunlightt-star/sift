@@ -180,9 +180,9 @@ final class Harness: @unchecked Sendable {
             let home = URL(fileURLWithPath: "/Users/example")
             let engine = RuleEngine(rules: RuleEngine.builtInRules, homeDirectory: home)
 
-            for child in ["Documents", "Desktop", "Movies", "Music", "Pictures", "Projects", "Developer", "Public"] {
+            for child in ["Documents", "Desktop", "Movies", "Music", "Pictures", "Projects", "Developer"] {
                 let path = "/Users/example/\(child)/file.txt"
-                check(engine.isAllowed(path), "\(child) is a scan target")
+                check(engine.protectionReason(for: path) != nil, "\(child) is protected")
             }
 
             for prefix in ["/System/Library/Caches", "/usr/local/bin/tool", "/private/var/vm", "/Volumes/External/x"] {
@@ -217,16 +217,12 @@ final class Harness: @unchecked Sendable {
                 "/Systematic is not swept up by the /System rule"
             )
 
-            // Traversal has to be resolved before the comparison. A traversal
-            // into a still-protected secret must resolve; Documents is now a
-            // scan target so the same spelling resolves to an allowed path.
-            let secretTraversal = "/Users/example/Downloads/../Library/Keychains/login.keychain-db"
+            // Traversal has to be resolved before the comparison.
+            let sneaky = "/Users/example/Downloads/../Documents/secret.txt"
             check(
-                engine.protectionReason(for: secretTraversal) != nil,
-                "a traversal path into the keychain is still rejected"
+                engine.protectionReason(for: sneaky) != nil,
+                "a traversal path into Documents is still rejected"
             )
-            check(engine.isAllowed("/Users/example/Downloads/../Documents/report.txt"),
-                  "a traversal path into Documents is allowed")
 
             // Risk levels: the most cautious one wins, and unclassified content
             // is never safe.
@@ -247,8 +243,8 @@ final class Harness: @unchecked Sendable {
             )
             equal(
                 engine.risk(for: "/Users/example/Documents/taxes.pdf"),
-                .review,
-                "unclassified user content is review, never pre-selected"
+                .protected,
+                "a protected path reports the protected risk"
             )
 
             // Bundle identifier detection, the guard against fuzzy name matches.
@@ -272,7 +268,6 @@ final class Harness: @unchecked Sendable {
 
             let cacheFile = fixture.write("Library/Caches/com.example.app/blob.bin", bytes: 4096)
             let documentFile = fixture.write("Documents/taxes.pdf", bytes: 4096)
-            let keychainFile = fixture.write("Library/Keychains/login.keychain-db", bytes: 4096)
             let cacheDirectory = fixture.directory("Library/Caches/com.example.app")
 
             // Pre-flight accepts an ordinary cache item.
@@ -282,19 +277,12 @@ final class Harness: @unchecked Sendable {
             equal(verdict.ready.count, 1, "a cache file passes pre-flight")
             equal(verdict.protected.count, 0, "nothing is refused for a cache file")
 
-            // Documents is no longer protected: a document handed in as a
-            // candidate passes pre-flight like any other allowed path.
-            let documentVerdict = await dryRun.preflight([
+            // Pre-flight refuses a protected path even when it is handed in.
+            let protectedVerdict = await dryRun.preflight([
                 FileOperationService.Candidate(item: makeItem(url: documentFile, risk: .safe))
             ])
-            equal(documentVerdict.ready.count, 1, "a document passes pre-flight")
-
-            // A still-protected secret is refused even when it is handed in.
-            let protectedVerdict = await dryRun.preflight([
-                FileOperationService.Candidate(item: makeItem(url: keychainFile, risk: .safe))
-            ])
-            equal(protectedVerdict.ready.count, 0, "the keychain never passes pre-flight")
-            equal(protectedVerdict.protected.count, 1, "the keychain is reported as protected")
+            equal(protectedVerdict.ready.count, 0, "a document never passes pre-flight")
+            equal(protectedVerdict.protected.count, 1, "a document is reported as protected")
 
             // Parent and child together: the parent absorbs the child.
             let overlapVerdict = await dryRun.preflight([
@@ -335,16 +323,16 @@ final class Harness: @unchecked Sendable {
             )
 
             // The protection check also runs at execution time, not only in
-            // pre-flight: a plan assembled with the keychain's identity still
+            // pre-flight: a plan assembled with the document's identity still
             // fails when the service reaches the protection list.
-            let protectedItem = makeItem(url: keychainFile, risk: .safe)
-            if let identity = FileIdentitySnapshot.of(path: keychainFile.path) {
+            let documentItem = makeItem(url: documentFile, risk: .safe)
+            if let identity = FileIdentitySnapshot.of(path: documentFile.path) {
                 let forged = PreflightReport(
-                    ready: [protectedItem],
+                    ready: [documentItem],
                     skipped: [],
                     subsumed: [],
                     protected: [],
-                    identities: [protectedItem.id: identity]
+                    identities: [documentItem.id: identity]
                 )
                 if let plan = forged.makeApprovedPlan(operation: .junkCleanup) {
                     let guarded = await dryRun.execute(plan)
@@ -401,7 +389,6 @@ final class Harness: @unchecked Sendable {
             fixture.write("Library/Caches/com.other.app/blob.bin", bytes: 4096)
             fixture.write("Library/Caches/CloudKit/blob.bin", bytes: 4096)
             fixture.write("Documents/taxes.pdf", bytes: 4096)
-            fixture.write("Library/Keychains/login.keychain-db", bytes: 4096)
             let installer = fixture.write("Downloads/Old.dmg", bytes: 4096)
             fixture.age(installer, days: 60)
             fixture.write("Downloads/Fresh.dmg", bytes: 4096)
@@ -497,7 +484,7 @@ final class Harness: @unchecked Sendable {
             )
             check(
                 !page.items.contains(where: { $0.url.path.contains("/Documents/") }),
-                "no built-in rule claims Documents, so it yields no cleanup item"
+                "user documents never appear in the results"
             )
             check(
                 !page.items.contains { $0.displayName == "group.com.declared.app" },
@@ -552,13 +539,13 @@ final class Harness: @unchecked Sendable {
             check(analysis.categories.count > 0, "storage analysis groups by category")
             check(analysis.totalBytes > 0, "storage analysis reports volume capacity")
             check(
-                analysis.topDirectories.allSatisfy { !$0.url.path.contains("/Keychains") },
+                analysis.topDirectories.allSatisfy { !$0.url.path.contains("/Documents") },
                 "a protected directory is not listed as reclaimable"
             )
 
             check(
                 skipped.contains(where: { $0.code == ErrorCode.protectedLocation.rawValue }),
-                "a still-protected location inside the scan root is skipped with a code"
+                "user content inside the scan root is skipped, with the protectedLocation code"
             )
 
             _ = foundItems
@@ -1187,15 +1174,17 @@ final class Harness: @unchecked Sendable {
                 "a different volume stays closed"
             )
 
-            // Authorisation never unlocks secrets — user content is now a scan
-            // target, so only the keychain carries this assertion.
+            // Authorisation never unlocks user content or secrets.
             scope.add(home)
+            check(
+                rules.protectionReason(for: "/Users/example/Documents/taxes.pdf") != nil,
+                "authorising the home folder does not unlock Documents"
+            )
             check(
                 rules.protectionReason(for: "/Users/example/Library/Keychains/login.keychain-db") != nil,
                 "authorising the home folder does not unlock the keychain"
             )
-            check(rules.canAuthorize(url: home.appendingPathComponent("Documents")),
-                  "Documents can now be authorised")
+            check(!rules.canAuthorize(url: home.appendingPathComponent("Documents")), "Documents cannot be authorised")
             check(rules.canAuthorize(url: URL(fileURLWithPath: "/Volumes/External")), "a volume can be authorised")
 
             // An allowlist: a grant is a concrete folder or volume, never a
@@ -1764,7 +1753,7 @@ final class Harness: @unchecked Sendable {
             )
             check(
                 !items.contains(where: { $0.url.path.contains("/Documents/") }),
-                "no built-in rule claims Documents, so the production engine reports none"
+                "the production engine never reports user content"
             )
 
             let page = (try? await session.page(offset: 0, limit: 10, sort: .size, category: nil))

@@ -48,11 +48,6 @@ INT_CONST = re.compile(
 STRING_LITERAL = re.compile(r'"([^"]*)"')
 
 
-BOOL_CONST = re.compile(
-    r"pub const (?P<name>[A-Z_]+): bool = (?P<value>true|false);",
-)
-
-
 def read_rust_constant(name: str) -> object:
     source = RUST_SOURCE.read_text(encoding="utf-8")
 
@@ -60,21 +55,6 @@ def read_rust_constant(name: str) -> object:
         if match.group("name") == name:
             values = STRING_LITERAL.findall(match.group("body"))
             if not values:
-                # An empty protection list is legitimate only when the Rust
-                # source states so explicitly. Without the flag, an accidental
-                # deletion of every entry must fail loudly rather than silently
-                # shipping an app that protects nothing.
-                if name == "PROTECTED_HOME_CHILDREN":
-                    flag = next(
-                        (
-                            m.group("value") == "true"
-                            for m in BOOL_CONST.finditer(source)
-                            if m.group("name") == "HOME_CHILDREN_PROTECTION_DISABLED"
-                        ),
-                        False,
-                    )
-                    if flag:
-                        return values
                 raise SystemExit(f"{name} parsed as an empty list in {RUST_SOURCE.name}")
             return values
 
@@ -168,14 +148,7 @@ def swift_source() -> str:
         "        }\n"
         "    }\n"
         "\n"
-        "    /// Home children excluded from scanning and cleaning.\n"
-        "    ///\n"
-        "    /// Empty by the owner's product decision: Documents, Desktop, Movies,\n"
-        "    /// Music, Pictures, Projects, Developer and Public are scan targets.\n"
-        "    /// The Rust source carries the matching explicit opt-out flag; the\n"
-        "    /// generator refuses an empty list without it so this cannot happen\n"
-        "    /// by accident. Recycle bins, secrets and system prefixes stay\n"
-        "    /// protected by the lists below.\n"
+        "    /// Paths that are never scanned or cleaned, as children of the home folder.\n"
         "    public static let homeChildren: Set<String> = [\n"
         f"{swift_string_list(home_children, '        ')}"
         "    ]\n"

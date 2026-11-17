@@ -2192,13 +2192,27 @@ struct ScanRunningCard: View {
 struct SkippedLocationsCard: View {
     let locations: [SkippedLocation]
     @State private var expandedGroups: Set<String> = []
+    @State private var showsInactiveDetails = false
 
-    private var groups: [SkippedLocationGroup] {
-        // What the user can still act on comes first: a directory only `root`
-        // may read is a fact about macOS, and leading with it buried the two
-        // groups that a grant would actually open.
-        let all = SkippedLocation.groupedByTopLevelDirectory(locations)
-        return all.filter(\.hasActionableLocations) + all.filter { !$0.hasActionableLocations }
+    private var allGroups: [SkippedLocationGroup] {
+        SkippedLocation.groupedByTopLevelDirectory(locations)
+    }
+
+    /// The only skips a grant could change. These stay fully visible: the user
+    /// can open System Settings about them, so hiding them would hide an action.
+    private var actionableGroups: [SkippedLocationGroup] {
+        allGroups.filter(\.hasActionableLocations)
+    }
+
+    /// Policy-protected and administrator-only locations. Nothing the user can
+    /// toggle changes these, so they collapse to one summary row instead of a
+    /// list that reads like a permission the user forgot to give.
+    private var inactiveGroups: [SkippedLocationGroup] {
+        allGroups.filter { !$0.hasActionableLocations }
+    }
+
+    private var inactiveLocationCount: Int {
+        inactiveGroups.reduce(0) { $0 + $1.locations.count }
     }
 
     /// Locations a grant could still change — a TCC refusal and nothing else.
@@ -2217,12 +2231,10 @@ struct SkippedLocationsCard: View {
         if actionableCount > 0 {
             return LocalizationKey.permissionPartialAccess.localized
         }
-        // Two different answers, and mixing them is how "we chose not to open
-        // this" came to look like "macOS would not let us".
-        if locations.allSatisfy(\.isProtectedByPolicy) {
-            return LocalizationKey.permissionProtectedTitle.localized
-        }
-        return LocalizationKey.permissionSystemProtectedTitle.localized
+        // No grant changes any of these. The protected/system rows now live
+        // behind one collapsed summary, so the card title must name the whole
+        // set rather than repeat the summary row's own label.
+        return LocalizationKey.permissionProtectedTitle.localized
     }
 
     var body: some View {
@@ -2243,25 +2255,50 @@ struct SkippedLocationsCard: View {
                 }
             }
             SiftHairline()
-            ForEach(Array(groups.enumerated()), id: \.element.id) { index, group in
-                // Both kinds can be present at once, and then the card has
-                // two answers in it: the top half is a grant away from being
-                // read, the bottom half is closed to everyone. One line is
-                // what keeps the second half from reading as the first.
-                if actionableCount > 0,
-                   !group.hasActionableLocations,
-                   index > 0,
-                   groups[index - 1].hasActionableLocations {
-                    Text(LocalizationKey.permissionSystemProtectedTitle.localized)
-                        .font(SiftFont.caption)
-                        .foregroundStyle(SiftColor.quietText)
-                        .padding(.top, SiftMetrics.spacingXS)
-                }
+
+            // The actionable half stays fully visible — there is something the
+            // user can do about it.
+            ForEach(actionableGroups) { group in
                 groupSection(group)
-                if group.id != groups.last?.id {
-                    SiftHairline()
+                SiftHairline()
+            }
+
+            // Policy-protected and administrator-only locations collapse to a
+            // single summary row. They are listed only on demand, so a scan
+            // result no longer leads with locations no grant can open.
+            if !inactiveGroups.isEmpty {
+                Button {
+                    withAnimation { showsInactiveDetails.toggle() }
+                } label: {
+                    HStack(spacing: SiftMetrics.spacingM) {
+                        Image(systemName: "lock")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(SiftColor.quietText)
+                        Text(LocalizationKey.permissionSystemProtectedTitle.localized)
+                            .font(SiftFont.secondaryHeading)
+                            .foregroundStyle(SiftColor.secondaryText)
+                        Text(LocalizationKey.commonItemCount.counted(inactiveLocationCount))
+                            .font(SiftFont.caption)
+                            .foregroundStyle(SiftColor.quietText)
+                        Spacer(minLength: SiftMetrics.spacingS)
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(SiftColor.quietText)
+                            .rotationEffect(.degrees(showsInactiveDetails ? 180 : 0))
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(LocalizationKey.permissionSystemProtectedTitle.localized)
+                .accessibilityHint(LocalizationKey.commonItemCount.counted(inactiveLocationCount))
+
+                if showsInactiveDetails {
+                    ForEach(inactiveGroups) { group in
+                        groupSection(group)
+                    }
                 }
             }
+
             if actionableCount > 0 {
                 // The switch is on and these rows still say "permission":
                 // macOS applies a TCC grant when an app starts, and a rebuilt

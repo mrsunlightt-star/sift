@@ -281,17 +281,14 @@ final class ScannerTests: XCTestCase, @unchecked Sendable {
         XCTAssertTrue(items.contains { $0.displayName == "open.txt" })
     }
 
-    func test_userDocumentsAreNotCleanupCandidatesWithoutARule() async throws {
-        // No built-in rule targets Documents, so it produces no cleanup item
-        // even though the protection list no longer refuses it. The distinction
-        // matters: this is "nothing claims it", not "the walker was blocked".
+    func test_userDocumentsNeverAppear() async throws {
         fixture.write("Documents/taxes.pdf", bytes: 8192)
         fixture.write("Library/Caches/com.example.app/blob.bin", bytes: 4096)
         let result = try await runScan(makeRequest())
         XCTAssertFalse(result.items.contains { $0.url.path.contains("/Documents/") })
-        XCTAssertFalse(
+        XCTAssertTrue(
             result.skipped.contains { $0.code == ErrorCode.protectedLocation.rawValue },
-            "Documents is no longer a protectedLocation skip"
+            "the refusal is reported, not hidden"
         )
     }
 
