@@ -668,10 +668,20 @@ public struct IconTile: View {
 /// shape is a small label on a wash, not a lozenge — a risk level is metadata
 /// beside a row, not a badge the page is about.
 public struct RiskBadge: View {
-    private let risk: RiskLevel
+    /// A risk label carries the same word and glyph in both styles; `plain`
+    /// drops the coloured wash for dense lists where one capsule per row turns
+    /// a column of metadata into a column of colour.
+    public enum Style: Sendable {
+        case badge
+        case plain
+    }
 
-    public init(risk: RiskLevel) {
+    private let risk: RiskLevel
+    private let style: Style
+
+    public init(risk: RiskLevel, style: Style = .badge) {
         self.risk = risk
+        self.style = style
     }
 
     /// The wash under the label. The theme names a text colour and a wash per
@@ -693,15 +703,30 @@ public struct RiskBadge: View {
                 .font(SiftFont.metadata)
         }
         .foregroundStyle(SiftColor.textColor(for: risk))
-        .padding(.horizontal, SiftMetrics.spacingS)
-        .padding(.vertical, 3)
-        .background {
-            RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
-                .fill(wash)
-        }
+        .modifier(BadgeWash(style: style, color: wash))
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Text(risk.labelKey.localized))
         .accessibilityHint(Text(risk.detailKey.localized))
+    }
+}
+
+private struct BadgeWash: ViewModifier {
+    let style: RiskBadge.Style
+    let color: Color
+
+    func body(content: Content) -> some View {
+        switch style {
+        case .badge:
+            content
+                .padding(.horizontal, SiftMetrics.spacingS)
+                .padding(.vertical, 3)
+                .background {
+                    RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
+                        .fill(color)
+                }
+        case .plain:
+            content
+        }
     }
 }
 

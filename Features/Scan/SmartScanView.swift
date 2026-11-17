@@ -512,6 +512,14 @@ public struct ScanView: View {
         GeometryReader { proxy in
             let layout = ScanWorkspaceLayout.resolve(availableWidth: proxy.size.width)
             VStack(spacing: 0) {
+                // One compact line above the list holds the selection state.
+                // A narrow window used to put the whole summary bar *below* the
+                // scrolling list, where it appeared between result rows and the
+                // permission card and read as another row. Keeping it above the
+                // list gives the page one stable place for "what is selected".
+                if case .bottomBar = layout {
+                    selectionStrip
+                }
                 HStack(alignment: .top, spacing: 0) {
                     resultsList
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -528,10 +536,6 @@ public struct ScanView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-
-                if case .bottomBar = layout {
-                    bottomBar
-                }
             }
             .frame(maxWidth: SiftMetrics.contentWidthWide, alignment: .leading)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -1174,6 +1178,61 @@ public struct ScanView: View {
         }
     }
 
+    /// The selection state as one line above the list on a narrow window.
+    ///
+    /// Everything here is also in the inspector column on wider layouts;
+    /// nothing about selection is decided here. It is the same controls
+    /// collapsed into the single row the narrow width can afford, so the
+    /// list no longer has a summary bar inserted between its rows.
+    private var selectionStrip: some View {
+        VStack(spacing: 0) {
+            SiftHairline()
+            HStack(alignment: .firstTextBaseline, spacing: SiftMetrics.spacingM) {
+                Text(cleanup.formattedSelectedBytes)
+                    .font(SiftFont.sectionHeading)
+                    .monospacedDigit()
+                    .foregroundStyle(SiftColor.mainText)
+                    .contentTransition(.numericText())
+                    .lineLimit(1)
+
+                Text(LocalizationKey.commonItemCount.counted(cleanup.selectedCount))
+                    .font(SiftFont.caption)
+                    .foregroundStyle(SiftColor.secondaryText)
+                    .lineLimit(1)
+
+                Spacer(minLength: SiftMetrics.spacingS)
+
+                Button {
+                    pendingSelectAll = displayedCleanableRows
+                } label: {
+                    Text(LocalizationKey.scanSelectAll.localized)
+                        .font(SiftFont.caption)
+                }
+                .buttonStyle(SiftLinkButtonStyle())
+
+                Button {
+                    cleanup.deselectAll()
+                } label: {
+                    Text(LocalizationKey.scanDeselectAll.localized)
+                        .font(SiftFont.caption)
+                }
+                .buttonStyle(SiftLinkButtonStyle())
+
+                SiftPrimaryButton(
+                    title: LocalizationKey.cleanupConfirmMoveAction.localized,
+                    symbolName: "trash",
+                    isEnabled: cleanup.selectedCount > 0 && !cleanup.isWorking
+                ) {
+                    Task { await beginCleanup() }
+                }
+                .accessibilityIdentifier("scan.clean")
+            }
+            .padding(.horizontal, SiftMetrics.pagePadding)
+            .padding(.vertical, SiftMetrics.spacingS)
+        }
+        .background(SiftColor.surfaceColor)
+    }
+
     /// The bottom summary/action bar, used where the width cannot hold a column.
     ///
     /// Same facts as the column, one line each: it is the same model, not a
@@ -1802,8 +1861,10 @@ struct ScanItemRow: View {
                 disclosureButton
                 revealButton
 
-                // The word and the glyph, never the colour alone.
-                RiskBadge(risk: item.risk.level)
+                // The word and the glyph, never the colour alone. Plain style:
+                // in a group that is already "needs confirmation", a coloured
+                // capsule on every row is noise, not information.
+                RiskBadge(risk: item.risk.level, style: .plain)
             }
 
             if showsDetail {
