@@ -16,3 +16,6 @@ Bridge/macos-universal/
 # macOS
 .DS_Store
 .workbuddy/
+
+# Xcode per-user state (UI layout, scheme selection) — machine local.
+**/xcuserdata/

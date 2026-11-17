@@ -221,7 +221,8 @@ After changing anything under `Shared/Localization/`, regenerate the catalog and
 its `.lproj` outputs with `python3 Scripts/generate-strings.py`. Never edit
 `Localizable.xcstrings`, `LocalizationKey.swift` or `.lproj` files by hand.
 
-After changing `PROTECTED_HOME_CHILDREN`, `PROTECTED_PREFIXES`,
+After changing `PROTECTED_HOME_CHILDREN`, `HOME_CHILDREN_PROTECTION_DISABLED`,
+`PROTECTED_PREFIXES`,
 `PROTECTED_LIBRARY_CHILDREN`, `PROTECTED_PHOTOS_LIBRARY_SUFFIX`,
 `PROTECTED_RECYCLE_BIN_NAMES`, `MAX_RULE_MIN_AGE_DAYS`, `MAX_RULE_ROOTS`,
 `RELATIVE_PATH_WILDCARD`, `FORBIDDEN_RULE_DIRECTORIES`, `SYMLINK_ALIASES` or
@@ -294,8 +295,10 @@ These are product promises, not implementation details. Each has tests behind it
    able to lose a checkbox.
 9. **A measure-only scan root produces no cleanup candidates**, in both engines.
 10. **Mount points are never scanned without an explicit grant.** Only locations
-    the user added are included, and a grant never unlocks user content, keychains
-    or a photo library. Authorisation is an allowlist — one volume under
+    the user added are included, and a grant never unlocks keychains or a photo
+    library. (User-content home children are no longer protected — see
+    `HOME_CHILDREN_PROTECTION_DISABLED` — so a home grant reaches them.)
+    Authorisation is an allowlist — one volume under
     `/Volumes`, or a folder inside home — and it lifts only the `/Volumes` blanket
     prefix. System prefixes (`/Library`, `/private/var`, `/System`, ...) stay
     protected even when a path appears to be authorised. The walk that scans
@@ -375,9 +378,12 @@ These are product promises, not implementation details. Each has tests behind it
     engines refuse the same two shapes.
 20. **A move acts on the object the user selected.** `trashItem` follows a symlink
     in *any* component of the path, so an ancestor replaced by a link turns a cache
-    path into a request to move something under `~/Documents` — and the protection
-    list cannot see it, because the path as written is not protected. An item whose
-    path no longer resolves to itself is refused with `itemChanged`, at the
+    path into a request to move something under `~/Library/Keychains` — and the
+    protection list cannot see it, because the path as written is not protected.
+    The user-content home children are no longer on the protection list by the
+    owner's decision (see `HOME_CHILDREN_PROTECTION_DISABLED`), so the invariant
+    is carried by the secrets and system prefixes that remain protected. An item
+    whose path no longer resolves to itself is refused with `itemChanged`, at the
     pre-flight check and again immediately before the move.
 21. **The offline window is measured against the clock, not the process.** A
     refresh only happens when the channel answers, and an unreachable service is

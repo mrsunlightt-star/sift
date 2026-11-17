@@ -122,7 +122,9 @@ final class SecurityFixFileOperationsTests: XCTestCase, @unchecked Sendable {
     /// path the rule table protects. The risk is re-derived at execution time for
     /// exactly that reason — the level on the item is a claim, not a fact.
     func test_aHandBuiltPlanCannotCarryAProtectedItem() async {
-        let document = fixture.write("Documents/tax-return.pdf", bytes: 1024)
+        // Documents is a scan target now; the keychain remains protected and
+        // carries the three-check invariant this test is about.
+        let document = fixture.write("Library/Keychains/login.keychain-db", bytes: 1024)
         let service = makeOperations()
         let forged = item(document)
 
@@ -544,10 +546,10 @@ final class SecurityFixFileOperationsTests: XCTestCase, @unchecked Sendable {
         }
     }
 
-    /// And the flow really is what pre-flight consults: user content stays
-    /// refused even when the operation is an uninstall.
-    func test_userContentIsRefusedEvenForAnUninstall() async {
-        let document = fixture.write("Documents/thesis.pdf", bytes: 128)
+    /// And the flow really is what pre-flight consults: secrets stay refused
+    /// even when the operation is an uninstall.
+    func test_secretsStayRefusedEvenForAnUninstall() async {
+        let document = fixture.write("Library/Keychains/login.keychain-db", bytes: 128)
         let service = makeOperations()
         let verdict = await service.preflight(
             [FileOperationService.Candidate(item: item(document))],

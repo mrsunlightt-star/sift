@@ -854,23 +854,33 @@ mod tests {
     }
 
     #[test]
-    fn protected_directories_are_out_of_scope_not_skipped() {
+    fn user_content_is_in_scope_while_protected_content_is_not() {
         let tree = TempTree::new("storage-protected");
         tree.file("Library/Caches/a.bin", 4096);
         tree.file("Documents/private.txt", 4096);
+        tree.file("Library/Keychains/login.keychain-db", 4096);
 
         let options = AnalysisOptions::new(tree.root.clone(), vec![tree.root.clone()]);
         let analysis = analyse(&options, &CancelToken::new());
 
-        // Protected content is deliberately out of scope, not unreadable: the
-        // page must not call a complete, safe walk partial.
+        // Documents is a scan target now and appears in the rollup. The
+        // keychain is still protected and stays out of scope — deliberately
+        // out of scope, not unreadable, so the page never calls a complete
+        // safe walk partial.
         assert_eq!(analysis.skipped_count, 0);
-        assert_eq!(analysis.scanned_file_count, 1);
+        assert_eq!(analysis.scanned_file_count, 2);
         assert!(
             analysis
                 .top_directories
                 .iter()
-                .all(|d| !d.path.ends_with("Documents")),
+                .any(|d| d.path.ends_with("Documents")),
+            "Documents must appear in the rollup"
+        );
+        assert!(
+            analysis
+                .top_directories
+                .iter()
+                .all(|d| !d.path.ends_with("Keychains")),
             "a protected directory must not appear in the rollup"
         );
     }

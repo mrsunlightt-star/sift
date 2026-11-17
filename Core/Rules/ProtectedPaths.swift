@@ -27,16 +27,15 @@ public enum ProtectedPaths {
         }
     }
 
-    /// Paths that are never scanned or cleaned, as children of the home folder.
+    /// Home children excluded from scanning and cleaning.
+    ///
+    /// Empty by the owner's product decision: Documents, Desktop, Movies,
+    /// Music, Pictures, Projects, Developer and Public are scan targets.
+    /// The Rust source carries the matching explicit opt-out flag; the
+    /// generator refuses an empty list without it so this cannot happen
+    /// by accident. Recycle bins, secrets and system prefixes stay
+    /// protected by the lists below.
     public static let homeChildren: Set<String> = [
-        "Documents",
-        "Desktop",
-        "Movies",
-        "Music",
-        "Pictures",
-        "Projects",
-        "Developer",
-        "Public",
     ]
 
     /// Absolute prefixes that are never scanned or cleaned. Only `/Volumes`

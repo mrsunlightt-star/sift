@@ -135,8 +135,16 @@ final class RuleDraftTests: XCTestCase, @unchecked Sendable {
 
     /// A directory the protection list refuses never gets a draft.
     func test_aProtectedDirectoryIsRefused() {
-        guard case .failure(.protected) = draft("Documents") else {
-            return XCTFail("the user's Documents folder must not be draftable")
+        guard case .failure(.protected) = draft("Library/Keychains") else {
+            return XCTFail("the keychain folder must not be draftable")
+        }
+    }
+
+    /// User content is no longer protected, so it is draftable — the owner's
+    /// product decision to make these directories scan targets.
+    func test_userContentIsDraftable() {
+        if case .failure(let refusal) = draft("Documents") {
+            XCTFail("Documents must be draftable now, got \(refusal)")
         }
     }
 

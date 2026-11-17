@@ -424,10 +424,13 @@ final class AuthorizationTests: XCTestCase, @unchecked Sendable {
                 "\(broad) must not be authorisable"
             )
         }
+        // User content is no longer protected, and `canAuthorize` accepts any
+        // ordinary home folder. The secrets and broad system prefixes below are
+        // the ones that must still be refused.
         for content in ["Documents", "Desktop", "Movies", "Music", "Pictures", "Projects", "Developer", "Public"] {
-            XCTAssertFalse(
+            XCTAssertTrue(
                 rules.canAuthorize(url: home.appendingPathComponent(content)),
-                "\(content) is user content and must not be authorisable"
+                "\(content) is now an authorisable home folder"
             )
         }
         for secret in ["Library/Keychains", "Library/Mail", "Library/Messages", "Library/Safari", "Library/Cookies", "Library/Accounts"] {
