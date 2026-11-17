@@ -284,11 +284,13 @@ public struct ScanView: View {
         }
         if scan.report != nil {
             guard scan.phase == .partial else { return "" }
-            // "Some locations could not be read" is about permissions and says
-            // nothing about a run that was cut short to keep the app responsive.
+            // A partial run with skipped locations already says so in the
+            // permissions card in the result list. Repeating it in the header
+            // made the same sentence appear three times above the fold. Only
+            // the budget cut — which has no card — is stated here.
             return scan.skippedLocations.isEmpty
                 ? LocalizationKey.scanPartialBudget.localized
-                : LocalizationKey.scanPhasePartial.localized
+                : ""
         }
         // The page name is already the title, so the status states only the
         // rest: "Scan, nothing scanned yet" said the same thing twice.
@@ -578,14 +580,15 @@ public struct ScanView: View {
                             action: { Task { await environment.runScan(.everything) } }
                         )
                     }
-                    // A run that hit its budget or skipped folders reports more
-                    // than it walked. It must never read as a complete result.
-                    if scan.phase == .partial {
+                    // A run that hit its budget reports more than it walked.
+                    // When locations were skipped, the permissions card in the
+                    // list already says the run was partial — a second banner
+                    // with the same sentence is noise. Only a pure budget cut,
+                    // which has no card, needs this line.
+                    if scan.phase == .partial, scan.skippedLocations.isEmpty {
                         NoticeBanner(
                             level: .warning,
-                            message: scan.skippedLocations.isEmpty
-                                ? LocalizationKey.scanPartialBudget.localized
-                                : LocalizationKey.scanPhasePartial.localized
+                            message: LocalizationKey.scanPartialBudget.localized
                         )
                     }
                     if filter == .duplicates {
@@ -688,10 +691,15 @@ public struct ScanView: View {
             HStack(alignment: .firstTextBaseline, spacing: SiftMetrics.spacingM) {
                 Text(LocalizationKey.scanResults.localized)
                     .font(SiftFont.sectionTitle)
-                Text(resultSummary)
-                    .font(SiftFont.caption)
-                    .foregroundStyle(SiftColor.secondaryText)
-                    .lineLimit(1)
+                // The all-view total is already in the page header. Only a
+                // narrowed filter needs its own count, since the header still
+                // describes the whole run.
+                if filter != .all {
+                    Text(resultSummary)
+                        .font(SiftFont.caption)
+                        .foregroundStyle(SiftColor.secondaryText)
+                        .lineLimit(1)
+                }
                 Spacer(minLength: SiftMetrics.spacingS)
                 sortMenu
             }
@@ -709,9 +717,6 @@ public struct ScanView: View {
             } else {
                 resultGroups
             }
-
-            SiftHairline()
-            resultsFooter
         }
     }
 
@@ -964,42 +969,6 @@ public struct ScanView: View {
         .padding(.bottom, SiftMetrics.spacingS)
     }
 
-    private var resultsFooter: some View {
-        HStack(spacing: SiftMetrics.spacingM) {
-            Text(
-                LocalizationKey.overviewSelectedSummary.localized(
-                    cleanup.selectedCount,
-                    cleanup.formattedSelectedBytes
-                )
-            )
-            .font(SiftFont.caption)
-            .foregroundStyle(SiftColor.secondaryText)
-
-            Spacer(minLength: SiftMetrics.spacingS)
-
-            Button {
-                // The same confirmation the review group asks for, over the same
-                // scope: what this filter is showing.
-                pendingSelectAll = displayedCleanableRows
-            } label: {
-                Text(LocalizationKey.scanSelectAll.localized)
-                    .font(SiftFont.caption)
-            }
-            .buttonStyle(SiftLinkButtonStyle())
-            .keyboardShortcut("a", modifiers: .command)
-
-            Button {
-                cleanup.deselectAll()
-            } label: {
-                Text(LocalizationKey.scanDeselectAll.localized)
-                    .font(SiftFont.caption)
-            }
-            .buttonStyle(SiftLinkButtonStyle())
-            .keyboardShortcut("a", modifiers: [.command, .shift])
-        }
-        .padding(.top, SiftMetrics.spacingM)
-    }
-
     private var sortMenu: some View {
         Menu {
             ForEach([ScanSort.size, .name, .modified], id: \.self) { candidate in
@@ -1151,12 +1120,29 @@ public struct ScanView: View {
     private var actionBlock: some View {
         SiftSection(style: .subtle, padding: SiftMetrics.spacingL) {
             VStack(alignment: .leading, spacing: SiftMetrics.spacingM) {
-                Text(
-                    "\(LocalizationKey.commonItemCount.counted(cleanup.selectedCount)) · \(cleanup.formattedSelectedBytes)"
-                )
-                .font(SiftFont.caption)
-                .monospacedDigit()
-                .foregroundStyle(SiftColor.secondaryText)
+                // The count and bytes are already the two lines at the top of
+                // this column. Repeating them here made the same number appear
+                // twice inside one panel.
+                HStack(spacing: SiftMetrics.spacingM) {
+                    Button {
+                        pendingSelectAll = displayedCleanableRows
+                    } label: {
+                        Text(LocalizationKey.scanSelectAll.localized)
+                            .font(SiftFont.caption)
+                    }
+                    .buttonStyle(SiftLinkButtonStyle())
+                    .keyboardShortcut("a", modifiers: .command)
+
+                    Button {
+                        cleanup.deselectAll()
+                    } label: {
+                        Text(LocalizationKey.scanDeselectAll.localized)
+                            .font(SiftFont.caption)
+                    }
+                    .buttonStyle(SiftLinkButtonStyle())
+                    .keyboardShortcut("a", modifiers: [.command, .shift])
+                    Spacer(minLength: 0)
+                }
 
                 SiftPrimaryButton(
                     title: LocalizationKey.cleanupConfirmMoveAction.localized,
@@ -2290,7 +2276,10 @@ struct SkippedLocationsCard: View {
     /// switch that changes nothing.
     private var cardTitle: String {
         if actionableCount > 0 {
-            return LocalizationKey.permissionPartialAccess.localized
+            // Name the specific grant rather than the generic "some locations
+            // could not be read" — that sentence also appears as the header
+            // status on a partial run, and two identical lines read as a bug.
+            return LocalizationKey.permissionFullDiskAccess.localized
         }
         // No grant changes any of these. The protected/system rows now live
         // behind one collapsed summary, so the card title must name the whole
