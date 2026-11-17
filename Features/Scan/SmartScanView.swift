@@ -2196,10 +2196,20 @@ struct ScanRunningCard: View {
                 .frame(width: 112, alignment: .leading)
                 .lineLimit(1)
 
-            // A share of the largest category, not progress: the bar is drawn
-            // at a third of the control weight so a nearly full bar cannot be
-            // mistaken for "nearly done".
-            UsageBar(fraction: fraction, tint: tint.opacity(0.7), height: 4)
+            // A share of the largest category, not progress. A category with
+            // no bytes yet shows no bar at all — an empty grey track here reads
+            // as measured-zero and, across nine categories, becomes a stack of
+            // grey placeholder lines with no information in them.
+            if bytes > 0 {
+                UsageBar(
+                    fraction: fraction,
+                    tint: tint.opacity(0.7),
+                    height: 4,
+                    showsEmptyTrack: false
+                )
+            } else {
+                Spacer(minLength: 0)
+            }
 
             Text(bytes > 0 || phase.hasResults ? SiftFormat.bytes(bytes) : "—")
                 .font(SiftFont.caption)

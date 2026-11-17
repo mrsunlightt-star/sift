@@ -901,19 +901,32 @@ public struct UsageBar: View {
     private let fraction: Double
     private let tint: Color
     private let height: CGFloat
+    private let showsEmptyTrack: Bool
 
     @Environment(\.siftReduceMotion) private var reduceMotion
 
-    public init(fraction: Double, tint: Color = SiftColor.actionFill, height: CGFloat = 8) {
+    public init(
+        fraction: Double,
+        tint: Color = SiftColor.actionFill,
+        height: CGFloat = 8,
+        showsEmptyTrack: Bool = true
+    ) {
         self.fraction = min(max(fraction, 0), 1)
         self.tint = tint
         self.height = height
+        self.showsEmptyTrack = showsEmptyTrack
     }
 
     public var body: some View {
         GeometryReader { geometry in
             ZStack(alignment: .leading) {
-                Capsule(style: .continuous).fill(SiftColor.divider)
+                // The empty track is optional. In a live list of categories a
+                // row with no data yet should show nothing, not a grey bar that
+                // reads as measured-but-zero and multiplies into a wall of
+                // grey when nothing has been found.
+                if showsEmptyTrack || fraction > 0 {
+                    Capsule(style: .continuous).fill(SiftColor.divider)
+                }
                 Capsule(style: .continuous)
                     .fill(tint)
                     .frame(width: max(geometry.size.width * fraction, fraction > 0 ? 4 : 0))
