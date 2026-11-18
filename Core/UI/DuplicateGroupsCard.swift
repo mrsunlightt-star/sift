@@ -22,11 +22,18 @@ public struct DuplicateGroupsCard: View {
     /// Which copy each group keeps. The scanner's proposal until the user makes
     /// one; `DuplicateKeeperSelection` holds the rule.
     @State private var keepers = DuplicateKeeperSelection()
+    private let showsHeading: Bool
 
-    public init(groups: [DuplicateGroup], scan: ScanModel, cleanup: CleanupModel) {
+    public init(
+        groups: [DuplicateGroup],
+        scan: ScanModel,
+        cleanup: CleanupModel,
+        showsHeading: Bool = true
+    ) {
         self.groups = groups
         self.scan = scan
         self.cleanup = cleanup
+        self.showsHeading = showsHeading
     }
 
     public var body: some View {
@@ -36,17 +43,19 @@ public struct DuplicateGroupsCard: View {
         // group of the same result set, so it wears the same heading the rest of
         // the list wears and sits on the page with no surface of its own.
         VStack(alignment: .leading, spacing: 0) {
-            heading
+            if showsHeading {
+                heading
 
-            // Said once, under the heading, for the whole section: the green seal
-            // is a starting point, not a verdict, and the control that changes it
-            // is a word in a row the user has not opened yet.
-            Text(LocalizationKey.filesKeepHint.localized)
-                .font(SiftFont.caption)
-                .foregroundStyle(SiftColor.quietText)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.leading, 14 + SiftMetrics.spacingS)
-                .padding(.bottom, SiftMetrics.spacingS)
+                // Said once, under the heading, for the whole section: the green
+                // seal is a starting point, not a verdict, and the control that
+                // changes it is a word in a row the user has not opened yet.
+                Text(LocalizationKey.filesKeepHint.localized)
+                    .font(SiftFont.caption)
+                    .foregroundStyle(SiftColor.quietText)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.leading, 14 + SiftMetrics.spacingS)
+                    .padding(.bottom, SiftMetrics.spacingS)
+            }
 
             // Lazy: a duplicate result is hundreds of groups, and an eager
             // VStack laid every one of them out on each frame of an expansion.

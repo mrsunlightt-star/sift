@@ -190,6 +190,62 @@ public enum SiftColor {
         dark: NSColor(srgbRed: 1.0, green: 1.0, blue: 1.0, alpha: 0.05)
     )
 
+    // MARK: - Scan results
+    //
+    // The results page separates three jobs that the rest of the app can keep
+    // green: choosing what the list shows (blue), confirming a safe finish and
+    // moving files (green), and reviewing items that need attention (amber).
+    // Blue is a state colour here, never a second brand colour.
+    public static let selectionAccent = Color(
+        light: NSColor(srgbRed: 0.145, green: 0.388, blue: 0.922, alpha: 1), // #2563EB
+        dark: NSColor(srgbRed: 0.471, green: 0.663, blue: 1.0, alpha: 1)     // #78A9FF
+    )
+    public static let selectionAccentHover = Color(
+        light: NSColor(srgbRed: 0.114, green: 0.306, blue: 0.847, alpha: 1), // #1D4ED8
+        dark: NSColor(srgbRed: 0.573, green: 0.745, blue: 1.0, alpha: 1)     // #92BEFF
+    )
+    /// A selection fill always carries white here, in both appearances.
+    public static let selectionAccentFill = Color(
+        light: NSColor(srgbRed: 0.145, green: 0.388, blue: 0.922, alpha: 1), // #2563EB
+        dark: NSColor(srgbRed: 0.145, green: 0.388, blue: 0.922, alpha: 1)   // #2563EB
+    )
+    public static let selectionAccentWash = Color(
+        light: NSColor(srgbRed: 0.918, green: 0.945, blue: 1.0, alpha: 1),   // #EAF1FF
+        dark: NSColor(srgbRed: 0.145, green: 0.388, blue: 0.922, alpha: 0.18)
+    )
+    public static let scanResultsCanvas = Color(
+        light: NSColor(srgbRed: 0.965, green: 0.976, blue: 0.996, alpha: 1), // #F6F9FE
+        dark: NSColor(srgbRed: 0.067, green: 0.090, blue: 0.075, alpha: 1)   // #111713
+    )
+    public static let scanHeroSummaryFill = Color(
+        light: NSColor(srgbRed: 0.957, green: 0.969, blue: 0.984, alpha: 1), // #F4F7FB
+        dark: NSColor(srgbRed: 0.125, green: 0.161, blue: 0.137, alpha: 1)   // #202923
+    )
+    public static let scanResultCardBorder = Color(
+        light: NSColor(srgbRed: 0.843, green: 0.882, blue: 0.929, alpha: 1), // #D7E1ED
+        dark: NSColor(srgbRed: 0.180, green: 0.227, blue: 0.200, alpha: 1)   // #2E3A33
+    )
+    public static let scanSafeHeader = Color(
+        light: NSColor(srgbRed: 0.941, green: 0.969, blue: 1.0, alpha: 1),   // #F0F7FF
+        dark: NSColor(srgbRed: 0.090, green: 0.133, blue: 0.188, alpha: 1)   // #172230
+    )
+    public static let scanReviewHeader = Color(
+        light: NSColor(srgbRed: 1.0, green: 0.969, blue: 0.929, alpha: 1),   // #FFF7ED
+        dark: NSColor(srgbRed: 0.165, green: 0.129, blue: 0.094, alpha: 1)   // #2A2118
+    )
+    public static let scanReviewBorder = Color(
+        light: NSColor(srgbRed: 0.961, green: 0.725, blue: 0.443, alpha: 1), // #F5B971
+        dark: NSColor(srgbRed: 0.549, green: 0.361, blue: 0.180, alpha: 1)   // #8C5C2E
+    )
+    public static let scanPermissionFill = Color(
+        light: NSColor(srgbRed: 0.961, green: 0.973, blue: 0.992, alpha: 1), // #F5F8FD
+        dark: NSColor(srgbRed: 0.102, green: 0.133, blue: 0.125, alpha: 1)   // #1A2220
+    )
+    public static let scanDuplicatePreviewFill = Color(
+        light: NSColor(srgbRed: 0.965, green: 0.973, blue: 0.980, alpha: 1), // #F6F8FA
+        dark: NSColor(srgbRed: 0.125, green: 0.161, blue: 0.137, alpha: 1)   // #202923
+    )
+
     // MARK: - Legacy roles
     //
     // Kept so every call site compiles while pages migrate in phases, and

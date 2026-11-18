@@ -869,12 +869,21 @@ public struct SiftFilterChip: View {
 public struct SiftCheckbox: View {
     @Binding private var isOn: Bool
     private let isEnabled: Bool
+    private let selectedFill: Color
+    private let selectedMark: Color
 
     @Environment(\.siftReduceMotion) private var reduceMotion
 
-    public init(isOn: Binding<Bool>, isEnabled: Bool = true) {
+    public init(
+        isOn: Binding<Bool>,
+        isEnabled: Bool = true,
+        selectedFill: Color = SiftColor.actionFill,
+        selectedMark: Color = SiftColor.onActionFill
+    ) {
         self._isOn = isOn
         self.isEnabled = isEnabled
+        self.selectedFill = selectedFill
+        self.selectedMark = selectedMark
     }
 
     public var body: some View {
@@ -886,11 +895,11 @@ public struct SiftCheckbox: View {
                 // The action pair, which the palette measured: `actionFill` with
                 // `onActionFill` on it. The border is the same fill, so the mark
                 // has no outline of a second colour.
-                .fill(isOn && isEnabled ? SiftColor.actionFill : SiftColor.controlFill)
+                .fill(isOn && isEnabled ? selectedFill : SiftColor.controlFill)
                 .overlay {
                     RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
                         .strokeBorder(
-                            isOn && isEnabled ? SiftColor.actionFill : SiftColor.divider,
+                            isOn && isEnabled ? selectedFill : SiftColor.divider,
                             lineWidth: SiftMetrics.panelBorderWidth
                         )
                 }
@@ -898,7 +907,7 @@ public struct SiftCheckbox: View {
                     if isOn && isEnabled {
                         Image(systemName: "checkmark")
                             .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(SiftColor.onActionFill)
+                            .foregroundStyle(selectedMark)
                             .transition(
                                 reduceMotion
                                     ? .opacity
