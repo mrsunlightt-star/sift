@@ -86,7 +86,9 @@ public struct ScanView: View {
             SiftPageHeader(
                 title: LocalizationKey.navScan.localized,
                 status: headerStatus,
-                subtitle: headerSubtitle
+                subtitleLead: headerSubtitleLead,
+                subtitle: headerSubtitle,
+                subtitleDetail: headerSubtitleDetail
             ) {
                 headerAction
             }
@@ -94,7 +96,6 @@ public struct ScanView: View {
             if holdsResidueRun {
                 residueScopeNotice
             } else if hasActionableResults {
-                filterBar
                 workArea
             } else if showsStoppedCard {
                 stoppedCard
@@ -297,18 +298,37 @@ public struct ScanView: View {
         return LocalizationKey.scanPhaseIdle.localized
     }
 
+    /// When the run on screen happened.
+    ///
+    /// The header reads as three facts of the same rank — when, how many, how
+    /// much — because that is the order a reader asks them in. The date is the
+    /// lead slot rather than a prefix inside `headerSubtitle`: joining it into one
+    /// translated string made every language carry a separator glyph.
+    private var headerSubtitleLead: String? {
+        guard let report = scan.report, !isBusy, !scan.hasStoppedResults else { return nil }
+        return SiftFormat.relativeDate(report.finishedAt ?? report.startedAt)
+    }
+
     /// What the page currently holds, as one sentence under the title: the
     /// studies put the count and the reclaimable size there rather than above the
     /// title, and `05 §6` wants a status only when it says something the title
-    /// does not — so the date, which the overview's facts band already states down
-    /// to the minute, is not repeated here.
+    /// does not.
     ///
     /// Both numbers are the settled run's own totals, never the selection's: this
     /// line must keep describing the scan after the user starts ticking rows.
+    ///
+    /// The count and the size are two pieces of text rather than one string with
+    /// a middle dot in it: the dot was baked into 34 translations, where it is a
+    /// punctuation mark each language had to reproduce whether or not it uses it.
     private var headerSubtitle: String? {
         guard let report = scan.report, !isBusy, !scan.hasStoppedResults else { return nil }
-        return LocalizationKey.scanHeaderReady.localized(
-            report.itemCount,
+        return LocalizationKey.commonItemCount.counted(report.itemCount)
+    }
+
+    /// The second half of the header's sentence.
+    private var headerSubtitleDetail: String? {
+        guard headerSubtitle != nil else { return nil }
+        return LocalizationKey.scanHeaderReclaimable.localized(
             SiftFormat.bytes(scan.reclaimableBytes)
         )
     }
@@ -353,26 +373,53 @@ public struct ScanView: View {
 
     // MARK: - Filters
 
-    /// The chips *filter the display* of the one `.everything` result.
+    /// The tabs *filter the display* of the one `.everything` result.
     ///
     /// They are not scan scopes: no value here assembles a request or narrows
-    /// what the engine walks (invariant 17). The run is the same run, and a chip
+    /// what the engine walks (invariant 17). The run is the same run, and a tab
     /// only chooses which of its categories this page shows.
+    ///
+    /// The row is a tab strip with a rule under it, not a row of filled pills:
+    /// the page's one filled control is the action that moves files, and five
+    /// solid marks above the list left the button reading as one option among
+    /// several. The rule is the strip's own, so the list starts on a hairline
+    /// the same way the header ends on one.
+    ///
+    /// The rule spans the page and the tabs scroll above it: the strip sits in a
+    /// horizontal `ScrollView`, and a `SiftHairline` inside that scroll view ends
+    /// where the tabs end — which drew a rule under the first two tabs and left
+    /// the rest of the line as the header's own separator, so the selected tab's
+    /// underline looked like the end of a line rather than the mark of a tab.
     private var filterBar: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: SiftMetrics.spacingS) {
-                ForEach(ScanFilter.allCases) { candidate in
-                    SiftFilterChip(
-                        title: candidate.titleKey.localized,
-                        detail: chipDetail(candidate),
-                        isSelected: filter == candidate
-                    ) {
-                        filter = candidate
+        VStack(spacing: 0) {
+            HStack(alignment: .bottom, spacing: SiftMetrics.spacingM) {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(alignment: .bottom, spacing: SiftMetrics.spacingXL) {
+                        ForEach(ScanFilter.allCases) { candidate in
+                            SiftFilterChip(
+                                title: candidate.titleKey.localized,
+                                detail: chipDetail(candidate),
+                                isSelected: filter == candidate
+                            ) {
+                                filter = candidate
+                            }
+                            .fixedSize()
+                        }
+                        Spacer(minLength: 0)
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                // The sort control ends the strip rather than opening a line of
+                // its own; it is the quietest fact on the row and it belongs to
+                // the same decision as the tabs (what the list shows).
+                if filter != .all {
+                    resultSummary
+                }
+                sortMenu
             }
             .padding(.horizontal, SiftMetrics.pagePadding)
-            .padding(.vertical, SiftMetrics.spacingM)
+            SiftHairline()
         }
         .frame(maxWidth: SiftMetrics.contentWidthWide, alignment: .leading)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -505,51 +552,24 @@ public struct ScanView: View {
 
     // MARK: - Work area
 
-    /// The list, and the selection summary wherever the width allows it.
+    /// The tab strip, the list, and the action bar under it.
     ///
-    /// The breakpoint is measured from the width this view is actually given —
-    /// not from the window — because the shell's sidebar takes a share of the
-    /// window the page never sees (05 §5).
+    /// One layout at every width now. The page used to carry a 272 pt inspector
+    /// column on the right, which held a number, one sentence and one button in a
+    /// column whose remaining three-quarters was empty — while the list, the
+    /// thing the page is about, paid for that width with earlier path
+    /// truncation. The same facts fit in a bar across the bottom, where they sit
+    /// under the rows they describe, and the list keeps the whole width
+    /// (`02 §2`, `02 §9`).
     private var workArea: some View {
-        GeometryReader { proxy in
-            let layout = ScanWorkspaceLayout.resolve(availableWidth: proxy.size.width)
-            VStack(spacing: 0) {
-                // One compact line above the list holds the selection state.
-                // A narrow window used to put the whole summary bar *below* the
-                // scrolling list, where it appeared between result rows and the
-                // permission card and read as another row. Keeping it above the
-                // list gives the page one stable place for "what is selected".
-                if case .bottomBar = layout {
-                    selectionStrip
-                }
-                HStack(alignment: .top, spacing: 0) {
-                    resultsList
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-                    if case let .inspectorColumn(width) = layout {
-                        verticalDivider
-                        selectionColumn
-                            .frame(width: width)
-                            .padding(.leading, SiftMetrics.spacingXL)
-                            .padding(.trailing, SiftMetrics.pagePadding)
-                            .padding(.top, SiftMetrics.pageSpacing)
-                            .padding(.bottom, SiftMetrics.spacingXL)
-                            .frame(maxHeight: .infinity, alignment: .top)
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            }
-            .frame(maxWidth: SiftMetrics.contentWidthWide, alignment: .leading)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        VStack(spacing: 0) {
+            filterBar
+            resultsList
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            actionBar
         }
-    }
-
-    private var verticalDivider: some View {
-        Rectangle()
-            .fill(SiftColor.divider)
-            .frame(width: SiftMetrics.hairline)
-            .frame(maxHeight: .infinity)
-            .accessibilityHidden(true)
+        .frame(maxWidth: SiftMetrics.contentWidthWide, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     /// The result list.
@@ -684,29 +704,18 @@ public struct ScanView: View {
 
     /// The results, as groups over the risk levels.
     ///
-    /// No card: the list is the page's body, and a bordered box around the body
-    /// was the shape that made the inspector look like a peer of the list.
+    /// There is no "Results" heading above them any more. The tabs directly
+    /// above state what the list is showing and how much of it there is, so a
+    /// section title repeated both facts in a second type ramp and pushed the
+    /// first row down — the third of the three headers the page used to stack
+    /// between its chrome and its content.
+    ///
+    /// The sort control rides the tab strip instead of a line of its own: a row
+    /// whose only content is one menu put 40 pt of empty page between the tabs
+    /// and the first group. A narrowed filter still prints its own small summary
+    /// beside it, because the tabs describe the whole run.
     private var resultsBlock: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .firstTextBaseline, spacing: SiftMetrics.spacingM) {
-                Text(LocalizationKey.scanResults.localized)
-                    .font(SiftFont.sectionTitle)
-                // The all-view total is already in the page header. Only a
-                // narrowed filter needs its own count, since the header still
-                // describes the whole run.
-                if filter != .all {
-                    Text(resultSummary)
-                        .font(SiftFont.caption)
-                        .foregroundStyle(SiftColor.secondaryText)
-                        .lineLimit(1)
-                }
-                Spacer(minLength: SiftMetrics.spacingS)
-                sortMenu
-            }
-            .padding(.bottom, SiftMetrics.spacingM)
-
-            SiftHairline()
-
             if items.isEmpty, !isLoading, scan.resultLoadFailure == nil {
                 let empty = emptyState
                 emptyBlock(
@@ -764,46 +773,23 @@ public struct ScanView: View {
         let protected = isExpanded(.protected) ? visible(protectedGroup) : []
 
         if !safeGroup.isEmpty {
-            groupHeader(
-                LocalizationKey.scanResultsSafeGroup.localized,
-                count: safeGroup.count,
-                detail: LocalizationKey.scanResultsDefaultSelected.localized
-            )
+            riskHeader(.safe, group: safeGroup)
             rows(safe)
+            groupFooter(.safe, group: safeGroup)
         }
 
         if !reviewGroup.isEmpty {
-            reviewHeader(reviewGroup)
+            riskHeader(.review, group: reviewGroup)
             if isExpanded(.review) {
-                HStack(spacing: SiftMetrics.spacingS) {
-                    Spacer()
-                    Button {
-                        pendingSelectAll = visible(reviewGroup)
-                    } label: {
-                        Text(
-                            LocalizationKey.scanSelectAllShown
-                                .localized(visible(reviewGroup).count)
-                        )
-                        .font(SiftFont.caption)
-                    }
-                    .buttonStyle(SiftLinkButtonStyle())
-                }
-                .padding(.bottom, SiftMetrics.spacingS)
                 rows(review)
+                groupFooter(.review, group: reviewGroup)
             }
         }
 
         if !protectedGroup.isEmpty {
-            // Informational rows: the group states what is protected and why it
-            // is not offered, and its rows carry no checkbox that could select
-            // them. Protecting an item is the product's decision, so the page
-            // shows the shape of it rather than a wall of numbers.
-            groupHeader(
-                LocalizationKey.scanResultsProtectedGroup.localized,
-                count: protectedGroup.count,
-                detail: RiskLevel.protected.detailKey.localized
-            )
+            riskHeader(.protected, group: protectedGroup)
             rows(protected)
+            groupFooter(.protected, group: protectedGroup)
         }
 
         if isLoading {
@@ -813,25 +799,6 @@ public struct ScanView: View {
                 SiftSkeletonRow(isFirst: index == 0)
                 SiftHairline(inset: SiftMetrics.spacingM)
             }
-        } else if hiddenItemCount > 0 {
-            HStack(spacing: SiftMetrics.spacingM) {
-                Text(hiddenSummary)
-                    .font(SiftFont.caption)
-                    .foregroundStyle(SiftColor.secondaryText)
-                Spacer()
-                Button {
-                    Task { await showAllRows() }
-                } label: {
-                    Text(
-                        (showsAllRows && hasMore
-                            ? LocalizationKey.commonLoadMore
-                            : LocalizationKey.overviewShowAll).localized
-                    )
-                    .font(SiftFont.caption)
-                }
-                .buttonStyle(SiftLinkButtonStyle())
-            }
-            .padding(.vertical, SiftMetrics.spacingM)
         } else if hasMore {
             Button {
                 Task { await loadMore() }
@@ -860,6 +827,40 @@ public struct ScanView: View {
         }
     }
 
+    /// What an open group is holding back, directly under its own rows.
+    ///
+    /// It belongs to the group it describes: the footer used to sit once at the
+    /// bottom of the whole list, so "33 smaller items" appeared under the review
+    /// group it was not counting.
+    @ViewBuilder
+    private func groupFooter(_ risk: CleanupRisk, group: [CleanupItemSummary]) -> some View {
+        let shown = visible(group).count
+        if isExpanded(risk), !showsAllRows, shown < group.count {
+            HStack(spacing: SiftMetrics.spacingM) {
+                Text(
+                    LocalizationKey.overviewMoreItems.localized(
+                        group.count - shown,
+                        SiftFormat.bytes(
+                            group.dropFirst(shown).reduce(Int64(0)) { $0 + $1.sizeInBytes }
+                        )
+                    )
+                )
+                .font(SiftFont.caption)
+                .foregroundStyle(SiftColor.quietText)
+                Spacer(minLength: SiftMetrics.spacingS)
+                Button {
+                    Task { await showAllRows() }
+                } label: {
+                    Text(LocalizationKey.overviewShowAll.localized)
+                        .font(SiftFont.caption)
+                }
+                .buttonStyle(SiftLinkButtonStyle())
+            }
+            .padding(.leading, 14 + SiftMetrics.spacingS)
+            .padding(.vertical, SiftMetrics.spacingS)
+        }
+    }
+
     /// Whether a group's rows are on screen.
     ///
     /// The default comes from the risk level — `review` opens closed — and a
@@ -877,23 +878,35 @@ public struct ScanView: View {
         groupExpansion[risk] = !isExpanded(risk)
     }
 
-    /// The review group's header: a disclosure, not a decoration.
+    /// The heading every risk group wears.
     ///
-    /// The group starts closed because its rows are the ones that need a
-    /// decision each, and a list that opens with them expanded puts the one
-    /// group the user has to read next to the one that is already selected. The
-    /// header still reports the count and the bytes, so a closed group is a
-    /// summary rather than a hidden one — and the hint says why it is closed.
+    /// There used to be three: an inert heading for `safe`, a button with its own
+    /// type ramp for `review`, and a third for `protected`. They read as three
+    /// different kinds of object on one page, which is most of what made the
+    /// result area look assembled rather than designed. One heading now carries
+    /// all three: the risk's own glyph, its name, how many rows it holds and what
+    /// they weigh, then one optional action and the disclosure.
+    ///
+    /// The glyph is the group's rank signal — a filled tick for `safe`, a warning
+    /// triangle for `review`, a lock for `protected` — and it is also what lets a
+    /// row stop carrying a badge: a row's risk is its group's.
     @ViewBuilder
-    private func reviewHeader(_ group: [CleanupItemSummary]) -> some View {
-        let expanded = isExpanded(.review)
-        Button {
-            toggleExpansion(.review)
-        } label: {
-            HStack(spacing: SiftMetrics.spacingS) {
-                VStack(alignment: .leading, spacing: 2) {
+    private func riskHeader(_ risk: CleanupRisk, group: [CleanupItemSummary]) -> some View {
+        let expanded = isExpanded(risk)
+        VStack(alignment: .leading, spacing: 0) {
+            // The disclosure and the group's action are two controls beside each
+            // other rather than one nested inside the other: a link drawn inside
+            // a button's label is a target that looks clickable and is not.
+            HStack(spacing: SiftMetrics.spacingM) {
+                Button {
+                    toggleExpansion(risk)
+                } label: {
                     HStack(spacing: SiftMetrics.spacingS) {
-                        Text(LocalizationKey.scanResultsReviewGroup.localized)
+                        Image(systemName: risk.groupSymbolName)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(SiftColor.textColor(for: risk.level))
+                            .frame(width: 14)
+                        Text(risk.groupTitleKey.localized)
                             .font(SiftFont.secondaryHeading)
                             .foregroundStyle(SiftColor.mainText)
                         Text(LocalizationKey.commonItemCount.counted(group.count))
@@ -903,70 +916,93 @@ public struct ScanView: View {
                             .font(SiftFont.caption)
                             .monospacedDigit()
                             .foregroundStyle(SiftColor.secondaryText)
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(SiftColor.quietText)
+                            .rotationEffect(.degrees(expanded ? 0 : -90))
+                            .padding(.leading, 2)
                     }
-                    Text(LocalizationKey.scanResultsReviewHint.localized)
-                        .font(SiftFont.caption)
-                        .foregroundStyle(SiftColor.quietText)
+                    .contentShape(Rectangle())
                 }
-                Spacer(minLength: SiftMetrics.spacingS)
-                Image(systemName: expanded ? "chevron.up" : "chevron.down")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(SiftColor.quietText)
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .padding(.vertical, SiftMetrics.spacingM)
-        .accessibilityLabel(
-            Text(LocalizationKey.scanResultsReviewGroup.localized)
-        )
-        .accessibilityValue(
-            Text(LocalizationKey.commonItemCount.counted(group.count))
-        )
-        .accessibilityHint(Text(LocalizationKey.scanResultsReviewHint.localized))
-        .confirmationDialog(
-            LocalizationKey.scanSelectAllShown.localized(pendingSelectAll.count),
-            isPresented: Binding(
-                get: { !pendingSelectAll.isEmpty },
-                set: { presented in if !presented { pendingSelectAll = [] } }
-            ),
-            titleVisibility: .visible
-        ) {
-            Button(LocalizationKey.scanSelectAll.localized) {
-                // Only what the page is showing: a row the list has not revealed
-                // yet is not something the user agreed to by opening a group.
-                cleanup.selectAll(in: pendingSelectAll.filter { $0.risk.isCleanable }.map { $0.asCleanupItem() })
-                pendingSelectAll = []
-            }
-            Button(LocalizationKey.cleanupConfirmCancel.localized, role: .cancel) {
-                pendingSelectAll = []
-            }
-        } message: {
-            Text(LocalizationKey.cleanupConfirmRiskWarning.localized)
-        }
-    }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text(risk.groupTitleKey.localized))
+                .accessibilityValue(
+                    Text(
+                        "\(LocalizationKey.commonItemCount.counted(group.count)), "
+                            + SiftFormat.bytes(group.reduce(0) { $0 + $1.sizeInBytes })
+                    )
+                )
+                .accessibilityHint(Text(risk.detailKey.localized))
 
-    /// A group heading: the risk's own word, its count, and what the group means.
-    ///
-    /// No colour dot. The dot was decoration in a table that already carries a
-    /// word and a glyph per row, and it read as a legend for a code the page does
-    /// not use.
-    private func groupHeader(_ title: String, count: Int, detail: String) -> some View {
-        HStack(spacing: SiftMetrics.spacingS) {
-            Text(title)
-                .font(SiftFont.secondaryHeading)
-                .foregroundStyle(SiftColor.mainText)
-            Text(LocalizationKey.commonItemCount.counted(count))
-                .font(SiftFont.caption)
-                .foregroundStyle(SiftColor.secondaryText)
-            Spacer(minLength: SiftMetrics.spacingS)
-            Text(detail)
-                .font(SiftFont.caption)
-                .foregroundStyle(SiftColor.quietText)
-                .lineLimit(1)
+                Spacer(minLength: SiftMetrics.spacingS)
+
+                // Only the review group offers this from its heading: the safe
+                // group is already fully selected, and the protected group cannot
+                // be selected at all.
+                if risk == .review, expanded {
+                    reviewSelectAll(for: group)
+                }
+            }
+
+            // The review group states its rule once, for the whole group. The
+            // rows used to carry it individually, which put the same sentence on
+            // 114 rows and turned the one thing worth reading into texture.
+            if risk == .review, expanded {
+                Text(LocalizationKey.scanResultsReviewHint.localized)
+                    .font(SiftFont.caption)
+                    .foregroundStyle(SiftColor.quietText)
+                    .padding(.leading, 14 + SiftMetrics.spacingS)
+                    .padding(.top, 2)
+                    .accessibilityHidden(true)
+            }
         }
         .padding(.top, SiftMetrics.spacingL)
         .padding(.bottom, SiftMetrics.spacingS)
+        .background {
+            // The select-all confirmation belongs to the heading that offers it,
+            // so it lives here rather than on a header built for one risk.
+            Color.clear
+                .confirmationDialog(
+                    LocalizationKey.scanSelectAllShown.localized(pendingSelectAll.count),
+                    isPresented: Binding(
+                        get: { !pendingSelectAll.isEmpty },
+                        set: { presented in if !presented { pendingSelectAll = [] } }
+                    ),
+                    titleVisibility: .visible
+                ) {
+                    Button(LocalizationKey.scanSelectAll.localized) {
+                        // Only what the page is showing: a row the list has not
+                        // revealed yet is not something the user agreed to by
+                        // opening a group.
+                        cleanup.selectAll(
+                            in: pendingSelectAll
+                                .filter { $0.risk.isCleanable }
+                                .map { $0.asCleanupItem() }
+                        )
+                        pendingSelectAll = []
+                    }
+                    Button(LocalizationKey.cleanupConfirmCancel.localized, role: .cancel) {
+                        pendingSelectAll = []
+                    }
+                } message: {
+                    Text(LocalizationKey.cleanupConfirmRiskWarning.localized)
+                }
+        }
+    }
+
+    /// The review heading's select-all, as a button.
+    ///
+    /// It is a link inside the heading, so the heading's own click target keeps
+    /// toggling the disclosure; this is the one nested control and it exists
+    /// because selecting 114 rows one at a time is not a real option.
+    private func reviewSelectAll(for group: [CleanupItemSummary]) -> some View {
+        Button {
+            pendingSelectAll = visible(group)
+        } label: {
+            Text(LocalizationKey.scanSelectAllShown.localized(visible(group).count))
+                .font(SiftFont.caption)
+        }
+        .buttonStyle(SiftLinkButtonStyle())
     }
 
     private var sortMenu: some View {
@@ -1006,187 +1042,111 @@ public struct ScanView: View {
     ///
     /// "N smaller items" is a claim about the sort: under name or modification
     /// date the rows behind the fold are not smaller, they are simply not shown.
-    private var hiddenSummary: String {
+    /// Two figures are two pieces of text with space between them rather than one
+    /// string joined by a separator glyph.
+    @ViewBuilder
+    private var hiddenSummary: some View {
         let count = LocalizationKey.commonItemCount.counted(hiddenItemCount)
         let bytes = SiftFormat.bytes(hiddenBytes)
-        guard sort == .size else {
-            return "\(count) · \(bytes)"
+        if sort == .size {
+            Text(LocalizationKey.overviewMoreItems.localized(hiddenItemCount, bytes))
+                .font(SiftFont.caption)
+                .foregroundStyle(SiftColor.secondaryText)
+        } else {
+            HStack(spacing: SiftMetrics.spacingS) {
+                Text(count)
+                    .font(SiftFont.caption)
+                    .foregroundStyle(SiftColor.secondaryText)
+                Text(bytes)
+                    .font(SiftFont.caption)
+                    .monospacedDigit()
+                    .foregroundStyle(SiftColor.secondaryText)
+            }
+            .accessibilityElement(children: .combine)
         }
-        return LocalizationKey.overviewMoreItems.localized(hiddenItemCount, bytes)
     }
 
-    private var resultSummary: String {
-        if filter == .duplicates {
-            return "\(SiftFormat.bytes(scan.duplicateReclaimableBytes)), \(LocalizationKey.commonItemCount.counted(scan.duplicateGroupsTotal))"
-        }
-        let totals = scan.categoryTotals.limited(to: filter.categories)
-        let bytes = totals.reduce(Int64(0)) { $0 + $1.totalBytes }
-        let count = filter == .all
-            ? (scan.report?.itemCount ?? 0)
-            : totals.reduce(0) { $0 + $1.itemCount }
-        let shown = items.count
-        let summary = "\(SiftFormat.bytes(bytes)), \(LocalizationKey.commonItemCount.counted(count))"
-        guard shown > 0, shown < count else { return summary }
-        return summary + " · " + LocalizationKey.commonOf.localized(
-            SiftFormat.count(shown),
-            SiftFormat.count(count)
-        )
-    }
-
-    // MARK: - Selection summary
-
-    /// The selection summary, in the order the specification reads it: bytes,
-    /// count, then the counts by risk, then the rows that are selected and not
-    /// on screen, then the one sentence about the Trash, then the action.
+    /// The narrow filter's own summary: bytes and count, side by side.
     ///
-    /// Plain sections and hairlines throughout; the only filled surface is the
-    /// action block at the bottom, so the summary is visibly quieter than the
-    /// list it describes (02 §9).
-    private var selectionColumn: some View {
-        VStack(alignment: .leading, spacing: SiftMetrics.spacingL) {
-            // The facts scroll, the action does not. A column whose primary
-            // button falls below the fold on a short window hides the only
-            // control it exists for, and the facts above it are the part that
-            // can afford to scroll.
-            ScrollView {
-                VStack(alignment: .leading, spacing: SiftMetrics.spacingM) {
-                    // Sentence case, no tracking: `01` retires all-caps
-                    // eyebrow labels, which a long translation turns into a
-                    // wall of capitals beside the 42 pt number.
-                    Text(LocalizationKey.scanResultsCleanTitle.localized)
-                        .font(SiftFont.eyebrow)
-                        .foregroundStyle(SiftColor.quietText)
+    /// The "showing x of y" tail is gone with the separator: the list states how
+    /// many rows it is holding back in the row that offers to reveal them, so the
+    /// heading does not need to repeat it in a second spelling.
+    @ViewBuilder
+    private var resultSummary: some View {
+        let totals = scan.categoryTotals.limited(to: filter.categories)
+        let bytes = SiftFormat.bytes(
+            filter == .duplicates
+                ? scan.duplicateReclaimableBytes
+                : totals.reduce(Int64(0)) { $0 + $1.totalBytes }
+        )
+        let count = filter == .duplicates
+            ? scan.duplicateGroupsTotal
+            : (filter == .all ? (scan.report?.itemCount ?? 0) : totals.reduce(0) { $0 + $1.itemCount })
+        HStack(spacing: SiftMetrics.spacingS) {
+            Text(bytes)
+                .font(SiftFont.caption)
+                .monospacedDigit()
+                .foregroundStyle(SiftColor.secondaryText)
+            Text(LocalizationKey.commonItemCount.counted(count))
+                .font(SiftFont.caption)
+                .foregroundStyle(SiftColor.secondaryText)
+        }
+        .lineLimit(1)
+        .accessibilityElement(children: .combine)
+    }
 
+    // MARK: - Action bar
+
+    /// The one place the page states what is selected and offers to move it.
+    ///
+    /// It spans the page under the list rather than sitting in a 272 pt column
+    /// beside it: the same facts in a bar cost the list no width, and a summary
+    /// that sits below the rows it describes reads as their footer rather than as
+    /// a peer (`02 §2`, `02 §9`).
+    ///
+    /// Four things, in the order a user asks for them: how much the selection
+    /// would free, what is in it, where it goes, and the control that sends it
+    /// there. Protected rows are not here — they are not selectable, so they are
+    /// not part of this sentence; the protected group's own heading states them.
+    private var actionBar: some View {
+        VStack(spacing: 0) {
+            SiftHairline()
+            if let actionNotice {
+                NoticeBanner(level: actionNotice.level, message: actionNotice.text)
+                    .padding(.horizontal, SiftMetrics.pagePadding)
+                    .padding(.top, SiftMetrics.spacingM)
+            }
+            HStack(alignment: .center, spacing: SiftMetrics.spacingL) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text(cleanup.formattedSelectedBytes)
-                        .font(SiftFont.metricPrimary)
+                        .font(SiftFont.pageTitle)
                         .monospacedDigit()
-                        .foregroundStyle(SiftColor.mainText)
+                        .foregroundStyle(cleanup.selectedCount == 0
+                            ? SiftColor.quietText
+                            : SiftColor.mainText)
                         .contentTransition(.numericText())
                         .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-
                     Text(selectionCountLine)
                         .font(SiftFont.caption)
                         .foregroundStyle(SiftColor.secondaryText)
-                        .fixedSize(horizontal: false, vertical: true)
+                        .lineLimit(1)
+                }
+                .accessibilityElement(children: .combine)
 
-                    riskBreakdown
-
-                    hiddenSelectionNote
-
-                    if let actionNotice {
-                        NoticeBanner(level: actionNotice.level, message: actionNotice.text)
-                    }
-
-                    if !cleanup.selectedByCategory.isEmpty {
-                        Text(
-                            LocalizationKey.scanResultsCategoryTotals.localized(
-                                cleanup.selectedByCategory
-                                    .map { "\($0.category.titleKey.localized) \($0.formattedSize)" }
-                                    .joined(separator: ", ")
-                            )
-                        )
-                        .font(SiftFont.caption)
-                        .foregroundStyle(SiftColor.quietText)
-                        .lineLimit(3)
-                        .fixedSize(horizontal: false, vertical: true)
-                    }
-
-                    SiftHairline()
-                        .padding(.vertical, SiftMetrics.spacingXS)
-
+                // The split and the Trash sentence are one line of supporting
+                // copy each. A selection made of nothing but `safe` rows is the
+                // state the page already put the user in, so the split only
+                // appears when a review row is in it.
+                VStack(alignment: .leading, spacing: 2) {
+                    riskSummaryLine
                     summaryHint(
                         symbolName: "arrow.uturn.backward.circle",
                         text: LocalizationKey.scanResultsTrashHint.localized
                     )
-                    summaryHint(
-                        symbolName: "lock.shield",
-                        text: LocalizationKey.scanResultsProtectedHint.localized
-                    )
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.bottom, SiftMetrics.spacingS)
-            }
+                .frame(maxWidth: 460, alignment: .leading)
 
-            actionBlock
-        }
-        .frame(maxHeight: .infinity, alignment: .top)
-    }
-
-    /// The one filled surface in the summary: what is about to move, and the
-    /// control that moves it. Count and size sit beside the button rather than
-    /// inside its label, which in German and Russian ran the label past the
-    /// button.
-    private var actionBlock: some View {
-        SiftSection(style: .subtle, padding: SiftMetrics.spacingL) {
-            VStack(alignment: .leading, spacing: SiftMetrics.spacingM) {
-                // The count and bytes are already the two lines at the top of
-                // this column. Repeating them here made the same number appear
-                // twice inside one panel.
-                HStack(spacing: SiftMetrics.spacingM) {
-                    Button {
-                        pendingSelectAll = displayedCleanableRows
-                    } label: {
-                        Text(LocalizationKey.scanSelectAll.localized)
-                            .font(SiftFont.caption)
-                    }
-                    .buttonStyle(SiftLinkButtonStyle())
-                    .keyboardShortcut("a", modifiers: .command)
-
-                    Button {
-                        cleanup.deselectAll()
-                    } label: {
-                        Text(LocalizationKey.scanDeselectAll.localized)
-                            .font(SiftFont.caption)
-                    }
-                    .buttonStyle(SiftLinkButtonStyle())
-                    .keyboardShortcut("a", modifiers: [.command, .shift])
-                    Spacer(minLength: 0)
-                }
-
-                SiftPrimaryButton(
-                    title: LocalizationKey.cleanupConfirmMoveAction.localized,
-                    symbolName: "trash",
-                    isEnabled: cleanup.selectedCount > 0 && !cleanup.isWorking
-                ) {
-                    Task { await beginCleanup() }
-                }
-                .accessibilityIdentifier("scan.clean")
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                // A disabled control that does not say why reads as a broken
-                // page. "0 selected" is the answer, and it never disappears.
-                Text(LocalizationKey.scanResultsReportHint.localized)
-                    .font(SiftFont.caption)
-                    .foregroundStyle(SiftColor.quietText)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-
-    /// The selection state as one line above the list on a narrow window.
-    ///
-    /// Everything here is also in the inspector column on wider layouts;
-    /// nothing about selection is decided here. It is the same controls
-    /// collapsed into the single row the narrow width can afford, so the
-    /// list no longer has a summary bar inserted between its rows.
-    private var selectionStrip: some View {
-        VStack(spacing: 0) {
-            SiftHairline()
-            HStack(alignment: .firstTextBaseline, spacing: SiftMetrics.spacingM) {
-                Text(cleanup.formattedSelectedBytes)
-                    .font(SiftFont.sectionHeading)
-                    .monospacedDigit()
-                    .foregroundStyle(SiftColor.mainText)
-                    .contentTransition(.numericText())
-                    .lineLimit(1)
-
-                Text(LocalizationKey.commonItemCount.counted(cleanup.selectedCount))
-                    .font(SiftFont.caption)
-                    .foregroundStyle(SiftColor.secondaryText)
-                    .lineLimit(1)
-
-                Spacer(minLength: SiftMetrics.spacingS)
+                Spacer(minLength: SiftMetrics.spacingM)
 
                 Button {
                     pendingSelectAll = displayedCleanableRows
@@ -1195,6 +1155,7 @@ public struct ScanView: View {
                         .font(SiftFont.caption)
                 }
                 .buttonStyle(SiftLinkButtonStyle())
+                .keyboardShortcut("a", modifiers: .command)
 
                 Button {
                     cleanup.deselectAll()
@@ -1203,6 +1164,7 @@ public struct ScanView: View {
                         .font(SiftFont.caption)
                 }
                 .buttonStyle(SiftLinkButtonStyle())
+                .keyboardShortcut("a", modifiers: [.command, .shift])
 
                 SiftPrimaryButton(
                     title: LocalizationKey.cleanupConfirmMoveAction.localized,
@@ -1212,146 +1174,74 @@ public struct ScanView: View {
                     Task { await beginCleanup() }
                 }
                 .accessibilityIdentifier("scan.clean")
-            }
-            .padding(.horizontal, SiftMetrics.pagePadding)
-            .padding(.vertical, SiftMetrics.spacingS)
-        }
-        .background(SiftColor.surfaceColor)
-    }
-
-    /// The bottom summary/action bar, used where the width cannot hold a column.
-    ///
-    /// Same facts as the column, one line each: it is the same model, not a
-    /// reduced one. Nothing about selection is decided here that the column would
-    /// have decided differently.
-    private var bottomBar: some View {
-        VStack(spacing: 0) {
-            SiftHairline()
-            if let actionNotice {
-                NoticeBanner(level: actionNotice.level, message: actionNotice.text)
-                    .padding(.horizontal, SiftMetrics.pagePadding)
-                    .padding(.top, SiftMetrics.spacingM)
-            }
-            VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
-                HStack(alignment: .firstTextBaseline, spacing: SiftMetrics.spacingL) {
-                    Text(cleanup.formattedSelectedBytes)
-                        .font(SiftFont.pageTitle)
-                        .monospacedDigit()
-                        .foregroundStyle(SiftColor.mainText)
-                        .contentTransition(.numericText())
-                        .lineLimit(1)
-
-                    Text(selectionCountLine)
-                        .font(SiftFont.caption)
-                        .foregroundStyle(SiftColor.secondaryText)
-                        .lineLimit(1)
-
-                    compactRiskLine
-
-                    Spacer(minLength: SiftMetrics.spacingM)
-
-                    SiftPrimaryButton(
-                        title: LocalizationKey.cleanupConfirmMoveAction.localized,
-                        symbolName: "trash",
-                        isEnabled: cleanup.selectedCount > 0 && !cleanup.isWorking
-                    ) {
-                        Task { await beginCleanup() }
-                    }
-                    .accessibilityIdentifier("scan.clean")
-                }
-
-                HStack(alignment: .top, spacing: SiftMetrics.spacingL) {
-                    if hiddenSelectedCount > 0 {
-                        Text(LocalizationKey.scanHiddenSelected.localized(hiddenSelectedCount))
-                            .font(SiftFont.caption)
-                            .foregroundStyle(SiftColor.reviewTextColor)
-                            .lineLimit(1)
-                    }
-                    summaryHint(
-                        symbolName: "arrow.uturn.backward.circle",
-                        text: LocalizationKey.scanResultsTrashHint.localized
-                    )
-                    .frame(maxWidth: 340, alignment: .leading)
-                    Spacer(minLength: 0)
-                }
+                .fixedSize()
             }
             .padding(.horizontal, SiftMetrics.pagePadding)
             .padding(.vertical, SiftMetrics.spacingM)
+
+            // `02 §5`: a control that is disabled has to say why.
+            if cleanup.selectedCount == 0 {
+                HStack(spacing: 0) {
+                    Text(LocalizationKey.scanResultsReportHint.localized)
+                        .font(SiftFont.caption)
+                        .foregroundStyle(SiftColor.quietText)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, SiftMetrics.pagePadding)
+                .padding(.bottom, SiftMetrics.spacingM)
+            }
         }
         .background(SiftColor.surfaceColor)
     }
 
-    /// The risk split in one line, for the bar that has no room for a column.
-    ///
-    /// The bar is the column's understudy, not a lesser page: a user on a narrow
-    /// window still has to see how many of the selected rows need their own
-    /// confirmation, and how many rows are protected and therefore not in the
-    /// count at all.
-    private var compactRiskLine: some View {
-        HStack(spacing: SiftMetrics.spacingM) {
-            ForEach([CleanupRisk.safe, .review], id: \.self) { risk in
-                HStack(spacing: SiftMetrics.spacingXS) {
-                    Text(risk.level.labelKey.localized)
-                        .font(SiftFont.metadata)
-                        .foregroundStyle(SiftColor.textColor(for: risk.level))
-                    Text(SiftFormat.count(selectedCount(for: risk)))
-                        .font(SiftFont.metadata)
-                        .monospacedDigit()
-                        .foregroundStyle(SiftColor.secondaryText)
-                }
-                .accessibilityElement(children: .combine)
-            }
-
-            if protectedRowCount > 0 {
-                HStack(spacing: SiftMetrics.spacingXS) {
-                    Text(RiskLevel.protected.labelKey.localized)
-                        .font(SiftFont.metadata)
-                        .foregroundStyle(SiftColor.textColor(for: .protected))
-                    Text(SiftFormat.count(protectedRowCount))
-                        .font(SiftFont.metadata)
-                        .monospacedDigit()
-                        .foregroundStyle(SiftColor.secondaryText)
-                }
-                .accessibilityElement(children: .combine)
-            }
-        }
-    }
-
+    /// The selection's count, in the form the language's plural rules ask for.
     private var selectionCountLine: String {
-        "\(LocalizationKey.commonItemCount.counted(cleanup.selectedCount)) · \(LocalizationKey.cleanupConfirmMethodValue.localized)"
+        LocalizationKey.commonItemCount.counted(cleanup.selectedCount)
     }
 
-    /// The selection split by risk.
+    /// The review rows in the selection, and the selected rows the list is not
+    /// showing, on one line.
     ///
-    /// A user who is about to move four hundred items has to be able to see how
-    /// many of them need their own confirmation. The rows are the risk levels'
-    /// own words and badges, never a colour alone, and `protected` is stated
-    /// apart from the selection because it is never part of it.
-    private var riskBreakdown: some View {
-        VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
-            riskRow(.safe, count: selectedCount(for: .safe))
-            riskRow(.review, count: selectedCount(for: .review))
-            if protectedRowCount > 0 {
-                HStack(spacing: SiftMetrics.spacingS) {
-                    RiskBadge(risk: .protected)
-                    Spacer(minLength: SiftMetrics.spacingS)
-                    Text(LocalizationKey.commonItemCount.counted(protectedRowCount))
-                        .font(SiftFont.caption)
-                        .foregroundStyle(SiftColor.secondaryText)
+    /// The safe count is deliberately absent: every cleanable row starts
+    /// selected, so "Safe 37" beside "37 items" says nothing the line above it
+    /// has not already said. The review count is the number that decides whether
+    /// the batch is worth a second look.
+    @ViewBuilder
+    private var riskSummaryLine: some View {
+        let review = selectedCount(for: .review)
+        if review > 0 || hiddenSelectedCount > 0 {
+            HStack(spacing: SiftMetrics.spacingS) {
+                if review > 0 {
+                    riskSegment(.review, count: review)
                 }
-                .accessibilityElement(children: .combine)
+                if hiddenSelectedCount > 0 {
+                    Button {
+                        Task { await showAllRows() }
+                    } label: {
+                        Text(LocalizationKey.scanHiddenSelected.localized(hiddenSelectedCount))
+                            .font(SiftFont.metadata)
+                    }
+                    .buttonStyle(SiftLinkButtonStyle())
+                    .disabled(hiddenItemCount == 0)
+                }
+                Spacer(minLength: 0)
             }
+            .lineLimit(1)
+            .accessibilityElement(children: .combine)
         }
     }
 
-    private func riskRow(_ level: RiskLevel, count: Int) -> some View {
-        HStack(spacing: SiftMetrics.spacingS) {
-            RiskBadge(risk: level)
-            Spacer(minLength: SiftMetrics.spacingS)
-            Text(LocalizationKey.commonItemCount.counted(count))
-                .font(SiftFont.caption)
-                .foregroundStyle(SiftColor.secondaryText)
+    /// One `<risk> <count>` pair, the risk word carrying its own colour.
+    private func riskSegment(_ level: RiskLevel, count: Int) -> some View {
+        HStack(spacing: SiftMetrics.spacingXS) {
+            Text(level.labelKey.localized)
+                .font(SiftFont.metadata)
+                .foregroundStyle(SiftColor.textColor(for: level))
+            Text(SiftFormat.count(count))
+                .font(SiftFont.metadata)
                 .monospacedDigit()
+                .foregroundStyle(SiftColor.secondaryText)
         }
         .accessibilityElement(children: .combine)
     }
@@ -1370,30 +1260,8 @@ public struct ScanView: View {
     ///
     /// The list renders four rows per open group and pre-selects the whole safe
     /// group, so a button that says "400 items" over eight visible rows is asking
-    /// the user to approve rows they have never seen. The summary states the
-    /// number, and reveals the collapsed ones when they are merely collapsed.
-    @ViewBuilder
-    private var hiddenSelectionNote: some View {
-        if hiddenSelectedCount > 0 {
-            HStack(spacing: SiftMetrics.spacingS) {
-                Text(LocalizationKey.scanHiddenSelected.localized(hiddenSelectedCount))
-                    .font(SiftFont.caption)
-                    .foregroundStyle(SiftColor.reviewTextColor)
-                    .fixedSize(horizontal: false, vertical: true)
-                if hiddenItemCount > 0 {
-                    Button {
-                        Task { await showAllRows() }
-                    } label: {
-                        Text(LocalizationKey.overviewShowAll.localized)
-                            .font(SiftFont.caption)
-                    }
-                    .buttonStyle(SiftLinkButtonStyle())
-                }
-                Spacer(minLength: 0)
-            }
-        }
-    }
-
+    /// the user to approve rows they have never seen. `hiddenSelectedCount` is
+    /// what the action bar states, and this is the predicate it asks.
     private func summaryHint(symbolName: String, text: String) -> some View {
         HStack(alignment: .top, spacing: SiftMetrics.spacingS) {
             Image(systemName: symbolName)
@@ -1656,42 +1524,6 @@ public struct ScanView: View {
     }
 }
 
-// MARK: - Work-area width
-
-/// Where the selection summary goes, decided from the width it was given.
-///
-/// The shell's sidebar takes a share of the window before the page draws
-/// anything, so a decision taken from the window width would put a 272 pt column
-/// into a 770 pt content area. The thresholds are the point at which the list
-/// stops being able to hold a name, a path, a size and a risk word:
-///
-///  * 1000 pt and up — list plus a `summaryColumnWidth` (272 pt) column;
-///  * 860–1000 pt — list plus a `summaryColumnMinWidth` (240 pt) column;
-///  * below 860 pt — the summary becomes a bar under the list, full width.
-enum ScanWorkspaceLayout: Equatable {
-    case inspectorColumn(CGFloat)
-    case bottomBar
-
-    static let wideBreakpoint: CGFloat = 1000
-    static let narrowBreakpoint: CGFloat = 860
-
-    static func resolve(availableWidth: CGFloat) -> ScanWorkspaceLayout {
-        if availableWidth >= wideBreakpoint {
-            return .inspectorColumn(SiftMetrics.summaryColumnWidth)
-        }
-        if availableWidth >= narrowBreakpoint {
-            return .inspectorColumn(SiftMetrics.summaryColumnMinWidth)
-        }
-        return .bottomBar
-    }
-
-    /// The column's width, or nil when the summary is a bar.
-    var columnWidth: CGFloat? {
-        if case let .inspectorColumn(width) = self { return width }
-        return nil
-    }
-}
-
 // MARK: - Filter
 
 /// What the result list is showing. The scan itself is the same for every value.
@@ -1789,21 +1621,10 @@ struct ScanItemRow: View {
 
     var body: some View {
         let domainItem = item.asCleanupItem()
-        let selected = cleanup.isSelected(domainItem)
 
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: SiftMetrics.spacingM) {
-                SiftCheckbox(
-                    isOn: Binding(
-                        get: { cleanup.isSelected(domainItem) },
-                        set: { cleanup.setSelected($0, for: domainItem) }
-                    ),
-                    isEnabled: item.risk.isCleanable
-                )
-                .focused(focus, equals: item.stableRowID)
-                .onMoveCommand { direction in onMove(direction, item.stableRowID) }
-                .accessibilityLabel(Text(item.displayName))
-                .accessibilityHint(Text(item.risk.detailKey.localized))
+                leadingControl(domainItem)
 
                 // The body of the row. Name and path belong together and are
                 // one spoken element: the detail block below repeats them, and
@@ -1814,10 +1635,10 @@ struct ScanItemRow: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(item.displayName)
                             .font(SiftFont.secondaryHeading)
-                            .foregroundStyle(SiftColor.mainText)
+                            .foregroundStyle(item.risk.isCleanable ? SiftColor.mainText : SiftColor.secondaryText)
                             .lineLimit(1)
                             .truncationMode(.middle)
-                        Text(itemDetail)
+                        Text(item.displayPath)
                             .font(SiftFont.supporting)
                             .foregroundStyle(SiftColor.secondaryText)
                             .lineLimit(1)
@@ -1836,6 +1657,12 @@ struct ScanItemRow: View {
 
                 Spacer(minLength: SiftMetrics.spacingS)
 
+                // The row's three right-hand slots used to be a size, a chevron,
+                // a Finder button and a risk badge — on every row. The badge is
+                // the group's job (a group is one risk), the chevron duplicated
+                // the row body's own click, and the Finder button is an
+                // occasional action that keeps its place without holding a
+                // permanent glyph in the scan path.
                 Text(item.formattedSize)
                     .font(SiftFont.monospacedEmphasis)
                     .foregroundStyle(SiftColor.mainText)
@@ -1844,13 +1671,9 @@ struct ScanItemRow: View {
                     .frame(minWidth: 72, alignment: .trailing)
                     .accessibilityHidden(true)
 
-                disclosureButton
                 revealButton
-
-                // The word and the glyph, never the colour alone. Plain style:
-                // in a group that is already "needs confirmation", a coloured
-                // capsule on every row is noise, not information.
-                RiskBadge(risk: item.risk.level, style: .plain)
+                    .opacity(isHovering || showsDetail ? 1 : 0)
+                    .animation(reduceMotion ? nil : SiftMotion.hover, value: isHovering)
             }
 
             if showsDetail {
@@ -1860,11 +1683,10 @@ struct ScanItemRow: View {
         .padding(.horizontal, SiftMetrics.spacingM)
         .padding(.vertical, SiftMetrics.spacingXS)
         .frame(minHeight: SiftMetrics.rowHeightTwoLine)
-        .background(rowBackground(selected: selected))
+        .background(isHovering ? SiftColor.rowHoverFill : Color.clear)
         .contentShape(Rectangle())
         .onHover { isHovering = $0 }
         .animation(reduceMotion ? nil : SiftMotion.hover, value: isHovering)
-        .animation(reduceMotion ? nil : SiftMotion.quick, value: selected)
         // The same two actions the row offers as buttons, on every row of every
         // group: a path the user can inspect is the cheapest way to judge a row
         // the page cannot judge for them.
@@ -1891,27 +1713,34 @@ struct ScanItemRow: View {
         }
     }
 
-    /// The selected wash is the state; the hover wash is the affordance. Neither
-    /// is a border, because a bordered row reads as a card and the list is not a
-    /// stack of cards.
-    private func rowBackground(selected: Bool) -> Color {
-        if selected { return SiftColor.selectedWash }
-        return isHovering ? SiftColor.rowHoverFill : .clear
-    }
-
-    private var disclosureButton: some View {
-        Button {
-            showsDetail.toggle()
-        } label: {
-            Image(systemName: showsDetail ? "chevron.up" : "chevron.down")
-                .font(.system(size: 10, weight: .semibold))
+    /// The row's leading slot: the checkbox, or the lock that says why there is
+    /// no checkbox.
+    ///
+    /// A protected row used to carry a greyed-out checkbox and a "Protected"
+    /// badge on the right, so the same fact was drawn twice and the second copy
+    /// sat where a reader looks for the item's size. The shape of the control is
+    /// the statement now.
+    @ViewBuilder
+    private func leadingControl(_ domainItem: CleanupItem) -> some View {
+        if item.risk.isCleanable {
+            SiftCheckbox(
+                isOn: Binding(
+                    get: { cleanup.isSelected(domainItem) },
+                    set: { cleanup.setSelected($0, for: domainItem) }
+                ),
+                isEnabled: true
+            )
+            .focused(focus, equals: item.stableRowID)
+            .onMoveCommand { direction in onMove(direction, item.stableRowID) }
+            .accessibilityLabel(Text(item.displayName))
+            .accessibilityHint(Text(item.risk.detailKey.localized))
+        } else {
+            Image(systemName: "lock")
+                .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(SiftColor.quietText)
-                .frame(width: 28, height: SiftMetrics.minimumHitTarget)
-                .contentShape(Rectangle())
+                .frame(width: 18, height: 18)
+                .accessibilityLabel(Text(item.risk.detailKey.localized))
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(Text(LocalizationKey.cleanupResultDetails.localized))
-        .accessibilityAddTraits(showsDetail ? [.isSelected] : [])
     }
 
     private var revealButton: some View {
@@ -1969,10 +1798,6 @@ struct ScanItemRow: View {
         .padding(.bottom, SiftMetrics.spacingS)
         .padding(.leading, 44 + SiftMetrics.spacingM)
         .accessibilityElement(children: .combine)
-    }
-
-    private var itemDetail: String {
-        "\(item.displayPath), \(item.category.titleKey.localized)"
     }
 }
 
@@ -2068,13 +1893,12 @@ struct ScanRunningCard: View {
                                         .fill(SiftColor.controlFill)
                                 )
                         }
-                        HStack(spacing: SiftMetrics.spacingS) {
+                        HStack(spacing: SiftMetrics.spacingM) {
                             Text(
                                 LocalizationKey.scanRunningWalked.localized(
                                     SiftFormat.count(scan.progress.filesSeen)
                                 )
                             )
-                            Text("·")
                             // The found figure is the candidate bytes the item
                             // events actually delivered, not the volume the
                             // walk has looked at — those are different facts.
@@ -2249,7 +2073,7 @@ struct ScanRunningCard: View {
 struct SkippedLocationsCard: View {
     let locations: [SkippedLocation]
     @State private var expandedGroups: Set<String> = []
-    @State private var showsInactiveDetails = false
+    @State private var showsDetails = false
 
     private var allGroups: [SkippedLocationGroup] {
         SkippedLocation.groupedByTopLevelDirectory(locations)
@@ -2298,12 +2122,24 @@ struct SkippedLocationsCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: SiftMetrics.spacingM) {
-            HStack {
-                Text(cardTitle)
-                    .font(SiftFont.sectionTitle)
-                    .foregroundStyle(SiftColor.mainText)
-                Spacer()
+        VStack(alignment: .leading, spacing: 0) {
+            // One line, collapsed by default. The card used to open with a
+            // section heading, a settings link, one row per unreadable directory,
+            // a second collapsible list for the ones no grant can open, and a
+            // restart note — enough to take a screen, in the common case where
+            // every unreadable location is one the product refuses on purpose.
+            // The line states the count a person can act on, the link that grants
+            // it, and a disclosure for the audit.
+            HStack(spacing: SiftMetrics.spacingM) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(SiftColor.reviewTextColor)
+                    .frame(width: 14)
+                Text(summaryLine)
+                    .font(SiftFont.caption)
+                    .foregroundStyle(SiftColor.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: SiftMetrics.spacingS)
                 if actionableCount > 0 {
                     Button {
                         Task { await WorkspaceActions.openFullDiskAccessSettings() }
@@ -2313,64 +2149,69 @@ struct SkippedLocationsCard: View {
                     }
                     .buttonStyle(SiftLinkButtonStyle())
                 }
-            }
-            SiftHairline()
-
-            // The actionable half stays fully visible — there is something the
-            // user can do about it.
-            ForEach(actionableGroups) { group in
-                groupSection(group)
-                SiftHairline()
-            }
-
-            // Policy-protected and administrator-only locations collapse to a
-            // single summary row. They are listed only on demand, so a scan
-            // result no longer leads with locations no grant can open.
-            if !inactiveGroups.isEmpty {
                 Button {
-                    withAnimation { showsInactiveDetails.toggle() }
+                    showsDetails.toggle()
                 } label: {
-                    HStack(spacing: SiftMetrics.spacingM) {
-                        Image(systemName: "lock")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(SiftColor.quietText)
-                        Text(LocalizationKey.permissionSystemProtectedTitle.localized)
-                            .font(SiftFont.secondaryHeading)
-                            .foregroundStyle(SiftColor.secondaryText)
-                        Text(LocalizationKey.commonItemCount.counted(inactiveLocationCount))
-                            .font(SiftFont.caption)
-                            .foregroundStyle(SiftColor.quietText)
-                        Spacer(minLength: SiftMetrics.spacingS)
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 9, weight: .semibold))
-                            .foregroundStyle(SiftColor.quietText)
-                            .rotationEffect(.degrees(showsInactiveDetails ? 180 : 0))
-                    }
-                    .contentShape(Rectangle())
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(SiftColor.quietText)
+                        .rotationEffect(.degrees(showsDetails ? 180 : 0))
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(LocalizationKey.permissionSystemProtectedTitle.localized)
-                .accessibilityHint(LocalizationKey.commonItemCount.counted(inactiveLocationCount))
+                .accessibilityLabel(Text(cardTitle))
+                .accessibilityHint(Text(LocalizationKey.scanSkippedExpandHint.localized))
+            }
+            .padding(.vertical, SiftMetrics.spacingS)
+            .background {
+                RoundedRectangle(cornerRadius: SiftMetrics.controlCornerRadius, style: .continuous)
+                    .fill(SiftColor.controlFill)
+            }
 
-                if showsInactiveDetails {
-                    ForEach(inactiveGroups) { group in
+            if showsDetails {
+                VStack(alignment: .leading, spacing: SiftMetrics.spacingM) {
+                    if actionableCount > 0 {
+                        // The switch is on and these rows still say "permission":
+                        // macOS applies a TCC grant when an app starts, and a
+                        // rebuilt or updated copy of Sift is a different code
+                        // identity.
+                        Text(LocalizationKey.permissionRestartHint.localized)
+                            .font(SiftFont.caption)
+                            .foregroundStyle(SiftColor.quietText)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    ForEach(actionableGroups) { group in
                         groupSection(group)
+                        SiftHairline()
+                    }
+
+                    if !inactiveGroups.isEmpty {
+                        Text(LocalizationKey.permissionSystemProtectedTitle.localized)
+                            .font(SiftFont.caption)
+                            .foregroundStyle(SiftColor.quietText)
+                        ForEach(inactiveGroups) { group in
+                            groupSection(group)
+                            SiftHairline()
+                        }
                     }
                 }
-            }
-
-            if actionableCount > 0 {
-                // The switch is on and these rows still say "permission":
-                // macOS applies a TCC grant when an app starts, and a rebuilt
-                // or updated copy of Sift is a different code identity.
-                SiftHairline()
-                Text(LocalizationKey.permissionRestartHint.localized)
-                    .font(SiftFont.caption)
-                    .foregroundStyle(SiftColor.quietText)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityLabel(Text(LocalizationKey.permissionRestartHint.localized))
+                .padding(.top, SiftMetrics.spacingM)
             }
         }
+    }
+
+    /// The one sentence a collapsed card says.
+    ///
+    /// It counts what a grant could change, never the whole skip list: a
+    /// `0700` directory owned by `root` and a location the protection list
+    /// refuses are both unreadable on purpose, and adding them to the number
+    /// would promise a switch that changes nothing.
+    private var summaryLine: String {
+        if actionableCount > 0 {
+            return LocalizationKey.scanSkippedActionable.localized(actionableCount)
+        }
+        return LocalizationKey.scanSkippedProtectedSummary.localized(locations.count)
     }
 
     @ViewBuilder
@@ -2400,6 +2241,17 @@ struct SkippedLocationsCard: View {
                             .font(SiftFont.caption)
                             .foregroundStyle(SiftColor.secondaryText)
                     }
+                    // A single-location group states its reason on the same line
+                    // rather than under it: the sentence is the reason the row
+                    // exists, and a second line per directory turned five
+                    // directories into ten lines of grey.
+                    if let reason = group.sharedReasonKey, !isExpandable {
+                        Text(reason.localized)
+                            .font(SiftFont.caption)
+                            .foregroundStyle(SiftColor.secondaryText)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
                     Spacer(minLength: SiftMetrics.spacingS)
                     if isExpandable {
                         Image(systemName: "chevron.down")
@@ -2415,7 +2267,11 @@ struct SkippedLocationsCard: View {
             .accessibilityLabel(Text(group.label))
             .accessibilityHint(Text(isExpandable ? LocalizationKey.overviewShowAll.localized : ""))
 
-            if let reason = group.sharedReasonKey {
+            // The shared reason appears only where the reader is looking at the
+            // locations it applies to, i.e. once the group is open. A collapsed
+            // group is a count; an open one is the list, and one sentence for
+            // the whole list still beats one sentence per row.
+            if let reason = group.sharedReasonKey, isExpandable, isExpanded {
                 Text(reason.localized)
                     .font(SiftFont.caption)
                     .foregroundStyle(SiftColor.secondaryText)

@@ -194,6 +194,7 @@
 "files.groupMembers" = "%d kopier";
 "files.keepHint" = "Sift beholder først den eldste kopien. Velg «Behold denne» på en annen kopi for å beholde den i stedet; kopier du ikke beholder, forblir valgt for sletting.";
 "files.keepThis" = "Behold denne";
+"files.keptBadge" = "Beholdt";
 "files.manageScope" = "Administrer i Innstillinger";
 "files.mode.duplicates" = "Duplikater";
 "files.mode.large" = "Store filer";
@@ -319,7 +320,7 @@
 "scan.filter.old" = "Gamle";
 "scan.firstRun.review" = "Første opprydding: åpne listen før du bekrefter.";
 "scan.firstRun.scope" = "Sift leser cacher, loggfiler og installasjonsprogrammer på disse stedene:";
-"scan.header.ready" = "%d elementer · %@ kan frigjøres";
+"scan.header.reclaimable" = "%@ kan frigjøres";
 "scan.headerStatus" = "Resultater fra %@ · %d elementer";
 "scan.hiddenSelected" = "%d valgte elementer vises ikke her";
 "scan.nothingFound" = "Ingenting å rydde";
@@ -369,6 +370,9 @@
 "scan.scopeNote" = "Leser bare navn, størrelser og datoer · full dekning krever full disktilgang";
 "scan.selectAll" = "Velg alle";
 "scan.selectAllShown" = "Velg alle viste (%d)";
+"scan.skipped.actionable" = "%d steder trenger full diskadgang";
+"scan.skipped.expandHint" = "Vis stedene";
+"scan.skipped.protectedSummary" = "%d steder er uleselige av design";
 "scan.skippedReason.fileNotFound" = "Elementet forsvant under skanningen og ble hoppet over.";
 "scan.skippedReason.partialFailure" = "En del av dette stedet kunne ikke leses.";
 "scan.skippedReason.permissionDenied" = "Sift trenger ekstra tillatelse for dette stedet.";

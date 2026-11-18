@@ -194,6 +194,7 @@
 "files.groupMembers" = "%d ສຳເນົາ";
 "files.keepHint" = "ຕອນເລີ່ມຕົ້ນ Sift ຈະເກັບສຳເນົາທີ່ເກົ່າທີ່ສຸດໄວ້. ເລືອກ „ເກັບອັນນີ້ໄວ້“ ຢູ່ສຳເນົາອື່ນ ເພື່ອເກັບອັນນັ້ນແທນ; ສຳເນົາທີ່ທ່ານບໍ່ໄດ້ເກັບໄວ້ ຈະຖືກເລືອກໄວ້ເພື່ອລຶບ.";
 "files.keepThis" = "ເກັບອັນນີ້ໄວ້";
+"files.keptBadge" = "ເກັບໄວ້";
 "files.manageScope" = "ຈັດການໃນການຕັ້ງຄ່າ";
 "files.mode.duplicates" = "ໄຟລ໌ຊ້ຳ";
 "files.mode.large" = "ໄຟລ໌ຂະໜາດໃຫຍ່";
@@ -319,7 +320,7 @@
 "scan.filter.old" = "ເກົ່າ";
 "scan.firstRun.review" = "ການລຶບລ້າງຄັ້ງທຳອິດ: ເປີດລາຍການກ່ອນຢືນຢັນ.";
 "scan.firstRun.scope" = "Sift ອ່ານແຄຊ໌, ໄຟລ໌ບັນທຶກ ແລະ ໂປຣແກຣມຕິດຕັ້ງໃນຕຳແໜ່ງເຫຼົ່ານີ້:";
-"scan.header.ready" = "%d ລາຍການ · ຄືນໄດ້ %@";
+"scan.header.reclaimable" = "ຄືນໄດ້ %@";
 "scan.headerStatus" = "ຜົນການຈາກ %@ · %d ລາຍການ";
 "scan.hiddenSelected" = "%d ລາຍການທີ່ເລືອກໄວ້ບໍ່ໄດ້ສະແດງຢູ່ນີ້";
 "scan.nothingFound" = "ບໍ່ມີຫຍັງຕ້ອງລ້າງ";
@@ -369,6 +370,9 @@
 "scan.scopeNote" = "ອ່ານພຽງຊື່, ຂະໜາດ ແລະ ວັນທີ · ການຄຸມຄອບຄົບຖ້ວນຕ້ອງມີສິດເຂົ້າເຖິງດິສກ໌ຢ່າງເຕັມສ່ວນ";
 "scan.selectAll" = "ເລືອກທັງໝົດ";
 "scan.selectAllShown" = "ເລືອກທັງໝົດທີ່ສະແດງ (%d)";
+"scan.skipped.actionable" = "%d ຕຳແໜ່ງຕ້ອງການສິດເຂົ້າເຖິງດິສຄົບ";
+"scan.skipped.expandHint" = "ສະແດງຕຳແໜ່ງ";
+"scan.skipped.protectedSummary" = "%d ຕຳແໜ່ງອ່ານບໍ່ໄດ້ໂດຍການອອກແບບ";
 "scan.skippedReason.fileNotFound" = "ລາຍການໄດ້ຫາຍໄປລະຫວ່າງການສະແກນ ຈຶ່ງຂ້າມໄປ.";
 "scan.skippedReason.partialFailure" = "ບາງສ່ວນຂອງຕຳແໜ່ງນີ້ອ່ານບໍ່ໄດ້.";
 "scan.skippedReason.permissionDenied" = "ຕຳແໜ່ງນີ້ຕ້ອງການສິດເພີ່ມເຕີມ.";

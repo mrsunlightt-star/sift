@@ -30,89 +30,106 @@ public struct DuplicateGroupsCard: View {
     }
 
     public var body: some View {
-        SiftPanel(padding: SiftMetrics.spacingL) {
-            VStack(alignment: .leading, spacing: SiftMetrics.spacingM) {
+        // No panel: a bordered card around one result set made this section look
+        // like a different species from the risk groups above it — it had its own
+        // icon tile, its own padding and its own heading ramp. It is one more
+        // group of the same result set, so it wears the same heading the rest of
+        // the list wears and sits on the page with no surface of its own.
+        VStack(alignment: .leading, spacing: 0) {
+            heading
+
+            // Said once, under the heading, for the whole section: the green seal
+            // is a starting point, not a verdict, and the control that changes it
+            // is a word in a row the user has not opened yet.
+            Text(LocalizationKey.filesKeepHint.localized)
+                .font(SiftFont.caption)
+                .foregroundStyle(SiftColor.quietText)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.leading, 14 + SiftMetrics.spacingS)
+                .padding(.bottom, SiftMetrics.spacingS)
+
+            // Lazy: a duplicate result is hundreds of groups, and an eager
+            // VStack laid every one of them out on each frame of an expansion.
+            // That re-layout — not the curve — is what made opening a group feel
+            // slow.
+            LazyVStack(alignment: .leading, spacing: 0) {
+                ForEach(groups) { group in
+                    DuplicateGroupRow(
+                        group: group,
+                        members: members(of: group),
+                        keeper: keeper(of: group),
+                        isExpanded: expanded.contains(group.id),
+                        cleanup: cleanup,
+                        onToggle: { toggle(group) },
+                        onKeep: { member in keep(member, in: group) }
+                    )
+                }
+            }
+
+            // The list is paged, so it has to say how much of the result it is
+            // showing. A list that stopped at one page and looked complete would
+            // hide reclaimable space the scan had already found.
+            if scan.hasMoreDuplicateGroups {
                 HStack(spacing: SiftMetrics.spacingM) {
-                    IconTile(symbolName: CleanupCategory.duplicateFiles.symbolName, tint: SiftColor.categoryPalette[7])
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(LocalizationKey.filesModeDuplicates.localized)
-                            .font(SiftFont.bodyEmphasis)
-                        Text(
-                            LocalizationKey.filesDuplicateGroups.localized(
-                                groups.count,
-                                SiftFormat.bytes(groups.reduce(0) { $0 + $1.reclaimableSizeInBytes })
-                            )
+                    Text(
+                        LocalizationKey.filesDuplicateGroupsShown.localized(
+                            groups.count,
+                            scan.duplicateGroupsTotal
                         )
-                        .font(SiftFont.caption)
-                        .foregroundStyle(.secondary)
-                    }
+                    )
+                    .font(SiftFont.caption)
+                    .foregroundStyle(SiftColor.quietText)
                     Spacer()
                     Button {
-                        selectAllRemovable()
+                        Task { await scan.loadMoreDuplicateGroups() }
                     } label: {
-                        Text(LocalizationKey.scanSelectAll.localized)
+                        Text(LocalizationKey.commonLoadMore.localized)
                             .font(SiftFont.caption)
                     }
                     .buttonStyle(SiftLinkButtonStyle())
                 }
-
-                // Said once, above the list: the green copy is a starting point,
-                // not a verdict, and the control that changes it is a word in a
-                // row the user has not opened yet.
-                Text(LocalizationKey.filesKeepHint.localized)
-                    .font(SiftFont.caption)
-                    .foregroundStyle(SiftColor.subtleText)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Divider()
-
-                // Lazy: a duplicate result is hundreds of groups, and an eager
-                // VStack laid every one of them out on each frame of an
-                // expansion. That re-layout — not the curve — is what made
-                // opening a group feel slow.
-                LazyVStack(alignment: .leading, spacing: 0) {
-                    ForEach(groups) { group in
-                        DuplicateGroupRow(
-                            group: group,
-                            members: members(of: group),
-                            keeper: keeper(of: group),
-                            isExpanded: expanded.contains(group.id),
-                            cleanup: cleanup,
-                            onToggle: { toggle(group) },
-                            onKeep: { member in keep(member, in: group) }
-                        )
-                        if group.id != groups.last?.id { Divider() }
-                    }
-                }
-
-                // The list is paged, so it has to say how much of the result it
-                // is showing. A list that stopped at one page and looked complete
-                // would hide reclaimable space the scan had already found.
-                if scan.hasMoreDuplicateGroups {
-                    Divider()
-                    HStack(spacing: SiftMetrics.spacingM) {
-                        Text(
-                            LocalizationKey.filesDuplicateGroupsShown.localized(
-                                groups.count,
-                                scan.duplicateGroupsTotal
-                            )
-                        )
-                        .font(SiftFont.caption)
-                        .foregroundStyle(.secondary)
-                        Spacer()
-                        if scan.hasMoreDuplicateGroups {
-                            Button {
-                                Task { await scan.loadMoreDuplicateGroups() }
-                            } label: {
-                                Text(LocalizationKey.commonLoadMore.localized)
-                                    .font(SiftFont.caption)
-                            }
-                            .buttonStyle(SiftLinkButtonStyle())
-                        }
-                    }
-                }
+                .padding(.vertical, SiftMetrics.spacingM)
             }
         }
+        .padding(.top, SiftMetrics.spacingL)
+    }
+
+    /// The section's heading, in the shape the risk groups use.
+    ///
+    /// Same glyph slot, same type ramp, same count-then-bytes order, and the same
+    /// select-all on the right. A reader should not have to learn that this one
+    /// section is a heading of a different kind.
+    private var heading: some View {
+        HStack(spacing: SiftMetrics.spacingM) {
+            HStack(spacing: SiftMetrics.spacingS) {
+                Image(systemName: CleanupCategory.duplicateFiles.symbolName)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(SiftColor.quietText)
+                    .frame(width: 14)
+                Text(LocalizationKey.filesModeDuplicates.localized)
+                    .font(SiftFont.secondaryHeading)
+                    .foregroundStyle(SiftColor.mainText)
+                Text(LocalizationKey.filesDuplicateGroups.localized(
+                    groups.count,
+                    SiftFormat.bytes(groups.reduce(0) { $0 + $1.reclaimableSizeInBytes })
+                ))
+                .font(SiftFont.caption)
+                .foregroundStyle(SiftColor.secondaryText)
+                .monospacedDigit()
+            }
+            .accessibilityElement(children: .combine)
+
+            Spacer(minLength: SiftMetrics.spacingS)
+
+            Button {
+                selectAllRemovable()
+            } label: {
+                Text(LocalizationKey.scanSelectAll.localized)
+                    .font(SiftFont.caption)
+            }
+            .buttonStyle(SiftLinkButtonStyle())
+        }
+        .padding(.bottom, SiftMetrics.spacingS)
     }
 
     /// Opens or closes one group, in the frame the click happened in.
@@ -199,28 +216,29 @@ struct DuplicateGroupRow: View {
     let onKeep: (DuplicateMember) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
+        VStack(alignment: .leading, spacing: 0) {
             Button(action: onToggle) {
                 HStack(spacing: SiftMetrics.spacingM) {
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(SiftColor.quietText)
                         .rotationEffect(.degrees(isExpanded ? 0 : -90))
                         .accessibilityHidden(true)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(representativeName)
-                            .font(SiftFont.body)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                        Text(LocalizationKey.filesGroupMembers.localized(members.count))
-                            .font(SiftFont.caption)
-                            .foregroundStyle(.secondary)
-                    }
+                    Text(representativeName)
+                        .font(SiftFont.bodyEmphasis)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Text(LocalizationKey.filesGroupMembers.localized(members.count))
+                        .font(SiftFont.caption)
+                        .foregroundStyle(SiftColor.secondaryText)
                     Spacer(minLength: SiftMetrics.spacingS)
                     Text(group.formattedReclaimable)
-                        .font(SiftFont.monospacedNumber)
-                        .foregroundStyle(SiftColor.review)
-                    RiskBadge(risk: .review)
+                        .font(SiftFont.caption)
+                        .monospacedDigit()
+                        .foregroundStyle(SiftColor.secondaryText)
+                    // No risk badge here: every group in this section is `review`
+                    // by construction — the section's own heading says so — and a
+                    // word repeated on 136 rows is not a label, it is a texture.
                 }
                 // The row is a target across its whole width, not only where
                 // it happens to draw a glyph: without a content shape the space
@@ -231,50 +249,80 @@ struct DuplicateGroupRow: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .buttonStyle(.plain)
+            .padding(.leading, 14 + SiftMetrics.spacingS)
+            .padding(.vertical, SiftMetrics.spacingS)
             .accessibilityLabel(Text(representativeName))
             .accessibilityValue(Text(group.formattedReclaimable))
+            .accessibilityHint(Text(LocalizationKey.scanResultsReviewHint.localized))
 
             if isExpanded {
-                LazyVStack(alignment: .leading, spacing: SiftMetrics.spacingXS) {
+                LazyVStack(alignment: .leading, spacing: 0) {
                     ForEach(members) { member in
-                        memberRow(member)
+                        DuplicateMemberRow(
+                            member: member,
+                            isKeeper: keeper == member.url,
+                            cleanup: cleanup,
+                            onKeep: onKeep
+                        )
                     }
                 }
+                .padding(.bottom, SiftMetrics.spacingS)
             }
         }
-        .padding(.vertical, SiftMetrics.spacingXS)
     }
 
-    @ViewBuilder
-    private func memberRow(_ member: DuplicateMember) -> some View {
-        let isKeeper = keeper == member.url
+    private var representativeName: String {
+        members.first?.displayName ?? group.contentHash.prefix(12).description
+    }
+}
+
+/// One copy inside a group: its checkbox, its two lines and its size.
+///
+/// A view of its own because the reveal control appears on hover and hover is a
+/// row's own state — a group that held one flag for all of its copies lit every
+/// folder glyph in the group at once.
+struct DuplicateMemberRow: View {
+    let member: DuplicateMember
+    let isKeeper: Bool
+    @ObservedObject var cleanup: CleanupModel
+    let onKeep: (DuplicateMember) -> Void
+
+    @State private var isHovering = false
+
+    var body: some View {
         HStack(spacing: SiftMetrics.spacingM) {
             if isKeeper {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(SiftColor.safe)
-                    .accessibilityLabel(Text(LocalizationKey.filesKeepThis.localized))
-            } else {
-                Toggle(
-                    isOn: Binding(
-                        get: { cleanup.isSelected(item(for: member)) },
-                        set: { cleanup.setSelected($0, for: item(for: member)) }
-                    )
-                ) {
-                    EmptyView()
+                // A round seal, not a square box: the shape is what tells a copy
+                // that *is* kept from a copy that *could* be. A tick in the same
+                // square the removal copies carry would read as "also selected".
+                ZStack {
+                    Circle().fill(SiftColor.safe)
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(.white)
                 }
-                .labelsHidden()
-                .toggleStyle(.checkbox)
+                .frame(width: 17, height: 17)
+                .accessibilityLabel(Text(LocalizationKey.filesKeptBadge.localized))
+            } else {
+                SiftCheckbox(
+                    isOn: Binding(
+                        get: { cleanup.isSelected(item) },
+                        set: { cleanup.setSelected($0, for: item) }
+                    )
+                )
                 .accessibilityLabel(Text(member.displayName))
             }
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(member.displayName)
-                    .font(SiftFont.body)
+                    .font(SiftFont.supporting)
+                    .fontWeight(isKeeper ? .regular : .medium)
+                    .foregroundStyle(isKeeper ? SiftColor.secondaryText : SiftColor.mainText)
                     .lineLimit(1)
                     .truncationMode(.middle)
                 Text(member.displayPath)
-                    .font(SiftFont.caption)
-                    .foregroundStyle(.secondary)
+                    .font(SiftFont.metadata)
+                    .foregroundStyle(SiftColor.secondaryText)
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
@@ -284,7 +332,6 @@ struct DuplicateGroupRow: View {
             .contentShape(Rectangle())
             .onTapGesture {
                 guard !isKeeper else { return }
-                let item = item(for: member)
                 cleanup.setSelected(!cleanup.isSelected(item), for: item)
             }
 
@@ -293,6 +340,9 @@ struct DuplicateGroupRow: View {
             // The same entry point every other row on this page has: the path is
             // the only thing that tells two copies of one file apart, so a
             // duplicate the page cannot judge has to be reachable in the Finder.
+            // It appears on hover — the row it belongs to is one of hundreds, and
+            // a permanent glyph per copy was a column of identical folders — and
+            // stays in the accessibility tree and the context menu either way.
             Button {
                 NSWorkspace.shared.activateFileViewerSelecting([member.url])
             } label: {
@@ -302,32 +352,48 @@ struct DuplicateGroupRow: View {
             .buttonStyle(SiftLinkButtonStyle())
             .help(LocalizationKey.filesRevealInFinder.localized)
             .accessibilityLabel(Text(LocalizationKey.filesRevealInFinder.localized))
+            .opacity(isHovering ? 1 : 0)
 
             Text(member.formattedSize)
                 .font(SiftFont.monospacedNumber)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(isKeeper ? SiftColor.secondaryText : SiftColor.mainText)
+                .frame(minWidth: 76, alignment: .trailing)
 
-            // Keeping this copy is a choice, not a label: the green text on the
-            // kept row is the current state, and the same words on any other row
-            // are the control that moves it there.
-            if isKeeper {
-                Text(LocalizationKey.filesKeepThis.localized)
-                    .font(SiftFont.caption)
-                    .foregroundStyle(SiftColor.safe)
-            } else {
-                Button {
-                    onKeep(member)
-                } label: {
-                    Text(LocalizationKey.filesKeepThis.localized)
-                        .font(SiftFont.caption)
+            // Keeping this copy is a choice, not a label: the kept row states
+            // the decision where the action used to be, and every other row
+            // offers the words that move it there.
+            Group {
+                if isKeeper {
+                    Text(LocalizationKey.filesKeptBadge.localized)
+                        .foregroundStyle(SiftColor.safe)
+                } else {
+                    Button {
+                        onKeep(member)
+                    } label: {
+                        Text(LocalizationKey.filesKeepThis.localized)
+                    }
+                    .buttonStyle(SiftLinkButtonStyle())
+                    .help(member.displayPath)
+                    .accessibilityLabel(Text(LocalizationKey.filesKeepThis.localized))
                 }
-                .buttonStyle(SiftLinkButtonStyle())
-                .help(member.displayPath)
-                .accessibilityLabel(Text(LocalizationKey.filesKeepThis.localized))
+            }
+            .font(SiftFont.metadata)
+            .frame(minWidth: 64, alignment: .trailing)
+        }
+        .padding(.leading, 14 + SiftMetrics.spacingL)
+        .padding(.trailing, SiftMetrics.spacingS)
+        .padding(.vertical, 5)
+        .background {
+            // The kept row is a quiet well so the four copies read as one set;
+            // the removal candidates stay on the page's own ground. No green wash:
+            // the seal and the words already say which copy survives.
+            if isKeeper {
+                RoundedRectangle(cornerRadius: SiftMetrics.controlCornerRadius, style: .continuous)
+                    .fill(SiftColor.controlFill)
             }
         }
-        .padding(.leading, SiftMetrics.spacingL)
         .contentShape(Rectangle())
+        .onHover { isHovering = $0 }
         .contextMenu {
             Button {
                 NSWorkspace.shared.activateFileViewerSelecting([member.url])
@@ -350,12 +416,8 @@ struct DuplicateGroupRow: View {
         }
     }
 
-    private var representativeName: String {
-        members.first?.displayName ?? group.contentHash.prefix(12).description
-    }
-
     /// The cleanup item a member maps to, so selection survives re-renders.
-    private func item(for member: DuplicateMember) -> CleanupItem {
+    private var item: CleanupItem {
         CleanupItem(
             url: member.url,
             displayName: member.displayName,

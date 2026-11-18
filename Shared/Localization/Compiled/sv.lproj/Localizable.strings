@@ -194,6 +194,7 @@
 "files.groupMembers" = "%d kopior";
 "files.keepHint" = "Till en början behåller Sift den äldsta kopian. Välj ”Behåll den här” på en annan kopia för att behålla den i stället; kopior du inte behåller förblir valda för borttagning.";
 "files.keepThis" = "Behåll den här";
+"files.keptBadge" = "Behållen";
 "files.manageScope" = "Hantera i Inställningar";
 "files.mode.duplicates" = "Dubbletter";
 "files.mode.large" = "Stora filer";
@@ -319,7 +320,7 @@
 "scan.filter.old" = "Gamla";
 "scan.firstRun.review" = "Första rensningen: öppna listan innan du bekräftar.";
 "scan.firstRun.scope" = "Sift läser cacher, loggar och installationsprogram på de här platserna:";
-"scan.header.ready" = "%d objekt · %@ kan frigöras";
+"scan.header.reclaimable" = "%@ kan frigöras";
 "scan.headerStatus" = "Resultat från %@ · %d objekt";
 "scan.hiddenSelected" = "%d markerade objekt visas inte här";
 "scan.nothingFound" = "Inget att rensa";
@@ -369,6 +370,9 @@
 "scan.scopeNote" = "Läser bara namn, storlekar och datum · full täckning kräver fullskivåtkomst";
 "scan.selectAll" = "Markera alla";
 "scan.selectAllShown" = "Markera alla visade (%d)";
+"scan.skipped.actionable" = "%d platser kräver full diskåtkomst";
+"scan.skipped.expandHint" = "Visa platserna";
+"scan.skipped.protectedSummary" = "%d platser är oläsbara av design";
 "scan.skippedReason.fileNotFound" = "Objektet försvann under skanningen och hoppades över.";
 "scan.skippedReason.partialFailure" = "En del av den här platsen kunde inte läsas.";
 "scan.skippedReason.permissionDenied" = "Sift behöver extra behörighet för den här platsen.";

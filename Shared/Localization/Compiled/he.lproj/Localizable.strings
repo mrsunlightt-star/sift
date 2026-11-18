@@ -194,6 +194,7 @@
 "files.groupMembers" = "%d עותקים";
 "files.keepHint" = "בהתחלה Sift שומר את העותק הישן ביותר. בחרו „לשמור על זה” בעותק אחר כדי לשמור אותו במקומו; עותקים שלא תשמרו יישארו מסומנים למחיקה.";
 "files.keepThis" = "לשמור על זה";
+"files.keptBadge" = "נשמר";
 "files.manageScope" = "לנהל בהגדרות";
 "files.mode.duplicates" = "כפילויות";
 "files.mode.large" = "קבצים גדולים";
@@ -319,7 +320,7 @@
 "scan.filter.old" = "ישנים";
 "scan.firstRun.review" = "ניקוי ראשון: פתחו את הרשימה לפני האישור.";
 "scan.firstRun.scope" = "Sift קורא מטמונים, יומנים ומתקינים במיקומים האלה:";
-"scan.header.ready" = "%d פריטים · %@ ניתנים לפינוי";
+"scan.header.reclaimable" = "%@ ניתנים לפינוי";
 "scan.headerStatus" = "תוצאות מ-%@ · %d פריטים";
 "scan.hiddenSelected" = "%d פריטים שנבחרו אינם מוצגים כאן";
 "scan.nothingFound" = "אין מה לנקות";
@@ -369,6 +370,9 @@
 "scan.scopeNote" = "קורא שמות, גדלים ותאריכים בלבד · כיסוי מלא דורש גישה מלאה לכונן";
 "scan.selectAll" = "בחר הכול";
 "scan.selectAllShown" = "בחר את כל המוצגים (%d)";
+"scan.skipped.actionable" = "%d מיקומים דורשים גישה מלאה לדיסק";
+"scan.skipped.expandHint" = "הצג את המיקומים";
+"scan.skipped.protectedSummary" = "%d מיקומים אינם קריאים מעצם התכנון";
 "scan.skippedReason.fileNotFound" = "הפריט נעלם במהלך הסריקה ולכן דולג.";
 "scan.skippedReason.partialFailure" = "לא ניתן היה לקרוא חלק ממיקום זה.";
 "scan.skippedReason.permissionDenied" = "מיקום זה דורש הרשאה נוספת.";

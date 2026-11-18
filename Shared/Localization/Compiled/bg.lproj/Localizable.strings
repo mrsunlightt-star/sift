@@ -194,6 +194,7 @@
 "files.groupMembers" = "%d копия";
 "files.keepHint" = "Първоначално Sift запазва най-старото копие. Изберете „Запазете това“ на друго копие, за да запазите него; копията, които не запазите, остават избрани за изтриване.";
 "files.keepThis" = "Запазете това";
+"files.keptBadge" = "Запазен";
 "files.manageScope" = "Управление в Настройки";
 "files.mode.duplicates" = "Дубликати";
 "files.mode.large" = "Големи файлове";
@@ -319,7 +320,7 @@
 "scan.filter.old" = "Стари";
 "scan.firstRun.review" = "Първо почистване: разгънете списъка преди да потвърдите.";
 "scan.firstRun.scope" = "Sift чете кешове, журнали и инсталатори в тези места:";
-"scan.header.ready" = "%d елемента · %@ за освобождаване";
+"scan.header.reclaimable" = "%@ за освобождаване";
 "scan.headerStatus" = "Резултати от %@ · %d елемента";
 "scan.hiddenSelected" = "%d избрани елемента не се показват тук";
 "scan.nothingFound" = "Няма какво да се почисти";
@@ -369,6 +370,9 @@
 "scan.scopeNote" = "Чете само имена, размери и дати · пълният обхват изисква Пълен достъп до диска";
 "scan.selectAll" = "Изберете всичко";
 "scan.selectAllShown" = "Изберете всички показани (%d)";
+"scan.skipped.actionable" = "%d места изискват пълен достъп до диска";
+"scan.skipped.expandHint" = "Покажи местата";
+"scan.skipped.protectedSummary" = "%d места са нечетими по замисъл";
 "scan.skippedReason.fileNotFound" = "Елементът изчезна по време на сканирането и беше пропуснат.";
 "scan.skippedReason.partialFailure" = "Част от това място не можа да бъде прочетена.";
 "scan.skippedReason.permissionDenied" = "Sift се нуждае от допълнително разрешение за това място.";

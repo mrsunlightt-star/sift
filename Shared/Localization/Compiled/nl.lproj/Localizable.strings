@@ -194,6 +194,7 @@
 "files.groupMembers" = "%d exemplaren";
 "files.keepHint" = "Sift bewaart eerst de oudste kopie. Kies ‘Deze bewaren’ bij een andere kopie om die te bewaren; kopieën die je niet bewaart, blijven geselecteerd om te verwijderen.";
 "files.keepThis" = "Deze bewaren";
+"files.keptBadge" = "Bewaard";
 "files.manageScope" = "Beheer in Instellingen";
 "files.mode.duplicates" = "Duplicaten";
 "files.mode.large" = "Grote bestanden";
@@ -319,7 +320,7 @@
 "scan.filter.old" = "Oude";
 "scan.firstRun.review" = "Eerste opschoning: open de lijst voordat je bevestigt.";
 "scan.firstRun.scope" = "Sift leest caches, logbestanden en installatieprogramma’s op deze locaties:";
-"scan.header.ready" = "%d items · %@ vrij te maken";
+"scan.header.reclaimable" = "%@ vrij te maken";
 "scan.headerStatus" = "Resultaten van %@ · %d items";
 "scan.hiddenSelected" = "%d geselecteerde items worden hier niet getoond";
 "scan.nothingFound" = "Niets op te ruimen";
@@ -369,6 +370,9 @@
 "scan.scopeNote" = "Leest alleen namen, groottes en datums · volledige dekking vereist Volledige Schijftoegang";
 "scan.selectAll" = "Selecteer alles";
 "scan.selectAllShown" = "Alles wat getoond wordt selecteren (%d)";
+"scan.skipped.actionable" = "%d locaties vereisen Volledige Schijftoegang";
+"scan.skipped.expandHint" = "Toon de locaties";
+"scan.skipped.protectedSummary" = "%d locaties zijn bewust onleesbaar";
 "scan.skippedReason.fileNotFound" = "Het item verdween tijdens de scan en is overgeslagen.";
 "scan.skippedReason.partialFailure" = "Een deel van deze locatie kon niet worden gelezen.";
 "scan.skippedReason.permissionDenied" = "Voor deze locatie is een extra machtiging nodig.";

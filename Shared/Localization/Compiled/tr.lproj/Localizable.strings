@@ -194,6 +194,7 @@
 "files.groupMembers" = "%d kopya";
 "files.keepHint" = "Sift başlangıçta en eski kopyayı tutar. Başka bir kopyada «Bunu tut» seçeneğini seçerek onu tutabilirsiniz; tutmadığınız kopyalar silinmek üzere seçili kalır.";
 "files.keepThis" = "Bunu tut";
+"files.keptBadge" = "Tutuldu";
 "files.manageScope" = "Ayarlar’da yönet";
 "files.mode.duplicates" = "Kopyalar";
 "files.mode.large" = "Büyük dosyalar";
@@ -319,7 +320,7 @@
 "scan.filter.old" = "Eskiler";
 "scan.firstRun.review" = "İlk temizlik: onaylamadan önce listeyi açın.";
 "scan.firstRun.scope" = "Sift bu konumlardaki önbellekleri, günlükleri ve yükleyicileri okur:";
-"scan.header.ready" = "%d öğe · %@ geri kazanılabilir";
+"scan.header.reclaimable" = "%@ geri kazanılabilir";
 "scan.headerStatus" = "%@ tarihli sonuçlar · %d öğe";
 "scan.hiddenSelected" = "Seçili %d öğe burada gösterilmiyor";
 "scan.nothingFound" = "Temizlenecek bir şey yok";
@@ -369,6 +370,9 @@
 "scan.scopeNote" = "Yalnızca adları, boyutları ve tarihleri okur · tam kapsam için Tam Disk Erişimi gerekir";
 "scan.selectAll" = "Tümünü seç";
 "scan.selectAllShown" = "Görünenlerin tümünü seç (%d)";
+"scan.skipped.actionable" = "%d konum Tam Disk Erişimi gerektiriyor";
+"scan.skipped.expandHint" = "Konumları göster";
+"scan.skipped.protectedSummary" = "%d konum tasarım gereği okunamıyor";
 "scan.skippedReason.fileNotFound" = "Öğe tarama sırasında kayboldu ve atlandı.";
 "scan.skippedReason.partialFailure" = "Bu konumun bir kısmı okunamadı.";
 "scan.skippedReason.permissionDenied" = "Bu konum için ek izin gerekiyor.";

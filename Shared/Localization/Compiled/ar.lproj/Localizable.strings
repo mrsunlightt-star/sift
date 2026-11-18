@@ -194,6 +194,7 @@
 "files.groupMembers" = "%d نسخًا";
 "files.keepHint" = "يحتفظ Sift في البداية بأقدم نسخة. اختر «الاحتفاظ بهذا» على نسخة أخرى للاحتفاظ بها بدلًا منها؛ النسخ التي لا تحتفظ بها تبقى محددة للحذف.";
 "files.keepThis" = "الاحتفاظ بهذا";
+"files.keptBadge" = "محتفظ به";
 "files.manageScope" = "إدارة في الإعدادات";
 "files.mode.duplicates" = "مكررات";
 "files.mode.large" = "ملفات كبيرة";
@@ -319,7 +320,7 @@
 "scan.filter.old" = "قديمة";
 "scan.firstRun.review" = "أول عملية تنظيف: وسّع القائمة قبل التأكيد.";
 "scan.firstRun.scope" = "يقرأ Sift الذاكرة المؤقتة والسجلات وبرامج التثبيت في هذه المواقع:";
-"scan.header.ready" = "%d عناصر · يمكن تحرير %@";
+"scan.header.reclaimable" = "يمكن تحرير %@";
 "scan.headerStatus" = "نتائج من %@ · %d عناصر";
 "scan.hiddenSelected" = "%d من العناصر المحددة غير معروضة هنا";
 "scan.nothingFound" = "لا شيء للتنظيف";
@@ -369,6 +370,9 @@
 "scan.scopeNote" = "يقرأ الأسماء والأحجام والتواريخ فقط · التغطية الكاملة تتطلب الوصول الكامل إلى القرص";
 "scan.selectAll" = "تحديد الكل";
 "scan.selectAllShown" = "تحديد المعروضين (%d)";
+"scan.skipped.actionable" = "%d مواقع تحتاج إلى الوصول الكامل إلى القرص";
+"scan.skipped.expandHint" = "عرض المواقع";
+"scan.skipped.protectedSummary" = "%d مواقع غير قابلة للقراءة بحكم التصميم";
 "scan.skippedReason.fileNotFound" = "اختفى العنصر أثناء الفحص، فتم تخطيه.";
 "scan.skippedReason.partialFailure" = "تعذّرت قراءة جزء من هذا الموقع.";
 "scan.skippedReason.permissionDenied" = "يحتاج هذا الموقع إلى إذن إضافي.";

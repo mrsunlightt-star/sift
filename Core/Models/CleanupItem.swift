@@ -117,6 +117,31 @@ public enum CleanupRisk: String, Codable, Sendable, CaseIterable {
     /// The localisable explanation of what this risk level means.
     public var detailKey: LocalizationKey { level.detailKey }
 
+    /// The heading the result list gives this group.
+    ///
+    /// The heading lives with the risk rather than with the page so the scan
+    /// page cannot grow a second vocabulary for the same three groups — it
+    /// already had three different headings for them.
+    public var groupTitleKey: LocalizationKey {
+        switch self {
+        case .safe: .scanResultsSafeGroup
+        case .review: .scanResultsReviewGroup
+        case .protected: .scanResultsProtectedGroup
+        }
+    }
+
+    /// The glyph the group's heading wears, matching the group's word.
+    ///
+    /// It is the group's rank made visible, and it is also why a row no longer
+    /// carries a badge: a row's risk is its group's, stated once above it.
+    public var groupSymbolName: String {
+        switch self {
+        case .safe: "checkmark.circle.fill"
+        case .review: "exclamationmark.triangle.fill"
+        case .protected: "lock.fill"
+        }
+    }
+
     /// Only `safe` and `review` items may enter a deletion queue.
     ///
     /// The scanner and the FFI layer both enforce this; the check is repeated

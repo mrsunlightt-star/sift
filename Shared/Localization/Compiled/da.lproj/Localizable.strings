@@ -194,6 +194,7 @@
 "files.groupMembers" = "%d kopier";
 "files.keepHint" = "Sift beholder først den ældste kopi. Vælg »Behold denne« på en anden kopi for at beholde den i stedet; kopier, du ikke beholder, forbliver valgt til sletning.";
 "files.keepThis" = "Behold denne";
+"files.keptBadge" = "Beholdt";
 "files.manageScope" = "Administrer i Indstillinger";
 "files.mode.duplicates" = "Dubletter";
 "files.mode.large" = "Store filer";
@@ -319,7 +320,7 @@
 "scan.filter.old" = "Gamle";
 "scan.firstRun.review" = "Første oprydning: åbn listen, før du bekræfter.";
 "scan.firstRun.scope" = "Sift læser caches, logfiler og installationsprogrammer på disse placeringer:";
-"scan.header.ready" = "%d elementer · %@ kan frigøres";
+"scan.header.reclaimable" = "%@ kan frigøres";
 "scan.headerStatus" = "Resultater fra %@ · %d elementer";
 "scan.hiddenSelected" = "%d valgte elementer vises ikke her";
 "scan.nothingFound" = "Intet at rydde op";
@@ -369,6 +370,9 @@
 "scan.scopeNote" = "Læser kun navne, størrelser og datoer · fuld dækning kræver fuld diskadgang";
 "scan.selectAll" = "Vælg alle";
 "scan.selectAllShown" = "Vælg alle viste (%d)";
+"scan.skipped.actionable" = "%d placeringer kræver fuld diskadgang";
+"scan.skipped.expandHint" = "Vis placeringerne";
+"scan.skipped.protectedSummary" = "%d placeringer kan ikke læses af design";
 "scan.skippedReason.fileNotFound" = "Elementet forsvandt under scanningen og blev sprunget over.";
 "scan.skippedReason.partialFailure" = "En del af denne placering kunne ikke læses.";
 "scan.skippedReason.permissionDenied" = "Sift kræver ekstra tilladelse til denne placering.";

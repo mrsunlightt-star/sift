@@ -194,6 +194,7 @@
 "files.groupMembers" = "%d 個のコピー";
 "files.keepHint" = "Sift は最初に最も古いコピーを残します。別のコピーで「これを残す」を選ぶと、そちらを残せます。残さなかったコピーは削除対象として選択されたままです。";
 "files.keepThis" = "これを残す";
+"files.keptBadge" = "保持";
 "files.manageScope" = "設定で管理";
 "files.mode.duplicates" = "重複ファイル";
 "files.mode.large" = "大きいファイル";
@@ -319,7 +320,7 @@
 "scan.filter.old" = "古いファイル";
 "scan.firstRun.review" = "初めてのクリーンアップです。確認前に一覧を開いてください。";
 "scan.firstRun.scope" = "Sift は次の場所のキャッシュ、ログ、インストーラを読み取ります：";
-"scan.header.ready" = "%d 項目 · %@ を解放できます";
+"scan.header.reclaimable" = "%@ を解放できます";
 "scan.headerStatus" = "%@ の結果 · %d 項目";
 "scan.hiddenSelected" = "選択した %d 件はこの一覧に表示されていません";
 "scan.nothingFound" = "削除する項目はありません";
@@ -369,6 +370,9 @@
 "scan.scopeNote" = "読み取るのは名前・サイズ・日付のみ · 全範囲にはフルディスクアクセスが必要です";
 "scan.selectAll" = "すべて選択";
 "scan.selectAllShown" = "表示中の %d 件をすべて選択";
+"scan.skipped.actionable" = "フルディスクアクセスが必要な場所: %d";
+"scan.skipped.expandHint" = "場所を表示";
+"scan.skipped.protectedSummary" = "設計上読み取れない場所: %d";
 "scan.skippedReason.fileNotFound" = "スキャン中に項目が消えたためスキップしました。";
 "scan.skippedReason.partialFailure" = "この場所の一部を読み取れませんでした。";
 "scan.skippedReason.permissionDenied" = "この場所には追加の権限が必要です。";

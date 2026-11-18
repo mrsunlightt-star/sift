@@ -194,6 +194,7 @@
 "files.groupMembers" = "Copii: %d";
 "files.keepHint" = "La început Sift păstrează cea mai veche copie. Alegeți „Păstrează aceasta” la altă copie pentru a o păstra pe aceea; copiile pe care nu le păstrați rămân selectate pentru ștergere.";
 "files.keepThis" = "Păstrează aceasta";
+"files.keptBadge" = "Păstrat";
 "files.manageScope" = "Gestionează în Configurări";
 "files.mode.duplicates" = "Duplicate";
 "files.mode.large" = "Fișiere mari";
@@ -319,7 +320,7 @@
 "scan.filter.old" = "Vechi";
 "scan.firstRun.review" = "Prima curățare: deschide lista înainte de a confirma.";
 "scan.firstRun.scope" = "Sift citește cache-uri, jurnale și instalatoare în aceste locații:";
-"scan.header.ready" = "%d elemente · %@ recuperabile";
+"scan.header.reclaimable" = "%@ recuperabile";
 "scan.headerStatus" = "Rezultate din %@ · %d elemente";
 "scan.hiddenSelected" = "%d elemente selectate nu sunt afișate aici";
 "scan.nothingFound" = "Nimic de curățat";
@@ -369,6 +370,9 @@
 "scan.scopeNote" = "Citește doar nume, dimensiuni și date · acoperirea completă necesită Acces complet la disc";
 "scan.selectAll" = "Selectează tot";
 "scan.selectAllShown" = "Selectează tot ce este afișat (%d)";
+"scan.skipped.actionable" = "%d locații necesită acces complet la disc";
+"scan.skipped.expandHint" = "Arată locațiile";
+"scan.skipped.protectedSummary" = "%d locații sunt ilizibile prin proiectare";
 "scan.skippedReason.fileNotFound" = "Elementul a dispărut în timpul scanării, așa că a fost ignorat.";
 "scan.skippedReason.partialFailure" = "O parte a acestei locații nu a putut fi citită.";
 "scan.skippedReason.permissionDenied" = "Sift are nevoie de o permisiune suplimentară pentru această locație.";

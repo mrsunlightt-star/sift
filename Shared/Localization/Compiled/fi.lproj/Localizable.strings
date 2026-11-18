@@ -194,6 +194,7 @@
 "files.groupMembers" = "%d kopiota";
 "files.keepHint" = "Aluksi Sift säilyttää vanhimman kopion. Valitse toisesta kopiosta ”Säilytä tämä”, jos haluat säilyttää sen; kopiot, joita et säilytä, pysyvät poistettaviksi valittuina.";
 "files.keepThis" = "Säilytä tämä";
+"files.keptBadge" = "Säilytetty";
 "files.manageScope" = "Hallitse asetuksissa";
 "files.mode.duplicates" = "Kaksoiskappaleet";
 "files.mode.large" = "Suuret tiedostot";
@@ -319,7 +320,7 @@
 "scan.filter.old" = "Vanhat";
 "scan.firstRun.review" = "Ensimmäinen siivous: avaa luettelo ennen vahvistusta.";
 "scan.firstRun.scope" = "Sift lukee välimuisteja, lokeja ja asennusohjelmia näistä sijainneista:";
-"scan.header.ready" = "%d kohdetta · %@ vapautettavissa";
+"scan.header.reclaimable" = "%@ vapautettavissa";
 "scan.headerStatus" = "Tulokset: %@ · %d kohdetta";
 "scan.hiddenSelected" = "%d valittua kohdetta ei näytetä tässä";
 "scan.nothingFound" = "Ei siivottavaa";
@@ -369,6 +370,9 @@
 "scan.scopeNote" = "Lukee vain nimet, koot ja päivämäärät · täysi kattavuus vaatii täyden levynkäyttöoikeuden";
 "scan.selectAll" = "Valitse kaikki";
 "scan.selectAllShown" = "Valitse kaikki näkyvät (%d)";
+"scan.skipped.actionable" = "%d sijaintia tarvitsee täyden levynkäyttöoikeuden";
+"scan.skipped.expandHint" = "Näytä sijainnit";
+"scan.skipped.protectedSummary" = "%d sijaintia on tarkoituksella lukukelvottomia";
 "scan.skippedReason.fileNotFound" = "Kohde katosi skannauksen aikana, joten se ohitettiin.";
 "scan.skippedReason.partialFailure" = "Osaa tästä sijainnista ei voitu lukea.";
 "scan.skippedReason.permissionDenied" = "Sift tarvitsee lisäkäyttöoikeuden tähän sijaintiin.";

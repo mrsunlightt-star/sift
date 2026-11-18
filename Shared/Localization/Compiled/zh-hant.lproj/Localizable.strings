@@ -194,6 +194,7 @@
 "files.groupMembers" = "%d 份副本";
 "files.keepHint" = "Sift 預設保留最舊的那一份。在任一其他副本上點選「保留此項」，即可改為保留它；你沒有保留的副本會保持選取，等待刪除。";
 "files.keepThis" = "保留此項";
+"files.keptBadge" = "已保留";
 "files.manageScope" = "在設定中管理";
 "files.mode.duplicates" = "重複檔案";
 "files.mode.large" = "大型檔案";
@@ -319,7 +320,7 @@
 "scan.filter.old" = "舊檔案";
 "scan.firstRun.review" = "第一次清理：確認前建議展開清單看一眼。";
 "scan.firstRun.scope" = "Sift 會讀取下列位置的快取、記錄檔與安裝程式：";
-"scan.header.ready" = "共 %d 個項目 · 可釋放 %@";
+"scan.header.reclaimable" = "可釋放 %@";
 "scan.headerStatus" = "結果來自 %@ · %d 個項目";
 "scan.hiddenSelected" = "有 %d 項已選取，但未顯示在此清單";
 "scan.nothingFound" = "沒有可清理項目";
@@ -369,6 +370,9 @@
 "scan.scopeNote" = "只讀取名稱、大小與日期 · 完整涵蓋需「完全磁碟存取權限」";
 "scan.selectAll" = "全選";
 "scan.selectAllShown" = "全選已顯示（%d 項）";
+"scan.skipped.actionable" = "%d 個位置需要完全磁碟存取權限";
+"scan.skipped.expandHint" = "顯示這些位置";
+"scan.skipped.protectedSummary" = "%d 個位置依設計無法讀取";
 "scan.skippedReason.fileNotFound" = "項目在掃描過程中被移除，已略過。";
 "scan.skippedReason.partialFailure" = "此位置的一部分無法讀取。";
 "scan.skippedReason.permissionDenied" = "這個位置需要額外權限。";

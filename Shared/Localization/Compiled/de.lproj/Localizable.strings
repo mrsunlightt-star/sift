@@ -194,6 +194,7 @@
 "files.groupMembers" = "%d Kopien";
 "files.keepHint" = "Sift behält zunächst die älteste Kopie. Wählen Sie bei einer anderen Kopie „Diese behalten“, um sie zu behalten; alle Kopien, die Sie nicht behalten, bleiben zum Entfernen ausgewählt.";
 "files.keepThis" = "Diese behalten";
+"files.keptBadge" = "Behalten";
 "files.manageScope" = "In den Einstellungen verwalten";
 "files.mode.duplicates" = "Duplikate";
 "files.mode.large" = "Große Dateien";
@@ -319,7 +320,7 @@
 "scan.filter.old" = "Alte";
 "scan.firstRun.review" = "Erste Bereinigung: Klappen Sie die Liste vor dem Bestätigen auf.";
 "scan.firstRun.scope" = "Sift liest Caches, Protokolle und Installer an diesen Orten:";
-"scan.header.ready" = "%d Objekte · %@ lassen sich freigeben";
+"scan.header.reclaimable" = "%@ lassen sich freigeben";
 "scan.headerStatus" = "Ergebnisse vom %@ · %d Objekte";
 "scan.hiddenSelected" = "%d ausgewählte Objekte werden hier nicht angezeigt";
 "scan.nothingFound" = "Nichts zu bereinigen";
@@ -369,6 +370,9 @@
 "scan.scopeNote" = "Liest nur Namen, Größen und Daten · volle Abdeckung braucht vollständigen Festplattenzugriff";
 "scan.selectAll" = "Alle auswählen";
 "scan.selectAllShown" = "Alle %d angezeigten auswählen";
+"scan.skipped.actionable" = "%d Orte benötigen vollständigen Festplattenzugriff";
+"scan.skipped.expandHint" = "Orte anzeigen";
+"scan.skipped.protectedSummary" = "%d Orte sind konstruktionsbedingt unlesbar";
 "scan.skippedReason.fileNotFound" = "Der Eintrag verschwand während des Scans und wurde übersprungen.";
 "scan.skippedReason.partialFailure" = "Ein Teil dieses Ortes konnte nicht gelesen werden.";
 "scan.skippedReason.permissionDenied" = "Für diesen Ort ist eine zusätzliche Berechtigung nötig.";

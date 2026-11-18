@@ -194,6 +194,7 @@
 "files.groupMembers" = "%d bản sao";
 "files.keepHint" = "Ban đầu Sift giữ bản sao cũ nhất. Chọn «Giữ bản này» ở bản sao khác để giữ bản đó thay thế; những bản sao bạn không giữ vẫn được chọn để xoá.";
 "files.keepThis" = "Giữ bản này";
+"files.keptBadge" = "Đã giữ";
 "files.manageScope" = "Quản lý trong Cài đặt";
 "files.mode.duplicates" = "Tệp trùng";
 "files.mode.large" = "Tệp lớn";
@@ -319,7 +320,7 @@
 "scan.filter.old" = "Cũ";
 "scan.firstRun.review" = "Lần dọn dẹp đầu tiên: mở danh sách trước khi xác nhận.";
 "scan.firstRun.scope" = "Sift đọc bộ nhớ đệm, nhật ký và bộ cài ở những vị trí sau:";
-"scan.header.ready" = "%d mục · có thể giải phóng %@";
+"scan.header.reclaimable" = "có thể giải phóng %@";
 "scan.headerStatus" = "Kết quả từ %@ · %d mục";
 "scan.hiddenSelected" = "%d mục đã chọn không hiển thị ở đây";
 "scan.nothingFound" = "Không có gì cần dọn";
@@ -369,6 +370,9 @@
 "scan.scopeNote" = "Chỉ đọc tên, kích thước và ngày · phạm vi đầy đủ cần Quyền truy cập Toàn bộ Đĩa";
 "scan.selectAll" = "Chọn tất cả";
 "scan.selectAllShown" = "Chọn tất cả mục hiển thị (%d)";
+"scan.skipped.actionable" = "%d vị trí cần quyền truy cập toàn bộ đĩa";
+"scan.skipped.expandHint" = "Hiện các vị trí";
+"scan.skipped.protectedSummary" = "%d vị trí không thể đọc theo thiết kế";
 "scan.skippedReason.fileNotFound" = "Mục này đã biến mất trong khi quét nên đã bị bỏ qua.";
 "scan.skippedReason.partialFailure" = "Không đọc được một phần của vị trí này.";
 "scan.skippedReason.permissionDenied" = "Sift cần thêm quyền cho vị trí này.";

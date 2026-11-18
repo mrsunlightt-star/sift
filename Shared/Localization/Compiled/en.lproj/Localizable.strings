@@ -194,6 +194,7 @@
 "files.groupMembers" = "%d copies";
 "files.keepHint" = "Sift starts by keeping the oldest copy. Use “Keep this one” on any other copy to keep that one instead; the copies you do not keep stay selected for removal.";
 "files.keepThis" = "Keep this one";
+"files.keptBadge" = "Kept";
 "files.manageScope" = "Manage in Settings";
 "files.mode.duplicates" = "Duplicates";
 "files.mode.large" = "Large files";
@@ -319,7 +320,7 @@
 "scan.filter.old" = "Old";
 "scan.firstRun.review" = "First cleanup: expand the list before you confirm.";
 "scan.firstRun.scope" = "Sift reads caches, logs and installers in these locations:";
-"scan.header.ready" = "%d items · %@ can be reclaimed";
+"scan.header.reclaimable" = "%@ can be reclaimed";
 "scan.headerStatus" = "Results from %@ · %d items";
 "scan.hiddenSelected" = "%d selected items are not shown here";
 "scan.nothingFound" = "Nothing to clean up";
@@ -369,6 +370,9 @@
 "scan.scopeNote" = "Reads names, sizes and dates only · full coverage needs Full Disk Access";
 "scan.selectAll" = "Select all";
 "scan.selectAllShown" = "Select all shown (%d)";
+"scan.skipped.actionable" = "%d locations need Full Disk Access";
+"scan.skipped.expandHint" = "Show the locations";
+"scan.skipped.protectedSummary" = "%d locations are unreadable by design";
 "scan.skippedReason.fileNotFound" = "The item disappeared during the scan, so it was skipped.";
 "scan.skippedReason.partialFailure" = "Part of this location could not be read.";
 "scan.skippedReason.permissionDenied" = "Sift needs extra permission for this location.";

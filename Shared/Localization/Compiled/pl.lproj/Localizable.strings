@@ -194,6 +194,7 @@
 "files.groupMembers" = "%d kopii";
 "files.keepHint" = "Na początku Sift zachowuje najstarszą kopię. Wybierz „Zachowaj ten” przy innej kopii, aby zachować ją; kopie, których nie zachowasz, pozostają zaznaczone do usunięcia.";
 "files.keepThis" = "Zachowaj ten";
+"files.keptBadge" = "Zachowany";
 "files.manageScope" = "Zarządzaj w ustawieniach";
 "files.mode.duplicates" = "Duplikaty";
 "files.mode.large" = "Duże pliki";
@@ -319,7 +320,7 @@
 "scan.filter.old" = "Stare";
 "scan.firstRun.review" = "Pierwsze czyszczenie: rozwiń listę przed potwierdzeniem.";
 "scan.firstRun.scope" = "Sift czyta pamięci podręczne, dzienniki i instalatory w tych lokalizacjach:";
-"scan.header.ready" = "%d elementów · %@ do odzyskania";
+"scan.header.reclaimable" = "%@ do odzyskania";
 "scan.headerStatus" = "Wyniki z %@ · %d elementów";
 "scan.hiddenSelected" = "%d zaznaczonych elementów nie jest tu pokazanych";
 "scan.nothingFound" = "Nic do wyczyszczenia";
@@ -369,6 +370,9 @@
 "scan.scopeNote" = "Czyta tylko nazwy, rozmiary i daty · pełne pokrycie wymaga pełnego dostępu do dysku";
 "scan.selectAll" = "Zaznacz wszystko";
 "scan.selectAllShown" = "Zaznacz wszystkie widoczne (%d)";
+"scan.skipped.actionable" = "%d lokalizacji wymaga pełnego dostępu do dysku";
+"scan.skipped.expandHint" = "Pokaż lokalizacje";
+"scan.skipped.protectedSummary" = "%d lokalizacji jest nieczytelnych z założenia";
 "scan.skippedReason.fileNotFound" = "Element zniknął podczas skanowania i został pominięty.";
 "scan.skippedReason.partialFailure" = "Części tej lokalizacji nie udało się odczytać.";
 "scan.skippedReason.permissionDenied" = "Ta lokalizacja wymaga dodatkowych uprawnień.";

@@ -194,6 +194,7 @@
 "files.groupMembers" = "%d copies";
 "files.keepHint" = "Sift conserve d’abord la copie la plus ancienne. Choisissez « Conserver celui-ci » sur une autre copie pour la conserver ; les copies que vous ne conservez pas restent sélectionnées pour la suppression.";
 "files.keepThis" = "Conserver celui-ci";
+"files.keptBadge" = "Conservé";
 "files.manageScope" = "Gérer dans les Réglages";
 "files.mode.duplicates" = "Doublons";
 "files.mode.large" = "Fichiers volumineux";
@@ -319,7 +320,7 @@
 "scan.filter.old" = "Anciens";
 "scan.firstRun.review" = "Premier nettoyage : ouvrez la liste avant de confirmer.";
 "scan.firstRun.scope" = "Sift lit les caches, journaux et installateurs de ces emplacements :";
-"scan.header.ready" = "%d éléments · %@ récupérables";
+"scan.header.reclaimable" = "%@ récupérables";
 "scan.headerStatus" = "Résultats du %@ · %d éléments";
 "scan.hiddenSelected" = "%d éléments sélectionnés ne sont pas affichés ici";
 "scan.nothingFound" = "Rien à nettoyer";
@@ -369,6 +370,9 @@
 "scan.scopeNote" = "Lit uniquement les noms, tailles et dates · la couverture complète demande l’accès complet au disque";
 "scan.selectAll" = "Tout sélectionner";
 "scan.selectAllShown" = "Tout sélectionner parmi les %d affichés";
+"scan.skipped.actionable" = "%d emplacements nécessitent l’accès complet au disque";
+"scan.skipped.expandHint" = "Afficher les emplacements";
+"scan.skipped.protectedSummary" = "%d emplacements sont illisibles par conception";
 "scan.skippedReason.fileNotFound" = "L’élément a disparu pendant l’analyse, il a été ignoré.";
 "scan.skippedReason.partialFailure" = "Une partie de cet emplacement n’a pas pu être lue.";
 "scan.skippedReason.permissionDenied" = "Cet emplacement nécessite une autorisation supplémentaire.";

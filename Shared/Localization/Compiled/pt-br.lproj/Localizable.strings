@@ -194,6 +194,7 @@
 "files.groupMembers" = "%d cópias";
 "files.keepHint" = "No início o Sift mantém a cópia mais antiga. Escolha «Manter este» em outra cópia para manter essa; as cópias que você não mantiver continuam selecionadas para remoção.";
 "files.keepThis" = "Manter este";
+"files.keptBadge" = "Mantido";
 "files.manageScope" = "Gerenciar nos Ajustes";
 "files.mode.duplicates" = "Duplicados";
 "files.mode.large" = "Arquivos grandes";
@@ -319,7 +320,7 @@
 "scan.filter.old" = "Antigos";
 "scan.firstRun.review" = "Primeira limpeza: abra a lista antes de confirmar.";
 "scan.firstRun.scope" = "O Sift lê caches, logs e instaladores nestes locais:";
-"scan.header.ready" = "%d itens · %@ recuperáveis";
+"scan.header.reclaimable" = "%@ recuperáveis";
 "scan.headerStatus" = "Resultados de %@ · %d itens";
 "scan.hiddenSelected" = "%d itens selecionados não aparecem aqui";
 "scan.nothingFound" = "Nada para limpar";
@@ -369,6 +370,9 @@
 "scan.scopeNote" = "Lê apenas nomes, tamanhos e datas · a cobertura completa exige o Acesso Total ao Disco";
 "scan.selectAll" = "Selecionar tudo";
 "scan.selectAllShown" = "Selecionar os exibidos (%d)";
+"scan.skipped.actionable" = "%d locais precisam do Acesso Total ao Disco";
+"scan.skipped.expandHint" = "Mostrar os locais";
+"scan.skipped.protectedSummary" = "%d locais são ilegíveis por conceção";
 "scan.skippedReason.fileNotFound" = "O item desapareceu durante a verificação e foi ignorado.";
 "scan.skippedReason.partialFailure" = "Parte desta localização não pôde ser lida.";
 "scan.skippedReason.permissionDenied" = "Esta localização precisa de permissão adicional.";

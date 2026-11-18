@@ -194,6 +194,7 @@
 "files.groupMembers" = "%d نسخه";
 "files.keepHint" = "Sift در ابتدا قدیمیترین نسخه را نگه میدارد. با انتخاب «این را نگه دار» روی نسخهای دیگر، همان را نگه میدارید؛ نسخههایی که نگه نمیدارید برای حذف انتخابشده میمانند.";
 "files.keepThis" = "این را نگه دار";
+"files.keptBadge" = "نگه‌داشته‌شده";
 "files.manageScope" = "مدیریت در تنظیمات";
 "files.mode.duplicates" = "تکراری‌ها";
 "files.mode.large" = "فایل‌های بزرگ";
@@ -319,7 +320,7 @@
 "scan.filter.old" = "قدیمی";
 "scan.firstRun.review" = "نخستین پاکسازی: پیش از تأیید فهرست را باز کنید.";
 "scan.firstRun.scope" = "Sift حافظه‌های نهانی، گزارش‌ها و نصب‌کننده‌ها را در این مکان‌ها می‌خواند:";
-"scan.header.ready" = "%d مورد · %@ قابل آزادسازی";
+"scan.header.reclaimable" = "%@ قابل آزادسازی";
 "scan.headerStatus" = "نتایج از %@ · %d مورد";
 "scan.hiddenSelected" = "%d مورد انتخاب‌شده اینجا نشان داده نمی‌شود";
 "scan.nothingFound" = "چیزی برای پاک‌سازی نیست";
@@ -369,6 +370,9 @@
 "scan.scopeNote" = "فقط نام‌ها، اندازه‌ها و تاریخ‌ها خوانده می‌شود · پوشش کامل نیازمند دسترسی کامل به دیسک است";
 "scan.selectAll" = "انتخاب همه";
 "scan.selectAllShown" = "انتخاب موارد نمایش‌داده‌شده (%d)";
+"scan.skipped.actionable" = "%d مکان به دسترسی کامل به دیسک نیاز دارد";
+"scan.skipped.expandHint" = "نمایش مکان‌ها";
+"scan.skipped.protectedSummary" = "%d مکان بنا بر طراحی خوانده نمی‌شوند";
 "scan.skippedReason.fileNotFound" = "مورد در طول اسکن ناپدید شد و از آن گذشتیم.";
 "scan.skippedReason.partialFailure" = "بخشی از این مکان خوانده نشد.";
 "scan.skippedReason.permissionDenied" = "این مکان به مجوز بیشتری نیاز دارد.";

@@ -194,6 +194,7 @@
 "files.groupMembers" = "Копій: %d";
 "files.keepHint" = "Спочатку Sift зберігає найстарішу копію. Виберіть «Залишити цю» на іншій копії, щоб зберегти її; копії, які ви не зберегли, залишаються позначеними для видалення.";
 "files.keepThis" = "Залишити цю";
+"files.keptBadge" = "Збережено";
 "files.manageScope" = "Керувати в Налаштуваннях";
 "files.mode.duplicates" = "Дублікати";
 "files.mode.large" = "Великі файли";
@@ -319,7 +320,7 @@
 "scan.filter.old" = "Старі";
 "scan.firstRun.review" = "Перше очищення: розгорніть список перед підтвердженням.";
 "scan.firstRun.scope" = "Sift читає кеші, журнали й інсталятори в цих місцях:";
-"scan.header.ready" = "%d елементів · можна звільнити %@";
+"scan.header.reclaimable" = "можна звільнити %@";
 "scan.headerStatus" = "Результати від %@ · %d елементів";
 "scan.hiddenSelected" = "%d вибраних елементів тут не показано";
 "scan.nothingFound" = "Нічого очищати";
@@ -369,6 +370,9 @@
 "scan.scopeNote" = "Читаються лише назви, розміри й дати · повне охоплення потребує Повного доступу до диска";
 "scan.selectAll" = "Вибрати все";
 "scan.selectAllShown" = "Вибрати всі показані (%d)";
+"scan.skipped.actionable" = "%d розташувань потребують повного доступу до диска";
+"scan.skipped.expandHint" = "Показати розташування";
+"scan.skipped.protectedSummary" = "%d розташувань недоступні за задумом";
 "scan.skippedReason.fileNotFound" = "Елемент зник під час сканування, тому його пропущено.";
 "scan.skippedReason.partialFailure" = "Частину цього місця не вдалося прочитати.";
 "scan.skippedReason.permissionDenied" = "Sift потрібен додатковий дозвіл для цього місця.";

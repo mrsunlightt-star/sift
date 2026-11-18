@@ -194,6 +194,7 @@
 "files.groupMembers" = "Kopie: %d";
 "files.keepHint" = "Sift nejprve zachová nejstarší kopii. Zvolte „Ponechat tuto“ u jiné kopie, chcete-li zachovat ji; kopie, které nezachováte, zůstanou označené k odstranění.";
 "files.keepThis" = "Ponechat tuto";
+"files.keptBadge" = "Zachováno";
 "files.manageScope" = "Spravovat v Nastavení";
 "files.mode.duplicates" = "Duplikáty";
 "files.mode.large" = "Velké soubory";
@@ -319,7 +320,7 @@
 "scan.filter.old" = "Staré";
 "scan.firstRun.review" = "První čištění: před potvrzením rozbalte seznam.";
 "scan.firstRun.scope" = "Sift čte mezipaměti, protokoly a instalátory na těchto místech:";
-"scan.header.ready" = "%d položek · %@ k uvolnění";
+"scan.header.reclaimable" = "%@ k uvolnění";
 "scan.headerStatus" = "Výsledky z %@ · %d položek";
 "scan.hiddenSelected" = "%d vybraných položek se zde nezobrazuje";
 "scan.nothingFound" = "Není co čistit";
@@ -369,6 +370,9 @@
 "scan.scopeNote" = "Čte jen názvy, velikosti a data · plné pokrytí vyžaduje Úplný přístup k disku";
 "scan.selectAll" = "Vybrat vše";
 "scan.selectAllShown" = "Vybrat vše zobrazené (%d)";
+"scan.skipped.actionable" = "%d míst vyžaduje úplný přístup k disku";
+"scan.skipped.expandHint" = "Zobrazit umístění";
+"scan.skipped.protectedSummary" = "%d míst je záměrně nečitelných";
 "scan.skippedReason.fileNotFound" = "Položka během skenování zmizela, proto byla přeskočena.";
 "scan.skippedReason.partialFailure" = "Část tohoto místa nebylo možné načíst.";
 "scan.skippedReason.permissionDenied" = "Sift potřebuje pro toto místo zvláštní oprávnění.";

@@ -194,6 +194,7 @@
 "files.groupMembers" = "%d개 사본";
 "files.keepHint" = "Sift는 기본적으로 가장 오래된 복사본을 남깁니다. 다른 복사본에서 “이 항목 유지”를 선택하면 그 복사본을 남깁니다. 남기지 않은 복사본은 삭제 대상으로 선택된 상태로 유지됩니다.";
 "files.keepThis" = "이 항목 유지";
+"files.keptBadge" = "유지됨";
 "files.manageScope" = "설정에서 관리";
 "files.mode.duplicates" = "중복 파일";
 "files.mode.large" = "큰 파일";
@@ -319,7 +320,7 @@
 "scan.filter.old" = "오래된 파일";
 "scan.firstRun.review" = "첫 정리입니다. 확인 전에 목록을 펼쳐 보세요.";
 "scan.firstRun.scope" = "Sift는 다음 위치의 캐시, 로그, 설치 파일을 읽습니다:";
-"scan.header.ready" = "%d개 항목 · %@ 정리 가능";
+"scan.header.reclaimable" = "%@ 정리 가능";
 "scan.headerStatus" = "%@ 결과 · %d개 항목";
 "scan.hiddenSelected" = "선택한 %d개 항목은 이 목록에 표시되지 않습니다";
 "scan.nothingFound" = "정리할 항목이 없습니다";
@@ -369,6 +370,9 @@
 "scan.scopeNote" = "이름, 크기, 날짜만 읽습니다 · 전체 범위는 전체 디스크 접근 권한이 필요합니다";
 "scan.selectAll" = "전체 선택";
 "scan.selectAllShown" = "표시된 항목 모두 선택(%d)";
+"scan.skipped.actionable" = "%d개 위치에 전체 디스크 접근 권한이 필요합니다";
+"scan.skipped.expandHint" = "위치 보기";
+"scan.skipped.protectedSummary" = "%d개 위치는 설계상 읽을 수 없습니다";
 "scan.skippedReason.fileNotFound" = "검사 중 항목이 사라져 건너뛰었습니다.";
 "scan.skippedReason.partialFailure" = "이 위치의 일부를 읽을 수 없습니다.";
 "scan.skippedReason.permissionDenied" = "이 위치에는 추가 권한이 필요합니다.";

@@ -165,12 +165,22 @@ final class LocalizationTests: XCTestCase, @unchecked Sendable {
     /// The two sentences the visual studies added, in both appearances of the
     /// fact they state: a scan summary counts what it found, and the suggestion
     /// list says its rows describe a *previous* run.
+    ///
+    /// The scan header's two facts are separate lookups now, so each is asserted
+    /// on its own: the count comes from the plural-aware counted form, and the
+    /// reclaimable sentence takes the size and nothing else. Neither carries a
+    /// middle dot — that separator was written into every translation.
     func test_theStudySentencesResolveTheirArguments() {
         let summary = SiftFormat.bytes(9_430_000_000)
-        let ready = LocalizationKey.scanHeaderReady.localized(62, summary)
-        XCTAssertTrue(ready.contains("62"), ready)
+        let count = LocalizationKey.commonItemCount.counted(62)
+        XCTAssertTrue(count.contains("62"), count)
+        XCTAssertFalse(count.contains("·"), count)
+
+        let ready = LocalizationKey.scanHeaderReclaimable.localized(summary)
         XCTAssertTrue(ready.contains(summary), ready)
         XCTAssertFalse(ready.contains("%d") || ready.contains("%@"), ready)
+        XCTAssertFalse(ready.contains("·"),
+                       "the header's separator is spacing, not a glyph: \(ready)")
 
         for key in [LocalizationKey.overviewPurpose, .overviewSuggestionsNote] {
             let value = key.localized

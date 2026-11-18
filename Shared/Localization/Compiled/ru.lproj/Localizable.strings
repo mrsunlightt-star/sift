@@ -194,6 +194,7 @@
 "files.groupMembers" = "Копий: %d";
 "files.keepHint" = "По умолчанию Sift оставляет самую старую копию. Выберите «Оставить этот» у другой копии, чтобы оставить её; копии, которые вы не оставили, остаются отмеченными для удаления.";
 "files.keepThis" = "Оставить этот";
+"files.keptBadge" = "Оставлено";
 "files.manageScope" = "Управлять в настройках";
 "files.mode.duplicates" = "Дубликаты";
 "files.mode.large" = "Большие файлы";
@@ -319,7 +320,7 @@
 "scan.filter.old" = "Старые";
 "scan.firstRun.review" = "Первая очистка: раскройте список перед подтверждением.";
 "scan.firstRun.scope" = "Sift читает кэши, журналы и установщики в этих местах:";
-"scan.header.ready" = "Объектов: %d · можно освободить %@";
+"scan.header.reclaimable" = "можно освободить %@";
 "scan.headerStatus" = "Результаты на %@ · объектов: %d";
 "scan.hiddenSelected" = "Выбранные объекты (%d) здесь не показаны";
 "scan.nothingFound" = "Нечего очищать";
@@ -369,6 +370,9 @@
 "scan.scopeNote" = "Читаются только имена, размеры и даты · для полного охвата нужен полный доступ к диску";
 "scan.selectAll" = "Выбрать всё";
 "scan.selectAllShown" = "Выбрать все показанные (%d)";
+"scan.skipped.actionable" = "Мест, требующих полного доступа к диску: %d";
+"scan.skipped.expandHint" = "Показать места";
+"scan.skipped.protectedSummary" = "Мест, недоступных по замыслу: %d";
 "scan.skippedReason.fileNotFound" = "Элемент исчез во время сканирования и был пропущен.";
 "scan.skippedReason.partialFailure" = "Часть этого места не удалось прочитать.";
 "scan.skippedReason.permissionDenied" = "Для этого места нужны дополнительные разрешения.";

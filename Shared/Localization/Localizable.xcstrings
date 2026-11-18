@@ -40531,6 +40531,216 @@
         }
       }
     },
+    "files.keptBadge": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kept"
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已保留"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "유지됨"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Оставлено"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conservado"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保持"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conservé"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Behalten"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conservato"
+          }
+        },
+        "pt-br": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mantido"
+          }
+        },
+        "zh-hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已保留"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tutuldu"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zachowany"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bewaard"
+          }
+        },
+        "lo": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ເກັບໄວ້"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "محتفظ به"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "נשמר"
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "نگه‌داشته‌شده"
+          }
+        },
+        "bg": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Запазен"
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zachováno"
+          }
+        },
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beholdt"
+          }
+        },
+        "el": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Διατηρήθηκε"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conservado"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Säilytetty"
+          }
+        },
+        "hu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Megtartva"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disimpan"
+          }
+        },
+        "ms": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disimpan"
+          }
+        },
+        "nb": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beholdt"
+          }
+        },
+        "pt-pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mantido"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Păstrat"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Behållen"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เก็บไว้"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Збережено"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đã giữ"
+          }
+        }
+      }
+    },
     "files.manageScope": {
       "comment": null,
       "extractionState": "manual",
@@ -66781,212 +66991,212 @@
         }
       }
     },
-    "scan.header.ready": {
+    "scan.header.reclaimable": {
       "comment": null,
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d items · %@ can be reclaimed"
+            "value": "%@ can be reclaimed"
           }
         },
         "zh-hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "发现 %d 个项目 · 可处理空间 %@"
+            "value": "可处理空间 %@"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d개 항목 · %@ 정리 가능"
+            "value": "%@ 정리 가능"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Объектов: %d · можно освободить %@"
+            "value": "можно освободить %@"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d elementos · %@ recuperables"
+            "value": "%@ recuperables"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d 項目 · %@ を解放できます"
+            "value": "%@ を解放できます"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d éléments · %@ récupérables"
+            "value": "%@ récupérables"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d Objekte · %@ lassen sich freigeben"
+            "value": "%@ lassen sich freigeben"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d elementi · %@ liberabili"
+            "value": "%@ liberabili"
           }
         },
         "pt-br": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d itens · %@ recuperáveis"
+            "value": "%@ recuperáveis"
           }
         },
         "zh-hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "共 %d 個項目 · 可釋放 %@"
+            "value": "可釋放 %@"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d öğe · %@ geri kazanılabilir"
+            "value": "%@ geri kazanılabilir"
           }
         },
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d elementów · %@ do odzyskania"
+            "value": "%@ do odzyskania"
           }
         },
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d items · %@ vrij te maken"
+            "value": "%@ vrij te maken"
           }
         },
         "lo": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d ລາຍການ · ຄືນໄດ້ %@"
+            "value": "ຄືນໄດ້ %@"
           }
         },
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d عناصر · يمكن تحرير %@"
+            "value": "يمكن تحرير %@"
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d פריטים · %@ ניתנים לפינוי"
+            "value": "%@ ניתנים לפינוי"
           }
         },
         "fa": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d مورد · %@ قابل آزادسازی"
+            "value": "%@ قابل آزادسازی"
           }
         },
         "bg": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d елемента · %@ за освобождаване"
+            "value": "%@ за освобождаване"
           }
         },
         "cs": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d položek · %@ k uvolnění"
+            "value": "%@ k uvolnění"
           }
         },
         "da": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d elementer · %@ kan frigøres"
+            "value": "%@ kan frigøres"
           }
         },
         "el": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d στοιχεία · %@ προς ελευθέρωση"
+            "value": "%@ προς ελευθέρωση"
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d elementos · %@ recuperables"
+            "value": "%@ recuperables"
           }
         },
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d kohdetta · %@ vapautettavissa"
+            "value": "%@ vapautettavissa"
           }
         },
         "hu": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d elem · %@ felszabadítható"
+            "value": "%@ felszabadítható"
           }
         },
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d item · %@ dapat dikosongkan"
+            "value": "%@ dapat dikosongkan"
           }
         },
         "ms": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d item · %@ boleh dikosongkan"
+            "value": "%@ boleh dikosongkan"
           }
         },
         "nb": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d elementer · %@ kan frigjøres"
+            "value": "%@ kan frigjøres"
           }
         },
         "pt-pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d itens · %@ recuperáveis"
+            "value": "%@ recuperáveis"
           }
         },
         "ro": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d elemente · %@ recuperabile"
+            "value": "%@ recuperabile"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d objekt · %@ kan frigöras"
+            "value": "%@ kan frigöras"
           }
         },
         "th": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d รายการ · คืนพื้นที่ได้ %@"
+            "value": "คืนพื้นที่ได้ %@"
           }
         },
         "uk": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d елементів · можна звільнити %@"
+            "value": "можна звільнити %@"
           }
         },
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d mục · có thể giải phóng %@"
+            "value": "có thể giải phóng %@"
           }
         }
       }
@@ -77277,6 +77487,636 @@
           "stringUnit": {
             "state": "translated",
             "value": "Chọn tất cả mục hiển thị (%d)"
+          }
+        }
+      }
+    },
+    "scan.skipped.actionable": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d locations need Full Disk Access"
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d 个位置需要完全磁盘访问权限"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d개 위치에 전체 디스크 접근 권한이 필요합니다"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Мест, требующих полного доступа к диску: %d"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d ubicaciones necesitan acceso total al disco"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "フルディスクアクセスが必要な場所: %d"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d emplacements nécessitent l’accès complet au disque"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d Orte benötigen vollständigen Festplattenzugriff"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d posizioni richiedono l’Accesso completo al disco"
+          }
+        },
+        "pt-br": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d locais precisam do Acesso Total ao Disco"
+          }
+        },
+        "zh-hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d 個位置需要完全磁碟存取權限"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d konum Tam Disk Erişimi gerektiriyor"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d lokalizacji wymaga pełnego dostępu do dysku"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d locaties vereisen Volledige Schijftoegang"
+          }
+        },
+        "lo": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d ຕຳແໜ່ງຕ້ອງການສິດເຂົ້າເຖິງດິສຄົບ"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d مواقع تحتاج إلى الوصول الكامل إلى القرص"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d מיקומים דורשים גישה מלאה לדיסק"
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d مکان به دسترسی کامل به دیسک نیاز دارد"
+          }
+        },
+        "bg": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d места изискват пълен достъп до диска"
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d míst vyžaduje úplný přístup k disku"
+          }
+        },
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d placeringer kræver fuld diskadgang"
+          }
+        },
+        "el": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d τοποθεσίες χρειάζονται πλήρη πρόσβαση στον δίσκο"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d ubicaciones necesitan acceso total al disco"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d sijaintia tarvitsee täyden levynkäyttöoikeuden"
+          }
+        },
+        "hu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d hely igényel teljes lemezhozzáférést"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d lokasi memerlukan Akses Disk Penuh"
+          }
+        },
+        "ms": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d lokasi memerlukan Akses Cakera Penuh"
+          }
+        },
+        "nb": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d steder trenger full diskadgang"
+          }
+        },
+        "pt-pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d locais precisam de acesso total ao disco"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d locații necesită acces complet la disc"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d platser kräver full diskåtkomst"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d ตำแหน่งต้องใช้การเข้าถึงดิสก์แบบเต็ม"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d розташувань потребують повного доступу до диска"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d vị trí cần quyền truy cập toàn bộ đĩa"
+          }
+        }
+      }
+    },
+    "scan.skipped.expandHint": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show the locations"
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看这些位置"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "위치 보기"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Показать места"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostrar las ubicaciones"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "場所を表示"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Afficher les emplacements"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Orte anzeigen"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostra le posizioni"
+          }
+        },
+        "pt-br": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostrar os locais"
+          }
+        },
+        "zh-hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顯示這些位置"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Konumları göster"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pokaż lokalizacje"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toon de locaties"
+          }
+        },
+        "lo": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ສະແດງຕຳແໜ່ງ"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "عرض المواقع"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "הצג את המיקומים"
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "نمایش مکان‌ها"
+          }
+        },
+        "bg": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Покажи местата"
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zobrazit umístění"
+          }
+        },
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vis placeringerne"
+          }
+        },
+        "el": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Εμφάνιση τοποθεσιών"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostrar las ubicaciones"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Näytä sijainnit"
+          }
+        },
+        "hu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Helyek megjelenítése"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tampilkan lokasi"
+          }
+        },
+        "ms": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tunjukkan lokasi"
+          }
+        },
+        "nb": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vis stedene"
+          }
+        },
+        "pt-pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostrar os locais"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arată locațiile"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visa platserna"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "แสดงตำแหน่ง"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Показати розташування"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hiện các vị trí"
+          }
+        }
+      }
+    },
+    "scan.skipped.protectedSummary": {
+      "comment": null,
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d locations are unreadable by design"
+          }
+        },
+        "zh-hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d 个位置按设计无法读取"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d개 위치는 설계상 읽을 수 없습니다"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Мест, недоступных по замыслу: %d"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d ubicaciones son ilegibles por diseño"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "設計上読み取れない場所: %d"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d emplacements sont illisibles par conception"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d Orte sind konstruktionsbedingt unlesbar"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d posizioni non sono leggibili per scelta"
+          }
+        },
+        "pt-br": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d locais são ilegíveis por conceção"
+          }
+        },
+        "zh-hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d 個位置依設計無法讀取"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d konum tasarım gereği okunamıyor"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d lokalizacji jest nieczytelnych z założenia"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d locaties zijn bewust onleesbaar"
+          }
+        },
+        "lo": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d ຕຳແໜ່ງອ່ານບໍ່ໄດ້ໂດຍການອອກແບບ"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d مواقع غير قابلة للقراءة بحكم التصميم"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d מיקומים אינם קריאים מעצם התכנון"
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d مکان بنا بر طراحی خوانده نمی‌شوند"
+          }
+        },
+        "bg": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d места са нечетими по замисъл"
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d míst je záměrně nečitelných"
+          }
+        },
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d placeringer kan ikke læses af design"
+          }
+        },
+        "el": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d τοποθεσίες δεν είναι αναγνώσιμες εξ ορισμού"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d ubicaciones son ilegibles por diseño"
+          }
+        },
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d sijaintia on tarkoituksella lukukelvottomia"
+          }
+        },
+        "hu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d hely szándékosan nem olvasható"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d lokasi tidak dapat dibaca secara desain"
+          }
+        },
+        "ms": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d lokasi tidak boleh dibaca secara reka bentuk"
+          }
+        },
+        "nb": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d steder er uleselige av design"
+          }
+        },
+        "pt-pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d locais são ilegíveis por conceção"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d locații sunt ilizibile prin proiectare"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d platser är oläsbara av design"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d ตำแหน่งอ่านไม่ได้โดยการออกแบบ"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d розташувань недоступні за задумом"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d vị trí không thể đọc theo thiết kế"
           }
         }
       }

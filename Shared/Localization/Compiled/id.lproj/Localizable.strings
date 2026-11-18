@@ -194,6 +194,7 @@
 "files.groupMembers" = "%d salinan";
 "files.keepHint" = "Awalnya Sift menyimpan salinan tertua. Pilih «Simpan yang ini» pada salinan lain untuk menyimpannya; salinan yang tidak Anda simpan tetap dipilih untuk dihapus.";
 "files.keepThis" = "Simpan yang ini";
+"files.keptBadge" = "Disimpan";
 "files.manageScope" = "Kelola di Pengaturan";
 "files.mode.duplicates" = "Duplikat";
 "files.mode.large" = "File besar";
@@ -319,7 +320,7 @@
 "scan.filter.old" = "Lama";
 "scan.firstRun.review" = "Pembersihan pertama: buka daftar sebelum mengonfirmasi.";
 "scan.firstRun.scope" = "Sift membaca cache, log, dan penginstal di lokasi berikut:";
-"scan.header.ready" = "%d item · %@ dapat dikosongkan";
+"scan.header.reclaimable" = "%@ dapat dikosongkan";
 "scan.headerStatus" = "Hasil dari %@ · %d item";
 "scan.hiddenSelected" = "%d item terpilih tidak ditampilkan di sini";
 "scan.nothingFound" = "Tidak ada yang perlu dibersihkan";
@@ -369,6 +370,9 @@
 "scan.scopeNote" = "Hanya membaca nama, ukuran, dan tanggal · cakupan penuh memerlukan Akses Disk Penuh";
 "scan.selectAll" = "Pilih semua";
 "scan.selectAllShown" = "Pilih semua yang ditampilkan (%d)";
+"scan.skipped.actionable" = "%d lokasi memerlukan Akses Disk Penuh";
+"scan.skipped.expandHint" = "Tampilkan lokasi";
+"scan.skipped.protectedSummary" = "%d lokasi tidak dapat dibaca secara desain";
 "scan.skippedReason.fileNotFound" = "Item hilang selama pemindaian, jadi dilewati.";
 "scan.skippedReason.partialFailure" = "Sebagian lokasi ini tidak dapat dibaca.";
 "scan.skippedReason.permissionDenied" = "Sift memerlukan izin tambahan untuk lokasi ini.";

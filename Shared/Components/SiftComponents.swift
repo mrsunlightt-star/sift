@@ -200,7 +200,9 @@ public struct SiftCanvasBackground: View {
 public struct SiftPageHeader<Trailing: View>: View {
     private let title: String
     private let status: String?
+    private let subtitleLead: String?
     private let subtitle: String?
+    private let subtitleDetail: String?
     private let trailing: Trailing
 
     public init(
@@ -208,6 +210,14 @@ public struct SiftPageHeader<Trailing: View>: View {
         /// Shown only when it says something the title does not. An empty string
         /// is the same as no status.
         status: String? = nil,
+        /// The first fact of the page's own sentence, drawn before the subtitle
+        /// on the same baseline: when the page's result set was produced.
+        ///
+        /// It is a slot of its own rather than a prefix baked into `subtitle`
+        /// because the three facts are three separate lookups — a date, a count
+        /// and a size — and joining them inside one translated string made every
+        /// language reproduce a separator glyph it may not use.
+        subtitleLead: String? = nil,
         /// One sentence under the title saying what the page is for, or what the
         /// page currently holds. `05 §6` makes the title the anchor and lets a
         /// page state a status; the visual studies put the page's own sentence in
@@ -217,11 +227,22 @@ public struct SiftPageHeader<Trailing: View>: View {
         /// Not `lineLimit(1)` like the status: a sentence in a long translation
         /// must be allowed to wrap instead of being cut to an ellipsis.
         subtitle: String? = nil,
+        /// A second fact of equal rank, drawn beside the subtitle on its
+        /// baseline and separated by space.
+        ///
+        /// It exists so that two facts can be stated without a separator glyph:
+        /// "150 items · 14.68 GB can be reclaimed" set the middle dot inside a
+        /// translated sentence, where every language had to reproduce a
+        /// punctuation mark it might not use, and a long translation broke the
+        /// line around a character that carried no meaning.
+        subtitleDetail: String? = nil,
         @ViewBuilder trailing: () -> Trailing
     ) {
         self.title = title
         self.status = status
+        self.subtitleLead = subtitleLead
         self.subtitle = subtitle
+        self.subtitleDetail = subtitleDetail
         self.trailing = trailing()
     }
 
@@ -247,10 +268,28 @@ public struct SiftPageHeader<Trailing: View>: View {
                         // window's reading order both need it to say so.
                         .accessibilityAddTraits(.isHeader)
                     if let subtitle, !subtitle.isEmpty {
-                        Text(subtitle)
-                            .font(SiftFont.secondaryHeading)
-                            .foregroundStyle(SiftColor.secondaryText)
-                            .fixedSize(horizontal: false, vertical: true)
+                        HStack(alignment: .firstTextBaseline, spacing: SiftMetrics.spacingM) {
+                            if let subtitleLead, !subtitleLead.isEmpty {
+                                Text(subtitleLead)
+                                    .font(SiftFont.secondaryHeading)
+                                    .foregroundStyle(SiftColor.secondaryText)
+                                    .lineLimit(1)
+                            }
+                            Text(subtitle)
+                                .font(SiftFont.secondaryHeading)
+                                .foregroundStyle(SiftColor.secondaryText)
+                            if let subtitleDetail, !subtitleDetail.isEmpty {
+                                Text(subtitleDetail)
+                                    .font(SiftFont.secondaryHeading)
+                                    .foregroundStyle(SiftColor.secondaryText)
+                                    .monospacedDigit()
+                            }
+                        }
+                        // The facts are one spoken sentence; without this
+                        // VoiceOver reads them as unrelated pieces of text
+                        // because they are separate views.
+                        .accessibilityElement(children: .combine)
+                        .fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 Spacer(minLength: SiftMetrics.spacingL)
@@ -266,8 +305,20 @@ public struct SiftPageHeader<Trailing: View>: View {
 }
 
 extension SiftPageHeader where Trailing == EmptyView {
-    public init(title: String, status: String? = nil, subtitle: String? = nil) {
-        self.init(title: title, status: status, subtitle: subtitle) { EmptyView() }
+    public init(
+        title: String,
+        status: String? = nil,
+        subtitleLead: String? = nil,
+        subtitle: String? = nil,
+        subtitleDetail: String? = nil
+    ) {
+        self.init(
+            title: title,
+            status: status,
+            subtitleLead: subtitleLead,
+            subtitle: subtitle,
+            subtitleDetail: subtitleDetail
+        ) { EmptyView() }
     }
 }
 
@@ -730,14 +781,20 @@ private struct BadgeWash: ViewModifier {
     }
 }
 
-/// A filter chip: one line, 32 pt, 8 pt radius.
+/// A filter tab: one line of text over a rule, the way a macOS segmented
+/// control states a selection.
 ///
-/// The selected chip is `selectedWash` with `actionGreen` text and the
-/// `selectedBorder` hairline — the same treatment a selected row and a selected
-/// rail entry wear, so "this one is chosen" looks the same everywhere in the app.
-/// It is not a solid `actionFill` chip: a filter is a view of the list, not the
-/// page's action, and a row of solid green pills competed with the one real button.
-/// `actionGreen` on that wash measures 4.66:1 in light mode and clears AA.
+/// The selected tab is `actionGreen` text over a 2 pt `actionGreen` rule, and
+/// the unselected ones are `secondaryText` with no rule at all. That is
+/// deliberately the lightest way to say "this one is chosen": a filter chooses
+/// which part of one result set the list describes, and the page's only filled
+/// control is the action that moves files. A row of solid `actionFill` pills put
+/// five of the page's heaviest marks above the list and left the real button
+/// looking like one option among several.
+///
+/// The selected state is a fill *and* a shape difference — colour alone is never
+/// the signal (`01 §Accessibility`) — which is what the rule under the label is
+/// for. The label measures 5.16:1 on white, and 8.68:1 in the dark appearance.
 public struct SiftFilterChip: View {
     private let title: String
     private let detail: String?
@@ -754,62 +811,47 @@ public struct SiftFilterChip: View {
         self.action = action
     }
 
-    /// A selected scope is a solid `actionFill` pill with `onActionFill` text —
-    /// the shape the visual studies show, and the one state on this row that must
-    /// be unmistakable at a glance: it decides which subset of the result set the
-    /// list below is describing.
-    ///
-    /// The pair measures 5.16:1 in the light appearance and 7.13:1 in the dark
-    /// one, so the label is carried by the fill and not merely by colour
-    /// difference against the neighbours (`01 §Accessibility`: a state is never
-    /// distinguished by hue alone — the fill is a shape difference too).
-    private var fillColor: Color {
-        if isSelected { return SiftColor.actionFill }
-        return isHovering ? SiftColor.rowHoverFill : SiftColor.controlFill
+    /// The label's rank: the chosen tab reads in the action colour, an unchosen
+    /// one is metadata. Hover lifts an unchosen tab to `mainText` rather than
+    /// tinting it — only one thing on this row may be green.
+    private var foregroundColor: Color {
+        if isSelected { return SiftColor.actionGreen }
+        return isHovering ? SiftColor.mainText : SiftColor.secondaryText
     }
 
-    private var foregroundColor: Color {
-        isSelected ? SiftColor.onActionFill : SiftColor.mainText
+    /// The detail sits beside the label as a second, smaller fact — the count or
+    /// the bytes this filter would show. It follows the label's colour so the two
+    /// read as one control instead of a label with a caption attached.
+    private var detailColor: Color {
+        if isSelected { return SiftColor.actionGreen }
+        return isHovering ? SiftColor.secondaryText : SiftColor.quietText
     }
 
     public var body: some View {
         Button(action: action) {
-            HStack(spacing: SiftMetrics.spacingS) {
-                Text(title)
-                    .font(SiftFont.bodyEmphasis)
-                if let detail {
-                    Text(detail)
-                        .font(SiftFont.metadata)
-                        // A quieter second line of text, not the title's colour
-                        // at an opacity: 70 % of a green is not a text token and
-                        // measures under 4.5:1 on the wash.
-                        //
-                        // On the selected pill the detail keeps the label's own
-                        // foreground rather than a dimmed copy of it: `onActionFill`
-                        // at 85 % over the fill measures 3.67:1, and the size
-                        // difference already ranks it below the title.
-                        .foregroundStyle(isSelected ? SiftColor.onActionFill : SiftColor.secondaryText)
+            VStack(spacing: 0) {
+                HStack(alignment: .firstTextBaseline, spacing: SiftMetrics.spacingS) {
+                    Text(title)
+                        .font(SiftFont.bodyEmphasis)
+                    if let detail {
+                        Text(detail)
+                            .font(SiftFont.metadata)
+                            .monospacedDigit()
+                            .foregroundStyle(detailColor)
+                    }
                 }
+                .foregroundStyle(foregroundColor)
+                .padding(.top, SiftMetrics.spacingM)
+
+                // The rule is the selected state's second signal, and it occupies
+                // its height on every tab so selecting one does not move the row.
+                Rectangle()
+                    .fill(isSelected ? SiftColor.actionGreen : Color.clear)
+                    .frame(height: 2)
+                    .padding(.top, SiftMetrics.spacingS)
             }
-            .foregroundStyle(foregroundColor)
-            .padding(.horizontal, SiftMetrics.spacingM)
-            .frame(minHeight: SiftMetrics.chipHeight)
-            .background {
-                RoundedRectangle(cornerRadius: SiftMetrics.controlCornerRadius, style: .continuous)
-                    .fill(fillColor)
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: SiftMetrics.controlCornerRadius, style: .continuous)
-                    .strokeBorder(
-                        // A filled pill needs no border; the outline exists on the
-                        // unselected chips to give a controlFill surface an edge.
-                        isSelected ? Color.clear : SiftColor.divider,
-                        lineWidth: SiftMetrics.panelBorderWidth
-                    )
-            }
-            .padding(.vertical, (SiftMetrics.minimumHitTarget - SiftMetrics.chipHeight) / 2)
+            .frame(minHeight: SiftMetrics.minimumHitTarget, alignment: .bottom)
             .contentShape(Rectangle())
-            .padding(.vertical, -(SiftMetrics.minimumHitTarget - SiftMetrics.chipHeight) / 2)
         }
         .buttonStyle(SiftPressButtonStyle())
         .onHover { isHovering = $0 }
