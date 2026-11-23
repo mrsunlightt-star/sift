@@ -134,10 +134,7 @@ public struct UninstallerView: View {
                 listColumn
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 if selected != nil {
-                    paneRule
-                    inspector
-                        .frame(width: inspectorWidth)
-                        .frame(maxHeight: .infinity)
+                    inspectorColumn
                 }
             }
             .padding(.leading, SiftMetrics.pagePadding)
@@ -610,6 +607,26 @@ public struct UninstallerView: View {
 
     // MARK: - Inspector
 
+    /// The inspector is a complete, opaque column.
+    ///
+    /// Before it was a transparent `ScrollView` inserted beside the list. When
+    /// the list narrowed, macOS could keep the previous list pixels under the
+    /// new column until the next redraw, which looked like text ghosts during
+    /// selection. Painting and clipping the whole column gives every frame one
+    /// owner of those pixels. No animation is attached because the column appears
+    /// as one surface, not as two views crossfading.
+    private var inspectorColumn: some View {
+        HStack(spacing: 0) {
+            paneRule
+            inspector
+                .frame(width: inspectorWidth)
+                .frame(maxHeight: .infinity)
+        }
+        .background(SiftColor.canvasSurface)
+        .clipped()
+        .transaction { $0.animation = nil }
+    }
+
     private var paneRule: some View {
         Rectangle()
             .fill(SiftColor.divider)
@@ -647,6 +664,11 @@ public struct UninstallerView: View {
                 .padding(.bottom, SiftMetrics.spacingXXL)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+            // A different application is a different document. Reusing this
+            // scroll view kept its offset and let SwiftUI interpolate between
+            // two applications' headers; neither belongs in an inspector that
+            // is supposed to arrive fully formed for the selected app.
+            .id(application.id)
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 if !isLoadingPlan, let plan {
                     uninstallButton(plan)
