@@ -39,10 +39,9 @@ struct ScanResultsToolbar: View {
         }
         .padding(.horizontal, SiftMetrics.pagePadding)
         .frame(height: 54)
-        .background(SiftColor.scanSafeHeader)
+        .background(SiftColor.scanResultsCanvas)
     }
 }
-
 /// The completion headline and its two totals.
 ///
 /// The totals are one block because they answer one question: how much was
@@ -141,63 +140,10 @@ struct ScanCompletionHero: View {
         }
     }
 }
-
-/// A filter is a choice of view, not a destructive action. The selected state is
-/// a solid blue pill; the page's green is reserved for completion and cleanup.
-struct ScanFilterPill: View {
-    let title: String
-    let detail: String?
-    let isSelected: Bool
-    let action: () -> Void
-
-    @State private var isHovering = false
-    @Environment(\.siftReduceMotion) private var reduceMotion
-
-    private var fill: Color {
-        isSelected
-            ? (isHovering ? SiftColor.selectionAccentHover : SiftColor.selectionAccentFill)
-            : SiftColor.controlFill
-    }
-
-    var body: some View {
-        Button(action: action) {
-            HStack(alignment: .firstTextBaseline, spacing: SiftMetrics.spacingS) {
-                Text(title)
-                    .font(SiftFont.bodyEmphasis)
-                if let detail {
-                    Text(detail)
-                        .font(SiftFont.metadata)
-                        .monospacedDigit()
-                        .opacity(isSelected ? 0.88 : 1)
-                }
-            }
-            .foregroundStyle(isSelected ? Color.white : SiftColor.mainText)
-            .padding(.horizontal, SiftMetrics.spacingL)
-            .frame(minHeight: 40)
-            .background {
-                Capsule()
-                    .fill(fill)
-            }
-            .overlay {
-                if !isSelected {
-                    Capsule()
-                        .strokeBorder(SiftColor.scanResultCardBorder, lineWidth: SiftMetrics.panelBorderWidth)
-                }
-            }
-            .contentShape(Capsule())
-        }
-        .buttonStyle(SiftPressButtonStyle())
-        .onHover { isHovering = $0 }
-        .animation(reduceMotion ? nil : SiftMotion.hover, value: isHovering)
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
-    }
-}
-
-/// A result group's visual container.
+/// A result group.
 ///
-/// The header carries the semantic wash and the body stays on the ordinary
-/// surface, so a group reads as one object without turning every row into a
-/// separate card.
+/// The page has one surface. Risk is carried by the leading glyph and the words,
+/// never by giving each group a different block of background colour.
 struct ScanResultRiskCard<Content: View>: View {
     let risk: CleanupRisk
     let itemCount: Int
@@ -205,18 +151,6 @@ struct ScanResultRiskCard<Content: View>: View {
     let isExpanded: Bool
     let onToggle: () -> Void
     @ViewBuilder let content: () -> Content
-
-    private var borderColor: Color {
-        risk == .review ? SiftColor.scanReviewBorder : SiftColor.scanResultCardBorder
-    }
-
-    private var headerFill: Color {
-        switch risk {
-        case .safe: SiftColor.scanSafeHeader
-        case .review: SiftColor.scanReviewHeader
-        case .protected: SiftColor.controlFill
-        }
-    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -226,7 +160,7 @@ struct ScanResultRiskCard<Content: View>: View {
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(risk.groupTitleKey.localized)
-                            .font(SiftFont.sectionHeading)
+                            .font(SiftFont.secondaryHeading)
                             .foregroundStyle(SiftColor.mainText)
                         Text(risk.detailKey.localized)
                             .font(SiftFont.supporting)
@@ -252,13 +186,12 @@ struct ScanResultRiskCard<Content: View>: View {
                         .rotationEffect(.degrees(isExpanded ? 0 : 180))
                         .frame(width: 18)
                 }
-                .padding(.horizontal, SiftMetrics.spacingL)
-                .padding(.vertical, SiftMetrics.spacingM)
-                .frame(maxWidth: .infinity, minHeight: 82, alignment: .leading)
-                .background(headerFill)
+                .padding(.horizontal, SiftMetrics.spacingM)
+                .padding(.vertical, SiftMetrics.spacingS)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(SiftRowButtonStyle())
             .accessibilityLabel(Text(risk.groupTitleKey.localized))
             .accessibilityValue(
                 Text(
@@ -270,14 +203,7 @@ struct ScanResultRiskCard<Content: View>: View {
 
             if isExpanded {
                 content()
-                    .background(SiftColor.surfaceColor)
             }
-        }
-        .background(SiftColor.surfaceColor)
-        .clipShape(RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusL, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusL, style: .continuous)
-                .strokeBorder(borderColor, lineWidth: SiftMetrics.panelBorderWidth)
         }
     }
 
@@ -285,31 +211,23 @@ struct ScanResultRiskCard<Content: View>: View {
     private var riskGlyph: some View {
         switch risk {
         case .safe:
-            ZStack {
-                Circle()
-                    .fill(SiftColor.brandGreen)
-                Image(systemName: "checkmark")
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundStyle(.white)
-            }
-            .frame(width: 42, height: 42)
-            .accessibilityHidden(true)
+            Image(systemName: "checkmark")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(SiftColor.safeTextColor)
+                .frame(width: 18, height: 18)
+                .accessibilityHidden(true)
         case .review:
             Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 34, weight: .regular))
-                .foregroundStyle(SiftColor.scanReviewBorder)
-                .frame(width: 42, height: 42)
+                .font(.system(size: 14, weight: .regular))
+                .foregroundStyle(SiftColor.reviewTextColor)
+                .frame(width: 18, height: 18)
                 .accessibilityHidden(true)
         case .protected:
-            ZStack {
-                RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
-                    .fill(SiftColor.protectedWash)
-                Image(systemName: "lock.fill")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(SiftColor.protectedTextColor)
-            }
-            .frame(width: 42, height: 42)
-            .accessibilityHidden(true)
+            Image(systemName: "lock.fill")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(SiftColor.protectedTextColor)
+                .frame(width: 18, height: 18)
+                .accessibilityHidden(true)
         }
     }
 }
@@ -331,25 +249,21 @@ struct ScanPermissionResultCard: View {
     var body: some View {
         if actionableCount > 0 {
             VStack(spacing: 0) {
-                HStack(spacing: SiftMetrics.spacingM) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
-                            .fill(SiftColor.protectedWash)
-                        Image(systemName: "lock.fill")
-                            .font(.system(size: 22, weight: .semibold))
-                            .foregroundStyle(SiftColor.protectedTextColor)
-                    }
-                    .frame(width: 48, height: 48)
-                    .accessibilityHidden(true)
+                HStack(spacing: SiftMetrics.spacingS) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(SiftColor.reviewTextColor)
+                        .frame(width: 18, height: 18)
+                        .accessibilityHidden(true)
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(LocalizationKey.scanSkippedActionable.localized(actionableCount))
-                            .font(SiftFont.sectionHeading)
+                            .font(SiftFont.bodyEmphasis)
                             .foregroundStyle(SiftColor.mainText)
                         Text(LocalizationKey.permissionFullDiskAccessDetail.localized)
-                            .font(SiftFont.supporting)
+                            .font(SiftFont.caption)
                             .foregroundStyle(SiftColor.secondaryText)
-                            .lineLimit(2)
+                            .lineLimit(1)
                     }
 
                     Spacer(minLength: SiftMetrics.spacingM)
@@ -357,28 +271,8 @@ struct ScanPermissionResultCard: View {
                     Button(action: onOpenSettings) {
                         Text(LocalizationKey.permissionOpenSettings.localized)
                             .font(SiftFont.bodyEmphasis)
-                            .foregroundStyle(SiftColor.selectionAccent)
-                            .padding(.horizontal, SiftMetrics.spacingM)
-                            .frame(height: 34)
-                            .background {
-                                RoundedRectangle(
-                                    cornerRadius: SiftMetrics.controlCornerRadius,
-                                    style: .continuous
-                                )
-                                .fill(SiftColor.surfaceColor)
-                            }
-                            .overlay {
-                                RoundedRectangle(
-                                    cornerRadius: SiftMetrics.controlCornerRadius,
-                                    style: .continuous
-                                )
-                                .strokeBorder(
-                                    SiftColor.selectionAccent.opacity(0.58),
-                                    lineWidth: SiftMetrics.panelBorderWidth
-                                )
-                            }
                     }
-                    .buttonStyle(SiftPressButtonStyle())
+                    .buttonStyle(SiftLinkButtonStyle())
 
                     Button {
                         isExpanded.toggle()
@@ -387,25 +281,30 @@ struct ScanPermissionResultCard: View {
                             .font(.system(size: 12, weight: .semibold))
                             .foregroundStyle(SiftColor.secondaryText)
                             .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                            .frame(width: 24, height: 32)
+                            .frame(
+                                width: SiftMetrics.minimumHitTarget,
+                                height: SiftMetrics.minimumHitTarget
+                            )
                             .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(SiftRowButtonStyle())
                     .accessibilityLabel(Text(LocalizationKey.scanSkippedExpandHint.localized))
                 }
-                .padding(SiftMetrics.spacingL)
-                .background(SiftColor.scanPermissionFill)
+                .padding(.horizontal, SiftMetrics.spacingM)
+                .padding(.vertical, SiftMetrics.spacingS)
+                .background {
+                    RoundedRectangle(
+                        cornerRadius: SiftMetrics.cornerRadiusS,
+                        style: .continuous
+                    )
+                    .fill(SiftColor.controlFill)
+                }
 
                 if isExpanded {
                     SkippedLocationsCard(locations: actionableLocations)
-                        .padding(SiftMetrics.spacingL)
-                        .background(SiftColor.surfaceColor)
+                        .padding(.horizontal, SiftMetrics.spacingM)
+                        .padding(.top, SiftMetrics.spacingS)
                 }
-            }
-            .clipShape(RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusL, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusL, style: .continuous)
-                    .strokeBorder(SiftColor.scanResultCardBorder, lineWidth: SiftMetrics.panelBorderWidth)
             }
         }
     }
@@ -417,87 +316,50 @@ struct ScanDuplicateSummaryCard: View {
     let reclaimableBytes: Int64
     let onOpen: () -> Void
 
-    private var preview: DuplicateGroup? { groups.first }
+    @State private var isHovering = false
+    @Environment(\.siftReduceMotion) private var reduceMotion
 
     var body: some View {
         Button(action: onOpen) {
-            VStack(spacing: SiftMetrics.spacingM) {
-                HStack(spacing: SiftMetrics.spacingM) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusM, style: .continuous)
-                            .fill(SiftColor.selectionAccentWash)
-                        Image(systemName: CleanupCategory.duplicateFiles.symbolName)
-                            .font(.system(size: 22, weight: .medium))
-                            .foregroundStyle(SiftColor.selectionAccent)
-                    }
-                    .frame(width: 48, height: 48)
+            HStack(spacing: SiftMetrics.spacingS) {
+                Image(systemName: CleanupCategory.duplicateFiles.symbolName)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(SiftColor.quietText)
+                    .frame(width: 18, height: 18)
                     .accessibilityHidden(true)
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(LocalizationKey.filesModeDuplicates.localized)
-                            .font(SiftFont.sectionHeading)
-                            .foregroundStyle(SiftColor.mainText)
-                        Text(
-                            LocalizationKey.filesDuplicateGroups.localized(
-                                totalGroupCount,
-                                SiftFormat.bytes(reclaimableBytes)
-                            )
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(LocalizationKey.filesModeDuplicates.localized)
+                        .font(SiftFont.secondaryHeading)
+                        .foregroundStyle(SiftColor.mainText)
+                    Text(
+                        LocalizationKey.filesDuplicateGroups.localized(
+                            totalGroupCount,
+                            SiftFormat.bytes(reclaimableBytes)
                         )
-                        .font(SiftFont.supporting)
-                        .foregroundStyle(SiftColor.secondaryText)
-                    }
-
-                    Spacer(minLength: SiftMetrics.spacingM)
-
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 12, weight: .semibold))
+                    )
+                        .font(SiftFont.caption)
                         .foregroundStyle(SiftColor.secondaryText)
                 }
 
-                if let preview, let first = preview.members.first {
-                    HStack(spacing: SiftMetrics.spacingM) {
-                        Image(systemName: "doc.fill")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(SiftColor.selectionAccent)
-                        Text(first.displayName)
-                            .font(SiftFont.bodyEmphasis)
-                            .foregroundStyle(SiftColor.mainText)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                        Text(LocalizationKey.filesGroupMembers.localized(preview.members.count))
-                            .font(SiftFont.metadata)
-                            .foregroundStyle(SiftColor.secondaryText)
-                            .padding(.horizontal, SiftMetrics.spacingS)
-                            .frame(height: 22)
-                            .background {
-                                Capsule()
-                                    .fill(SiftColor.controlFill)
-                            }
-                        Spacer(minLength: SiftMetrics.spacingM)
-                        Text(preview.formattedReclaimable)
-                            .font(SiftFont.monospacedEmphasis)
-                            .foregroundStyle(SiftColor.mainText)
-                            .monospacedDigit()
-                    }
-                    .padding(.horizontal, SiftMetrics.spacingM)
-                    .frame(minHeight: 46)
-                    .background {
-                        RoundedRectangle(cornerRadius: SiftMetrics.controlCornerRadius, style: .continuous)
-                            .fill(SiftColor.scanDuplicatePreviewFill)
-                    }
-                }
+                Spacer(minLength: SiftMetrics.spacingM)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(SiftColor.secondaryText)
             }
-            .padding(SiftMetrics.spacingL)
+            .padding(.horizontal, SiftMetrics.spacingM)
+            .padding(.vertical, SiftMetrics.spacingS)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .background {
+                RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
+                    .fill(isHovering ? SiftColor.rowHoverFill : Color.clear)
+            }
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .background(SiftColor.surfaceColor)
-        .clipShape(RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusL, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusL, style: .continuous)
-                .strokeBorder(SiftColor.scanResultCardBorder, lineWidth: SiftMetrics.panelBorderWidth)
-        }
+        .buttonStyle(SiftRowButtonStyle())
+        .onHover { isHovering = $0 }
+        .animation(reduceMotion ? nil : SiftMotion.hover, value: isHovering)
         .accessibilityElement(children: .combine)
         .accessibilityHint(Text(LocalizationKey.filesKeepHint.localized))
     }
@@ -632,15 +494,25 @@ struct ScanResultActionBar: View {
             Button(action: onSelectAll) {
                 Text(LocalizationKey.scanSelectAll.localized)
                     .font(SiftFont.bodyEmphasis)
+                    .frame(
+                        minWidth: SiftMetrics.minimumHitTarget,
+                        minHeight: SiftMetrics.minimumHitTarget
+                    )
+                    .contentShape(Rectangle())
             }
-            .buttonStyle(ScanResultLinkButtonStyle())
+            .buttonStyle(SiftLinkButtonStyle())
             .keyboardShortcut("a", modifiers: .command)
 
             Button(action: onDeselectAll) {
                 Text(LocalizationKey.scanDeselectAll.localized)
                     .font(SiftFont.bodyEmphasis)
+                    .frame(
+                        minWidth: SiftMetrics.minimumHitTarget,
+                        minHeight: SiftMetrics.minimumHitTarget
+                    )
+                    .contentShape(Rectangle())
             }
-            .buttonStyle(ScanResultLinkButtonStyle())
+            .buttonStyle(SiftLinkButtonStyle())
             .keyboardShortcut("a", modifiers: [.command, .shift])
         }
         .fixedSize()
@@ -655,28 +527,5 @@ struct ScanResultActionBar: View {
         )
         .accessibilityIdentifier("scan.clean")
         .fixedSize()
-    }
-}
-
-struct ScanResultLinkButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        ScanResultLinkBody(configuration: configuration)
-    }
-}
-
-private struct ScanResultLinkBody: View {
-    let configuration: ButtonStyleConfiguration
-    @State private var isHovering = false
-
-    var body: some View {
-        configuration.label
-            .foregroundStyle(SiftColor.selectionAccent)
-            .opacity(configuration.isPressed ? 0.55 : 1)
-            .underline(
-                isHovering && !configuration.isPressed,
-                color: SiftColor.selectionAccent.opacity(0.55)
-            )
-            .contentShape(Rectangle())
-            .onHover { isHovering = $0 }
     }
 }

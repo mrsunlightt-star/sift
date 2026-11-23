@@ -18,6 +18,7 @@ import SwiftUI
 /// Access grant at launch (invariant 43).
 public struct SettingsView: View {
     @EnvironmentObject private var environment: AppEnvironment
+    @Environment(\.siftReduceMotion) private var reduceMotion
     @State private var permissionReport: [PermissionsService.LocationAccess] = []
     @State private var exportMessage: String?
     @State private var permissionHint = false
@@ -34,6 +35,10 @@ public struct SettingsView: View {
     @State private var isConfirmingReportDeletion = false
     /// The coverage audit's page, opened from the diagnostics group.
     @State private var isShowingCoverage = false
+    /// The in-page index's current destination. Scrolling manually does not
+    /// re-derive it; the row states where the last click went, not a fake
+    /// "current section" measurement the page does not have.
+    @State private var selectedCategory: SettingsCategory = .appearance
 
     public init() {}
 
@@ -49,19 +54,17 @@ public struct SettingsView: View {
                 )
             }
 
-            // A form's measure, not the wide page measure: a 1180 pt row puts the
-            // label and its control a hand's width apart.
-            SiftPage(maxWidth: SiftMetrics.contentWidthForm) {
-                appearanceSection
-                scanScopeSection
-                thresholdsSection
-                ignoresSection
-                authorizedSection
-                confirmationSection
-                privacySection
-                purchaseSection
-                coverageSection
-                diagnosticsSection
+            ScrollViewReader { proxy in
+                VStack(spacing: 0) {
+                    categoryIndex { category in
+                        selectedCategory = category
+                        withAnimation(reduceMotion ? nil : SiftMotion.page) {
+                            proxy.scrollTo(category, anchor: .top)
+                        }
+                    }
+
+                    settingsForm
+                }
             }
         }
         .task {
@@ -73,6 +76,93 @@ public struct SettingsView: View {
     private var headerStatus: String {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1"
         return LocalizationKey.settingsHeaderStatus.localized(version)
+    }
+
+    // MARK: - Category navigation
+
+    private enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
+        case appearance
+        case scanScope
+        case thresholds
+        case ignores
+        case authorized
+        case confirmation
+        case privacy
+        case purchase
+        case diagnostics
+
+        var id: String { rawValue }
+
+        var titleKey: LocalizationKey {
+            switch self {
+            case .appearance: .settingsGroupAppearance
+            case .scanScope: .settingsGroupScanScope
+            case .thresholds: .settingsGroupThresholds
+            case .ignores: .settingsGroupIgnores
+            case .authorized: .settingsGroupAuthorized
+            case .confirmation: .settingsGroupConfirmation
+            case .privacy: .settingsGroupPrivacy
+            case .purchase: .settingsGroupPurchase
+            case .diagnostics: .diagnosticsCoverageTitle
+            }
+        }
+    }
+
+    private func categoryIndex(onSelect: @escaping (SettingsCategory) -> Void) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: SiftMetrics.spacingS) {
+                ForEach(SettingsCategory.allCases) { category in
+                    SiftFilterChip(
+                        title: category.titleKey.localized,
+                        isSelected: selectedCategory == category
+                    ) {
+                        onSelect(category)
+                    }
+                    .accessibilityIdentifier("settings.category.\(category.rawValue)")
+                }
+            }
+            .padding(.horizontal, SiftMetrics.pagePadding)
+            .padding(.vertical, SiftMetrics.spacingS)
+        }
+        .background(SiftColor.canvasSurface)
+        .overlay(alignment: .bottom) {
+            SiftHairline()
+        }
+    }
+
+    /// A form's measure, not the wide page measure: a 1180 pt row puts the label
+    /// and its control a hand's width apart. Every group has an anchor so the
+    /// page index can reach the deep settings without passing two screens of
+    /// unrelated controls.
+    private var settingsForm: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: SiftMetrics.pageSpacing) {
+                appearanceSection
+                    .id(SettingsCategory.appearance)
+                scanScopeSection
+                    .id(SettingsCategory.scanScope)
+                thresholdsSection
+                    .id(SettingsCategory.thresholds)
+                ignoresSection
+                    .id(SettingsCategory.ignores)
+                authorizedSection
+                    .id(SettingsCategory.authorized)
+                confirmationSection
+                    .id(SettingsCategory.confirmation)
+                privacySection
+                    .id(SettingsCategory.privacy)
+                purchaseSection
+                    .id(SettingsCategory.purchase)
+                coverageSection
+                    .id(SettingsCategory.diagnostics)
+                diagnosticsSection
+            }
+            .padding(.horizontal, SiftMetrics.pagePadding)
+            .padding(.top, SiftMetrics.pageSpacing)
+            .padding(.bottom, SiftMetrics.spacingXXL)
+            .frame(maxWidth: SiftMetrics.contentWidthForm, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .top)
+        }
     }
 
     // MARK: - Appearance
@@ -693,9 +783,8 @@ public struct SettingsView: View {
                 } label: {
                     Text(LocalizationKey.settingsDeleteReports.localized)
                         .font(SiftFont.supporting)
-                        .foregroundStyle(SiftColor.dangerTextColor)
                 }
-                .buttonStyle(SiftLinkButtonStyle())
+                .buttonStyle(SiftLinkButtonStyle(tone: .destructive))
             }
             .padding(.top, SiftMetrics.spacingS)
             .confirmationDialog(
@@ -871,9 +960,8 @@ public struct SettingsView: View {
             } label: {
                 Text(LocalizationKey.settingsResetDefaults.localized)
                     .font(SiftFont.supporting)
-                    .foregroundStyle(SiftColor.dangerTextColor)
             }
-            .buttonStyle(SiftLinkButtonStyle())
+            .buttonStyle(SiftLinkButtonStyle(tone: .destructive))
             .padding(.vertical, SiftMetrics.spacingS)
             .accessibilityIdentifier("settings.resetDefaults")
             .confirmationDialog(

@@ -246,4 +246,15 @@ final class V2PaletteTests: XCTestCase, @unchecked Sendable {
         XCTAssertEqual(hex(resolved(SiftColor.subtleText, dark: false)),
                        hex(resolved(SiftColor.quietText, dark: false)))
     }
+
+    func test_filtersAndSelectionUseTheSameActionGreenRoles() {
+        XCTAssertEqual(hex(resolved(SiftColor.selectionAccent, dark: false)),
+                       hex(resolved(SiftColor.actionGreen, dark: false)))
+        XCTAssertEqual(hex(resolved(SiftColor.selectionAccentHover, dark: false)),
+                       hex(resolved(SiftColor.actionGreenHover, dark: false)))
+        XCTAssertEqual(hex(resolved(SiftColor.selectionAccentFill, dark: false)),
+                       hex(resolved(SiftColor.actionFill, dark: false)))
+        XCTAssertEqual(hex(resolved(SiftColor.selectionAccentWash, dark: false)),
+                       hex(resolved(SiftColor.selectedWash, dark: false)))
+    }
 }

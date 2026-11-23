@@ -343,6 +343,9 @@
 "scan.results.cleanButton" = "Bersihkan %d item";
 "scan.results.cleanTitle" = "Pembersihan ini";
 "scan.results.defaultSelected" = "Dipilih secara default";
+"scan.results.ignoreAlways" = "Abaikan secara permanen";
+"scan.results.ignoreItem" = "Abaikan item ini";
+"scan.results.ignoreOnce" = "Sembunyikan untuk pemindaian ini";
 "scan.results.ownerAction" = "Aplikasi apa ini?";
 "scan.results.ownerMissing" = "Tidak ada aplikasi terpasang untuk %@. Pengenal telah disalin.";
 "scan.results.protectedGroup" = "Dilindungi";

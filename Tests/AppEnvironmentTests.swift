@@ -202,4 +202,40 @@ final class AppEnvironmentTests: XCTestCase, @unchecked Sendable {
             "a reset scan must not keep reading the previously authorised folder"
         )
     }
+
+    /// The settings page stores home-relative paths; both scanners need the
+    /// absolute spelling before they can compare it with a walked entry.
+    func test_scanRequestExpandsAndDeduplicatesIgnoredPaths() async {
+        let environment = await MainActor.run { makeEnvironment() }
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        let relative = "~/Library/Caches/SiftIgnoreTest"
+        let duplicate = "~/Library/Caches/./SiftIgnoreTest"
+        await environment.updateSettings { settings in
+            settings.ignoredPaths = [relative, duplicate]
+        }
+
+        let request = await environment.makeScanRequest(includeDuplicates: false)
+        let expected = home.appendingPathComponent("Library/Caches/SiftIgnoreTest").path
+        XCTAssertEqual(request.ignoredPaths, [expected])
+    }
+
+    /// Ignoring from a result is one preference edit, and a broader ignore
+    /// replaces a narrower one instead of accumulating both.
+    func test_ignoringAResultStoresTheCoveringLocation() async {
+        let environment = await MainActor.run { makeEnvironment() }
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        let folder = home.appendingPathComponent(
+            ".sift-ignore-\(UUID().uuidString)",
+            isDirectory: true
+        )
+        let child = folder.appendingPathComponent("child/cache.bin")
+
+        await environment.ignore(child)
+        await environment.ignore(folder)
+
+        let settings = await environment.settings.current()
+        XCTAssertEqual(settings.ignoredPaths, [CleanupItem.abbreviate(folder.path)])
+        let isIgnored = await MainActor.run { environment.isIgnored(child) }
+        XCTAssertTrue(isIgnored)
+    }
 }

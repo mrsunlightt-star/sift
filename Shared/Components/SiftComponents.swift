@@ -409,6 +409,112 @@ public extension View {
 
 // MARK: - Buttons
 
+/// The visual role of a standard action button.
+public enum SiftButtonRole: Sendable, Equatable {
+    case primary
+    case secondary
+    case quiet
+    case destructive
+}
+
+/// The width and visual height of a standard action button.
+public enum SiftButtonSize: Sendable, Equatable {
+    case regular
+    case compact
+}
+
+/// The one painted-button treatment used by the app.
+///
+/// Every role shares the same 44 pt hit target, radius, press feedback and
+/// disabled state. Only the fill, border and foreground change with meaning, so
+/// a page cannot quietly grow a second button language.
+public struct SiftActionButtonStyle: ButtonStyle {
+    private let role: SiftButtonRole
+    private let size: SiftButtonSize
+
+    public init(role: SiftButtonRole = .primary, size: SiftButtonSize = .regular) {
+        self.role = role
+        self.size = size
+    }
+
+    public func makeBody(configuration: Configuration) -> some View {
+        SiftActionButtonBody(configuration: configuration, role: role, size: size)
+    }
+}
+
+private struct SiftActionButtonBody: View {
+    let configuration: ButtonStyleConfiguration
+    let role: SiftButtonRole
+    let size: SiftButtonSize
+
+    @State private var isHovering = false
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.siftReduceMotion) private var reduceMotion
+
+    private var horizontalPadding: CGFloat {
+        size == .regular ? SiftMetrics.spacingXL : SiftMetrics.spacingM
+    }
+
+    private var visualHeight: CGFloat {
+        size == .regular ? SiftMetrics.buttonHeight : SiftMetrics.chipHeight
+    }
+
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: SiftMetrics.controlCornerRadius, style: .continuous)
+    }
+
+    private var fillColor: Color {
+        guard isEnabled else {
+            return role == .primary ? SiftColor.controlFill : Color.clear
+        }
+        switch role {
+        case .primary:
+            return isHovering ? SiftColor.actionGreenHover : SiftColor.actionFill
+        case .secondary, .quiet:
+            return isHovering ? SiftColor.rowHoverFill : Color.clear
+        case .destructive:
+            return isHovering ? SiftColor.dangerWash : Color.clear
+        }
+    }
+
+    private var foregroundColor: Color {
+        guard isEnabled else { return SiftColor.quietText }
+        switch role {
+        case .primary: return SiftColor.onActionFill
+        case .secondary: return SiftColor.mainText
+        case .quiet: return SiftColor.actionGreen
+        case .destructive: return SiftColor.dangerTextColor
+        }
+    }
+
+    private var borderColor: Color {
+        guard isEnabled else { return SiftColor.divider }
+        switch role {
+        case .primary, .quiet: return .clear
+        case .secondary: return SiftColor.divider
+        case .destructive: return SiftColor.dangerTextColor.opacity(0.42)
+        }
+    }
+
+    var body: some View {
+        configuration.label
+            .font(SiftFont.bodyEmphasis)
+            .lineLimit(1)
+            .minimumScaleFactor(0.85)
+            .foregroundStyle(foregroundColor)
+            .padding(.horizontal, horizontalPadding)
+            .frame(minHeight: visualHeight)
+            .background { shape.fill(fillColor) }
+            .overlay { shape.strokeBorder(borderColor, lineWidth: SiftMetrics.panelBorderWidth) }
+            .frame(minHeight: SiftMetrics.minimumHitTarget)
+            .contentShape(Rectangle())
+            .scaleEffect(reduceMotion ? 1 : (configuration.isPressed ? 0.98 : 1))
+            .animation(reduceMotion ? nil : SiftMotion.press, value: configuration.isPressed)
+            .animation(reduceMotion ? nil : SiftMotion.hover, value: isHovering)
+            .onHover { isHovering = $0 }
+    }
+}
+
 /// The primary action: one solid `actionFill` rectangle, 40 pt high, 8 pt radius.
 ///
 /// No gradient, no lit edge, no glow. Hover and press both move the fill to
@@ -424,9 +530,6 @@ public struct SiftPrimaryButton: View {
     private let symbolName: String?
     private let isEnabled: Bool
     private let action: () -> Void
-
-    @State private var isHovering = false
-    @Environment(\.siftReduceMotion) private var reduceMotion
 
     public init(title: String, symbolName: String? = nil, isEnabled: Bool = true, action: @escaping () -> Void) {
         self.title = title
@@ -444,17 +547,6 @@ public struct SiftPrimaryButton: View {
         self.init(title: titleKey.localized, symbolName: symbolName, isEnabled: isEnabled, action: action)
     }
 
-    private var fillColor: Color {
-        guard isEnabled else { return SiftColor.controlFill }
-        return isHovering ? SiftColor.actionGreenHover : SiftColor.actionFill
-    }
-
-    /// The glyph and the word in one colour: the pair the fill was measured
-    /// against, not a fill token the label would be painted with.
-    private var labelColor: Color {
-        isEnabled ? SiftColor.onActionFill : SiftColor.quietText
-    }
-
     public var body: some View {
         Button(action: action) {
             HStack(spacing: SiftMetrics.spacingS) {
@@ -463,7 +555,6 @@ public struct SiftPrimaryButton: View {
                         .font(.system(size: 12, weight: .semibold))
                 }
                 Text(title)
-                    .font(SiftFont.bodyEmphasis)
                     // A label built from a count and a size reaches 60+
                     // characters in German and Russian. Truncating the action is
                     // not an option, so the label shrinks a little first and
@@ -471,33 +562,10 @@ public struct SiftPrimaryButton: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.85)
             }
-            .foregroundStyle(labelColor)
-            .padding(.horizontal, SiftMetrics.spacingXL)
-            .frame(minHeight: SiftMetrics.buttonHeight)
-            .background {
-                RoundedRectangle(cornerRadius: SiftMetrics.controlCornerRadius, style: .continuous)
-                    .fill(fillColor)
-            }
-            .overlay {
-                // A disabled control keeps a hairline so it still reads as a
-                // control; an enabled one needs no border at all.
-                if !isEnabled {
-                    RoundedRectangle(cornerRadius: SiftMetrics.controlCornerRadius, style: .continuous)
-                        .strokeBorder(SiftColor.divider, lineWidth: SiftMetrics.panelBorderWidth)
-                }
-            }
-            // 40 pt of paint, 44 pt of target: the extra 2 pt on each side is
-            // taken back out of the layout, so the button sits where the design
-            // says while the pointer gets a target it can hit.
-            .padding(.vertical, (SiftMetrics.minimumHitTarget - SiftMetrics.buttonHeight) / 2)
-            .contentShape(Rectangle())
-            .padding(.vertical, -(SiftMetrics.minimumHitTarget - SiftMetrics.buttonHeight) / 2)
         }
-        .buttonStyle(SiftPressButtonStyle())
+        .buttonStyle(SiftActionButtonStyle(role: .primary))
         .disabled(!isEnabled)
         .accessibilityLabel(Text(title))
-        .onHover { isHovering = $0 }
-        .animation(reduceMotion ? nil : SiftMotion.hover, value: isHovering)
     }
 }
 
@@ -511,9 +579,6 @@ public struct SiftSecondaryButton: View {
     private let title: String
     private let symbolName: String?
     private let action: () -> Void
-
-    @State private var isHovering = false
-    @Environment(\.siftReduceMotion) private var reduceMotion
 
     public init(title: String, symbolName: String? = nil, action: @escaping () -> Void) {
         self.title = title
@@ -533,44 +598,49 @@ public struct SiftSecondaryButton: View {
                         .font(.system(size: 12, weight: .medium))
                 }
                 Text(title)
-                    .font(SiftFont.bodyEmphasis)
                     .lineLimit(1)
                     .minimumScaleFactor(0.85)
             }
-            .foregroundStyle(SiftColor.mainText)
-            .padding(.horizontal, SiftMetrics.spacingL)
-            .frame(minHeight: SiftMetrics.buttonHeight)
-            .background {
-                RoundedRectangle(cornerRadius: SiftMetrics.controlCornerRadius, style: .continuous)
-                    .fill(isHovering ? SiftColor.rowHoverFill : Color.clear)
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: SiftMetrics.controlCornerRadius, style: .continuous)
-                    .strokeBorder(SiftColor.divider, lineWidth: SiftMetrics.panelBorderWidth)
-            }
-            .padding(.vertical, (SiftMetrics.minimumHitTarget - SiftMetrics.buttonHeight) / 2)
-            .contentShape(Rectangle())
-            .padding(.vertical, -(SiftMetrics.minimumHitTarget - SiftMetrics.buttonHeight) / 2)
         }
-        .buttonStyle(SiftPressButtonStyle())
+        .buttonStyle(SiftActionButtonStyle(role: .secondary))
         .accessibilityLabel(Text(title))
-        .onHover { isHovering = $0 }
-        .animation(reduceMotion ? nil : SiftMotion.hover, value: isHovering)
     }
 }
 
-/// A plain icon button used in dense rows and page headers.
+/// The surface treatment of an icon-only button.
+public enum SiftIconButtonTreatment: Sendable, Equatable {
+    case plain
+    case field
+}
+
+/// An icon button used in dense rows, page headers and field toolbars.
 public struct SiftIconButton: View {
+    public enum Tone: Sendable {
+        case secondary
+        case action
+        case destructive
+    }
+
     private let symbolName: String
     private let help: String
+    private let treatment: SiftIconButtonTreatment
+    private let tone: Tone
+    private let isEnabled: Bool
     private let action: () -> Void
 
-    @State private var isHovering = false
-    @Environment(\.siftReduceMotion) private var reduceMotion
-
-    public init(symbolName: String, help: String, action: @escaping () -> Void) {
+    public init(
+        symbolName: String,
+        help: String,
+        treatment: SiftIconButtonTreatment = .plain,
+        tone: Tone = .secondary,
+        isEnabled: Bool = true,
+        action: @escaping () -> Void
+    ) {
         self.symbolName = symbolName
         self.help = help
+        self.treatment = treatment
+        self.tone = tone
+        self.isEnabled = isEnabled
         self.action = action
     }
 
@@ -578,28 +648,86 @@ public struct SiftIconButton: View {
         Button(action: action) {
             Image(systemName: symbolName)
                 .font(.system(size: 13, weight: .medium))
-                // The glyph is read, so it takes the text token: `actionGreen` is
-                // the colour that clears 4.5:1 on a row. `accent` is the fill and
-                // is 2.43:1 there — an icon nobody can see is not an icon.
-                .foregroundStyle(isHovering ? SiftColor.actionGreen : SiftColor.quietText)
-                .frame(width: 30, height: 30)
-                .background {
-                    RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
-                        .fill(isHovering ? SiftColor.rowHoverFill : Color.clear)
-                }
-                // 30 pt of paint, 44 pt of target: 7 pt on each side, given
-                // back to the layout so a dense row keeps its height.
-                .padding((SiftMetrics.minimumHitTarget - 30) / 2)
-                .contentShape(Rectangle())
-                .padding(-(SiftMetrics.minimumHitTarget - 30) / 2)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(
+            SiftIconButtonStyle(
+                treatment: treatment,
+                tone: tone
+            )
+        )
+        .disabled(!isEnabled)
         .help(help)
-        // The glyph has no spoken name of its own once the tooltip is a hint
-        // rather than a label; VoiceOver reads the same words.
         .accessibilityLabel(Text(help))
-        .onHover { isHovering = $0 }
-        .animation(reduceMotion ? nil : SiftMotion.hover, value: isHovering)
+    }
+}
+
+/// The shared icon-button chrome: 30 pt of paint on a 44 pt target.
+public struct SiftIconButtonStyle: ButtonStyle {
+    private let treatment: SiftIconButtonTreatment
+    private let tone: SiftIconButton.Tone
+
+    public init(
+        treatment: SiftIconButtonTreatment = .plain,
+        tone: SiftIconButton.Tone = .secondary
+    ) {
+        self.treatment = treatment
+        self.tone = tone
+    }
+
+    public func makeBody(configuration: Configuration) -> some View {
+        SiftIconButtonBody(configuration: configuration, treatment: treatment, tone: tone)
+    }
+}
+
+private struct SiftIconButtonBody: View {
+    let configuration: ButtonStyleConfiguration
+    let treatment: SiftIconButtonTreatment
+    let tone: SiftIconButton.Tone
+
+    @State private var isHovering = false
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.siftReduceMotion) private var reduceMotion
+
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
+    }
+
+    private var foregroundColor: Color {
+        guard isEnabled else { return SiftColor.quietText }
+        switch tone {
+        case .secondary:
+            return isHovering ? SiftColor.actionGreen : SiftColor.quietText
+        case .action:
+            return SiftColor.actionGreen
+        case .destructive:
+            return SiftColor.dangerTextColor
+        }
+    }
+
+    private var fillColor: Color {
+        if treatment == .field {
+            return isHovering ? SiftColor.rowHoverFill : SiftColor.controlFill
+        }
+        return isHovering ? SiftColor.rowHoverFill : Color.clear
+    }
+
+    var body: some View {
+        configuration.label
+            .foregroundStyle(foregroundColor)
+            .frame(width: 30, height: 30)
+            .background { shape.fill(fillColor) }
+            .overlay {
+                if treatment == .field {
+                    shape.strokeBorder(SiftColor.divider, lineWidth: SiftMetrics.panelBorderWidth)
+                }
+            }
+            .frame(width: SiftMetrics.minimumHitTarget, height: SiftMetrics.minimumHitTarget)
+            .contentShape(Rectangle())
+            .scaleEffect(reduceMotion ? 1 : (configuration.isPressed ? 0.96 : 1))
+            .opacity(isEnabled ? (configuration.isPressed ? 0.72 : 1) : 0.55)
+            .animation(reduceMotion ? nil : SiftMotion.press, value: configuration.isPressed)
+            .animation(reduceMotion ? nil : SiftMotion.hover, value: isHovering)
+            .onHover { isHovering = $0 }
     }
 }
 
@@ -610,24 +738,124 @@ public struct SiftIconButton: View {
 /// with no chrome — and uses `actionGreen`, the text twin of the action fill,
 /// easing out on hover.
 public struct SiftLinkButtonStyle: ButtonStyle {
-    public init() {}
+    public enum Tone: Sendable {
+        case action
+        case neutral
+        case destructive
+    }
+
+    private let tone: Tone
+
+    public init(tone: Tone = .action) {
+        self.tone = tone
+    }
 
     public func makeBody(configuration: Configuration) -> some View {
-        SiftLinkBody(configuration: configuration)
+        SiftLinkBody(configuration: configuration, tone: tone)
     }
 }
 
 private struct SiftLinkBody: View {
     let configuration: ButtonStyleConfiguration
+    let tone: SiftLinkButtonStyle.Tone
+
     @State private var isHovering = false
+    @Environment(\.isEnabled) private var isEnabled
+
+    private var color: Color {
+        guard isEnabled else { return SiftColor.quietText }
+        switch tone {
+        case .action: return SiftColor.actionGreen
+        case .neutral: return SiftColor.secondaryText
+        case .destructive: return SiftColor.dangerTextColor
+        }
+    }
 
     var body: some View {
         configuration.label
-            .foregroundStyle(SiftColor.actionGreen)
-            .opacity(configuration.isPressed ? 0.55 : 1)
-            .underline(isHovering && !configuration.isPressed, color: SiftColor.actionGreen.opacity(0.6))
+            .foregroundStyle(color)
+            .opacity(isEnabled ? (configuration.isPressed ? 0.55 : 1) : 0.62)
+            .underline(isHovering && !configuration.isPressed, color: color.opacity(0.6))
+            .frame(
+                minWidth: SiftMetrics.minimumHitTarget,
+                minHeight: SiftMetrics.minimumHitTarget
+            )
             .contentShape(Rectangle())
             .onHover { isHovering = $0 }
+    }
+}
+
+/// Press feedback for a button whose label already owns its row chrome.
+///
+/// Rows, disclosures and table-like controls cannot take the painted action
+/// button's fill without turning every row into a toolbar item. They still take
+/// the same restrained press response.
+public struct SiftRowButtonStyle: ButtonStyle {
+    public init() {}
+
+    public func makeBody(configuration: Configuration) -> some View {
+        SiftRowButtonBody(configuration: configuration)
+    }
+}
+
+private struct SiftRowButtonBody: View {
+    let configuration: ButtonStyleConfiguration
+    @Environment(\.siftReduceMotion) private var reduceMotion
+
+    var body: some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.68 : 1)
+            .animation(reduceMotion ? nil : SiftMotion.quick, value: configuration.isPressed)
+    }
+}
+
+/// A selectable row inside a popover or custom menu.
+///
+/// Selection uses the same wash, text colour and 44 pt target as every other
+/// list, so appearance, language and future submenu rows cannot drift apart.
+public struct SiftMenuItemButton<Label: View>: View {
+    private let isSelected: Bool
+    private let action: () -> Void
+    private let label: Label
+
+    @State private var isHovering = false
+    @Environment(\.siftReduceMotion) private var reduceMotion
+
+    public init(
+        isSelected: Bool = false,
+        action: @escaping () -> Void,
+        @ViewBuilder label: () -> Label
+    ) {
+        self.isSelected = isSelected
+        self.action = action
+        self.label = label()
+    }
+
+    public var body: some View {
+        Button(action: action) {
+            label
+                .foregroundStyle(isSelected ? SiftColor.actionGreen : SiftColor.mainText)
+                .padding(.horizontal, SiftMetrics.spacingS)
+                .frame(
+                    maxWidth: .infinity,
+                    minHeight: SiftMetrics.minimumHitTarget,
+                    alignment: .leading
+                )
+                .background {
+                    RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
+                        .fill(background)
+                }
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(SiftRowButtonStyle())
+        .onHover { isHovering = $0 }
+        .animation(reduceMotion ? nil : SiftMotion.hover, value: isHovering)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private var background: Color {
+        if isSelected { return SiftColor.selectedWash }
+        return isHovering ? SiftColor.rowHoverFill : .clear
     }
 }
 
@@ -864,8 +1092,14 @@ public struct SiftFilterChip: View {
 ///
 /// The native checkbox follows the system accent, which would put a blue mark in
 /// the middle of a jade row. The word beside it is still the accessible label;
-/// this view only draws the mark. The tick drops in on a spring rather than
-/// appearing, which is the one moment of play the control language allows.
+/// this view only draws the mark. Selection settles in with a short
+/// fade-and-scale rather than a spring, so it reads as the row's state changing
+/// instead of a separate event.
+///
+/// macOS draws its own blue focus effect around a focused button. On the scan
+/// page that square was louder than the row and looked unrelated to the rest of
+/// Sift, so newer systems get an action-green ring drawn here and the system
+/// effect disabled. The fallback on macOS 13 keeps the native ring.
 public struct SiftCheckbox: View {
     @Binding private var isOn: Bool
     private let isEnabled: Bool
@@ -873,6 +1107,7 @@ public struct SiftCheckbox: View {
     private let selectedMark: Color
 
     @Environment(\.siftReduceMotion) private var reduceMotion
+    @Environment(\.isFocused) private var isFocused
 
     public init(
         isOn: Binding<Bool>,
@@ -911,8 +1146,19 @@ public struct SiftCheckbox: View {
                             .transition(
                                 reduceMotion
                                     ? .opacity
-                                    : .scale(scale: 0.4, anchor: .center).combined(with: .opacity)
+                                    : .scale(scale: 0.82, anchor: .center).combined(with: .opacity)
                             )
+                    }
+                }
+                .overlay {
+                    if isFocused && isEnabled {
+                        RoundedRectangle(
+                            cornerRadius: SiftMetrics.cornerRadiusS + 3,
+                            style: .continuous
+                        )
+                        .strokeBorder(SiftColor.actionGreen.opacity(0.72), lineWidth: 2)
+                        .padding(-4)
+                        .transition(.opacity)
                     }
                 }
                 .frame(width: 18, height: 18)
@@ -927,17 +1173,28 @@ public struct SiftCheckbox: View {
                 .padding(SiftMetrics.minimumHitTarget / 2 - 9)
                 .contentShape(Rectangle())
                 .padding(-(SiftMetrics.minimumHitTarget / 2 - 9))
-                .animation(reduceMotion ? nil : SiftMotion.toggle, value: isOn)
+                .animation(reduceMotion ? nil : SiftMotion.quick, value: isOn)
+                .animation(reduceMotion ? nil : SiftMotion.quick, value: isFocused)
         }
-        .buttonStyle(.plain)
-        // Reachable by Tab (§11.4). SwiftUI's focus ring is the system's own, so
-        // the control looks focused the way every other macOS control does; Space
-        // then activates it, because it is a button.
+        .buttonStyle(SiftPressButtonStyle())
+        // Reachable by Tab (§11.4); Space activates it because it is a button.
         .focusable()
+        .modifier(SiftCheckboxFocusEffect())
         // `.isSelected` is what VoiceOver speaks as "selected" in the user's own
         // language. A numeric `accessibilityValue` of "1" was read as "1, 已选中,
         // 按钮" and never localised; the trait says it correctly and needs no key.
         .accessibilityAddTraits(isOn ? .isSelected : [])
+    }
+}
+
+private struct SiftCheckboxFocusEffect: ViewModifier {
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if #available(macOS 14.0, *) {
+            content.focusEffectDisabled()
+        } else {
+            content
+        }
     }
 }
 
@@ -1187,7 +1444,7 @@ public struct SiftSelectableRow<Content: View>: View {
                 }
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(SiftRowButtonStyle())
         .onHover { isHovering = $0 }
         .animation(reduceMotion ? nil : SiftMotion.hover, value: isHovering)
         .animation(reduceMotion ? nil : SiftMotion.quick, value: isSelected)
@@ -2002,10 +2259,8 @@ private struct LanguagePickerRow: View {
     let isSelected: Bool
     let action: () -> Void
 
-    @State private var isHovering = false
-
     var body: some View {
-        Button(action: action) {
+        SiftMenuItemButton(isSelected: isSelected, action: action) {
             HStack(spacing: SiftMetrics.spacingS) {
                 Image(systemName: "checkmark")
                     .font(.system(size: 10, weight: .bold))
@@ -2016,23 +2271,7 @@ private struct LanguagePickerRow: View {
                     .lineLimit(1)
                 Spacer(minLength: 0)
             }
-            .foregroundStyle(isSelected ? SiftColor.actionGreen : SiftColor.mainText)
-            .padding(.horizontal, SiftMetrics.spacingS)
-            .frame(height: SiftMetrics.fieldHeight)
-            .contentShape(Rectangle())
-            .background {
-                RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
-                    .fill(background)
-            }
         }
-        .buttonStyle(.plain)
-        .onHover { isHovering = $0 }
         .accessibilityIdentifier("language.\(language.rawValue)")
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
-    }
-
-    private var background: Color {
-        if isSelected { return SiftColor.selectedWash }
-        return isHovering ? SiftColor.rowHoverFill : .clear
     }
 }

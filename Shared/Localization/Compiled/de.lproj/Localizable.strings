@@ -343,6 +343,9 @@
 "scan.results.cleanButton" = "%d bereinigen";
 "scan.results.cleanTitle" = "Diese Bereinigung";
 "scan.results.defaultSelected" = "Standardmäßig ausgewählt";
+"scan.results.ignoreAlways" = "Dauerhaft ignorieren";
+"scan.results.ignoreItem" = "Diesen Eintrag ignorieren";
+"scan.results.ignoreOnce" = "Für diesen Scan ausblenden";
 "scan.results.ownerAction" = "Von welcher App?";
 "scan.results.ownerMissing" = "Für %@ ist keine App installiert. Die Kennung wurde kopiert.";
 "scan.results.protectedGroup" = "Geschützt";

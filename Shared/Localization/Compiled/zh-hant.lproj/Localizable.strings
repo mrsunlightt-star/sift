@@ -343,6 +343,9 @@
 "scan.results.cleanButton" = "清理 %d 項";
 "scan.results.cleanTitle" = "本次清理";
 "scan.results.defaultSelected" = "預設已選取";
+"scan.results.ignoreAlways" = "永久忽略";
+"scan.results.ignoreItem" = "不再掃描此項目";
+"scan.results.ignoreOnce" = "本次忽略";
 "scan.results.ownerAction" = "是哪個應用程式的？";
 "scan.results.ownerMissing" = "沒有為 %@ 安裝應用程式，已複製其識別碼。";
 "scan.results.protectedGroup" = "受保護";

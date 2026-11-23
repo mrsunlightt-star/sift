@@ -57,6 +57,12 @@ public final class ScanModel: ObservableObject {
     /// Trash. This is what the page subtracts, and it is per-run because `reset`
     /// and a new scan both start from a tree that has changed.
     @Published public private(set) var cleanedPaths: Set<String> = []
+    /// Paths hidden by the user from the current report.
+    ///
+    /// "This scan" is deliberately model state rather than a settings change:
+    /// paging and filter changes keep the row hidden, while `reset` for a new
+    /// run clears it and lets the next scan report the item again.
+    @Published public private(set) var hiddenPaths: Set<String> = []
     /// When this run began, for the elapsed clock on the running page. Cleared
     /// with the rest of the run's state.
     @Published public private(set) var runStartedAt: Date?
@@ -358,6 +364,75 @@ public final class ScanModel: ObservableObject {
         riskTotalsComplete = false
     }
 
+    /// Removes rows the user declined from this report and its totals.
+    ///
+    /// Ignoring is not a cleanup: nothing on disk changes. The index still
+    /// holds the rows, so the same path is filtered from later pages here until
+    /// a new scan starts. The report, category totals and risk totals are
+    /// reduced immediately so every visible count describes the list beneath
+    /// it.
+    public func applyIgnored(_ items: [CleanupItemSummary]) {
+        guard !items.isEmpty else { return }
+
+        let paths = Set(items.map { Self.cleanedKey($0.url) })
+        hiddenPaths.formUnion(paths)
+        recentItems.removeAll { paths.contains(Self.cleanedKey($0.url)) }
+
+        var removedByCategory: [CleanupCategory: (count: Int, bytes: Int64)] = [:]
+        var removedByRisk: [CleanupRisk: (count: Int, bytes: Int64)] = [:]
+        var removedBytes: Int64 = 0
+        for item in items {
+            removedBytes += item.sizeInBytes
+
+            var category = removedByCategory[item.category] ?? (count: 0, bytes: 0)
+            category.count += 1
+            category.bytes += item.sizeInBytes
+            removedByCategory[item.category] = category
+
+            var risk = removedByRisk[item.risk] ?? (count: 0, bytes: 0)
+            risk.count += 1
+            risk.bytes += item.sizeInBytes
+            removedByRisk[item.risk] = risk
+        }
+
+        safeItemCount = max(0, safeItemCount - (removedByRisk[.safe]?.count ?? 0))
+        safeBytes = max(0, safeBytes - (removedByRisk[.safe]?.bytes ?? 0))
+        reviewItemCount = max(0, reviewItemCount - (removedByRisk[.review]?.count ?? 0))
+        reviewBytes = max(0, reviewBytes - (removedByRisk[.review]?.bytes ?? 0))
+        protectedItemCount = max(0, protectedItemCount - (removedByRisk[.protected]?.count ?? 0))
+        protectedBytes = max(0, protectedBytes - (removedByRisk[.protected]?.bytes ?? 0))
+
+        categoryTotals = categoryTotals.compactMap { total in
+            guard let removed = removedByCategory[total.category] else { return total }
+            let count = total.itemCount - removed.count
+            guard count > 0 else { return nil }
+            return CategoryTotal(
+                category: total.category,
+                itemCount: count,
+                totalBytes: max(0, total.totalBytes - removed.bytes)
+            )
+        }
+
+        if let report {
+            self.report = ScanReport(
+                id: report.id,
+                sessionID: report.sessionID,
+                startedAt: report.startedAt,
+                finishedAt: report.finishedAt,
+                phase: report.phase,
+                scannedFileCount: report.scannedFileCount,
+                scannedByteCount: report.scannedByteCount,
+                scannedLocationCount: report.scannedLocationCount,
+                itemCount: max(0, report.itemCount - items.count),
+                itemBytes: max(0, report.itemBytes - removedBytes),
+                categoryTotals: categoryTotals,
+                duplicateGroupCount: report.duplicateGroupCount,
+                duplicateReclaimableBytes: report.duplicateReclaimableBytes,
+                skippedLocations: report.skippedLocations
+            )
+        }
+    }
+
     /// One spelling per path, so a row and a result agree about what moved.
     static func cleanedKey(_ url: URL) -> String {
         url.standardizedFileURL.path
@@ -392,6 +467,7 @@ public final class ScanModel: ObservableObject {
         // A new run sees the tree as it is now, so what an earlier cleanup moved
         // must not be subtracted from it a second time.
         cleanedPaths = []
+        hiddenPaths = []
     }
 
     // MARK: - Paging
@@ -413,13 +489,15 @@ public final class ScanModel: ObservableObject {
                 sort: sort,
                 category: category
             )
-            // The index still holds a row a cleanup moved; dropping it here is
-            // what keeps the list honest without asking the core to rewrite
-            // itself mid-run. `offset` still counts index rows, so paging stays
-            // aligned, and `remaining` is reduced by what was dropped so the
-            // footer does not promise rows this page cannot show.
-            guard !cleanedPaths.isEmpty else { return page }
-            let kept = page.items.filter { !cleanedPaths.contains(Self.cleanedKey($0.url)) }
+            // The index still holds rows a cleanup moved or the user hid;
+            // dropping them here keeps the list honest without asking the core
+            // to rewrite itself mid-run. `offset` still counts index rows, so
+            // paging stays aligned, and `remaining` is reduced by what was
+            // dropped so the footer does not promise rows this page cannot
+            // show.
+            let hidden = cleanedPaths.union(hiddenPaths)
+            guard !hidden.isEmpty else { return page }
+            let kept = page.items.filter { !hidden.contains(Self.cleanedKey($0.url)) }
             guard kept.count != page.items.count else { return page }
             return ScanPage(
                 items: kept,

@@ -343,6 +343,9 @@
 "scan.results.cleanButton" = "Wyczyść %d";
 "scan.results.cleanTitle" = "To czyszczenie";
 "scan.results.defaultSelected" = "Domyślnie zaznaczone";
+"scan.results.ignoreAlways" = "Ignoruj trwale";
+"scan.results.ignoreItem" = "Ignoruj ten element";
+"scan.results.ignoreOnce" = "Ukryj w tym skanowaniu";
 "scan.results.ownerAction" = "Do jakiej aplikacji należy?";
 "scan.results.ownerMissing" = "Brak zainstalowanej aplikacji dla %@. Identyfikator został skopiowany.";
 "scan.results.protectedGroup" = "Chronione";

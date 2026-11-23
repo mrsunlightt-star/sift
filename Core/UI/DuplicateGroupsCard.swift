@@ -243,7 +243,7 @@ struct DuplicateGroupRow: View {
                 .contentShape(Rectangle())
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(SiftRowButtonStyle())
             .padding(.leading, 14 + SiftMetrics.spacingS)
             .padding(.vertical, SiftMetrics.spacingS)
             .accessibilityLabel(Text(representativeName))

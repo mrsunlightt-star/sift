@@ -343,6 +343,9 @@
 "scan.results.cleanButton" = "נקה %d פריטים";
 "scan.results.cleanTitle" = "הניקוי הזה";
 "scan.results.defaultSelected" = "מסומן כברירת מחדל";
+"scan.results.ignoreAlways" = "התעלם לצמיתות";
+"scan.results.ignoreItem" = "התעלם מפריט זה";
+"scan.results.ignoreOnce" = "הסתר בסריקה הזו";
 "scan.results.ownerAction" = "של איזו אפליקציה זה?";
 "scan.results.ownerMissing" = "לא מותקנת אפליקציה עבור %@. המזהה הועתק.";
 "scan.results.protectedGroup" = "מוגן";

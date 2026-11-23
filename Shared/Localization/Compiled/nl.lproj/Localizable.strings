@@ -343,6 +343,9 @@
 "scan.results.cleanButton" = "%d items opschonen";
 "scan.results.cleanTitle" = "Deze opruiming";
 "scan.results.defaultSelected" = "Standaard geselecteerd";
+"scan.results.ignoreAlways" = "Permanent negeren";
+"scan.results.ignoreItem" = "Dit item negeren";
+"scan.results.ignoreOnce" = "Verbergen voor deze scan";
 "scan.results.ownerAction" = "Van welke app is dit?";
 "scan.results.ownerMissing" = "Geen app geïnstalleerd voor %@. De identifier is gekopieerd.";
 "scan.results.protectedGroup" = "Beschermd";

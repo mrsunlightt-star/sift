@@ -750,7 +750,7 @@ struct AppearanceSidebarMenu: View {
 
     private func pickerRow(_ appearance: AppSettings.Appearance) -> some View {
         let isSelected = appearance == selection
-        return Button {
+        return SiftMenuItemButton(isSelected: isSelected) {
             onSelect(appearance)
             isPresented = false
         } label: {
@@ -764,22 +764,6 @@ struct AppearanceSidebarMenu: View {
                     .lineLimit(1)
                 Spacer(minLength: 0)
             }
-            // `mainText`, not `.primary`: the picker is a list of sentences and
-            // only the checkmark column carries the state.
-            .foregroundStyle(isSelected ? SiftColor.actionGreen : SiftColor.mainText)
-            .padding(.horizontal, SiftMetrics.spacingS)
-            .frame(height: 30)
-            .contentShape(Rectangle())
-            .background {
-                RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
-                    .fill(rowBackground(isSelected))
-            }
         }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
-    }
-
-    private func rowBackground(_ isSelected: Bool) -> Color {
-        isSelected ? SiftColor.selectedWash : .clear
     }
 }

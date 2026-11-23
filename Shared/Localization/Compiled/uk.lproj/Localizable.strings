@@ -343,6 +343,9 @@
 "scan.results.cleanButton" = "Очистити %d елементів";
 "scan.results.cleanTitle" = "Це очищення";
 "scan.results.defaultSelected" = "Вибрано за замовчуванням";
+"scan.results.ignoreAlways" = "Ігнорувати назавжди";
+"scan.results.ignoreItem" = "Ігнорувати цей елемент";
+"scan.results.ignoreOnce" = "Сховати для цього сканування";
 "scan.results.ownerAction" = "Якої це програми?";
 "scan.results.ownerMissing" = "Для %@ не встановлено жодної програми. Ідентифікатор скопійовано.";
 "scan.results.protectedGroup" = "Захищено";

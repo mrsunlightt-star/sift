@@ -121,6 +121,51 @@ final class DesignSystemRoleTests: XCTestCase, @unchecked Sendable {
         XCTAssertEqual(offenders, [], "\n" + offenders.joined(separator: "\n"))
     }
 
+    /// A page button takes its treatment from the design system, not from the
+    /// system default or an ad-hoc `.plain` opt-out.
+    ///
+    /// Native alert, context-menu and command buttons have no page chrome and
+    /// are intentionally untouched. Every button that is drawn inside the app's
+    /// own surfaces uses one of the shared styles, which is what keeps hover,
+    /// pressed feedback, disabled contrast and the 44 pt target from drifting
+    /// page by page.
+    func test_appButtonsUseTheSharedButtonStyles() throws {
+        guard let root = Self.repositoryRoot() else { return }
+        let directories = ["App", "Core", "Features", "Shared"]
+        var findings: [String] = []
+        var scanned: [String] = []
+
+        for directory in directories {
+            for file in try Self.swiftFiles(under: root.appendingPathComponent(directory)) {
+                let relativePath = Self.relativePath(of: file, from: root)
+                scanned.append(relativePath)
+                let source = try String(contentsOf: file, encoding: .utf8)
+
+                for (number, text) in Self.lines(of: source) {
+                    if text.contains(".buttonStyle(.") {
+                        findings.append(
+                            "\(relativePath):\(number) uses a system button style; "
+                                + "use SiftActionButtonStyle, SiftIconButtonStyle, "
+                                + "SiftLinkButtonStyle or SiftRowButtonStyle"
+                        )
+                    }
+                    if text.contains(": ButtonStyle"), !relativePath.hasPrefix("Shared/") {
+                        findings.append(
+                            "\(relativePath):\(number) defines a page-local ButtonStyle; "
+                                + "add the shared treatment in Shared/Components/SiftComponents.swift"
+                        )
+                    }
+                }
+            }
+        }
+
+        XCTAssertTrue(
+            scanned.contains("Shared/Components/SiftComponents.swift"),
+            "the shared button component source was not found under \(root.path)"
+        )
+        XCTAssertEqual(findings, [], "\n" + findings.joined(separator: "\n"))
+    }
+
     // MARK: - Reading the sources
 
     /// The repository root, found by walking up from this file.

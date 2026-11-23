@@ -224,9 +224,10 @@ public struct CleanupConfirmationView: View {
                     .foregroundStyle(SiftColor.actionGreen)
                     Spacer(minLength: 0)
                 }
+                .frame(maxWidth: .infinity, minHeight: SiftMetrics.minimumHitTarget, alignment: .leading)
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(SiftRowButtonStyle())
             .accessibilityAddTraits(expanded.contains(.items) ? [.isSelected] : [])
 
             if expanded.contains(.items) {
@@ -349,9 +350,10 @@ public struct CleanupConfirmationView: View {
                         .foregroundStyle(SiftColor.actionGreen)
                     Spacer(minLength: 0)
                 }
+                .frame(maxWidth: .infinity, minHeight: SiftMetrics.minimumHitTarget, alignment: .leading)
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(SiftRowButtonStyle())
             .accessibilityAddTraits(expanded.contains(.recoverable) ? [.isSelected] : [])
 
             if expanded.contains(.recoverable) {

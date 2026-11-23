@@ -343,6 +343,9 @@
 "scan.results.cleanButton" = "%d elem tisztítása";
 "scan.results.cleanTitle" = "Ez a tisztítás";
 "scan.results.defaultSelected" = "Alapértelmezés szerint kijelölve";
+"scan.results.ignoreAlways" = "Végleges figyelmen kívül hagyás";
+"scan.results.ignoreItem" = "Elem figyelmen kívül hagyása";
+"scan.results.ignoreOnce" = "Elrejtés ebben a vizsgálatban";
 "scan.results.ownerAction" = "Melyik alkalmazásé?";
 "scan.results.ownerMissing" = "A(z) %@ azonosítóhoz nincs telepített alkalmazás. Az azonosító vágólapra került.";
 "scan.results.protectedGroup" = "Védett";

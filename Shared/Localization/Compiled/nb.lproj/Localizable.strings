@@ -343,6 +343,9 @@
 "scan.results.cleanButton" = "Rydd %d elementer";
 "scan.results.cleanTitle" = "Denne oppryddingen";
 "scan.results.defaultSelected" = "Valgt som standard";
+"scan.results.ignoreAlways" = "Ignorer permanent";
+"scan.results.ignoreItem" = "Ignorer dette elementet";
+"scan.results.ignoreOnce" = "Skjul for denne skanningen";
 "scan.results.ownerAction" = "Hvilken app er dette?";
 "scan.results.ownerMissing" = "Ingen app er installert for %@. Identifikatoren er kopiert.";
 "scan.results.protectedGroup" = "Beskyttet";

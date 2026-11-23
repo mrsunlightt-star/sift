@@ -343,6 +343,9 @@
 "scan.results.cleanButton" = "Dọn %d mục";
 "scan.results.cleanTitle" = "Lần dọn dẹp này";
 "scan.results.defaultSelected" = "Được chọn mặc định";
+"scan.results.ignoreAlways" = "Bỏ qua vĩnh viễn";
+"scan.results.ignoreItem" = "Bỏ qua mục này";
+"scan.results.ignoreOnce" = "Ẩn trong lần quét này";
 "scan.results.ownerAction" = "Của ứng dụng nào?";
 "scan.results.ownerMissing" = "Không có ứng dụng nào được cài cho %@. Đã sao chép mã định danh.";
 "scan.results.protectedGroup" = "Được bảo vệ";

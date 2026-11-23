@@ -343,6 +343,9 @@
 "scan.results.cleanButton" = "ລ້າງ %d ລາຍການ";
 "scan.results.cleanTitle" = "ການລ້າງຄັ້ງນີ້";
 "scan.results.defaultSelected" = "ເລືອກໄວ້ໂດຍຄ່າເລີ່ມຕົ້ນ";
+"scan.results.ignoreAlways" = "ບໍ່ສົນໃຈຢ່າງຖາວອນ";
+"scan.results.ignoreItem" = "ບໍ່ສະແກນລາຍການນີ້ອີກ";
+"scan.results.ignoreOnce" = "ຊ່ອນສຳລັບການສະແກນນີ້";
 "scan.results.ownerAction" = "ນີ້ແມ່ນແອັບໃດ?";
 "scan.results.ownerMissing" = "ບໍ່ມີແອັບທີ່ຕິດຕັ້ງສຳລັບ %@. ສຳເນົາຕົວະລະບຸແລ້ວ.";
 "scan.results.protectedGroup" = "ປ້ອງກັນໄວ້";

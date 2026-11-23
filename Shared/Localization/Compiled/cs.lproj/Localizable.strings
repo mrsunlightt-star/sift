@@ -343,6 +343,9 @@
 "scan.results.cleanButton" = "Vyčistit položky: %d";
 "scan.results.cleanTitle" = "Toto čištění";
 "scan.results.defaultSelected" = "Vybráno ve výchozím nastavení";
+"scan.results.ignoreAlways" = "Ignorovat trvale";
+"scan.results.ignoreItem" = "Ignorovat tuto položku";
+"scan.results.ignoreOnce" = "Skrýt pro toto skenování";
 "scan.results.ownerAction" = "Které aplikace to je?";
 "scan.results.ownerMissing" = "Pro %@ není nainstalována žádná aplikace. Identifikátor byl zkopírován.";
 "scan.results.protectedGroup" = "Chráněné";

@@ -259,19 +259,12 @@ public struct ResidueView: View {
                     .monospacedDigit()
                 }
                 Spacer(minLength: 0)
-                Button {
+                SiftIconButton(
+                    symbolName: expanded.contains(group.id) ? "chevron.up" : "chevron.down",
+                    help: LocalizationKey.residueLocations.localized(group.locationCount)
+                ) {
                     toggle(group.id)
-                } label: {
-                    Image(systemName: expanded.contains(group.id) ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(SiftColor.secondaryText)
-                        .frame(width: 22, height: 22)
-                        .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(
-                    Text(LocalizationKey.residueLocations.localized(group.locationCount))
-                )
             }
             .padding(SiftMetrics.spacingM)
 

@@ -343,6 +343,9 @@
 "scan.results.cleanButton" = "پاک‌سازی %d مورد";
 "scan.results.cleanTitle" = "این پاک‌سازی";
 "scan.results.defaultSelected" = "به‌طور پیش‌فرض انتخاب شده";
+"scan.results.ignoreAlways" = "برای همیشه نادیده گرفته شود";
+"scan.results.ignoreItem" = "این مورد را نادیده بگیر";
+"scan.results.ignoreOnce" = "در این اسکن پنهان شود";
 "scan.results.ownerAction" = "این از کدام برنامه است؟";
 "scan.results.ownerMissing" = "هیچ برنامه‌ای برای %@ نصب نیست. شناسه رونوشت شد.";
 "scan.results.protectedGroup" = "محافظت‌شده";

@@ -343,6 +343,9 @@
 "scan.results.cleanButton" = "Siivoa %d kohdetta";
 "scan.results.cleanTitle" = "Tämä siivous";
 "scan.results.defaultSelected" = "Valittu oletuksena";
+"scan.results.ignoreAlways" = "Ohita pysyvästi";
+"scan.results.ignoreItem" = "Jätä tämä kohde huomiotta";
+"scan.results.ignoreOnce" = "Piilota tässä skannauksessa";
 "scan.results.ownerAction" = "Minkä sovelluksen?";
 "scan.results.ownerMissing" = "Sovellusta %@ ei ole asennettu. Tunniste kopioitiin.";
 "scan.results.protectedGroup" = "Suojattu";

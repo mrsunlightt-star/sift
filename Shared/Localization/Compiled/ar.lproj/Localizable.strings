@@ -343,6 +343,9 @@
 "scan.results.cleanButton" = "تنظيف %d عناصر";
 "scan.results.cleanTitle" = "هذا التنظيف";
 "scan.results.defaultSelected" = "محدد افتراضيًا";
+"scan.results.ignoreAlways" = "تجاهل نهائيًا";
+"scan.results.ignoreItem" = "تجاهل هذا العنصر";
+"scan.results.ignoreOnce" = "إخفاء في هذا الفحص";
 "scan.results.ownerAction" = "أي تطبيق هذا؟";
 "scan.results.ownerMissing" = "لا يوجد تطبيق مثبَّت لـ %@. تم نسخ المعرِّف.";
 "scan.results.protectedGroup" = "محمي";

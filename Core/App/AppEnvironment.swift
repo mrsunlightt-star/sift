@@ -322,6 +322,40 @@ public final class AppEnvironment: ObservableObject {
         }
     }
 
+    /// Adds a scan result to the user's ignore list.
+    ///
+    /// Settings stores paths home-relative so they stay readable when the
+    /// account moves. The scanner receives absolute paths, so this conversion
+    /// happens both here and when a request is assembled.
+    public func ignore(_ url: URL) async {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let target = Self.expandedIgnoredPath(url.standardizedFileURL.path, home: home)
+        await updateSettings { settings in
+            let existing = settings.ignoredPaths.map {
+                Self.expandedIgnoredPath($0, home: home)
+            }
+            guard !existing.contains(where: { RuleEngine.isPrefix($0, target) }) else {
+                return
+            }
+            // Ignoring a parent makes an older, narrower entry redundant. Keep
+            // one entry per covered location instead of growing a nested list.
+            settings.ignoredPaths.removeAll {
+                RuleEngine.isPrefix(target, Self.expandedIgnoredPath($0, home: home))
+            }
+            settings.ignoredPaths.append(CleanupItem.abbreviate(target))
+            settings.ignoredPaths.sort()
+        }
+    }
+
+    /// Whether the current preferences already cover this URL.
+    public func isIgnored(_ url: URL) -> Bool {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let target = Self.expandedIgnoredPath(url.standardizedFileURL.path, home: home)
+        return preferences.ignoredPaths.contains {
+            RuleEngine.isPrefix(Self.expandedIgnoredPath($0, home: home), target)
+        }
+    }
+
     /// Rebuilds every service that holds a `RuleEngine`.
     ///
     /// The scanner and the file-operation service do not share one mutable rule
@@ -635,7 +669,10 @@ public final class AppEnvironment: ObservableObject {
             largeFileThresholdBytes: current.largeFileThresholdBytes,
             oldFileThresholdDays: current.oldFileThresholdDays,
             staleThresholdDays: current.staleThresholdDays,
-            ignoredPaths: current.ignoredPaths,
+            ignoredPaths: Self.expandedIgnoredPaths(
+                current.ignoredPaths,
+                home: home.path
+            ),
             authorizedRoots: authorizedURLs.map(\.path),
             installedBundleIdentifiers: bundleIdentifiers,
             // Whether that set is the whole one. Residue is decided by comparing a
@@ -666,6 +703,24 @@ public final class AppEnvironment: ObservableObject {
             // fallback but ignored by the shipped scanner.
             extraRulesJSON: extraRulesJSON
         )
+    }
+
+    /// Expands the one home-relative spelling preferences may contain.
+    nonisolated static func expandedIgnoredPath(_ path: String, home: String) -> String {
+        let expanded: String
+        if path == "~" {
+            expanded = home
+        } else if path.hasPrefix("~/") {
+            expanded = home + String(path.dropFirst())
+        } else {
+            expanded = path
+        }
+        return RuleEngine.normalize(expanded)
+    }
+
+    /// The sorted, duplicate-free ignore list handed to either scanner.
+    nonisolated static func expandedIgnoredPaths(_ paths: [String], home: String) -> [String] {
+        Array(Set(paths.map { expandedIgnoredPath($0, home: home) })).sorted()
     }
 
     /// The installed applications a scan's residue decisions rest on, and whether

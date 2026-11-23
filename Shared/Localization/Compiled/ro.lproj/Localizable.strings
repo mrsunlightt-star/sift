@@ -343,6 +343,9 @@
 "scan.results.cleanButton" = "Curăță %d elemente";
 "scan.results.cleanTitle" = "Această curățare";
 "scan.results.defaultSelected" = "Selectate implicit";
+"scan.results.ignoreAlways" = "Ignoră permanent";
+"scan.results.ignoreItem" = "Ignoră acest element";
+"scan.results.ignoreOnce" = "Ascunde pentru această scanare";
 "scan.results.ownerAction" = "A cărei aplicații este?";
 "scan.results.ownerMissing" = "Nu este instalată nicio aplicație pentru %@. Identificatorul a fost copiat.";
 "scan.results.protectedGroup" = "Protejate";

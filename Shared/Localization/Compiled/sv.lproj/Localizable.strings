@@ -343,6 +343,9 @@
 "scan.results.cleanButton" = "Rensa %d objekt";
 "scan.results.cleanTitle" = "Den här rensningen";
 "scan.results.defaultSelected" = "Markerad som standard";
+"scan.results.ignoreAlways" = "Ignorera permanent";
+"scan.results.ignoreItem" = "Ignorera detta objekt";
+"scan.results.ignoreOnce" = "Dölj för denna genomsökning";
 "scan.results.ownerAction" = "Vilken app är det?";
 "scan.results.ownerMissing" = "Ingen app är installerad för %@. Identifieraren har kopierats.";
 "scan.results.protectedGroup" = "Skyddat";

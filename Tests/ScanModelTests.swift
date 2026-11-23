@@ -212,6 +212,53 @@ final class ScanModelTests: XCTestCase, @unchecked Sendable {
         XCTAssertEqual(cache?.itemCount, 1, "the category total counts only what is still there")
     }
 
+    /// "This scan" is the current model, not a permanent preference.
+    func test_anIgnoredItemLeavesThisReportButNotTheNextOne() async throws {
+        let fixture = TemporaryDirectory(tag: "scan-model-ignore-once")
+        fixture.write("Library/Caches/com.example.a/blob.bin", bytes: 8192)
+        fixture.write("Library/Caches/com.example.b/blob.bin", bytes: 4096)
+        let model = await makeModel(home: fixture.url)
+        await model.start(makeRequest(home: fixture.url))
+        await model.waitUntilSettled()
+
+        let before = await model.page(offset: 0, limit: 50, sort: .size, category: nil)
+        XCTAssertEqual(before.items.count, 2)
+        let reportBefore = await model.report
+        let victim = before.items[0]
+        let riskCountBefore: Int
+        switch victim.risk {
+        case .safe: riskCountBefore = await model.safeItemCount
+        case .review: riskCountBefore = await model.reviewItemCount
+        case .protected: riskCountBefore = await model.protectedItemCount
+        }
+
+        await model.applyIgnored([victim])
+
+        let after = await model.page(offset: 0, limit: 50, sort: .size, category: nil)
+        XCTAssertEqual(after.items.count, 1, "the ignored row leaves this report")
+        XCTAssertFalse(after.items.contains { $0.url == victim.url })
+
+        let reportAfter = await model.report
+        XCTAssertEqual(reportAfter?.itemCount, (reportBefore?.itemCount ?? 0) - 1)
+        XCTAssertEqual(reportAfter?.itemBytes, (reportBefore?.itemBytes ?? 0) - victim.sizeInBytes)
+        let riskCountAfter: Int
+        switch victim.risk {
+        case .safe: riskCountAfter = await model.safeItemCount
+        case .review: riskCountAfter = await model.reviewItemCount
+        case .protected: riskCountAfter = await model.protectedItemCount
+        }
+        XCTAssertEqual(riskCountAfter, max(0, riskCountBefore - 1))
+
+        await model.reset()
+        let hiddenAfterReset = await model.hiddenPaths
+        XCTAssertTrue(hiddenAfterReset.isEmpty, "a new scan starts with no local hides")
+
+        await model.start(makeRequest(home: fixture.url))
+        await model.waitUntilSettled()
+        let nextRun = await model.page(offset: 0, limit: 50, sort: .size, category: nil)
+        XCTAssertEqual(nextRun.items.count, 2, "the next scan reports the item again")
+    }
+
     /// A batch that moved nothing changes nothing.
     func test_aCleanupThatMovedNothingLeavesTheResultAlone() async throws {
         let fixture = TemporaryDirectory(tag: "scan-model-cleanup-noop")

@@ -343,6 +343,9 @@
 "scan.results.cleanButton" = "Pulisci %d elementi";
 "scan.results.cleanTitle" = "Questa pulizia";
 "scan.results.defaultSelected" = "Selezionato per impostazione predefinita";
+"scan.results.ignoreAlways" = "Ignora permanentemente";
+"scan.results.ignoreItem" = "Ignora questo elemento";
+"scan.results.ignoreOnce" = "Nascondi per questa scansione";
 "scan.results.ownerAction" = "Di quale app è?";
 "scan.results.ownerMissing" = "Nessuna applicazione installata per %@. L’identificatore è stato copiato.";
 "scan.results.protectedGroup" = "Protetto";

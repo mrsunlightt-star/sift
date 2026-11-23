@@ -343,6 +343,9 @@
 "scan.results.cleanButton" = "Nettoyer %d";
 "scan.results.cleanTitle" = "Ce nettoyage";
 "scan.results.defaultSelected" = "Sélectionné par défaut";
+"scan.results.ignoreAlways" = "Ignorer définitivement";
+"scan.results.ignoreItem" = "Ignorer cet élément";
+"scan.results.ignoreOnce" = "Masquer pour cette analyse";
 "scan.results.ownerAction" = "De quelle app ?";
 "scan.results.ownerMissing" = "Aucune application installée pour %@. L’identifiant a été copié.";
 "scan.results.protectedGroup" = "Protégé";

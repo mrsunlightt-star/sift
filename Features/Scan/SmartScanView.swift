@@ -29,7 +29,6 @@ public struct ScanView: View {
     private let onManageScope: () -> Void
 
     @State private var filter: ScanFilter = .all
-    @State private var sort: ScanSort = .size
     @State private var items: [CleanupItemSummary] = []
     @State private var cursors: [CleanupCategory: Int] = [:]
     @State private var isLoading = false
@@ -47,9 +46,10 @@ public struct ScanView: View {
     ///
     /// `onMoveCommand` is delivered to the focused responder, so an arrow key
     /// pressed while a row's checkbox has focus moves the cursor to the next row
-    /// instead of doing nothing. No global shortcut and no custom focus ring: the
-    /// rows behave the way every other list in macOS does.
+    /// instead of doing nothing. No global shortcut: focus stays on the row's
+    /// checkbox and uses the app's own action-green ring.
     @FocusState private var focusedRow: String?
+    @Environment(\.siftReduceMotion) private var reduceMotion
 
     /// What the last click on "move to Trash" produced, when it produced no panel.
     @State private var actionNotice: (level: NoticeBanner.Level, text: String)?
@@ -482,28 +482,26 @@ public struct ScanView: View {
     /// what the engine walks (invariant 17). The run is the same run, and a tab
     /// only chooses which of its categories this page shows.
     ///
-    /// The selected pill uses the results page's state blue, while the one filled
-    /// green control remains the action that moves files. The row scrolls
-    /// horizontally on a narrow window and keeps the sort control at the end.
+    /// The shared filter component means a chosen scan scope, an app scope and
+    /// the settings index all say "selected" with the same action-green rule.
+    /// The row scrolls horizontally on a narrow window.
     private var filterBar: some View {
         HStack(spacing: SiftMetrics.spacingM) {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: SiftMetrics.spacingS) {
                     ForEach(ScanFilter.allCases) { candidate in
-                        ScanFilterPill(
+                        SiftFilterChip(
                             title: candidate.titleKey.localized,
                             detail: chipDetail(candidate),
                             isSelected: filter == candidate
                         ) {
                             filter = candidate
                         }
-                        .fixedSize()
+                        .accessibilityIdentifier("scan.filter.\(candidate.rawValue)")
                     }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-
-            sortMenu
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -610,6 +608,7 @@ public struct ScanView: View {
                         item: item,
                         cleanup: cleanup,
                         onLookUpOwner: lookUpOwner,
+                        onIgnore: { scope in ignore(item, scope: scope) },
                         focus: $focusedRow,
                         onMove: moveCursor
                     )
@@ -672,21 +671,12 @@ public struct ScanView: View {
                 }
             }
         } else {
-            VStack(spacing: 0) {
-                DuplicateGroupsCard(
-                    groups: scan.duplicateGroups,
-                    scan: scan,
-                    cleanup: cleanup,
-                    showsHeading: true
-                )
-                .padding(SiftMetrics.spacingL)
-                .background(SiftColor.surfaceColor)
-            }
-            .clipShape(RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusL, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusL, style: .continuous)
-                    .strokeBorder(SiftColor.scanResultCardBorder, lineWidth: SiftMetrics.panelBorderWidth)
-            }
+            DuplicateGroupsCard(
+                groups: scan.duplicateGroups,
+                scan: scan,
+                cleanup: cleanup,
+                showsHeading: true
+            )
         }
     }
 
@@ -699,7 +689,7 @@ public struct ScanView: View {
                 Text(LocalizationKey.commonLoadMore.localized)
                     .font(SiftFont.bodyEmphasis)
             }
-            .buttonStyle(ScanResultLinkButtonStyle())
+            .buttonStyle(SiftLinkButtonStyle())
             Spacer()
         }
         .frame(minHeight: SiftMetrics.minimumHitTarget)
@@ -868,6 +858,54 @@ public struct ScanView: View {
         }
     }
 
+    /// Hides a result for this report or for every future scan.
+    ///
+    /// Both choices remove the row now so it cannot remain selected for a
+    /// cleanup the user has just declined to consider. Only the permanent
+    /// choice writes the path into the scanner's ignore list.
+    private func ignore(_ item: CleanupItemSummary, scope: ScanIgnoreScope) {
+        removeFromResults(item)
+
+        switch scope {
+        case .thisScan:
+            actionNotice = (
+                .information,
+                "\(item.displayName): \(LocalizationKey.scanResultsIgnoreOnce.localized)"
+            )
+        case .permanently:
+            Task {
+                await environment.ignore(item.url)
+                actionNotice = (
+                    .information,
+                    "\(item.displayName): \(LocalizationKey.scanResultsIgnoreAlways.localized)"
+                )
+            }
+        }
+    }
+
+    private func removeFromResults(_ item: CleanupItemSummary) {
+        let path = Self.pathKey(item.url)
+        let matchingURLs = Set(
+            items
+                .filter { Self.pathKey($0.url) == path }
+                .map(\.url)
+        )
+        let matchingItems = items.filter { Self.pathKey($0.url) == path }
+        cleanup.removeItems(at: matchingURLs)
+        scan.applyIgnored(matchingItems.isEmpty ? [item] : matchingItems)
+        withAnimation(reduceMotion ? nil : SiftMotion.quick) {
+            items.removeAll { Self.pathKey($0.url) == path }
+        }
+    }
+
+    private func isHiddenFromResults(_ url: URL) -> Bool {
+        environment.isIgnored(url)
+    }
+
+    private static func pathKey(_ url: URL) -> String {
+        url.standardizedFileURL.path
+    }
+
     /// What an open group is holding back, directly under its own rows.
     ///
     /// It belongs to the group it describes: the footer used to sit once at the
@@ -895,11 +933,10 @@ public struct ScanView: View {
                     Text(LocalizationKey.overviewShowAll.localized)
                         .font(SiftFont.bodyEmphasis)
                 }
-                .buttonStyle(ScanResultLinkButtonStyle())
+                .buttonStyle(SiftLinkButtonStyle())
             }
             .padding(.horizontal, 46)
             .frame(minHeight: 38)
-            .background(SiftColor.surfaceColor)
         }
     }
 
@@ -918,39 +955,6 @@ public struct ScanView: View {
     /// the rows. Clicking inserts them in the same frame (invariant 45).
     private func toggleExpansion(_ risk: CleanupRisk) {
         groupExpansion[risk] = !isExpanded(risk)
-    }
-
-    private var sortMenu: some View {
-        Menu {
-            ForEach([ScanSort.size, .name, .modified], id: \.self) { candidate in
-                Button {
-                    sort = candidate
-                } label: {
-                    Text(candidate.titleKey.localized)
-                }
-            }
-        } label: {
-            HStack(spacing: 5) {
-                Text(sort.titleKey.localized)
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 8, weight: .semibold))
-            }
-            .font(SiftFont.caption)
-            .foregroundStyle(SiftColor.secondaryText)
-            .padding(.horizontal, SiftMetrics.spacingM)
-            .padding(.vertical, 5)
-            .background(
-                RoundedRectangle(cornerRadius: SiftMetrics.controlCornerRadius, style: .continuous)
-                    .fill(SiftColor.controlFill)
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: SiftMetrics.controlCornerRadius, style: .continuous)
-                    .strokeBorder(SiftColor.divider, lineWidth: SiftMetrics.hairline)
-            }
-        }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
-        .fixedSize()
     }
 
     private func selectedCount(for risk: CleanupRisk) -> Int {
@@ -988,7 +992,8 @@ public struct ScanView: View {
         // which is a moment before the model knows what moved, so a reload
         // driven by it alone could fetch the index while the moved rows were
         // still in it.
-        return "\(session)-\(filter.rawValue)-\(sort.rawValue)-\(cleanup.listGeneration)-\(scan.cleanedPaths.count)"
+        let ignores = environment.preferences.ignoredPaths.joined(separator: "|")
+        return "\(session)-\(filter.rawValue)-\(cleanup.listGeneration)-\(scan.cleanedPaths.count)-\(scan.hiddenPaths.count)-\(ignores)"
     }
 
     private func reload() async {
@@ -1014,14 +1019,14 @@ public struct ScanView: View {
         var fresh: [CleanupItemSummary] = []
         var freshCursors: [CleanupCategory: Int] = [:]
         for category in filter.rowCategories {
-            let page = await scan.page(offset: 0, limit: pageSize, sort: sort, category: category)
+            let page = await scan.page(offset: 0, limit: pageSize, sort: .size, category: category)
             guard reloadKey == expectedKey else { return }
-            fresh.append(contentsOf: page.items)
+            fresh.append(contentsOf: page.items.filter { !isHiddenFromResults($0.url) })
             freshCursors[category] = page.items.count
             if page.remaining > 0 { hasMore = true }
         }
 
-        items = deduplicated(fresh).sorted(by: sortComparator)
+        items = deduplicated(fresh).sorted(by: sizeComparator)
         cursors = freshCursors
         cleanup.appendItems(items.map { $0.asCleanupItem() })
     }
@@ -1035,9 +1040,9 @@ public struct ScanView: View {
         var added: [CleanupItemSummary] = []
         for category in filter.rowCategories {
             let offset = cursors[category] ?? 0
-            let page = await scan.page(offset: offset, limit: pageSize, sort: sort, category: category)
+            let page = await scan.page(offset: offset, limit: pageSize, sort: .size, category: category)
             guard reloadKey == expectedKey else { return }
-            added.append(contentsOf: page.items)
+            added.append(contentsOf: page.items.filter { !isHiddenFromResults($0.url) })
             cursors[category] = offset + page.items.count
         }
         hasMore = false
@@ -1045,7 +1050,7 @@ public struct ScanView: View {
             let page = await scan.page(
                 offset: cursors[category] ?? 0,
                 limit: 1,
-                sort: sort,
+                sort: .size,
                 category: category
             )
             guard reloadKey == expectedKey else { return }
@@ -1056,7 +1061,7 @@ public struct ScanView: View {
             !known.contains(CleanupItem.stableID(category: $0.category, url: $0.url))
         }
         items.append(contentsOf: unique)
-        items.sort(by: sortComparator)
+        items.sort(by: sizeComparator)
         cleanup.appendItems(unique.map { $0.asCleanupItem() })
     }
 
@@ -1064,8 +1069,8 @@ public struct ScanView: View {
     ///
     /// The engine can report one path under two rules that share a category; the
     /// cleanup identity is category plus path, so two rows would share a
-    /// checkbox and look like a duplicate. The list keeps the first row, which
-    /// the engine ordered by the current sort.
+    /// checkbox and look like a duplicate. The list keeps the first row from the
+    /// engine's size-ordered page.
     private func deduplicated(_ items: [CleanupItemSummary]) -> [CleanupItemSummary] {
         var seen = Set<String>()
         return items.filter {
@@ -1080,21 +1085,8 @@ public struct ScanView: View {
         }
     }
 
-    private var sortComparator: (CleanupItemSummary, CleanupItemSummary) -> Bool {
-        switch sort {
-        case .size:
-            return { $0.sizeInBytes > $1.sizeInBytes }
-        case .name:
-            return { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
-        case .modified:
-            return { ($0.modifiedAt ?? .distantPast) > ($1.modifiedAt ?? .distantPast) }
-        case .category:
-            return { lhs, rhs in
-                lhs.category.displayOrder == rhs.category.displayOrder
-                    ? lhs.sizeInBytes > rhs.sizeInBytes
-                    : lhs.category.displayOrder < rhs.category.displayOrder
-            }
-        }
+    private var sizeComparator: (CleanupItemSummary, CleanupItemSummary) -> Bool {
+        { $0.sizeInBytes > $1.sizeInBytes }
     }
 
     // MARK: - Selection helpers
@@ -1228,18 +1220,12 @@ enum ScanFilter: String, CaseIterable, Identifiable {
     }
 }
 
-private extension ScanSort {
-    var titleKey: LocalizationKey {
-        switch self {
-        case .size: .scanResultsSortSize
-        case .name: .scanResultsSortName
-        case .modified: .scanResultsSortModified
-        case .category: .commonSortBy
-        }
-    }
-}
-
 // MARK: - Result row
+
+enum ScanIgnoreScope {
+    case thisScan
+    case permanently
+}
 
 /// One result row: checkbox, name, path, size and risk.
 ///
@@ -1259,6 +1245,8 @@ struct ScanItemRow: View {
     /// "nothing is installed" — which is why the page says that instead of
     /// offering a button that appears to do nothing.
     var onLookUpOwner: ((String) -> Void)? = nil
+    /// Hides this row for the current report or for every later scan.
+    var onIgnore: ((ScanIgnoreScope) -> Void)? = nil
     /// The page's keyboard cursor, and how a row asks it to move.
     var focus: FocusState<String?>.Binding
     var onMove: (MoveCommandDirection, String) -> Void
@@ -1295,7 +1283,7 @@ struct ScanItemRow: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(SiftRowButtonStyle())
                 .help(domainItem.explanation())
                 .accessibilityLabel(
                     Text("\(item.displayName), \(item.displayPath), \(domainItem.explanation())")
@@ -1322,6 +1310,12 @@ struct ScanItemRow: View {
                 revealButton
                     .opacity(isHovering || showsDetail ? 1 : 0)
                     .animation(reduceMotion ? nil : SiftMotion.hover, value: isHovering)
+
+                if let onIgnore {
+                    ignoreButton(onIgnore)
+                        .opacity(isHovering || showsDetail ? 1 : 0)
+                        .animation(reduceMotion ? nil : SiftMotion.hover, value: isHovering)
+                }
             }
 
             if showsDetail {
@@ -1331,7 +1325,13 @@ struct ScanItemRow: View {
         .padding(.horizontal, SiftMetrics.spacingM)
         .padding(.vertical, SiftMetrics.spacingXS)
         .frame(minHeight: SiftMetrics.rowHeightTwoLine)
-        .background(isHovering ? SiftColor.rowHoverFill : Color.clear)
+        .background {
+            if isHovering {
+                SiftColor.rowHoverFill
+            } else {
+                Color.clear
+            }
+        }
         .contentShape(Rectangle())
         .onHover { isHovering = $0 }
         .animation(reduceMotion ? nil : SiftMotion.hover, value: isHovering)
@@ -1346,6 +1346,24 @@ struct ScanItemRow: View {
                     LocalizationKey.filesRevealInFinder.localized,
                     systemImage: "folder"
                 )
+            }
+            if let onIgnore {
+                Button {
+                    onIgnore(.thisScan)
+                } label: {
+                    Label(
+                        LocalizationKey.scanResultsIgnoreOnce.localized,
+                        systemImage: "clock"
+                    )
+                }
+                Button {
+                    onIgnore(.permanently)
+                } label: {
+                    Label(
+                        LocalizationKey.scanResultsIgnoreAlways.localized,
+                        systemImage: "eye.slash"
+                    )
+                }
             }
             if let bundleIdentifier = item.relatedBundleID, let onLookUpOwner {
                 Button {
@@ -1376,9 +1394,7 @@ struct ScanItemRow: View {
                     get: { cleanup.isSelected(domainItem) },
                     set: { cleanup.setSelected($0, for: domainItem) }
                 ),
-                isEnabled: true,
-                selectedFill: SiftColor.selectionAccentFill,
-                selectedMark: .white
+                isEnabled: true
             )
             .focused(focus, equals: item.stableRowID)
             .onMoveCommand { direction in onMove(direction, item.stableRowID) }
@@ -1401,6 +1417,11 @@ struct ScanItemRow: View {
             NSWorkspace.shared.activateFileViewerSelecting([item.url])
         }
         .accessibilityLabel(Text(LocalizationKey.filesRevealInFinder.localized))
+        .accessibilityIdentifier("scan.row.reveal")
+    }
+
+    private func ignoreButton(_ action: @escaping (ScanIgnoreScope) -> Void) -> some View {
+        ScanIgnoreMenu(action: action)
     }
 
     /// The item's detail: everything the row cannot say in two lines.
@@ -1441,6 +1462,22 @@ struct ScanItemRow: View {
                     .buttonStyle(SiftLinkButtonStyle())
                     .help(bundleIdentifier)
                 }
+                if let onIgnore {
+                    Button {
+                        onIgnore(.thisScan)
+                    } label: {
+                        Text(LocalizationKey.scanResultsIgnoreOnce.localized)
+                            .font(SiftFont.metadata)
+                    }
+                    .buttonStyle(SiftLinkButtonStyle())
+                    Button {
+                        onIgnore(.permanently)
+                    } label: {
+                        Text(LocalizationKey.scanResultsIgnoreAlways.localized)
+                            .font(SiftFont.metadata)
+                    }
+                    .buttonStyle(SiftLinkButtonStyle())
+                }
                 Spacer(minLength: 0)
             }
         }
@@ -1448,6 +1485,64 @@ struct ScanItemRow: View {
         .padding(.bottom, SiftMetrics.spacingS)
         .padding(.leading, 44 + SiftMetrics.spacingM)
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// The compact hide control. It carries both choices so the tooltip explains
+/// the click before the menu opens.
+private struct ScanIgnoreMenu: View {
+    let action: (ScanIgnoreScope) -> Void
+
+    @State private var isHovering = false
+    @Environment(\.siftReduceMotion) private var reduceMotion
+
+    private var help: String {
+        "\(LocalizationKey.scanResultsIgnoreOnce.localized) / \(LocalizationKey.scanResultsIgnoreAlways.localized)"
+    }
+
+    var body: some View {
+        Menu {
+            Button {
+                action(.thisScan)
+            } label: {
+                Label(
+                    LocalizationKey.scanResultsIgnoreOnce.localized,
+                    systemImage: "clock"
+                )
+            }
+            .accessibilityIdentifier("scan.row.ignoreOnce")
+
+            Button {
+                action(.permanently)
+            } label: {
+                Label(
+                    LocalizationKey.scanResultsIgnoreAlways.localized,
+                    systemImage: "eye.slash"
+                )
+            }
+            .accessibilityIdentifier("scan.row.ignoreAlways")
+        } label: {
+            Image(systemName: "eye.slash")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(isHovering ? SiftColor.actionGreen : SiftColor.quietText)
+                .frame(width: 30, height: 30)
+                .background {
+                    RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
+                        .fill(isHovering ? SiftColor.rowHoverFill : Color.clear)
+                }
+                .padding((SiftMetrics.minimumHitTarget - 30) / 2)
+                .contentShape(Rectangle())
+                .padding(-(SiftMetrics.minimumHitTarget - 30) / 2)
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help(help)
+        .accessibilityLabel(Text(help))
+        .accessibilityHint(Text(LocalizationKey.scanResultsIgnoreItem.localized))
+        .accessibilityIdentifier("scan.row.ignoreMenu")
+        .onHover { isHovering = $0 }
+        .animation(reduceMotion ? nil : SiftMotion.hover, value: isHovering)
     }
 }
 
@@ -1527,8 +1622,11 @@ struct ScanRunningCard: View {
                         Text(phase.labelKey.localized)
                             .font(SiftFont.title)
                             .foregroundStyle(SiftColor.mainText)
-                            .contentTransition(.opacity)
-                            .animation(reduceMotion ? nil : SiftMotion.phase, value: phase)
+                            // A phase name occupies one line box and swaps without
+                            // a transition. Crossfading left both strings at the
+                            // same coordinates for a moment, which read as a
+                            // double title; the ring already supplies motion.
+                            .fixedSize(horizontal: false, vertical: true)
                         if !shownItemName.isEmpty {
                             Text(LocalizationKey.scanCurrentItem.localized(shownItemName))
                                 .font(SiftFont.caption)
@@ -1572,7 +1670,7 @@ struct ScanRunningCard: View {
                                 .foregroundStyle(SiftColor.secondaryText)
                             TimelineView(.periodic(from: .now, by: 1)) { _ in
                                 Text(Self.duration(scan.elapsed))
-                                    .font(.system(size: 24, weight: .semibold, design: .monospaced))
+                                    .font(SiftFont.timer)
                                     .foregroundStyle(SiftColor.mainText)
                                     .contentTransition(.numericText())
                             }
@@ -1808,7 +1906,8 @@ struct SkippedLocationsCard: View {
                         .rotationEffect(.degrees(showsDetails ? 180 : 0))
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(SiftRowButtonStyle())
+                .frame(width: SiftMetrics.minimumHitTarget, height: SiftMetrics.minimumHitTarget)
                 .accessibilityLabel(Text(cardTitle))
                 .accessibilityHint(Text(LocalizationKey.scanSkippedExpandHint.localized))
             }
@@ -1912,7 +2011,7 @@ struct SkippedLocationsCard: View {
                 }
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(SiftRowButtonStyle())
             .disabled(!isExpandable)
             .accessibilityLabel(Text(group.label))
             .accessibilityHint(Text(isExpandable ? LocalizationKey.overviewShowAll.localized : ""))

@@ -343,6 +343,9 @@
 "scan.results.cleanButton" = "ล้าง %d รายการ";
 "scan.results.cleanTitle" = "การทำความสะอาดครั้งนี้";
 "scan.results.defaultSelected" = "เลือกไว้เป็นค่าเริ่มต้น";
+"scan.results.ignoreAlways" = "ไม่สนใจอย่างถาวร";
+"scan.results.ignoreItem" = "ไม่สนใจรายการนี้";
+"scan.results.ignoreOnce" = "ซ่อนสำหรับการสแกนนี้";
 "scan.results.ownerAction" = "เป็นของแอปใด";
 "scan.results.ownerMissing" = "ยังไม่มีแอปที่ติดตั้งสำหรับ %@ คัดลอกตัวระบุแล้ว";
 "scan.results.protectedGroup" = "ป้องกันอยู่";

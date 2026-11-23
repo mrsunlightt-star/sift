@@ -343,6 +343,9 @@
 "scan.results.cleanButton" = "清理 %d 项";
 "scan.results.cleanTitle" = "本次清理";
 "scan.results.defaultSelected" = "默认已选中";
+"scan.results.ignoreAlways" = "永久忽略";
+"scan.results.ignoreItem" = "不再扫描此项";
+"scan.results.ignoreOnce" = "本次忽略";
 "scan.results.ownerAction" = "查看所属应用";
 "scan.results.ownerMissing" = "该应用未安装（%@），标识符已复制。";
 "scan.results.protectedGroup" = "受保护";

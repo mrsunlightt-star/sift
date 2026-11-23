@@ -343,6 +343,9 @@
 "scan.results.cleanButton" = "%d개 정리";
 "scan.results.cleanTitle" = "이번 정리";
 "scan.results.defaultSelected" = "기본 선택됨";
+"scan.results.ignoreAlways" = "영구적으로 무시";
+"scan.results.ignoreItem" = "이 항목은 다시 검사하지 않음";
+"scan.results.ignoreOnce" = "이번 검사에서 숨기기";
 "scan.results.ownerAction" = "어느 앱인가요?";
 "scan.results.ownerMissing" = "%@에 해당하는 앱이 설치되어 있지 않습니다. 식별자를 복사했습니다.";
 "scan.results.protectedGroup" = "보호됨";

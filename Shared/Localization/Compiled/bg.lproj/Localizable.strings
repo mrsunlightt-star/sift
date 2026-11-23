@@ -343,6 +343,9 @@
 "scan.results.cleanButton" = "Почистете %d елемента";
 "scan.results.cleanTitle" = "Това почистване";
 "scan.results.defaultSelected" = "Избрани по подразбиране";
+"scan.results.ignoreAlways" = "Игнориране за постоянно";
+"scan.results.ignoreItem" = "Игнорирай този елемент";
+"scan.results.ignoreOnce" = "Скриване за това сканиране";
 "scan.results.ownerAction" = "На кое приложение е?";
 "scan.results.ownerMissing" = "За %@ не е инсталирано приложение. Идентификаторът е копиран.";
 "scan.results.protectedGroup" = "Защитени";

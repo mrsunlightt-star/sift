@@ -343,6 +343,9 @@
 "scan.results.cleanButton" = "Καθαρισμός %d στοιχείων";
 "scan.results.cleanTitle" = "Αυτός ο καθαρισμός";
 "scan.results.defaultSelected" = "Επιλεγμένο από προεπιλογή";
+"scan.results.ignoreAlways" = "Παράβλεψη οριστικά";
+"scan.results.ignoreItem" = "Αγνόησε αυτό το στοιχείο";
+"scan.results.ignoreOnce" = "Απόκρυψη για αυτή τη σάρωση";
 "scan.results.ownerAction" = "Ποιας εφαρμογής είναι;";
 "scan.results.ownerMissing" = "Δεν είναι εγκατεστημένη εφαρμογή για %@. Το αναγνωριστικό αντιγράφηκε.";
 "scan.results.protectedGroup" = "Προστατευμένα";

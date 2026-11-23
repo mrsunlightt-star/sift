@@ -588,48 +588,11 @@ public struct DashboardView: View {
     ///
     /// Two pages used to own one selection: the checkbox here wrote the scan
     /// page's model, and this page had no button that could act on it — the user
-    /// ticked items and nothing could happen. The list states what was found and
-    /// the section's link takes the user to the page that can clean it.
+    /// ticked items and nothing could happen. The row itself now opens the page
+    /// that owns selection and cleanup, so a click on the item has the same
+    /// destination as the section's "Show all" link.
     private func suggestedRow(_ item: CleanupItem) -> some View {
-        HStack(spacing: SiftMetrics.spacingM) {
-            IconTile(
-                symbolName: item.category.symbolName,
-                tint: SiftColor.color(for: item.risk.level)
-            )
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(item.displayName)
-                    .font(SiftFont.bodyEmphasis)
-                    .foregroundStyle(SiftColor.mainText)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                Text(suggestedDetail(item))
-                    .font(SiftFont.supporting)
-                    .foregroundStyle(SiftColor.secondaryText)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-            }
-
-            Spacer(minLength: SiftMetrics.spacingS)
-
-            Text(item.formattedSize)
-                .font(SiftFont.monospacedEmphasis)
-                .foregroundStyle(SiftColor.mainText)
-
-            // The risk is a word before it is a colour, in both appearances.
-            RiskBadge(risk: item.risk.level)
-        }
-        .padding(.vertical, SiftMetrics.spacingS)
-        .frame(minHeight: SiftMetrics.rowHeight)
-        .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
-    }
-
-    private func suggestedDetail(_ item: CleanupItem) -> String {
-        if item.fileCount > 1 {
-            return "\(item.displayPath), \(LocalizationKey.commonFileCount.counted(item.fileCount))"
-        }
-        return item.displayPath
+        SuggestedCleanupRow(item: item, action: onOpenScan)
     }
 
     private var footerNotice: some View {
@@ -810,7 +773,7 @@ public struct DashboardView: View {
                 Button(action: action) {
                     content
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(SiftRowButtonStyle())
                 .accessibilityElement(children: .combine)
             } else {
                 content
@@ -838,5 +801,79 @@ public struct DashboardView: View {
         let parts = formatted.split(whereSeparator: { $0.isWhitespace })
         guard parts.count >= 2 else { return (formatted, nil) }
         return (parts.dropLast().joined(separator: " "), parts.last.map(String.init))
+    }
+}
+
+/// A recommended item is a route into the scan page, not a second selection
+/// system. The whole row is one button, with the same hover feedback as the
+/// other interactive rows in the app.
+private struct SuggestedCleanupRow: View {
+    let item: CleanupItem
+    let action: () -> Void
+
+    @State private var isHovering = false
+    @Environment(\.siftReduceMotion) private var reduceMotion
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: SiftMetrics.spacingM) {
+                IconTile(
+                    symbolName: item.category.symbolName,
+                    tint: SiftColor.color(for: item.risk.level)
+                )
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(item.displayName)
+                        .font(SiftFont.bodyEmphasis)
+                        .foregroundStyle(SiftColor.mainText)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Text(detail)
+                        .font(SiftFont.supporting)
+                        .foregroundStyle(SiftColor.secondaryText)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+
+                Spacer(minLength: SiftMetrics.spacingS)
+
+                Text(item.formattedSize)
+                    .font(SiftFont.monospacedEmphasis)
+                    .foregroundStyle(SiftColor.mainText)
+
+                // The risk is a word before it is a colour, in both appearances.
+                RiskBadge(risk: item.risk.level)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(isHovering ? SiftColor.actionGreen : SiftColor.quietText)
+                    .frame(width: 12)
+                    .accessibilityHidden(true)
+            }
+            .padding(.vertical, SiftMetrics.spacingS)
+            .frame(minHeight: SiftMetrics.rowHeight)
+            .background {
+                RoundedRectangle(
+                    cornerRadius: SiftMetrics.controlCornerRadius,
+                    style: .continuous
+                )
+                .fill(isHovering ? SiftColor.rowHoverFill : Color.clear)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(SiftRowButtonStyle())
+        .onHover { isHovering = $0 }
+        .animation(reduceMotion ? nil : SiftMotion.hover, value: isHovering)
+        .help(LocalizationKey.overviewViewResults.localized)
+        .accessibilityElement(children: .combine)
+        .accessibilityHint(Text(LocalizationKey.overviewViewResults.localized))
+        .accessibilityIdentifier("dashboard.suggestedRow")
+    }
+
+    private var detail: String {
+        if item.fileCount > 1 {
+            return "\(item.displayPath), \(LocalizationKey.commonFileCount.counted(item.fileCount))"
+        }
+        return item.displayPath
     }
 }

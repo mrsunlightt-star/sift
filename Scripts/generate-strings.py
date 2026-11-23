@@ -1056,6 +1056,9 @@ STRINGS: dict[str, list[str]] = {
     "uninstall.sharedContainer": ["Also shared with: %@", "也被这些应用共用：%@", "다음 앱과도 공유됩니다: %@", "Также используется: %@", "También compartido con: %@", "次のアプリとも共有されています: %@", "Aussi partagé avec : %@", "Auch geteilt mit: %@"],
     "scan.results.ownerAction": ["Which app is this?", "查看所属应用", "어느 앱인가요?", "Какое это приложение?", "¿De qué app es?", "どのアプリのもの？", "De quelle app ?", "Von welcher App?"],
     "scan.results.ownerMissing": ["No application is installed for %@. The identifier has been copied.", "该应用未安装（%@），标识符已复制。", "%@에 해당하는 앱이 설치되어 있지 않습니다. 식별자를 복사했습니다.", "Приложение для %@ не установлено. Идентификатор скопирован.", "No hay ninguna aplicación instalada para %@. Se ha copiado el identificador.", "%@ に該当するアプリはインストールされていません。識別子をコピーしました。", "Aucune application installée pour %@. L’identifiant a été copié.", "Für %@ ist keine App installiert. Die Kennung wurde kopiert."],
+    "scan.results.ignoreItem": ["Ignore this item", "不再扫描此项", "이 항목은 다시 검사하지 않음", "Не сканировать этот элемент", "Ignorar este elemento", "この項目をスキャンしない", "Ignorer cet élément", "Diesen Eintrag ignorieren"],
+    "scan.results.ignoreOnce": ["Hide for this scan", "本次忽略", "이번 검사에서 숨기기", "Скрыть в этом сканировании", "Ocultar en este análisis", "今回のスキャンで非表示", "Masquer pour cette analyse", "Für diesen Scan ausblenden"],
+    "scan.results.ignoreAlways": ["Ignore permanently", "永久忽略", "영구적으로 무시", "Игнорировать навсегда", "Ignorar permanentemente", "完全に無視", "Ignorer définitivement", "Dauerhaft ignorieren"],
 
     # --- Cleanup confirmation ----------------------------------------------------
     "cleanup.confirm.titleCount": [
@@ -1857,6 +1860,9 @@ STRINGS_EXPANSION: dict[str, list[str]] = {
     # --- Residue ownership ---
     "uninstall.sharedContainer": ["Condiviso anche con: %@", "Também compartilhado com: %@", "也被這些應用程式共用：%@", "Şunlarla da paylaşılıyor: %@", "Współdzielone także z: %@", "Ook gedeeld met: %@"],
     "scan.results.ownerAction": ["Di quale app è?", "De qual app é?", "是哪個應用程式的？", "Hangi uygulamaya ait?", "Do jakiej aplikacji należy?", "Van welke app is dit?"],
+    "scan.results.ignoreItem": ["Ignora questo elemento", "Ignorar este item", "不再掃描此項目", "Bu öğeyi yoksay", "Ignoruj ten element", "Dit item negeren"],
+    "scan.results.ignoreOnce": ["Nascondi per questa scansione", "Ocultar nesta verificação", "本次忽略", "Bu taramada gizle", "Ukryj w tym skanowaniu", "Verbergen voor deze scan"],
+    "scan.results.ignoreAlways": ["Ignora permanentemente", "Ignorar permanentemente", "永久忽略", "Kalıcı olarak yoksay", "Ignoruj trwale", "Permanent negeren"],
     "scan.results.ownerMissing": ["Nessuna applicazione installata per %@. L’identificatore è stato copiato.", "Nenhuma aplicação instalada para %@. O identificador foi copiado.", "沒有為 %@ 安裝應用程式，已複製其識別碼。", "%@ için yüklü bir uygulama yok. Tanımlayıcı kopyalandı.", "Brak zainstalowanej aplikacji dla %@. Identyfikator został skopiowany.", "Geen app geïnstalleerd voor %@. De identifier is gekopieerd."],
 
     # --- Cleanup confirmation ----------------------------------------------------
@@ -2590,6 +2596,9 @@ STRINGS_EXPANSION_2: dict[str, list[str]] = {
     # --- Residue ownership ---
     "uninstall.sharedContainer": ["ແບ່ງປັນກັບ: %@", "مشترك أيضًا مع: %@", "משותף גם עם: %@", "همچنین مشترک با: %@"],
     "scan.results.ownerAction": ["ນີ້ແມ່ນແອັບໃດ?", "أي تطبيق هذا؟", "של איזו אפליקציה זה?", "این از کدام برنامه است؟"],
+    "scan.results.ignoreItem": ["ບໍ່ສະແກນລາຍການນີ້ອີກ", "تجاهل هذا العنصر", "התעלם מפריט זה", "این مورد را نادیده بگیر"],
+    "scan.results.ignoreOnce": ["ຊ່ອນສຳລັບການສະແກນນີ້", "إخفاء في هذا الفحص", "הסתר בסריקה הזו", "در این اسکن پنهان شود"],
+    "scan.results.ignoreAlways": ["ບໍ່ສົນໃຈຢ່າງຖາວອນ", "تجاهل نهائيًا", "התעלם לצמיתות", "برای همیشه نادیده گرفته شود"],
     "scan.results.ownerMissing": ["ບໍ່ມີແອັບທີ່ຕິດຕັ້ງສຳລັບ %@. ສຳເນົາຕົວະລະບຸແລ້ວ.", "لا يوجد تطبيق مثبَّت لـ %@. تم نسخ المعرِّف.", "לא מותקנת אפליקציה עבור %@. המזהה הועתק.", "هیچ برنامه‌ای برای %@ نصب نیست. شناسه رونوشت شد."],
 
     # --- Cleanup confirmation ----------------------------------------------------
@@ -3194,6 +3203,9 @@ STRINGS_EXPANSION_3: dict[str, list[str]] = {
     # --- Residue ownership ---
     "uninstall.sharedContainer": ["Споделено също с: %@", "Sdíleno také s: %@", "Deles også med: %@", "Κοινόχρηστο επίσης με: %@", "También compartido con: %@", "Jaettu myös: %@", "Megosztva ezekkel is: %@", "Juga dibagikan dengan: %@", "Turut dikongsi dengan: %@", "Deles også med: %@", "Partilhado também com: %@", "Partajat și cu: %@", "Delas även med: %@", "แชร์ร่วมกับ: %@", "Спільно з: %@", "Chia sẻ với: %@"],
     "scan.results.ownerAction": ["На кое приложение е?", "Které aplikace to je?", "Hvilken app er det?", "Ποιας εφαρμογής είναι;", "¿De qué app es?", "Minkä sovelluksen?", "Melyik alkalmazásé?", "Aplikasi apa ini?", "Aplikasi apa ini?", "Hvilken app er dette?", "De que aplicação é?", "A cărei aplicații este?", "Vilken app är det?", "เป็นของแอปใด", "Якої це програми?", "Của ứng dụng nào?"],
+    "scan.results.ignoreItem": ["Игнорирай този елемент", "Ignorovat tuto položku", "Ignorér dette element", "Αγνόησε αυτό το στοιχείο", "Ignorar este elemento", "Jätä tämä kohde huomiotta", "Elem figyelmen kívül hagyása", "Abaikan item ini", "Abaikan item ini", "Ignorer dette elementet", "Ignorar este item", "Ignoră acest element", "Ignorera detta objekt", "ไม่สนใจรายการนี้", "Ігнорувати цей елемент", "Bỏ qua mục này"],
+    "scan.results.ignoreOnce": ["Скриване за това сканиране", "Skrýt pro toto skenování", "Skjul for denne scanning", "Απόκρυψη για αυτή τη σάρωση", "Ocultar en este análisis", "Piilota tässä skannauksessa", "Elrejtés ebben a vizsgálatban", "Sembunyikan untuk pemindaian ini", "Sembunyikan untuk imbasan ini", "Skjul for denne skanningen", "Ocultar nesta verificação", "Ascunde pentru această scanare", "Dölj för denna genomsökning", "ซ่อนสำหรับการสแกนนี้", "Сховати для цього сканування", "Ẩn trong lần quét này"],
+    "scan.results.ignoreAlways": ["Игнориране за постоянно", "Ignorovat trvale", "Ignorer permanent", "Παράβλεψη οριστικά", "Ignorar permanentemente", "Ohita pysyvästi", "Végleges figyelmen kívül hagyás", "Abaikan secara permanen", "Abaikan secara kekal", "Ignorer permanent", "Ignorar permanentemente", "Ignoră permanent", "Ignorera permanent", "ไม่สนใจอย่างถาวร", "Ігнорувати назавжди", "Bỏ qua vĩnh viễn"],
     "scan.results.ownerMissing": ["За %@ не е инсталирано приложение. Идентификаторът е копиран.", "Pro %@ není nainstalována žádná aplikace. Identifikátor byl zkopírován.", "Der er ingen installeret app til %@. Identifikatoren er kopieret.", "Δεν είναι εγκατεστημένη εφαρμογή για %@. Το αναγνωριστικό αντιγράφηκε.", "No hay ninguna aplicación instalada para %@. Se copió el identificador.", "Sovellusta %@ ei ole asennettu. Tunniste kopioitiin.", "A(z) %@ azonosítóhoz nincs telepített alkalmazás. Az azonosító vágólapra került.", "Tidak ada aplikasi terpasang untuk %@. Pengenal telah disalin.", "Tiada aplikasi dipasang untuk %@. Pengecam telah disalin.", "Ingen app er installert for %@. Identifikatoren er kopiert.", "Não há nenhuma aplicação instalada para %@. O identificador foi copiado.", "Nu este instalată nicio aplicație pentru %@. Identificatorul a fost copiat.", "Ingen app är installerad för %@. Identifieraren har kopierats.", "ยังไม่มีแอปที่ติดตั้งสำหรับ %@ คัดลอกตัวระบุแล้ว", "Для %@ не встановлено жодної програми. Ідентифікатор скопійовано.", "Không có ứng dụng nào được cài cho %@. Đã sao chép mã định danh."],
 
     # --- Cleanup confirmation ----------------------------------------------------

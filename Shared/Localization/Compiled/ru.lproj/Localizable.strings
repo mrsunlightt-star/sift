@@ -343,6 +343,9 @@
 "scan.results.cleanButton" = "Очистить: %d";
 "scan.results.cleanTitle" = "Эта очистка";
 "scan.results.defaultSelected" = "Выбрано по умолчанию";
+"scan.results.ignoreAlways" = "Игнорировать навсегда";
+"scan.results.ignoreItem" = "Не сканировать этот элемент";
+"scan.results.ignoreOnce" = "Скрыть в этом сканировании";
 "scan.results.ownerAction" = "Какое это приложение?";
 "scan.results.ownerMissing" = "Приложение для %@ не установлено. Идентификатор скопирован.";
 "scan.results.protectedGroup" = "Защищено";

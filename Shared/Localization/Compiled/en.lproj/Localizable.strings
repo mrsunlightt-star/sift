@@ -343,6 +343,9 @@
 "scan.results.cleanButton" = "Clean %d items";
 "scan.results.cleanTitle" = "This cleanup";
 "scan.results.defaultSelected" = "Selected by default";
+"scan.results.ignoreAlways" = "Ignore permanently";
+"scan.results.ignoreItem" = "Ignore this item";
+"scan.results.ignoreOnce" = "Hide for this scan";
 "scan.results.ownerAction" = "Which app is this?";
 "scan.results.ownerMissing" = "No application is installed for %@. The identifier has been copied.";
 "scan.results.protectedGroup" = "Protected";

@@ -41,6 +41,7 @@ enum AppsScope: String, CaseIterable, Identifiable {
 /// not a thing. The panes are separated by a rule, and neither is a surface.
 public struct UninstallerView: View {
     @EnvironmentObject private var environment: AppEnvironment
+    @Environment(\.siftReduceMotion) private var reduceMotion
     private let onRequestPurchase: () -> Void
     @State private var search = ""
     @State private var sort: ApplicationSortOrder = .largestFirst
@@ -57,6 +58,9 @@ public struct UninstallerView: View {
     @State private var outcomeReport: CleanupReport?
     @State private var includeReviewFiles = false
     @State private var quitFailure: String?
+    /// A manual or post-uninstall refresh keeps the current inventory visible.
+    /// Only the first load uses the row skeletons.
+    @State private var isRefreshingApplications = false
     /// Which subject the page is showing. Installed first: removing an
     /// application is what the page is named for, and leftovers are the follow-up
     /// question.
@@ -113,8 +117,10 @@ public struct UninstallerView: View {
 
     /// The applications that are here.
     ///
-    /// Everything the page did before the leftovers scope existed, unchanged: the
-    /// list, the inspector and the one action that removes a bundle.
+    /// Everything the page did before the leftovers scope existed: the list, the
+    /// inspector when an application is selected, and the one action that removes
+    /// a bundle. With no selection there is no empty inspector column, so the
+    /// inventory gets the whole content width.
     private var installedContent: some View {
         VStack(spacing: 0) {
             if environment.appManagement == .denied {
@@ -127,10 +133,12 @@ public struct UninstallerView: View {
             HStack(alignment: .top, spacing: 0) {
                 listColumn
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                paneRule
-                inspector
-                    .frame(width: inspectorWidth)
-                    .frame(maxHeight: .infinity)
+                if selected != nil {
+                    paneRule
+                    inspector
+                        .frame(width: inspectorWidth)
+                        .frame(maxHeight: .infinity)
+                }
             }
             .padding(.leading, SiftMetrics.pagePadding)
             .padding(.trailing, SiftMetrics.pagePadding)
@@ -253,37 +261,77 @@ public struct UninstallerView: View {
             scopeBar
             SiftHairline()
 
-            if environment.isLoadingApplications {
-                VStack(spacing: SiftMetrics.spacingM) {
-                    ForEach(0..<6, id: \.self) { index in
-                        SiftSkeletonRow(isFirst: index == 0)
-                    }
+            ZStack {
+                applicationInventory
+                    .opacity(isRefreshingApplications ? 0.36 : 1)
+                    .allowsHitTesting(!isRefreshingApplications)
+
+                if isRefreshingApplications {
+                    refreshStatus
+                        .transition(.opacity)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                .padding(.top, SiftMetrics.spacingS)
-            } else if filteredApplications.isEmpty {
-                SiftEmptyState(
-                    symbolName: search.isEmpty ? "shippingbox" : "magnifyingglass",
-                    titleKey: search.isEmpty ? .uninstallNoneInstalled : .appsNoMatches
-                )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(filteredApplications) { application in
-                            appRow(application)
-                            SiftHairline(inset: rowRuleInset)
-                        }
-                    }
-                    .padding(.bottom, SiftMetrics.spacingS)
-                }
-                .frame(maxHeight: .infinity)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .animation(reduceMotion ? nil : SiftMotion.quick, value: isRefreshingApplications)
 
             SiftHairline()
             listFooter
         }
         .padding(.trailing, SiftMetrics.spacingXL)
+    }
+
+    @ViewBuilder
+    private var applicationInventory: some View {
+        if environment.isLoadingApplications && environment.installedApplications.isEmpty {
+            VStack(spacing: SiftMetrics.spacingM) {
+                ForEach(0..<6, id: \.self) { index in
+                    SiftSkeletonRow(isFirst: index == 0)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .padding(.top, SiftMetrics.spacingS)
+        } else if filteredApplications.isEmpty {
+            SiftEmptyState(
+                symbolName: search.isEmpty ? "shippingbox" : "magnifyingglass",
+                titleKey: search.isEmpty ? .uninstallNoneInstalled : .appsNoMatches
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    ForEach(filteredApplications) { application in
+                        appRow(application)
+                        SiftHairline(inset: rowRuleInset)
+                    }
+                }
+                .padding(.bottom, SiftMetrics.spacingS)
+            }
+            .frame(maxHeight: .infinity)
+        }
+    }
+
+    /// A refresh recalculates every application's size and can take several
+    /// seconds. Keep the previous rows in place and state what is happening
+    /// rather than turning the list into an unexplained zero-item screen.
+    private var refreshStatus: some View {
+        SiftSection(
+            style: .outlined,
+            padding: SiftMetrics.spacingL,
+            cornerRadius: SiftMetrics.cornerRadiusM
+        ) {
+            VStack(spacing: SiftMetrics.spacingS) {
+                ProgressView()
+                    .controlSize(.small)
+                Text(LocalizationKey.appsRescan.localized)
+                    .font(SiftFont.body)
+                    .foregroundStyle(SiftColor.secondaryText)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .frame(width: 300)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(Text(LocalizationKey.appsRescan.localized))
+        .accessibilityIdentifier("apps.refreshing")
     }
 
     /// Where a row's rule starts: under the name, not under the icon.
@@ -338,7 +386,7 @@ public struct UninstallerView: View {
     private var searchField: some View {
         HStack(spacing: SiftMetrics.spacingS) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 11, weight: .medium))
+                .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(SiftColor.secondaryText)
                 .accessibilityHidden(true)
             TextField(LocalizationKey.uninstallSearch.localized, text: $search)
@@ -346,7 +394,7 @@ public struct UninstallerView: View {
                 .font(SiftFont.body)
         }
         .padding(.horizontal, SiftMetrics.spacingM)
-        .frame(height: SiftMetrics.fieldHeight)
+        .frame(height: SiftMetrics.minimumHitTarget)
         .siftFieldSurface()
         .accessibilityIdentifier("apps.search")
     }
@@ -356,23 +404,17 @@ public struct UninstallerView: View {
     /// `loadApplications()` answers from memory while it holds a list, so an
     /// application installed — or removed by something other than Sift — while the
     /// app is open would never appear: the page looked like it had no way to look
-    /// again. Invalidating first is what makes the second call a discovery instead
-    /// of a no-op, and it is the same pair a completed uninstall uses.
+    /// again. The forced call replaces the inventory only after discovery
+    /// finishes, so a long size measurement does not erase the usable list first.
     private var rescanButton: some View {
-        Button {
+        SiftIconButton(
+            symbolName: "arrow.clockwise",
+            help: LocalizationKey.appsRescan.localized,
+            treatment: .field,
+            isEnabled: !environment.isLoadingApplications
+        ) {
             Task { await reloadApplications() }
-        } label: {
-            Image(systemName: "arrow.clockwise")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(SiftColor.secondaryText)
-                .padding(.horizontal, SiftMetrics.spacingM)
-                .frame(height: SiftMetrics.fieldHeight)
-                .siftFieldSurface()
         }
-        .buttonStyle(.plain)
-        .disabled(environment.isLoadingApplications)
-        .help(LocalizationKey.appsRescan.localized)
-        .accessibilityLabel(Text(LocalizationKey.appsRescan.localized))
         .accessibilityIdentifier("apps.rescan")
         .fixedSize()
     }
@@ -406,17 +448,19 @@ public struct UninstallerView: View {
             HStack(spacing: 5) {
                 Text(sort.titleKey.localized)
                 Image(systemName: "chevron.down")
-                    .font(.system(size: 8, weight: .semibold))
+                    .font(.system(size: 10, weight: .medium))
             }
             .font(SiftFont.supporting)
             .foregroundStyle(SiftColor.secondaryText)
             .padding(.horizontal, SiftMetrics.spacingM)
-            .frame(height: SiftMetrics.fieldHeight)
-            .siftFieldSurface()
+            .frame(height: SiftMetrics.minimumHitTarget)
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
-        .fixedSize()
+        .tint(SiftColor.secondaryText)
+        .frame(height: SiftMetrics.minimumHitTarget)
+        .siftFieldSurface()
+        .fixedSize(horizontal: true, vertical: false)
         .accessibilityIdentifier("apps.sort")
     }
 
@@ -612,13 +656,6 @@ public struct UninstallerView: View {
                         .background(SiftColor.canvasSurface)
                 }
             }
-        } else {
-            SiftEmptyState(
-                symbolName: "questionmark.folder",
-                titleKey: .uninstallSelectApp
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(.leading, SiftMetrics.spacingXL)
         }
     }
 
@@ -1060,7 +1097,9 @@ public struct UninstallerView: View {
     /// the list toolbar and a completed uninstall — so a refresh cannot mean one
     /// thing here and another there.
     private func reloadApplications() async {
-        environment.invalidateApplications()
+        guard !isRefreshingApplications else { return }
+        isRefreshingApplications = true
+        defer { isRefreshingApplications = false }
         await environment.loadApplications(force: true)
     }
 

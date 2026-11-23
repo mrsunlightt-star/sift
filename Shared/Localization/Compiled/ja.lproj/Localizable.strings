@@ -343,6 +343,9 @@
 "scan.results.cleanButton" = "%d 件を削除";
 "scan.results.cleanTitle" = "今回のクリーンアップ";
 "scan.results.defaultSelected" = "既定で選択";
+"scan.results.ignoreAlways" = "完全に無視";
+"scan.results.ignoreItem" = "この項目をスキャンしない";
+"scan.results.ignoreOnce" = "今回のスキャンで非表示";
 "scan.results.ownerAction" = "どのアプリのもの？";
 "scan.results.ownerMissing" = "%@ に該当するアプリはインストールされていません。識別子をコピーしました。";
 "scan.results.protectedGroup" = "保護済み";

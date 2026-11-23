@@ -343,6 +343,9 @@
 "scan.results.cleanButton" = "%d öğeyi temizle";
 "scan.results.cleanTitle" = "Bu temizlik";
 "scan.results.defaultSelected" = "Varsayılan olarak seçili";
+"scan.results.ignoreAlways" = "Kalıcı olarak yoksay";
+"scan.results.ignoreItem" = "Bu öğeyi yoksay";
+"scan.results.ignoreOnce" = "Bu taramada gizle";
 "scan.results.ownerAction" = "Hangi uygulamaya ait?";
 "scan.results.ownerMissing" = "%@ için yüklü bir uygulama yok. Tanımlayıcı kopyalandı.";
 "scan.results.protectedGroup" = "Korumalı";
