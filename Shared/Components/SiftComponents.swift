@@ -850,6 +850,7 @@ public struct SiftMenuItemButton<Label: View>: View {
         .buttonStyle(SiftRowButtonStyle())
         .onHover { isHovering = $0 }
         .animation(reduceMotion ? nil : SiftMotion.hover, value: isHovering)
+        .animation(reduceMotion ? nil : SiftMotion.selection, value: isSelected)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
@@ -1106,9 +1107,6 @@ public struct SiftCheckbox: View {
     private let selectedFill: Color
     private let selectedMark: Color
 
-    @Environment(\.siftReduceMotion) private var reduceMotion
-    @Environment(\.isFocused) private var isFocused
-
     public init(
         isOn: Binding<Bool>,
         isEnabled: Bool = true,
@@ -1126,55 +1124,12 @@ public struct SiftCheckbox: View {
             guard isEnabled else { return }
             isOn.toggle()
         } label: {
-            RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
-                // The action pair, which the palette measured: `actionFill` with
-                // `onActionFill` on it. The border is the same fill, so the mark
-                // has no outline of a second colour.
-                .fill(isOn && isEnabled ? selectedFill : SiftColor.controlFill)
-                .overlay {
-                    RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
-                        .strokeBorder(
-                            isOn && isEnabled ? selectedFill : SiftColor.divider,
-                            lineWidth: SiftMetrics.panelBorderWidth
-                        )
-                }
-                .overlay {
-                    if isOn && isEnabled {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(selectedMark)
-                            .transition(
-                                reduceMotion
-                                    ? .opacity
-                                    : .scale(scale: 0.82, anchor: .center).combined(with: .opacity)
-                            )
-                    }
-                }
-                .overlay {
-                    if isFocused && isEnabled {
-                        RoundedRectangle(
-                            cornerRadius: SiftMetrics.cornerRadiusS + 3,
-                            style: .continuous
-                        )
-                        .strokeBorder(SiftColor.actionGreen.opacity(0.72), lineWidth: 2)
-                        .padding(-4)
-                        .transition(.opacity)
-                    }
-                }
-                .frame(width: 18, height: 18)
-                // A disabled box keeps a readable border: at 0.35 the whole
-                // control disappeared and a list of protected items looked empty.
-                .opacity(isEnabled ? 1 : 0.55)
-                // The drawn control is 18 pt; the target is not. 13 pt of
-                // padding on every side makes a 44 pt square — the value
-                // `SiftMetrics.minimumHitTarget` states — and the negative
-                // padding takes it back out of the layout, so a row keeps its
-                // height while the pointer gets a target it can hit.
-                .padding(SiftMetrics.minimumHitTarget / 2 - 9)
-                .contentShape(Rectangle())
-                .padding(-(SiftMetrics.minimumHitTarget / 2 - 9))
-                .animation(reduceMotion ? nil : SiftMotion.quick, value: isOn)
-                .animation(reduceMotion ? nil : SiftMotion.quick, value: isFocused)
+            SiftCheckboxMark(
+                isOn: isOn,
+                isEnabled: isEnabled,
+                selectedFill: selectedFill,
+                selectedMark: selectedMark
+            )
         }
         .buttonStyle(SiftPressButtonStyle())
         // Reachable by Tab (§11.4); Space activates it because it is a button.
@@ -1184,6 +1139,122 @@ public struct SiftCheckbox: View {
         // language. A numeric `accessibilityValue` of "1" was read as "1, 已选中,
         // 按钮" and never localised; the trait says it correctly and needs no key.
         .accessibilityAddTraits(isOn ? .isSelected : [])
+    }
+}
+
+/// A checkbox and its label as one row target.
+///
+/// Native `Toggle(.checkbox)` follows the system accent even when the window has
+/// a green tint, so settings rows adopted a blue mark while the rest of Sift was
+/// green. This row uses the same mark as `SiftCheckbox`, keeps the whole row
+/// keyboard reachable, and leaves the press treatment to the shared row style.
+public struct SiftCheckboxRow<Label: View>: View {
+    @Binding private var isOn: Bool
+    private let isEnabled: Bool
+    private let selectedFill: Color
+    private let selectedMark: Color
+    private let label: Label
+
+    public init(
+        isOn: Binding<Bool>,
+        isEnabled: Bool = true,
+        selectedFill: Color = SiftColor.actionFill,
+        selectedMark: Color = SiftColor.onActionFill,
+        @ViewBuilder label: () -> Label
+    ) {
+        self._isOn = isOn
+        self.isEnabled = isEnabled
+        self.selectedFill = selectedFill
+        self.selectedMark = selectedMark
+        self.label = label()
+    }
+
+    public var body: some View {
+        Button {
+            guard isEnabled else { return }
+            isOn.toggle()
+        } label: {
+            HStack(alignment: .center, spacing: SiftMetrics.spacingS) {
+                SiftCheckboxMark(
+                    isOn: isOn,
+                    isEnabled: isEnabled,
+                    selectedFill: selectedFill,
+                    selectedMark: selectedMark
+                )
+                label
+                    .foregroundStyle(isEnabled ? SiftColor.mainText : SiftColor.quietText)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(maxWidth: .infinity, minHeight: SiftMetrics.rowHeight, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(SiftRowButtonStyle())
+        .disabled(!isEnabled)
+        .focusable()
+        .modifier(SiftCheckboxFocusEffect())
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(isOn ? .isSelected : [])
+    }
+}
+
+private struct SiftCheckboxMark: View {
+    let isOn: Bool
+    let isEnabled: Bool
+    let selectedFill: Color
+    let selectedMark: Color
+
+    @Environment(\.siftReduceMotion) private var reduceMotion
+    @Environment(\.isFocused) private var isFocused
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
+            // The action pair, which the palette measured: `actionFill` with
+            // `onActionFill` on it. The border is the same fill, so the mark
+            // has no outline of a second colour.
+            .fill(isOn && isEnabled ? selectedFill : SiftColor.controlFill)
+            .overlay {
+                RoundedRectangle(cornerRadius: SiftMetrics.cornerRadiusS, style: .continuous)
+                    .strokeBorder(
+                        isOn && isEnabled ? selectedFill : SiftColor.divider,
+                        lineWidth: SiftMetrics.panelBorderWidth
+                    )
+            }
+            .overlay {
+                if isOn && isEnabled {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(selectedMark)
+                        .transition(
+                            reduceMotion
+                                ? .opacity
+                                : .scale(scale: 0.82, anchor: .center).combined(with: .opacity)
+                        )
+                }
+            }
+            .overlay {
+                if isFocused && isEnabled {
+                    RoundedRectangle(
+                        cornerRadius: SiftMetrics.cornerRadiusS + 3,
+                        style: .continuous
+                    )
+                    .strokeBorder(SiftColor.actionGreen.opacity(0.72), lineWidth: 2)
+                    .padding(-4)
+                    .transition(.opacity)
+                }
+            }
+            .frame(width: 18, height: 18)
+            // A disabled box keeps a readable border: at 0.35 the whole
+            // control disappeared and a list of protected items looked empty.
+            .opacity(isEnabled ? 1 : 0.55)
+            // The drawn control is 18 pt; the target is not. 13 pt of padding on
+            // every side makes a 44 pt square and the negative padding takes it
+            // back out of the layout, so the pointer gets the target without
+            // changing the row's height.
+            .padding(SiftMetrics.minimumHitTarget / 2 - 9)
+            .contentShape(Rectangle())
+            .padding(-(SiftMetrics.minimumHitTarget / 2 - 9))
+            .animation(reduceMotion ? nil : SiftMotion.selection, value: isOn)
+            .animation(reduceMotion ? nil : SiftMotion.selection, value: isFocused)
     }
 }
 
@@ -1447,7 +1518,7 @@ public struct SiftSelectableRow<Content: View>: View {
         .buttonStyle(SiftRowButtonStyle())
         .onHover { isHovering = $0 }
         .animation(reduceMotion ? nil : SiftMotion.hover, value: isHovering)
-        .animation(reduceMotion ? nil : SiftMotion.quick, value: isSelected)
+        .animation(reduceMotion ? nil : SiftMotion.selection, value: isSelected)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
@@ -1881,7 +1952,7 @@ public struct SiftRailItemChrome: ViewModifier {
                 RoundedRectangle(cornerRadius: SiftMetrics.sidebarRowRadius, style: .continuous)
                     .fill(fillColor)
                     .animation(reduceMotion ? nil : SiftMotion.hover, value: isHovering)
-                    .animation(reduceMotion ? nil : SiftMotion.quick, value: isSelected)
+                    .animation(reduceMotion ? nil : SiftMotion.selection, value: isSelected)
             }
             .overlay(alignment: .leading) {
                 // The selection mark: a bar on the item's left edge, so the
@@ -1892,6 +1963,7 @@ public struct SiftRailItemChrome: ViewModifier {
                     .frame(width: 3, height: 18)
                     .padding(.leading, 3)
                     .opacity(showsSelectionMark && isSelected ? 1 : 0)
+                    .animation(reduceMotion ? nil : SiftMotion.selection, value: isSelected)
                     .allowsHitTesting(false)
             }
             .onHover { isHovering = $0 }
@@ -1966,9 +2038,6 @@ public struct LanguageMenu: View {
                 sized
             }
         }
-        .accessibilityIdentifier(identifier)
-        .accessibilityLabel(Text(LocalizationKey.settingsGroupLanguage.localized))
-        .accessibilityValue(Text(selection.displayName))
     }
 
     /// The picker's presentation state, reporting every change.
@@ -2021,6 +2090,9 @@ public struct LanguageMenu: View {
                 pickerPresented.wrappedValue = false
             }
         }
+        .accessibilityIdentifier(identifier)
+        .accessibilityLabel(Text(LocalizationKey.settingsGroupLanguage.localized))
+        .accessibilityValue(Text(selection.displayName))
     }
 
     /// The picker opens toward the window's content, away from the edge the
@@ -2050,9 +2122,20 @@ public struct LanguageMenu: View {
             // target at 44×44 while the destination rows above are 44.
             trigger
                 .frame(maxWidth: .infinity, minHeight: SiftMetrics.minimumHitTarget)
-        case .settings:
-            trigger
-                .frame(maxWidth: .infinity, minHeight: SiftMetrics.chipHeight)
+        case let .settings(title):
+            // The picker must hang from the compact value control, not from the
+            // whole row. An attached popover uses its presenting view's bounds,
+            // and the full-width row put the settings popover over the sidebar.
+            HStack(spacing: SiftMetrics.spacingL) {
+                Text(title.localized)
+                    .font(SiftFont.body)
+                    .foregroundStyle(SiftColor.mainText)
+                Spacer(minLength: SiftMetrics.spacingS)
+                trigger
+                    .frame(width: 180)
+                    .siftFieldSurface(cornerRadius: SiftMetrics.cornerRadiusS)
+            }
+            .frame(maxWidth: .infinity, minHeight: SiftMetrics.rowHeight)
         }
     }
 
@@ -2084,21 +2167,20 @@ public struct LanguageMenu: View {
             .frame(maxWidth: .infinity, minHeight: SiftMetrics.minimumHitTarget, alignment: .leading)
             .contentShape(Rectangle())
 
-        case let .settings(title):
-            HStack {
-                Text(title.localized)
+        case .settings:
+            HStack(spacing: SiftMetrics.spacingXS) {
+                Text(selection.displayName)
                     .font(SiftFont.body)
-                    .foregroundStyle(SiftColor.mainText)
-                Spacer()
-                HStack(spacing: SiftMetrics.spacingXS) {
-                    Text(selection.displayName)
-                        .font(SiftFont.body)
-                        .foregroundStyle(SiftColor.secondaryText)
-                    Image(systemName: "chevron.up.chevron.down")
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(SiftColor.quietText)
-                }
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                Spacer(minLength: SiftMetrics.spacingXS)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(SiftColor.quietText)
             }
+            .foregroundStyle(isPickerPresented ? SiftColor.actionGreen : SiftColor.secondaryText)
+            .padding(.horizontal, SiftMetrics.spacingS)
+            .frame(height: SiftMetrics.chipHeight)
             .contentShape(Rectangle())
         }
     }

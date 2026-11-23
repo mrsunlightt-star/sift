@@ -74,6 +74,39 @@ final class SiftUITests: XCTestCase {
         )
     }
 
+    /// The Settings language picker belongs to its compact right-hand field.
+    ///
+    /// The first implementation attached the popover to the full-width settings
+    /// row, so macOS anchored it at the row's leading edge and drew the language
+    /// list over the sidebar. The caller now presents from the value control.
+    func test_settingsLanguagePickerOpensBesideItsValueControl() throws {
+        let app = launchApp()
+        app.descendants(matching: .any)
+            .matching(identifier: "sidebar.settings")
+            .firstMatch
+            .click()
+
+        let switcher = app.buttons.matching(identifier: "settings.language").firstMatch
+        XCTAssertTrue(switcher.waitForExistence(timeout: 5))
+        switcher.click()
+
+        let firstLanguage = app.buttons.matching(identifier: "language.zh-hant").firstMatch
+        XCTAssertTrue(firstLanguage.waitForExistence(timeout: 5))
+
+        let sidebarSettings = app.buttons.matching(identifier: "sidebar.settings").firstMatch
+        XCTAssertTrue(sidebarSettings.exists)
+        XCTAssertGreaterThan(
+            firstLanguage.frame.minX,
+            sidebarSettings.frame.maxX + 100,
+            "the language list should open in Settings content, not over the sidebar"
+        )
+        XCTAssertLessThanOrEqual(
+            firstLanguage.frame.maxX,
+            switcher.frame.maxX + 1,
+            "the language list should stay attached to the right-hand value control"
+        )
+    }
+
     /// Opening the storage page must not start an analysis by itself: the page
     /// shows its scope and waits for the user's confirmation.
     func test_storageAnalysisWaitsForTheUser() throws {

@@ -769,6 +769,10 @@ public enum SiftMotion {
 
     /// Short transitions used by rows and checkboxes.
     public static let quick = Animation.easeOut(duration: 0.16)
+    /// A selected row, checkbox or menu item changing state. Shorter than the
+    /// general row transition because selection follows the pointer directly and
+    /// any extra tail reads as lag.
+    public static let selection = Animation.easeOut(duration: 0.12)
     /// Panel or sheet presentation.
     public static let panel = Animation.spring(response: 0.36, dampingFraction: 0.88)
     /// A sheet the system presents, which has its own timeline.

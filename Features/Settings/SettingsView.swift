@@ -207,7 +207,7 @@ public struct SettingsView: View {
 
             SiftHairline()
 
-            Toggle(isOn: Binding(
+            SiftCheckboxRow(isOn: Binding(
                 get: { environment.preferences.reduceMotion },
                 set: { value in Task { await environment.updateSettings { $0.reduceMotion = value } } }
             )) {
@@ -218,8 +218,6 @@ public struct SettingsView: View {
                     .font(SiftFont.body)
                     .foregroundStyle(SiftColor.mainText)
             }
-            .toggleStyle(.checkbox)
-            .padding(.vertical, SiftMetrics.spacingS)
 
             SiftHairline()
 
@@ -229,7 +227,7 @@ public struct SettingsView: View {
                 // it sits with the other switch that decides how the app starts up
                 // and stays out of the scan groups, which are about what a run
                 // produces.
-                Toggle(isOn: Binding(
+                SiftCheckboxRow(isOn: Binding(
                     get: { loginItemEnabled },
                     set: { value in loginItemEnabled = LoginItem.set(enabled: value) }
                 )) {
@@ -241,8 +239,6 @@ public struct SettingsView: View {
                         .font(SiftFont.body)
                         .foregroundStyle(SiftColor.mainText)
                 }
-                .toggleStyle(.checkbox)
-                .padding(.vertical, SiftMetrics.spacingS)
                 .accessibilityIdentifier("settings.launchAtLogin")
             }
         }
@@ -294,7 +290,7 @@ public struct SettingsView: View {
 
             SiftHairline()
 
-            Toggle(isOn: Binding(
+            SiftCheckboxRow(isOn: Binding(
                 get: { environment.preferences.showHiddenFiles },
                 set: { value in Task { await environment.updateSettings { $0.showHiddenFiles = value } } }
             )) {
@@ -302,12 +298,10 @@ public struct SettingsView: View {
                     .font(SiftFont.body)
                     .foregroundStyle(SiftColor.mainText)
             }
-            .toggleStyle(.checkbox)
-            .padding(.vertical, SiftMetrics.spacingS)
 
             SiftHairline()
 
-            Toggle(isOn: Binding(
+            SiftCheckboxRow(isOn: Binding(
                 get: { environment.preferences.userRulesEnabled },
                 set: { value in Task { await environment.updateSettings { $0.userRulesEnabled = value } } }
             )) {
@@ -321,8 +315,6 @@ public struct SettingsView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            .toggleStyle(.checkbox)
-            .padding(.vertical, SiftMetrics.spacingS)
         }
     }
 
@@ -555,7 +547,7 @@ public struct SettingsView: View {
             // removed the last checkpoint, but only the second showed the warning.
             // Two names for one switch is how a page warns about one way to do the
             // unsafe thing and stays silent about the other.
-            Toggle(isOn: Binding(
+            SiftCheckboxRow(isOn: Binding(
                 get: { environment.preferences.showsConfirmationPanel },
                 set: { value in
                     Task {
@@ -576,8 +568,6 @@ public struct SettingsView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            .toggleStyle(.checkbox)
-            .padding(.vertical, SiftMetrics.spacingS)
             .accessibilityIdentifier("settings.confirmList")
 
             if !environment.preferences.showsConfirmationPanel {

@@ -566,7 +566,7 @@ private struct SidebarRowChrome: ViewModifier {
                     // band is 120–180 ms for both, and the fill fades in place
                     // rather than travelling between rows (`01 §9`).
                     .animation(reduceMotion ? nil : SiftMotion.hover, value: isHovering)
-                    .animation(reduceMotion ? nil : SiftMotion.quick, value: isSelected)
+                    .animation(reduceMotion ? nil : SiftMotion.selection, value: isSelected)
             }
             .overlay(alignment: .leading) {
                 // The mark belongs to the row it marks and fades with it. Drawn on
@@ -576,7 +576,7 @@ private struct SidebarRowChrome: ViewModifier {
                     .fill(SiftColor.actionGreen)
                     .frame(width: 3, height: 24)
                     .opacity(showsMark && isSelected ? 1 : 0)
-                    .animation(reduceMotion ? nil : SiftMotion.quick, value: isSelected)
+                    .animation(reduceMotion ? nil : SiftMotion.selection, value: isSelected)
                     .allowsHitTesting(false)
             }
             .onHover { isHovering = $0 }
