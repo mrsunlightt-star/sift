@@ -119,10 +119,14 @@ public struct DashboardView: View {
     /// "nothing to clean" — the opposite of "the scan could not finish". The
     /// previous valid result may stay on the page, and this is the line that says
     /// which run it came from.
+    ///
+    /// Skipped locations are deliberately absent here. Their reasons and any
+    /// permission action live in the scan results, where the user can inspect and
+    /// resolve them; a count with no action made the overview banner look broken.
     private var hasNotice: Bool {
         scan.failure != nil
             || scan.resultLoadFailure != nil
-            || scan.phase == .partial
+            || (scan.phase == .partial && scan.skippedLocations.isEmpty)
             || scan.phase == .cancelled
     }
 
@@ -145,23 +149,11 @@ public struct DashboardView: View {
                 // different statement from "the result could not be loaded".
                 NoticeBanner(level: .error, message: failure)
             }
-            if scan.phase == .partial {
-                // Two different reasons for an incomplete picture, and the copy
-                // keeps them apart: locations the run could not read, or the
-                // budget it stopped at to stay responsive.
-                if scan.skippedLocations.isEmpty {
-                    NoticeBanner(
-                        level: .information,
-                        message: LocalizationKey.scanPartialBudget.localized
-                    )
-                } else {
-                    NoticeBanner(
-                        level: .warning,
-                        message: LocalizationKey.scanPartialNotice.localized(
-                            scan.skippedLocations.count
-                        )
-                    )
-                }
+            if scan.phase == .partial, scan.skippedLocations.isEmpty {
+                NoticeBanner(
+                    level: .information,
+                    message: LocalizationKey.scanPartialBudget.localized
+                )
             }
             if scan.phase == .cancelled {
                 NoticeBanner(level: .information, titleKey: .scanPhaseCancelled)
