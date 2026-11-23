@@ -192,7 +192,7 @@
 "files.duplicateGroups" = "%d kelompok duplikat, %@ dapat diklaim";
 "files.duplicateGroupsShown" = "Menampilkan %d dari %d kelompok";
 "files.groupMembers" = "%d salinan";
-"files.keepHint" = "Awalnya Sift menyimpan salinan tertua. Pilih «Simpan yang ini» pada salinan lain untuk menyimpannya; salinan yang tidak Anda simpan tetap dipilih untuk dihapus.";
+"files.keepHint" = "Pilih salinan yang ingin dipindahkan ke Tempat Sampah. Tidak ada salinan yang dipilih secara default.";
 "files.keepThis" = "Simpan yang ini";
 "files.keptBadge" = "Disimpan";
 "files.manageScope" = "Kelola di Pengaturan";

@@ -192,7 +192,7 @@
 "files.duplicateGroups" = "%d nhóm tệp trùng, có thể thu hồi %@";
 "files.duplicateGroupsShown" = "Đang hiển thị %d trong %d nhóm";
 "files.groupMembers" = "%d bản sao";
-"files.keepHint" = "Ban đầu Sift giữ bản sao cũ nhất. Chọn «Giữ bản này» ở bản sao khác để giữ bản đó thay thế; những bản sao bạn không giữ vẫn được chọn để xoá.";
+"files.keepHint" = "Chọn các bản sao bạn muốn chuyển vào Thùng rác. Theo mặc định, không bản sao nào được chọn.";
 "files.keepThis" = "Giữ bản này";
 "files.keptBadge" = "Đã giữ";
 "files.manageScope" = "Quản lý trong Cài đặt";

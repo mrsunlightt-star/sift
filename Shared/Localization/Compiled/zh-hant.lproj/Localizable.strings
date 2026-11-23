@@ -192,7 +192,7 @@
 "files.duplicateGroups" = "%d 個重複群組，可釋放 %@";
 "files.duplicateGroupsShown" = "已顯示 %d / %d 群組";
 "files.groupMembers" = "%d 份副本";
-"files.keepHint" = "Sift 預設保留最舊的那一份。在任一其他副本上點選「保留此項」，即可改為保留它；你沒有保留的副本會保持選取，等待刪除。";
+"files.keepHint" = "選擇要移入垃圾桶的副本。所有副本預設均不選取，由你自行決定。";
 "files.keepThis" = "保留此項";
 "files.keptBadge" = "已保留";
 "files.manageScope" = "在設定中管理";

@@ -192,7 +192,7 @@
 "files.duplicateGroups" = "%d קבוצות כפילויות, %@ לפינוי";
 "files.duplicateGroupsShown" = "מוצגות %d מתוך %d קבוצות";
 "files.groupMembers" = "%d עותקים";
-"files.keepHint" = "בהתחלה Sift שומר את העותק הישן ביותר. בחרו „לשמור על זה” בעותק אחר כדי לשמור אותו במקומו; עותקים שלא תשמרו יישארו מסומנים למחיקה.";
+"files.keepHint" = "בחרו את העותקים שברצונכם להעביר לפח האשפה. כברירת מחדל לא נבחר אף עותק.";
 "files.keepThis" = "לשמור על זה";
 "files.keptBadge" = "נשמר";
 "files.manageScope" = "לנהל בהגדרות";

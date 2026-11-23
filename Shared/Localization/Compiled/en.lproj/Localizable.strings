@@ -192,7 +192,7 @@
 "files.duplicateGroups" = "%d duplicate groups, %@ reclaimable";
 "files.duplicateGroupsShown" = "Showing %d of %d groups";
 "files.groupMembers" = "%d copies";
-"files.keepHint" = "Sift starts by keeping the oldest copy. Use “Keep this one” on any other copy to keep that one instead; the copies you do not keep stay selected for removal.";
+"files.keepHint" = "Choose the copies you want to move to Trash. No copy is selected by default.";
 "files.keepThis" = "Keep this one";
 "files.keptBadge" = "Kept";
 "files.manageScope" = "Manage in Settings";

@@ -192,7 +192,7 @@
 "files.duplicateGroups" = "%d grup duplikatów, %@ do odzyskania";
 "files.duplicateGroupsShown" = "Wyświetlono %d z %d grup";
 "files.groupMembers" = "%d kopii";
-"files.keepHint" = "Na początku Sift zachowuje najstarszą kopię. Wybierz „Zachowaj ten” przy innej kopii, aby zachować ją; kopie, których nie zachowasz, pozostają zaznaczone do usunięcia.";
+"files.keepHint" = "Wybierz kopie, które chcesz przenieść do Kosza. Żadna kopia nie jest domyślnie zaznaczona.";
 "files.keepThis" = "Zachowaj ten";
 "files.keptBadge" = "Zachowany";
 "files.manageScope" = "Zarządzaj w ustawieniach";

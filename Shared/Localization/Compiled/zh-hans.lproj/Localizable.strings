@@ -192,7 +192,7 @@
 "files.duplicateGroups" = "%d 个重复组，可释放 %@";
 "files.duplicateGroupsShown" = "已显示 %d / %d 组";
 "files.groupMembers" = "%d 份副本";
-"files.keepHint" = "Sift 默认保留最早的那一份。在任意其他副本上点选“保留此项”，即可改为保留它；你没有保留的副本会保持选中，等待删除。";
+"files.keepHint" = "选择要移入废纸篓的副本。所有副本默认均不选中，由你自行决定。";
 "files.keepThis" = "保留此项";
 "files.keptBadge" = "已保留";
 "files.manageScope" = "在设置中管理";

@@ -745,26 +745,14 @@ These are product promises, not implementation details. Each has tests behind it
     `a_tcc_denial_stays_actionable`,
     `a_denial_without_an_errno_is_not_called_system_restricted`.
 
-44. **Which copy of a duplicate group survives is the user's decision.** The
-    scanner proposes a keeper — the oldest copy, then the shorter path — and the
-    page renders that proposal as a *starting point*: every other copy carries a
-    "Keep this one" control, and choosing it takes that copy out of the removal
-    set and puts the copy it replaced in. `DuplicateKeeperSelection` holds the
-    rule (`Core/Models/DuplicateKeeperSelection.swift`), and only the pair whose
-    meaning changed is touched — rebuilding a whole group's selection would
-    discard the individual choices already made in it. A choice is keyed by the
-    group's content hash, not by its id: ids are positions in the run that
-    produced them, so a choice stored under one would be applied to a group of
-    different files after a rescan; a choice whose copy is no longer a member
-    falls back to the proposal rather than to no keeper at all. The kept copy is
-    never in `CleanupModel.selection` — the model's `setSelected(false, …)` is
-    what enforces it, so "select all" cannot remove the copy the user kept.
-    Tests: `test_theScannerProposalIsTheStartingKeeper`,
-    `test_choosingAnotherCopySwapsOnePair`,
-    `test_choosingTheCurrentKeeperChangesNothing`,
-    `test_aCopyOutsideTheGroupIsNotKeepable`,
-    `test_aChoiceFollowsTheContentAndNotTheGroupId`,
-    `test_aChoiceForACopyThatIsGoneFallsBackToTheProposal`.
+44. **No duplicate copy is selected or designated as the keeper by default.**
+    The scanner may report a recommendation, but the page does not apply it to
+    selection: every member starts unchecked and each member has the same
+    independent checkbox. The user chooses which copies move to the Trash. The
+    duplicate section's bulk control is explicit: it selects every loaded copy
+    only after a click, then changes to "Deselect all" so the same decision can
+    be undone. A duplicate row remains `review`, so any selected set still
+    requires confirmation. Test: `test_duplicateCopiesStartUnselected`.
 
 45. **A disclosure opens in the frame the click landed in.** Group rows on the
     scan page and duplicate groups in the results insert their rows immediately;

@@ -61,18 +61,6 @@ struct ScanCompletionHero: View {
         }
     }
 
-    private var statusSymbol: String {
-        phase == .cancelled || phase == .failed ? "exclamationmark" : "checkmark"
-    }
-
-    private var statusFill: Color {
-        switch phase {
-        case .cancelled: SiftColor.reviewTextColor
-        case .failed: SiftColor.dangerTextColor
-        default: SiftColor.brandGreen
-        }
-    }
-
     var body: some View {
         ViewThatFits(in: .horizontal) {
             HStack(alignment: .center, spacing: SiftMetrics.spacingL) {
@@ -94,33 +82,17 @@ struct ScanCompletionHero: View {
     }
 
     private var summary: some View {
-        HStack(alignment: .center, spacing: SiftMetrics.spacingL) {
-            ZStack {
-                Circle()
-                    .fill(statusFill)
-                Image(systemName: statusSymbol)
-                    .font(.system(size: 34, weight: .semibold))
-                    .foregroundStyle(.white)
-            }
-            .frame(width: 72, height: 72)
-            .accessibilityHidden(true)
+        VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
+            Text(statusTitleKey.localized)
+                .font(.system(size: 30 * SiftTypeScale.current.multiplier, weight: .bold))
+                .foregroundStyle(SiftColor.mainText)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityAddTraits(.isHeader)
 
-            VStack(alignment: .leading, spacing: SiftMetrics.spacingS) {
-                Text(statusTitleKey.localized)
-                    .font(.system(size: 30 * SiftTypeScale.current.multiplier, weight: .bold))
-                    .foregroundStyle(SiftColor.mainText)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityAddTraits(.isHeader)
-
-                HStack(spacing: SiftMetrics.spacingS) {
-                    Text(LocalizationKey.commonItemCount.counted(itemCount))
-                    Text(LocalizationKey.scanHeaderReclaimable.localized(SiftFormat.bytes(reclaimableBytes)))
-                }
+            Text(LocalizationKey.scanResultsTrashHint.localized)
                 .font(SiftFont.secondaryHeading)
                 .foregroundStyle(SiftColor.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
-                .accessibilityElement(children: .combine)
-            }
         }
     }
 

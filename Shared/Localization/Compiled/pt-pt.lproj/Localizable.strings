@@ -192,7 +192,7 @@
 "files.duplicateGroups" = "%d grupos de duplicados, %@ recuperáveis";
 "files.duplicateGroupsShown" = "A mostrar %d de %d grupos";
 "files.groupMembers" = "%d cópias";
-"files.keepHint" = "Ao início o Sift mantém a cópia mais antiga. Escolha «Manter esta» noutra cópia para manter essa; as cópias que não mantiver continuam selecionadas para remoção.";
+"files.keepHint" = "Escolha as cópias que pretende mover para o Lixo. Nenhuma cópia está selecionada por predefinição.";
 "files.keepThis" = "Manter esta";
 "files.keptBadge" = "Mantido";
 "files.manageScope" = "Gerir nas Definições";

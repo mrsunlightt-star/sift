@@ -192,7 +192,7 @@
 "files.duplicateGroups" = "%d dubblettgrupper, %@ kan frigöras";
 "files.duplicateGroupsShown" = "Visar %d av %d grupper";
 "files.groupMembers" = "%d kopior";
-"files.keepHint" = "Till en början behåller Sift den äldsta kopian. Välj ”Behåll den här” på en annan kopia för att behålla den i stället; kopior du inte behåller förblir valda för borttagning.";
+"files.keepHint" = "Välj de kopior du vill flytta till Papperskorgen. Ingen kopia är vald som standard.";
 "files.keepThis" = "Behåll den här";
 "files.keptBadge" = "Behållen";
 "files.manageScope" = "Hantera i Inställningar";

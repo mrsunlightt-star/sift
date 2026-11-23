@@ -40118,205 +40118,205 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sift starts by keeping the oldest copy. Use “Keep this one” on any other copy to keep that one instead; the copies you do not keep stay selected for removal."
+            "value": "Choose the copies you want to move to Trash. No copy is selected by default."
           }
         },
         "zh-hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sift 默认保留最早的那一份。在任意其他副本上点选“保留此项”，即可改为保留它；你没有保留的副本会保持选中，等待删除。"
+            "value": "选择要移入废纸篓的副本。所有副本默认均不选中，由你自行决定。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sift는 기본적으로 가장 오래된 복사본을 남깁니다. 다른 복사본에서 “이 항목 유지”를 선택하면 그 복사본을 남깁니다. 남기지 않은 복사본은 삭제 대상으로 선택된 상태로 유지됩니다."
+            "value": "휴지통으로 이동할 사본을 선택하세요. 모든 사본은 기본적으로 선택되지 않습니다."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "По умолчанию Sift оставляет самую старую копию. Выберите «Оставить этот» у другой копии, чтобы оставить её; копии, которые вы не оставили, остаются отмеченными для удаления."
+            "value": "Выберите копии, которые нужно переместить в Корзину. По умолчанию ни одна копия не выбрана."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sift conserva al principio la copia más antigua. Elige «Conservar este» en otra copia para conservar esa; las copias que no conserves siguen marcadas para eliminarse."
+            "value": "Elige las copias que quieres mover a la papelera. Ninguna copia está seleccionada de forma predeterminada."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sift は最初に最も古いコピーを残します。別のコピーで「これを残す」を選ぶと、そちらを残せます。残さなかったコピーは削除対象として選択されたままです。"
+            "value": "ゴミ箱に移動するコピーを選択してください。すべてのコピーは初期状態では選択されていません。"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sift conserve d’abord la copie la plus ancienne. Choisissez « Conserver celui-ci » sur une autre copie pour la conserver ; les copies que vous ne conservez pas restent sélectionnées pour la suppression."
+            "value": "Choisissez les copies à déplacer vers la corbeille. Aucune copie n’est sélectionnée par défaut."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sift behält zunächst die älteste Kopie. Wählen Sie bei einer anderen Kopie „Diese behalten“, um sie zu behalten; alle Kopien, die Sie nicht behalten, bleiben zum Entfernen ausgewählt."
+            "value": "Wählen Sie die Kopien aus, die in den Papierkorb verschoben werden sollen. Standardmäßig ist keine Kopie ausgewählt."
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "All’inizio Sift conserva la copia più vecchia. Scegli «Conserva questo» su un’altra copia per conservare quella; le copie che non conservi restano selezionate per la rimozione."
+            "value": "Scegli le copie da spostare nel Cestino. Nessuna copia è selezionata per impostazione predefinita."
           }
         },
         "pt-br": {
           "stringUnit": {
             "state": "translated",
-            "value": "No início o Sift mantém a cópia mais antiga. Escolha «Manter este» em outra cópia para manter essa; as cópias que você não mantiver continuam selecionadas para remoção."
+            "value": "Escolha as cópias que deseja mover para a Lixeira. Nenhuma cópia é selecionada por padrão."
           }
         },
         "zh-hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sift 預設保留最舊的那一份。在任一其他副本上點選「保留此項」，即可改為保留它；你沒有保留的副本會保持選取，等待刪除。"
+            "value": "選擇要移入垃圾桶的副本。所有副本預設均不選取，由你自行決定。"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sift başlangıçta en eski kopyayı tutar. Başka bir kopyada «Bunu tut» seçeneğini seçerek onu tutabilirsiniz; tutmadığınız kopyalar silinmek üzere seçili kalır."
+            "value": "Çöp Sepeti’ne taşımak istediğiniz kopyaları seçin. Hiçbir kopya varsayılan olarak seçili değildir."
           }
         },
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Na początku Sift zachowuje najstarszą kopię. Wybierz „Zachowaj ten” przy innej kopii, aby zachować ją; kopie, których nie zachowasz, pozostają zaznaczone do usunięcia."
+            "value": "Wybierz kopie, które chcesz przenieść do Kosza. Żadna kopia nie jest domyślnie zaznaczona."
           }
         },
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sift bewaart eerst de oudste kopie. Kies ‘Deze bewaren’ bij een andere kopie om die te bewaren; kopieën die je niet bewaart, blijven geselecteerd om te verwijderen."
+            "value": "Kies de exemplaren die je naar de Prullenbak wilt verplaatsen. Standaard is geen enkel exemplaar geselecteerd."
           }
         },
         "lo": {
           "stringUnit": {
             "state": "translated",
-            "value": "ຕອນເລີ່ມຕົ້ນ Sift ຈະເກັບສຳເນົາທີ່ເກົ່າທີ່ສຸດໄວ້. ເລືອກ „ເກັບອັນນີ້ໄວ້“ ຢູ່ສຳເນົາອື່ນ ເພື່ອເກັບອັນນັ້ນແທນ; ສຳເນົາທີ່ທ່ານບໍ່ໄດ້ເກັບໄວ້ ຈະຖືກເລືອກໄວ້ເພື່ອລຶບ."
+            "value": "ເລືອກສຳເນົາທີ່ຕ້ອງການຍ້າຍໄປຖັງຂີ້ເຫຍື້ອ. ຕອນເລີ່ມຕົ້ນຈະບໍ່ເລືອກສຳເນົາໃດໆ."
           }
         },
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "يحتفظ Sift في البداية بأقدم نسخة. اختر «الاحتفاظ بهذا» على نسخة أخرى للاحتفاظ بها بدلًا منها؛ النسخ التي لا تحتفظ بها تبقى محددة للحذف."
+            "value": "اختر النسخ التي تريد نقلها إلى المهملات. لا يتم تحديد أي نسخة افتراضيًا."
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "בהתחלה Sift שומר את העותק הישן ביותר. בחרו „לשמור על זה” בעותק אחר כדי לשמור אותו במקומו; עותקים שלא תשמרו יישארו מסומנים למחיקה."
+            "value": "בחרו את העותקים שברצונכם להעביר לפח האשפה. כברירת מחדל לא נבחר אף עותק."
           }
         },
         "fa": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sift در ابتدا قدیمیترین نسخه را نگه میدارد. با انتخاب «این را نگه دار» روی نسخهای دیگر، همان را نگه میدارید؛ نسخههایی که نگه نمیدارید برای حذف انتخابشده میمانند."
+            "value": "نسخه‌هایی را که می‌خواهید به سطل بازیافت منتقل شوند انتخاب کنید. به‌طور پیش‌فرض هیچ نسخه‌ای انتخاب نمی‌شود."
           }
         },
         "bg": {
           "stringUnit": {
             "state": "translated",
-            "value": "Първоначално Sift запазва най-старото копие. Изберете „Запазете това“ на друго копие, за да запазите него; копията, които не запазите, остават избрани за изтриване."
+            "value": "Изберете копиите, които да преместите в Кошчето. По подразбиране не е избрана нито една копия."
           }
         },
         "cs": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sift nejprve zachová nejstarší kopii. Zvolte „Ponechat tuto“ u jiné kopie, chcete-li zachovat ji; kopie, které nezachováte, zůstanou označené k odstranění."
+            "value": "Vyberte kopie, které chcete přesunout do Koše. Ve výchozím nastavení není vybrána žádná kopie."
           }
         },
         "da": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sift beholder først den ældste kopi. Vælg »Behold denne« på en anden kopi for at beholde den i stedet; kopier, du ikke beholder, forbliver valgt til sletning."
+            "value": "Vælg de kopier, du vil flytte til Papirkurven. Ingen kopi er valgt som standard."
           }
         },
         "el": {
           "stringUnit": {
             "state": "translated",
-            "value": "Αρχικά το Sift διατηρεί το παλαιότερο αντίγραφο. Επιλέξτε «Διατήρηση αυτού» σε άλλο αντίγραφο για να διατηρήσετε εκείνο· τα αντίγραφα που δεν διατηρείτε παραμένουν επιλεγμένα για διαγραφή."
+            "value": "Επιλέξτε τα αντίγραφα που θέλετε να μετακινήσετε στον Κάδο. Κανένα αντίγραφο δεν είναι επιλεγμένο από προεπιλογή."
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "translated",
-            "value": "Al principio Sift conserva la copia más antigua. Elige «Conservar esta» en otra copia para conservar esa; las copias que no conserves siguen seleccionadas para eliminarse."
+            "value": "Elige las copias que quieres mover a la Papelera. Ninguna copia está seleccionada de forma predeterminada."
           }
         },
         "fi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Aluksi Sift säilyttää vanhimman kopion. Valitse toisesta kopiosta ”Säilytä tämä”, jos haluat säilyttää sen; kopiot, joita et säilytä, pysyvät poistettaviksi valittuina."
+            "value": "Valitse kopiot, jotka haluat siirtää Roskakoriin. Mitään kopiota ei ole valittu oletuksena."
           }
         },
         "hu": {
           "stringUnit": {
             "state": "translated",
-            "value": "A Sift először a legrégebbi példányt tartja meg. Válasszon egy másik példánynál „Ezt tartsa meg” lehetőséget, hogy azt tartsa meg; a meg nem tartott példányok kijelölve maradnak törlésre."
+            "value": "Válassza ki a Kukába helyezni kívánt példányokat. Alapértelmezés szerint egyetlen példány sincs kijelölve."
           }
         },
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "Awalnya Sift menyimpan salinan tertua. Pilih «Simpan yang ini» pada salinan lain untuk menyimpannya; salinan yang tidak Anda simpan tetap dipilih untuk dihapus."
+            "value": "Pilih salinan yang ingin dipindahkan ke Tempat Sampah. Tidak ada salinan yang dipilih secara default."
           }
         },
         "ms": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pada mulanya Sift menyimpan salinan tertua. Pilih «Simpan yang ini» pada salinan lain untuk menyimpannya; salinan yang tidak anda simpan kekal dipilih untuk dipadam."
+            "value": "Pilih salinan yang ingin dialihkan ke Tong Sampah. Tiada salinan dipilih secara lalai."
           }
         },
         "nb": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sift beholder først den eldste kopien. Velg «Behold denne» på en annen kopi for å beholde den i stedet; kopier du ikke beholder, forblir valgt for sletting."
+            "value": "Velg kopiene du vil flytte til Papirkurven. Ingen kopi er valgt som standard."
           }
         },
         "pt-pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ao início o Sift mantém a cópia mais antiga. Escolha «Manter esta» noutra cópia para manter essa; as cópias que não mantiver continuam selecionadas para remoção."
+            "value": "Escolha as cópias que pretende mover para o Lixo. Nenhuma cópia está selecionada por predefinição."
           }
         },
         "ro": {
           "stringUnit": {
             "state": "translated",
-            "value": "La început Sift păstrează cea mai veche copie. Alegeți „Păstrează aceasta” la altă copie pentru a o păstra pe aceea; copiile pe care nu le păstrați rămân selectate pentru ștergere."
+            "value": "Alegeți copiile pe care doriți să le mutați în Coș. Nicio copie nu este selectată implicit."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Till en början behåller Sift den äldsta kopian. Välj ”Behåll den här” på en annan kopia för att behålla den i stället; kopior du inte behåller förblir valda för borttagning."
+            "value": "Välj de kopior du vill flytta till Papperskorgen. Ingen kopia är vald som standard."
           }
         },
         "th": {
           "stringUnit": {
             "state": "translated",
-            "value": "ตอนแรก Sift จะเก็บสำเนาที่เก่าที่สุด เลือก «เก็บชุดนี้» ที่สำเนาอื่นเพื่อเก็บชุดนั้นแทน สำเนาที่คุณไม่ได้เก็บไว้จะยังถูกเลือกไว้ให้ลบ"
+            "value": "เลือกสำเนาที่ต้องการย้ายไปที่ถังขยะ โดยค่าเริ่มต้นจะไม่เลือกสำเนาใด"
           }
         },
         "uk": {
           "stringUnit": {
             "state": "translated",
-            "value": "Спочатку Sift зберігає найстарішу копію. Виберіть «Залишити цю» на іншій копії, щоб зберегти її; копії, які ви не зберегли, залишаються позначеними для видалення."
+            "value": "Виберіть копії, які потрібно перемістити до Кошика. За замовчуванням жодну копію не вибрано."
           }
         },
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ban đầu Sift giữ bản sao cũ nhất. Chọn «Giữ bản này» ở bản sao khác để giữ bản đó thay thế; những bản sao bạn không giữ vẫn được chọn để xoá."
+            "value": "Chọn các bản sao bạn muốn chuyển vào Thùng rác. Theo mặc định, không bản sao nào được chọn."
           }
         }
       }

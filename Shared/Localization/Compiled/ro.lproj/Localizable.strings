@@ -192,7 +192,7 @@
 "files.duplicateGroups" = "%d grupuri de duplicate, %@ recuperabili";
 "files.duplicateGroupsShown" = "Se afișează %d din %d grupuri";
 "files.groupMembers" = "Copii: %d";
-"files.keepHint" = "La început Sift păstrează cea mai veche copie. Alegeți „Păstrează aceasta” la altă copie pentru a o păstra pe aceea; copiile pe care nu le păstrați rămân selectate pentru ștergere.";
+"files.keepHint" = "Alegeți copiile pe care doriți să le mutați în Coș. Nicio copie nu este selectată implicit.";
 "files.keepThis" = "Păstrează aceasta";
 "files.keptBadge" = "Păstrat";
 "files.manageScope" = "Gestionează în Configurări";

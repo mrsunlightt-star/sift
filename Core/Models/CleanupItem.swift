@@ -410,7 +410,10 @@ public struct DuplicateGroup: Identifiable, Hashable, Sendable {
         self.reclaimableSizeInBytes = reclaimableSizeInBytes
     }
 
-    /// Copies the user chose to remove. The keeper is excluded by construction.
+    /// The scanner's recommended removal set.
+    ///
+    /// The page does not preselect this set: duplicate selection belongs to the
+    /// user, while this property keeps the scanner's analysis available.
     public var removableMembers: [DuplicateMember] {
         members.filter { !$0.isRecommendedToKeep }
     }

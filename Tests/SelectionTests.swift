@@ -148,6 +148,22 @@ final class SelectionTests: XCTestCase, @unchecked Sendable {
         }
     }
 
+    /// Duplicate copies are choices, not a scanner-selected cleanup batch.
+    func test_duplicateCopiesStartUnselected() async {
+        let firstURL = fixture.url.appendingPathComponent("Downloads/first.bin")
+        let secondURL = fixture.url.appendingPathComponent("Downloads/second.bin")
+        let items = [firstURL, secondURL].map {
+            summary(url: $0, category: .duplicateFiles, risk: .review).asCleanupItem()
+        }
+
+        await MainActor.run {
+            let model = makeModel()
+            model.setItems(items, preselect: true)
+            XCTAssertEqual(model.selectedCount, 0)
+            XCTAssertTrue(items.allSatisfy { !model.isSelected($0) })
+        }
+    }
+
     func test_aReviewItemRequiresConfirmationEvenWhenTheSettingIsOff() async {
         let url = fixture.directory("Library/Caches/com.example.review")
         let item = summary(url: url, risk: .review).asCleanupItem()

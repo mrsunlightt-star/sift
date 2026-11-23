@@ -4,24 +4,19 @@ import SwiftUI
 
 /// Duplicate groups, largest reclaimable first.
 ///
-/// Each group shows the copy it keeps and the copies that would be removed, and
-/// the removal set is per group: §5.5 forbids a single "delete duplicates"
-/// action that hides which copy survives.
+/// Each group shows every copy with the same checkbox, and the removal set is
+/// per group: §5.5 forbids a single "delete duplicates" action that hides which
+/// copies the user chose.
 ///
 /// Which copy survives is the user's decision. The scanner proposes one — the
-/// oldest — but a proposal is all it is, and a page that rendered it as a fixed
-/// green tick left the user with no way to say "keep the one in my project
-/// folder instead". The card now records the choice per group and starts from
-/// the proposal, so the first render still states which copy is kept.
+/// oldest — but the page does not apply that proposal or select any member.
+/// Every copy starts unchecked and is independently selectable.
 public struct DuplicateGroupsCard: View {
     let groups: [DuplicateGroup]
     @ObservedObject var scan: ScanModel
     @ObservedObject var cleanup: CleanupModel
     @State private var expanded: Set<Int64> = []
     @State private var loadedMembers: [Int64: [DuplicateMember]] = [:]
-    /// Which copy each group keeps. The scanner's proposal until the user makes
-    /// one; `DuplicateKeeperSelection` holds the rule.
-    @State private var keepers = DuplicateKeeperSelection()
     private let showsHeading: Bool
 
     public init(
@@ -46,9 +41,6 @@ public struct DuplicateGroupsCard: View {
             if showsHeading {
                 heading
 
-                // Said once, under the heading, for the whole section: the green
-                // seal is a starting point, not a verdict, and the control that
-                // changes it is a word in a row the user has not opened yet.
                 Text(LocalizationKey.filesKeepHint.localized)
                     .font(SiftFont.caption)
                     .foregroundStyle(SiftColor.quietText)
@@ -66,11 +58,9 @@ public struct DuplicateGroupsCard: View {
                     DuplicateGroupRow(
                         group: group,
                         members: members(of: group),
-                        keeper: keeper(of: group),
                         isExpanded: expanded.contains(group.id),
                         cleanup: cleanup,
-                        onToggle: { toggle(group) },
-                        onKeep: { member in keep(member, in: group) }
+                        onToggle: { toggle(group) }
                     )
                 }
             }
@@ -131,9 +121,13 @@ public struct DuplicateGroupsCard: View {
             Spacer(minLength: SiftMetrics.spacingS)
 
             Button {
-                selectAllRemovable()
+                toggleAllDuplicates()
             } label: {
-                Text(LocalizationKey.scanSelectAll.localized)
+                Text(
+                    allDuplicatesSelected
+                        ? LocalizationKey.scanDeselectAll.localized
+                        : LocalizationKey.scanSelectAll.localized
+                )
                     .font(SiftFont.caption)
             }
             .buttonStyle(SiftLinkButtonStyle())
@@ -167,34 +161,28 @@ public struct DuplicateGroupsCard: View {
         loadedMembers[group.id] ?? group.members
     }
 
-    /// The copy this group keeps: the user's choice, or the scanner's proposal
-    /// until the user makes one.
-    private func keeper(of group: DuplicateGroup) -> URL? {
-        keepers.keeper(of: group)
-    }
-
-    /// Makes `member` the copy this group keeps.
-    ///
-    /// Only the two rows whose meaning changed are touched: the copy the user
-    /// just kept leaves the removal set and the copy it replaced joins it.
-    /// Rebuilding the whole group's selection would discard the individual
-    /// choices the user had already made in it.
-    private func keep(_ member: DuplicateMember, in group: DuplicateGroup) {
-        guard let change = keepers.choose(member.url, in: group) else { return }
-        cleanup.setSelected(false, for: item(for: member))
-        if let released = change.released,
-           let previous = members(of: group).first(where: { $0.url == released }) {
-            cleanup.setSelected(true, for: item(for: previous))
+    /// Every member represented by the currently loaded groups.
+    private var duplicateItems: [CleanupItem] {
+        groups.flatMap { group in
+            members(of: group).map { item(for: $0) }
         }
     }
 
-    /// Selects every copy except the one each group keeps.
-    private func selectAllRemovable() {
-        for group in groups {
-            let keeperURL = keeper(of: group)
-            for member in members(of: group) where member.url != keeperURL {
-                cleanup.setSelected(true, for: item(for: member))
+    private var allDuplicatesSelected: Bool {
+        let items = duplicateItems
+        return !items.isEmpty && items.allSatisfy { cleanup.isSelected($0) }
+    }
+
+    /// All duplicate rows start unchecked. Bulk selection changes the set only
+    /// when the user asks for it, and the same control clears that explicit set.
+    private func toggleAllDuplicates() {
+        let items = duplicateItems
+        if items.allSatisfy({ cleanup.isSelected($0) }) {
+            for item in items {
+                cleanup.setSelected(false, for: item)
             }
+        } else {
+            cleanup.selectAll(in: items)
         }
     }
 
@@ -214,15 +202,13 @@ public struct DuplicateGroupsCard: View {
     }
 }
 
-/// One duplicate group: the copy it keeps, then the copies that would go.
+/// One duplicate group and its independently selectable copies.
 struct DuplicateGroupRow: View {
     let group: DuplicateGroup
     let members: [DuplicateMember]
-    let keeper: URL?
     let isExpanded: Bool
     @ObservedObject var cleanup: CleanupModel
     let onToggle: () -> Void
-    let onKeep: (DuplicateMember) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -269,9 +255,7 @@ struct DuplicateGroupRow: View {
                     ForEach(members) { member in
                         DuplicateMemberRow(
                             member: member,
-                            isKeeper: keeper == member.url,
-                            cleanup: cleanup,
-                            onKeep: onKeep
+                            cleanup: cleanup
                         )
                     }
                 }
@@ -292,41 +276,25 @@ struct DuplicateGroupRow: View {
 /// folder glyph in the group at once.
 struct DuplicateMemberRow: View {
     let member: DuplicateMember
-    let isKeeper: Bool
     @ObservedObject var cleanup: CleanupModel
-    let onKeep: (DuplicateMember) -> Void
 
     @State private var isHovering = false
 
     var body: some View {
         HStack(spacing: SiftMetrics.spacingM) {
-            if isKeeper {
-                // A round seal, not a square box: the shape is what tells a copy
-                // that *is* kept from a copy that *could* be. A tick in the same
-                // square the removal copies carry would read as "also selected".
-                ZStack {
-                    Circle().fill(SiftColor.safe)
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(.white)
-                }
-                .frame(width: 17, height: 17)
-                .accessibilityLabel(Text(LocalizationKey.filesKeptBadge.localized))
-            } else {
-                SiftCheckbox(
-                    isOn: Binding(
-                        get: { cleanup.isSelected(item) },
-                        set: { cleanup.setSelected($0, for: item) }
-                    )
+            SiftCheckbox(
+                isOn: Binding(
+                    get: { cleanup.isSelected(item) },
+                    set: { cleanup.setSelected($0, for: item) }
                 )
-                .accessibilityLabel(Text(member.displayName))
-            }
+            )
+            .accessibilityLabel(Text(member.displayName))
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(member.displayName)
                     .font(SiftFont.supporting)
-                    .fontWeight(isKeeper ? .regular : .medium)
-                    .foregroundStyle(isKeeper ? SiftColor.secondaryText : SiftColor.mainText)
+                    .fontWeight(.medium)
+                    .foregroundStyle(SiftColor.mainText)
                     .lineLimit(1)
                     .truncationMode(.middle)
                 Text(member.displayPath)
@@ -335,12 +303,10 @@ struct DuplicateMemberRow: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
-            // A copy that is not the keeper is a checkbox; its name is the thing
-            // the user reads, so clicking the name has to do what clicking the
-            // box does.
+            // The name is the thing the user reads, so clicking it has to do
+            // what clicking the checkbox does.
             .contentShape(Rectangle())
             .onTapGesture {
-                guard !isKeeper else { return }
                 cleanup.setSelected(!cleanup.isSelected(item), for: item)
             }
 
@@ -365,42 +331,12 @@ struct DuplicateMemberRow: View {
 
             Text(member.formattedSize)
                 .font(SiftFont.monospacedNumber)
-                .foregroundStyle(isKeeper ? SiftColor.secondaryText : SiftColor.mainText)
+                .foregroundStyle(SiftColor.mainText)
                 .frame(minWidth: 76, alignment: .trailing)
-
-            // Keeping this copy is a choice, not a label: the kept row states
-            // the decision where the action used to be, and every other row
-            // offers the words that move it there.
-            Group {
-                if isKeeper {
-                    Text(LocalizationKey.filesKeptBadge.localized)
-                        .foregroundStyle(SiftColor.safe)
-                } else {
-                    Button {
-                        onKeep(member)
-                    } label: {
-                        Text(LocalizationKey.filesKeepThis.localized)
-                    }
-                    .buttonStyle(SiftLinkButtonStyle())
-                    .help(member.displayPath)
-                    .accessibilityLabel(Text(LocalizationKey.filesKeepThis.localized))
-                }
-            }
-            .font(SiftFont.metadata)
-            .frame(minWidth: 64, alignment: .trailing)
         }
         .padding(.leading, 14 + SiftMetrics.spacingL)
         .padding(.trailing, SiftMetrics.spacingS)
         .padding(.vertical, 5)
-        .background {
-            // The kept row is a quiet well so the four copies read as one set;
-            // the removal candidates stay on the page's own ground. No green wash:
-            // the seal and the words already say which copy survives.
-            if isKeeper {
-                RoundedRectangle(cornerRadius: SiftMetrics.controlCornerRadius, style: .continuous)
-                    .fill(SiftColor.controlFill)
-            }
-        }
         .contentShape(Rectangle())
         .onHover { isHovering = $0 }
         .contextMenu {
@@ -411,16 +347,6 @@ struct DuplicateMemberRow: View {
                     LocalizationKey.filesRevealInFinder.localized,
                     systemImage: "folder"
                 )
-            }
-            if !isKeeper {
-                Button {
-                    onKeep(member)
-                } label: {
-                    Label(
-                        LocalizationKey.filesKeepThis.localized,
-                        systemImage: "checkmark.circle"
-                    )
-                }
             }
         }
     }

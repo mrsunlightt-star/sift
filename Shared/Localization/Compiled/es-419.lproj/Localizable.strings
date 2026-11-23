@@ -192,7 +192,7 @@
 "files.duplicateGroups" = "%d grupos de duplicados, %@ recuperables";
 "files.duplicateGroupsShown" = "Mostrando %d de %d grupos";
 "files.groupMembers" = "%d copias";
-"files.keepHint" = "Al principio Sift conserva la copia más antigua. Elige «Conservar esta» en otra copia para conservar esa; las copias que no conserves siguen seleccionadas para eliminarse.";
+"files.keepHint" = "Elige las copias que quieres mover a la Papelera. Ninguna copia está seleccionada de forma predeterminada.";
 "files.keepThis" = "Conservar esta";
 "files.keptBadge" = "Conservado";
 "files.manageScope" = "Gestionar en Ajustes";

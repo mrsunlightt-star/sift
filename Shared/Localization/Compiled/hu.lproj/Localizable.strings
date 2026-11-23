@@ -192,7 +192,7 @@
 "files.duplicateGroups" = "%d duplikátumcsoport, %@ visszanyerhető";
 "files.duplicateGroupsShown" = "%d / %d csoport megjelenítve";
 "files.groupMembers" = "%d példány";
-"files.keepHint" = "A Sift először a legrégebbi példányt tartja meg. Válasszon egy másik példánynál „Ezt tartsa meg” lehetőséget, hogy azt tartsa meg; a meg nem tartott példányok kijelölve maradnak törlésre.";
+"files.keepHint" = "Válassza ki a Kukába helyezni kívánt példányokat. Alapértelmezés szerint egyetlen példány sincs kijelölve.";
 "files.keepThis" = "Ezt tartsa meg";
 "files.keptBadge" = "Megtartva";
 "files.manageScope" = "Kezelés a Beállításokban";
