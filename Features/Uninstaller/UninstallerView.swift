@@ -424,8 +424,7 @@ public struct UninstallerView: View {
         SiftSelectableRow(
             isSelected: selected?.id == application.id,
             action: {
-                selected = application
-                Task { await loadPlan() }
+                select(application)
             }
         ) {
             HStack(spacing: SiftMetrics.spacingM) {
@@ -983,25 +982,39 @@ public struct UninstallerView: View {
 
     // MARK: - Actions
 
-    private func loadPlan() async {
-        guard let application = selected else { return }
+    /// Commits the new selection and its loading state together.
+    ///
+    /// Setting `selected` before `isLoadingPlan` made the first frame draw the
+    /// inspector with no plan, so it flashed the empty-detail state before the
+    /// skeleton appeared. Clearing the previous plan in the same update also
+    /// keeps one application's files from appearing under another one.
+    private func select(_ application: InstalledApplication) {
+        guard selected?.id != application.id else { return }
+        selected = application
+        plan = nil
         isLoadingPlan = true
-        defer { isLoadingPlan = false }
+        includeReviewFiles = false
+        refusalMessage = nil
+        quitFailure = nil
+        Task { await loadPlan(for: application) }
+    }
+
+    private func loadPlan(for application: InstalledApplication) async {
+        let requestedID = application.id
 
         // Measuring a related directory walks the whole tree. Doing that on the
         // main actor froze the page before it could show the loading state.
         let discovery = environment.applications
-        let requestedID = application.id
         let measuredPlan = await Task.detached(priority: .userInitiated) {
             discovery.relatedFiles(for: application)
         }.value
 
         // A second selection while the first was being measured must not show
-        // the previous application's files under the new one.
+        // the previous application's files under the new one, nor let the old
+        // request turn off the new request's loading state.
         guard selected?.id == requestedID else { return }
         plan = measuredPlan
-        includeReviewFiles = false
-        quitFailure = nil
+        isLoadingPlan = false
     }
 
     /// Asks the running application to quit, reporting a request that could not
